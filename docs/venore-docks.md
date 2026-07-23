@@ -145,6 +145,7 @@ plugins/
 | `plugins/` | Capacidades específicas de cada site. |
 | `infrastructure/` | Implementações de infraestrutura e adapters. |
 | `observability/` | Monitoramento geral (logs, métricas e tracing). |
+| `shared/` | Kernel compartilhado: tipos e constantes usados por todo o sistema (ex: `OperationResult<T>`). Só tipo/constante — zero lógica de negócio, zero acesso a dado. Importável por qualquer `context` ou `plugin` sem violar boundary, porque não carrega regra de domínio nenhuma. |
 
 ### Regras de limites de contexto (boundary)
 
@@ -233,6 +234,9 @@ O modelo de usuário separa **identidade** (o registro `user`, dono dos papéis 
 
 ### Fora do escopo desta v1
 - Login por senha única (OTP) enviada por email — entra como um segundo provider no futuro, sem alterar o modelo de identidade.
+
+### Exceção conhecida à regra de `store.ts`
+O `DrizzleAdapter` do Auth.js escreve diretamente nas tabelas `users`/`accounts`/`sessions` (via `events.createUser` e o próprio ciclo de login), sem passar por um `store.ts` do context de auth. Isso é esperado — é assim que o adapter do Auth.js funciona — e não deve ser "corrigido" para forçar passagem por `store.ts`, sob risco de quebrar o fluxo de login. É a única exceção documentada à regra de acesso a dado exclusivamente via `store.ts`.
 
 ## Modelo de RBAC
 

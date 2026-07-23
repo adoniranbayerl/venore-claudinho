@@ -1,0 +1,42 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/observability", () => ({
+  beginOperation: vi.fn(() => ({ operationId: "op-1", useCase: "test", actor: { id: "actor-1", type: "user" }, kind: "write", startedAt: new Date() })),
+  endOperation: vi.fn(),
+}));
+
+const deleteUserRole = vi.fn();
+
+vi.mock("./store", () => ({
+  deleteUserRole: (...args: unknown[]) => deleteUserRole(...args),
+}));
+
+const invalidateUserContext = vi.fn();
+
+vi.mock("../../../user-context-cache", () => ({
+  invalidateUserContext: (...args: unknown[]) => invalidateUserContext(...args),
+}));
+
+describe("removeRoleFromUser", () => {
+  beforeEach(() => {
+    deleteUserRole.mockReset();
+    deleteUserRole.mockResolvedValue(undefined);
+    invalidateUserContext.mockReset();
+  });
+
+  it("removes the assignment and invalidates the actor's cached context", async () => {
+    const { removeRoleFromUser } = await import("./service");
+    const result = await removeRoleFromUser({ userId: "user-1", roleId: "role-1", actor: { id: "actor-1" } });
+
+    expect(result).toEqual({ success: true, data: undefined });
+    expect(deleteUserRole).toHaveBeenCalledWith("user-1", "role-1");
+    expect(invalidateUserContext).toHaveBeenCalledWith("user-1");
+  });
+
+  it("is idempotent when the role was never assigned", async () => {
+    const { removeRoleFromUser } = await import("./service");
+    const result = await removeRoleFromUser({ userId: "user-1", roleId: "never-assigned", actor: { id: "actor-1" } });
+
+    expect(result).toEqual({ success: true, data: undefined });
+  });
+});

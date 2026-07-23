@@ -1,0 +1,67 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/observability", () => ({
+  beginOperation: vi.fn(() => ({ operationId: "op-1", useCase: "test", actor: { id: "actor-1", type: "user" }, kind: "write", startedAt: new Date() })),
+  endOperation: vi.fn(),
+}));
+
+const findRoleByKey = vi.fn();
+const insertRoleWithPermissions = vi.fn();
+
+vi.mock("./store", () => ({
+  findRoleByKey: (...args: unknown[]) => findRoleByKey(...args),
+  insertRoleWithPermissions: (...args: unknown[]) => insertRoleWithPermissions(...args),
+}));
+
+describe("createCustomRole", () => {
+  beforeEach(() => {
+    findRoleByKey.mockReset();
+    insertRoleWithPermissions.mockReset();
+  });
+
+  it("creates a role when the key is not taken", async () => {
+    findRoleByKey.mockResolvedValue(null);
+    insertRoleWithPermissions.mockResolvedValue({
+      id: "role-1",
+      key: "editor",
+      name: "Editor",
+      isSystem: false,
+    });
+
+    const { createCustomRole } = await import("./service");
+    const result = await createCustomRole({
+      key: "editor",
+      name: "Editor",
+      permissionKeys: ["cms.entries.manage"],
+      actor: { id: "actor-1" },
+    });
+
+    expect(result).toEqual({
+      success: true,
+      data: { id: "role-1", key: "editor", name: "Editor", isSystem: false },
+    });
+    expect(insertRoleWithPermissions).toHaveBeenCalledWith({
+      key: "editor",
+      name: "Editor",
+      permissionKeys: ["cms.entries.manage"],
+    });
+  });
+
+  it("fails when the key is already taken", async () => {
+    findRoleByKey.mockResolvedValue({ id: "role-1", key: "editor", name: "Editor", isSystem: false });
+
+    const { createCustomRole } = await import("./service");
+    const result = await createCustomRole({
+      key: "editor",
+      name: "Editor 2",
+      permissionKeys: [],
+      actor: { id: "actor-1" },
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "rbac.roles.key_taken", message: expect.any(String) },
+    });
+    expect(insertRoleWithPermissions).not.toHaveBeenCalled();
+  });
+});
