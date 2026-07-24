@@ -1,6 +1,8 @@
 import { beginOperation, endOperation } from "@/observability";
+import { isEnrolled } from "../../../shared/enrollment";
 import { findLessonRequirements, isLessonAccessible } from "../../../shared/lesson-progress";
-import { countAttempts, findLessonById, findQuestionsByLesson, insertAttempt } from "./store";
+import { countActiveAttempts } from "../../../shared/quiz-attempts";
+import { findLessonById, findQuestionsByLesson, insertAttempt } from "./store";
 import type { SubmitQuizAttemptCommand, SubmitQuizAttemptResult } from "./types";
 
 export async function submitQuizAttempt(command: SubmitQuizAttemptCommand): Promise<SubmitQuizAttemptResult> {
@@ -13,6 +15,13 @@ export async function submitQuizAttempt(command: SubmitQuizAttemptCommand): Prom
   const lesson = await findLessonById(command.lessonId);
   if (!lesson) {
     const error = { code: "academy.lessons.not_found", message: `Lesson "${command.lessonId}" não encontrada.` };
+    endOperation(handle, { success: false, error });
+    return { success: false, error };
+  }
+
+  const enrolled = await isEnrolled(lesson.courseId, command.actorId);
+  if (!enrolled) {
+    const error = { code: "academy.enrollments.not_enrolled", message: "É necessário estar matriculado neste curso." };
     endOperation(handle, { success: false, error });
     return { success: false, error };
   }
@@ -50,7 +59,7 @@ export async function submitQuizAttempt(command: SubmitQuizAttemptCommand): Prom
     return { success: false, error };
   }
 
-  const attemptsUsed = await countAttempts(command.lessonId, command.actorId);
+  const attemptsUsed = await countActiveAttempts(command.lessonId, command.actorId);
   const attemptNumber = attemptsUsed + 1;
   const quizMaxAttempts = requirements.quizMaxAttempts!;
   if (attemptNumber > quizMaxAttempts) {

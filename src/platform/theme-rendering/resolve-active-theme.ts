@@ -8,7 +8,7 @@ import { THEME_REGISTRY, type ThemeRegistryEntry } from "@/themes/registry";
 // de platform/, mesmo papel de platform/registration/handle-user-registered.ts.
 export async function resolveActiveTheme(): Promise<ThemeRegistryEntry> {
   const active = await getActiveTheme();
-  const themeKey = active.success ? active.data.themeKey : "default";
+  const themeKey = active.success ? active.data.themeKey : "venore-slime";
 
-  return THEME_REGISTRY[themeKey] ?? THEME_REGISTRY.default;
+  return THEME_REGISTRY[themeKey] ?? THEME_REGISTRY["venore-slime"];
 }

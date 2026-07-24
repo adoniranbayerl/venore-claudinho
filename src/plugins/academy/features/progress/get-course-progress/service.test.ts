@@ -8,18 +8,28 @@ vi.mock("../../../shared/lesson-progress", () => ({
   isLessonComplete: (...args: unknown[]) => isLessonComplete(...args),
 }));
 
+const isEnrolled = vi.fn();
+
+vi.mock("../../../shared/enrollment", () => ({
+  isEnrolled: (...args: unknown[]) => isEnrolled(...args),
+}));
+
 const findCourseById = vi.fn();
 const findLessonsByCourse = vi.fn();
 const hasTextCompletion = vi.fn();
 const hasVideoCompletion = vi.fn();
-const findQuizAttempts = vi.fn();
 
 vi.mock("./store", () => ({
   findCourseById: (...args: unknown[]) => findCourseById(...args),
   findLessonsByCourse: (...args: unknown[]) => findLessonsByCourse(...args),
   hasTextCompletion: (...args: unknown[]) => hasTextCompletion(...args),
   hasVideoCompletion: (...args: unknown[]) => hasVideoCompletion(...args),
-  findQuizAttempts: (...args: unknown[]) => findQuizAttempts(...args),
+}));
+
+const findActiveAttempts = vi.fn();
+
+vi.mock("../../../shared/quiz-attempts", () => ({
+  findActiveAttempts: (...args: unknown[]) => findActiveAttempts(...args),
 }));
 
 const course = { id: "course-1", title: "Course", description: null, createdBy: "prof-1", createdAt: new Date(), updatedAt: new Date() };
@@ -33,14 +43,16 @@ describe("getCourseProgress", () => {
     findLessonsByCourse.mockReset();
     hasTextCompletion.mockReset();
     hasVideoCompletion.mockReset();
-    findQuizAttempts.mockReset();
+    findActiveAttempts.mockReset();
     findLessonRequirements.mockReset();
     isLessonComplete.mockReset();
+    isEnrolled.mockReset();
 
     findCourseById.mockResolvedValue(course);
+    isEnrolled.mockResolvedValue(true);
     hasTextCompletion.mockResolvedValue(false);
     hasVideoCompletion.mockResolvedValue(false);
-    findQuizAttempts.mockResolvedValue([]);
+    findActiveAttempts.mockResolvedValue([]);
     findLessonRequirements.mockResolvedValue(null);
   });
 
@@ -51,6 +63,19 @@ describe("getCourseProgress", () => {
     const result = await getCourseProgress({ courseId: "missing", actorId: "actor-1" });
 
     expect(result).toEqual({ success: false, error: { code: "academy.courses.not_found", message: expect.any(String) } });
+  });
+
+  it("fails when the actor is not enrolled in the course", async () => {
+    isEnrolled.mockResolvedValue(false);
+
+    const { getCourseProgress } = await import("./service");
+    const result = await getCourseProgress({ courseId: "course-1", actorId: "actor-1" });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "academy.enrollments.not_enrolled", message: expect.any(String) },
+    });
+    expect(findLessonsByCourse).not.toHaveBeenCalled();
   });
 
   it("marks the first lesson unlocked and locks the second when the first is incomplete", async () => {

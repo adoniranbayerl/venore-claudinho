@@ -1,3 +1,4 @@
+import type { NavItem } from "@/contexts/themes";
 import type { AdminActor, AdminNavGroup } from "./types";
 
 const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
@@ -51,4 +52,13 @@ export function getVisibleAdminNavGroups(actor: AdminActor): AdminNavGroup[] {
     ...group,
     items: group.items.filter((item) => actor.isSuperadmin || hasRequiredPermission(actor, item.requiredPermission)),
   })).filter((group) => group.items.length > 0);
+}
+
+// admin-nav não é mais uma sidebar à parte — é o navItems do Header quando navMode === "admin"
+// (contrato de slot, docs/venore-docks.md — "Shell única"), então os grupos são achatados numa
+// lista única, já filtrada por permission no servidor.
+export function getVisibleAdminNavItems(actor: AdminActor): NavItem[] {
+  return getVisibleAdminNavGroups(actor).flatMap((group) =>
+    group.items.map((item) => ({ key: `${group.key}.${item.key}`, label: item.label, href: item.href })),
+  );
 }

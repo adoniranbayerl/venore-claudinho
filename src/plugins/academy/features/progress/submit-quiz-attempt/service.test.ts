@@ -13,15 +13,25 @@ vi.mock("../../../shared/lesson-progress", () => ({
   isLessonAccessible: (...args: unknown[]) => isLessonAccessible(...args),
 }));
 
+const isEnrolled = vi.fn();
+
+vi.mock("../../../shared/enrollment", () => ({
+  isEnrolled: (...args: unknown[]) => isEnrolled(...args),
+}));
+
+const countActiveAttempts = vi.fn();
+
+vi.mock("../../../shared/quiz-attempts", () => ({
+  countActiveAttempts: (...args: unknown[]) => countActiveAttempts(...args),
+}));
+
 const findLessonById = vi.fn();
 const findQuestionsByLesson = vi.fn();
-const countAttempts = vi.fn();
 const insertAttempt = vi.fn();
 
 vi.mock("./store", () => ({
   findLessonById: (...args: unknown[]) => findLessonById(...args),
   findQuestionsByLesson: (...args: unknown[]) => findQuestionsByLesson(...args),
-  countAttempts: (...args: unknown[]) => countAttempts(...args),
   insertAttempt: (...args: unknown[]) => insertAttempt(...args),
 }));
 
@@ -44,17 +54,54 @@ describe("submitQuizAttempt", () => {
   beforeEach(() => {
     findLessonById.mockReset();
     isLessonAccessible.mockReset();
+    isEnrolled.mockReset();
     findLessonRequirements.mockReset();
     findQuestionsByLesson.mockReset();
-    countAttempts.mockReset();
+    countActiveAttempts.mockReset();
     insertAttempt.mockReset();
 
     findLessonById.mockResolvedValue(lesson);
+    isEnrolled.mockResolvedValue(true);
     isLessonAccessible.mockResolvedValue(true);
     findLessonRequirements.mockResolvedValue(requirements);
     findQuestionsByLesson.mockResolvedValue(questions);
-    countAttempts.mockResolvedValue(0);
+    countActiveAttempts.mockResolvedValue(0);
     insertAttempt.mockResolvedValue({});
+  });
+
+  it("fails when the actor is not enrolled, even if the lesson would otherwise be unlocked", async () => {
+    isEnrolled.mockResolvedValue(false);
+
+    const { submitQuizAttempt } = await import("./service");
+    const result = await submitQuizAttempt({
+      lessonId: "lesson-1",
+      answers: [{ questionId: "q1", selectedOptionIndex: 1 }],
+      actorId: "actor-1",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "academy.enrollments.not_enrolled", message: expect.any(String) },
+    });
+    expect(isLessonAccessible).not.toHaveBeenCalled();
+    expect(insertAttempt).not.toHaveBeenCalled();
+  });
+
+  it("fails with not_enrolled (not lesson_locked) when the actor is neither enrolled nor would pass the lock-chain", async () => {
+    isEnrolled.mockResolvedValue(false);
+    isLessonAccessible.mockResolvedValue(false);
+
+    const { submitQuizAttempt } = await import("./service");
+    const result = await submitQuizAttempt({
+      lessonId: "lesson-1",
+      answers: [{ questionId: "q1", selectedOptionIndex: 1 }],
+      actorId: "actor-1",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "academy.enrollments.not_enrolled", message: expect.any(String) },
+    });
   });
 
   it("grades automatically and computes the percentage score", async () => {
@@ -86,7 +133,7 @@ describe("submitQuizAttempt", () => {
   });
 
   it("blocks a new attempt once quizMaxAttempts is exhausted, without inserting", async () => {
-    countAttempts.mockResolvedValue(2);
+    countActiveAttempts.mockResolvedValue(2);
 
     const { submitQuizAttempt } = await import("./service");
     const result = await submitQuizAttempt({
@@ -103,6 +150,42 @@ describe("submitQuizAttempt", () => {
       error: { code: "academy.quiz.attempts_exhausted", message: expect.any(String) },
     });
     expect(insertAttempt).not.toHaveBeenCalled();
+  });
+
+  // Cenário do pedido original: aluno esgota tentativas (bloqueado), professor reseta (invalida
+  // as tentativas ativas via shared/quiz-attempts), aluno tenta de novo e consegue. countActiveAttempts
+  // é a mesma função que reset-quiz-attempts/service.ts esvazia via invalidateAttempts — aqui
+  // simulamos o efeito do reset mockando a contagem de volta a 0.
+  it("accepts a new attempt after a reset brings the active attempt count back to zero", async () => {
+    countActiveAttempts.mockResolvedValue(2);
+
+    const { submitQuizAttempt } = await import("./service");
+    const blocked = await submitQuizAttempt({
+      lessonId: "lesson-1",
+      answers: [
+        { questionId: "q1", selectedOptionIndex: 1 },
+        { questionId: "q2", selectedOptionIndex: 1 },
+      ],
+      actorId: "actor-1",
+    });
+    expect(blocked).toEqual({
+      success: false,
+      error: { code: "academy.quiz.attempts_exhausted", message: expect.any(String) },
+    });
+
+    // professor reseta: tentativas ativas voltam a 0
+    countActiveAttempts.mockResolvedValue(0);
+
+    const retried = await submitQuizAttempt({
+      lessonId: "lesson-1",
+      answers: [
+        { questionId: "q1", selectedOptionIndex: 1 },
+        { questionId: "q2", selectedOptionIndex: 1 },
+      ],
+      actorId: "actor-1",
+    });
+    expect(retried).toEqual({ success: true, data: { attemptNumber: 1, score: 100, passed: true, attemptsRemaining: 1 } });
+    expect(insertAttempt).toHaveBeenCalledTimes(1);
   });
 
   it("fails when there are no quiz questions configured for the lesson", async () => {

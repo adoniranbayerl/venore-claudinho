@@ -1,4 +1,5 @@
 import { beginOperation, endOperation } from "@/observability";
+import { isEnrolled } from "../../../shared/enrollment";
 import { findLessonRequirements, isLessonAccessible } from "../../../shared/lesson-progress";
 import { findLessonById, insertVideoCompletionIfMissing } from "./store";
 import type { MarkVideoWatchedCommand, MarkVideoWatchedResult } from "./types";
@@ -13,6 +14,13 @@ export async function markVideoWatched(command: MarkVideoWatchedCommand): Promis
   const lesson = await findLessonById(command.lessonId);
   if (!lesson) {
     const error = { code: "academy.lessons.not_found", message: `Lesson "${command.lessonId}" não encontrada.` };
+    endOperation(handle, { success: false, error });
+    return { success: false, error };
+  }
+
+  const enrolled = await isEnrolled(lesson.courseId, command.actorId);
+  if (!enrolled) {
+    const error = { code: "academy.enrollments.not_enrolled", message: "É necessário estar matriculado neste curso." };
     endOperation(handle, { success: false, error });
     return { success: false, error };
   }

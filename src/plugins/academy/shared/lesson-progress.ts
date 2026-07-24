@@ -1,10 +1,5 @@
-import {
-  findLessonRequirements,
-  findPreviousLessonByPosition,
-  hasPassingQuizAttempt,
-  hasTextCompletion,
-  hasVideoCompletion,
-} from "./lesson-progress-store";
+import { findLessonRequirements, findPreviousLessonByPosition, hasTextCompletion, hasVideoCompletion } from "./lesson-progress-store";
+import { hasActivePassingAttempt } from "./quiz-attempts-store";
 import type { LessonRecord } from "../contracts/types";
 
 export { findLessonRequirements } from "./lesson-progress-store";
@@ -24,7 +19,7 @@ export async function isLessonComplete(lessonId: string, actorId: string): Promi
     return false;
   }
 
-  if (requirements.quizEnabled && !(await hasPassingQuizAttempt(lessonId, actorId))) {
+  if (requirements.quizEnabled && !(await hasActivePassingAttempt(lessonId, actorId))) {
     return false;
   }
 

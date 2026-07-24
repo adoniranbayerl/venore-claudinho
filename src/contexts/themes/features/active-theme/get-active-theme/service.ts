@@ -2,9 +2,9 @@ import { getSetting } from "@/contexts/settings";
 import type { GetActiveThemeResult } from "./types";
 import type { ActiveThemeState } from "../../../contracts/types";
 
-// Nenhum tema foi explicitamente ativado ainda — o core roda com o tema "default" até um admin
-// ativar outro (docs/venore-docks.md — "Sobre temas").
-const FALLBACK_ACTIVE_THEME: ActiveThemeState = { themeKey: "default", activatedAt: null };
+// Nenhum tema foi explicitamente ativado ainda — o core roda com o Venore Slime (padrão e
+// fallback ao mesmo tempo) até um admin ativar outro (docs/venore-docks.md — "Sobre temas").
+const FALLBACK_ACTIVE_THEME: ActiveThemeState = { themeKey: "venore-slime", activatedAt: null };
 
 export async function getActiveTheme(): Promise<GetActiveThemeResult> {
   const result = await getSetting({ key: "theme.active" });

@@ -11,5 +11,5 @@ export async function listCoursesForStudentHandler(): Promise<ListCoursesForStud
     };
   }
 
-  return listCoursesForStudent();
+  return listCoursesForStudent({ actorId: currentUser.data.id });
 }

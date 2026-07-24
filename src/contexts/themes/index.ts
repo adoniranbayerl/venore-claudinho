@@ -12,8 +12,8 @@ export type {
   ContentSlotProps,
   SidebarRightSlotProps,
   NavItem,
+  NavMode,
   SitemapItem,
-  SidebarBlock,
   ScrollState,
 } from "./contracts/types";
 export { CURRENT_THEME_CONTRACT_VERSION, SUPPORTED_THEME_CONTRACT_RANGE } from "./contracts/contract-version";

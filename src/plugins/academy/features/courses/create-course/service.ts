@@ -9,7 +9,13 @@ export async function createCourse(command: CreateCourseCommand): Promise<Create
     kind: "write",
   });
 
-  const course = await insertCourse({ title: command.title, description: command.description, createdBy: command.actorId });
+  const course = await insertCourse({
+    title: command.title,
+    description: command.description,
+    selfEnrollmentEnabled: command.selfEnrollmentEnabled,
+    publiclyListed: command.publiclyListed,
+    createdBy: command.actorId,
+  });
 
   endOperation(handle, { success: true });
   return { success: true, data: course };

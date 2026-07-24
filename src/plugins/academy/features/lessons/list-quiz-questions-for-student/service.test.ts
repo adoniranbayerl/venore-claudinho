@@ -8,6 +8,12 @@ vi.mock("../../../shared/lesson-progress", () => ({
   isLessonAccessible: (...args: unknown[]) => isLessonAccessible(...args),
 }));
 
+const isEnrolled = vi.fn();
+
+vi.mock("../../../shared/enrollment", () => ({
+  isEnrolled: (...args: unknown[]) => isEnrolled(...args),
+}));
+
 const findLessonById = vi.fn();
 const findQuizQuestionsByLesson = vi.fn();
 
@@ -22,12 +28,40 @@ describe("listQuizQuestionsForStudent", () => {
   beforeEach(() => {
     findLessonById.mockReset();
     isLessonAccessible.mockReset();
+    isEnrolled.mockReset();
     findLessonRequirements.mockReset();
     findQuizQuestionsByLesson.mockReset();
 
     findLessonById.mockResolvedValue(lesson);
+    isEnrolled.mockResolvedValue(true);
     isLessonAccessible.mockResolvedValue(true);
     findLessonRequirements.mockResolvedValue({ quizEnabled: true });
+  });
+
+  it("fails when the actor is not enrolled, even if the lesson would otherwise be unlocked", async () => {
+    isEnrolled.mockResolvedValue(false);
+
+    const { listQuizQuestionsForStudent } = await import("./service");
+    const result = await listQuizQuestionsForStudent({ lessonId: "lesson-1", actorId: "actor-1" });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "academy.enrollments.not_enrolled", message: expect.any(String) },
+    });
+    expect(isLessonAccessible).not.toHaveBeenCalled();
+  });
+
+  it("fails with not_enrolled (not lesson_locked) when the actor is neither enrolled nor would pass the lock-chain", async () => {
+    isEnrolled.mockResolvedValue(false);
+    isLessonAccessible.mockResolvedValue(false);
+
+    const { listQuizQuestionsForStudent } = await import("./service");
+    const result = await listQuizQuestionsForStudent({ lessonId: "lesson-1", actorId: "actor-1" });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "academy.enrollments.not_enrolled", message: expect.any(String) },
+    });
   });
 
   it("fails when the lesson does not exist", async () => {

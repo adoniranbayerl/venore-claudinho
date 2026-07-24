@@ -6,6 +6,8 @@ export type CourseRecord = {
   description: string | null;
   status: CourseStatus;
   createdBy: string;
+  selfEnrollmentEnabled: boolean;
+  publiclyListed: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -55,4 +57,14 @@ export type QuizAttemptRecord = {
   passed: boolean;
   answers: QuizAnswer[];
   createdAt: Date;
+  invalidatedAt: Date | null;
+};
+
+export type EnrollmentRecord = {
+  id: string;
+  courseId: string;
+  actorId: string;
+  enrolledAt: Date;
+  // "self" ou o actorId de quem matriculou manualmente.
+  enrolledBy: string;
 };

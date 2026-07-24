@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import { lessons, quizAttempts, quizQuestions } from "../../../database/schema";
 import type { LessonRecord, QuizAnswer, QuizAttemptRecord, QuizQuestionRecord } from "../../../contracts/types";
@@ -11,15 +11,6 @@ export async function findLessonById(id: string): Promise<LessonRecord | null> {
 export async function findQuestionsByLesson(lessonId: string): Promise<QuizQuestionRecord[]> {
   const rows = await db.select().from(quizQuestions).where(eq(quizQuestions.lessonId, lessonId));
   return rows as QuizQuestionRecord[];
-}
-
-export async function countAttempts(lessonId: string, actorId: string): Promise<number> {
-  const rows = await db
-    .select({ id: quizAttempts.id })
-    .from(quizAttempts)
-    .where(and(eq(quizAttempts.lessonId, lessonId), eq(quizAttempts.actorId, actorId)));
-
-  return rows.length;
 }
 
 export async function insertAttempt(input: {

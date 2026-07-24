@@ -3,6 +3,9 @@ export { listCoursesHandler as listCourses } from "./features/courses/list-cours
 export { getCourseHandler as getCourse } from "./features/courses/get-course/handler";
 export { publishCourseHandler as publishCourse } from "./features/courses/publish-course/handler";
 export {
+  updateCourseSettingsHandler as updateCourseSettings,
+} from "./features/courses/update-course-settings/handler";
+export {
   listCoursesForStudentHandler as listCoursesForStudent,
 } from "./features/courses/list-courses-for-student/handler";
 export {
@@ -24,6 +27,17 @@ export { markTextReadHandler as markTextRead } from "./features/progress/mark-te
 export { markVideoWatchedHandler as markVideoWatched } from "./features/progress/mark-video-watched/handler";
 export { submitQuizAttemptHandler as submitQuizAttempt } from "./features/progress/submit-quiz-attempt/handler";
 export { getCourseProgressHandler as getCourseProgress } from "./features/progress/get-course-progress/handler";
+export { resetQuizAttemptsHandler as resetQuizAttempts } from "./features/progress/reset-quiz-attempts/handler";
+export {
+  listQuizProgressForCourseHandler as listQuizProgressForCourse,
+} from "./features/progress/list-quiz-progress-for-course/handler";
+
+export { enrollSelfHandler as enrollSelf } from "./features/enrollments/enroll-self/handler";
+export { enrollStudentHandler as enrollStudent } from "./features/enrollments/enroll-student/handler";
+export {
+  listEnrollmentsForCourseHandler as listEnrollmentsForCourse,
+} from "./features/enrollments/list-enrollments-for-course/handler";
+export { isEnrolledHandler as isEnrolled } from "./features/enrollments/is-enrolled/handler";
 
 export type {
   CourseRecord,
@@ -34,13 +48,22 @@ export type {
   QuizQuestionRecord,
   StudentQuizQuestionRecord,
   QuizAttemptRecord,
+  EnrollmentRecord,
 } from "./contracts/types";
 
 export type { CreateCourseInput, CreateCourseResult } from "./features/courses/create-course/types";
 export type { ListCoursesResult } from "./features/courses/list-courses/types";
 export type { GetCourseQuery, GetCourseResult } from "./features/courses/get-course/types";
 export type { PublishCourseInput, PublishCourseResult } from "./features/courses/publish-course/types";
-export type { ListCoursesForStudentResult } from "./features/courses/list-courses-for-student/types";
+export type {
+  UpdateCourseSettingsInput,
+  UpdateCourseSettingsResult,
+} from "./features/courses/update-course-settings/types";
+export type {
+  ListCoursesForStudentQuery,
+  CourseForStudentView,
+  ListCoursesForStudentResult,
+} from "./features/courses/list-courses-for-student/types";
 export type {
   GetCourseForStudentQuery,
   GetCourseForStudentResult,
@@ -77,3 +100,21 @@ export type {
   CourseProgressView,
   LessonProgressView,
 } from "./features/progress/get-course-progress/types";
+export type {
+  ResetQuizAttemptsInput,
+  ResetQuizAttemptsResult,
+} from "./features/progress/reset-quiz-attempts/types";
+export type {
+  ListQuizProgressForCourseQuery,
+  QuizProgressEntryView,
+  ListQuizProgressForCourseResult,
+} from "./features/progress/list-quiz-progress-for-course/types";
+
+export type { EnrollSelfInput, EnrollSelfResult } from "./features/enrollments/enroll-self/types";
+export type { EnrollStudentInput, EnrollStudentResult } from "./features/enrollments/enroll-student/types";
+export type {
+  ListEnrollmentsForCourseQuery,
+  EnrollmentView,
+  ListEnrollmentsForCourseResult,
+} from "./features/enrollments/list-enrollments-for-course/types";
+export type { IsEnrolledInput, IsEnrolledResult } from "./features/enrollments/is-enrolled/types";

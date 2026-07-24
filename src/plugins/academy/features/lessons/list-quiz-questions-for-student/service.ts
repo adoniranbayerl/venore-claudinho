@@ -1,3 +1,4 @@
+import { isEnrolled } from "../../../shared/enrollment";
 import { findLessonRequirements, isLessonAccessible } from "../../../shared/lesson-progress";
 import { findLessonById, findQuizQuestionsByLesson } from "./store";
 import type { ListQuizQuestionsForStudentCommand, ListQuizQuestionsForStudentResult } from "./types";
@@ -11,6 +12,14 @@ export async function listQuizQuestionsForStudent(
   const lesson = await findLessonById(command.lessonId);
   if (!lesson) {
     return { success: false, error: { code: "academy.lessons.not_found", message: `Lesson "${command.lessonId}" não encontrada.` } };
+  }
+
+  const enrolled = await isEnrolled(lesson.courseId, command.actorId);
+  if (!enrolled) {
+    return {
+      success: false,
+      error: { code: "academy.enrollments.not_enrolled", message: "É necessário estar matriculado neste curso." },
+    };
   }
 
   const accessible = await isLessonAccessible(lesson, command.actorId);

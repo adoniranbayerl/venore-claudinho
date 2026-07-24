@@ -2,16 +2,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findLessonRequirements = vi.fn();
 const findPreviousLessonByPosition = vi.fn();
-const hasPassingQuizAttempt = vi.fn();
 const hasTextCompletion = vi.fn();
 const hasVideoCompletion = vi.fn();
 
 vi.mock("./lesson-progress-store", () => ({
   findLessonRequirements: (...args: unknown[]) => findLessonRequirements(...args),
   findPreviousLessonByPosition: (...args: unknown[]) => findPreviousLessonByPosition(...args),
-  hasPassingQuizAttempt: (...args: unknown[]) => hasPassingQuizAttempt(...args),
   hasTextCompletion: (...args: unknown[]) => hasTextCompletion(...args),
   hasVideoCompletion: (...args: unknown[]) => hasVideoCompletion(...args),
+}));
+
+const hasActivePassingAttempt = vi.fn();
+
+vi.mock("./quiz-attempts-store", () => ({
+  hasActivePassingAttempt: (...args: unknown[]) => hasActivePassingAttempt(...args),
 }));
 
 const lesson1 = { id: "lesson-1", courseId: "course-1", position: 1 } as never;
@@ -23,7 +27,7 @@ describe("isLessonComplete", () => {
     findLessonRequirements.mockReset();
     hasTextCompletion.mockReset();
     hasVideoCompletion.mockReset();
-    hasPassingQuizAttempt.mockReset();
+    hasActivePassingAttempt.mockReset();
   });
 
   it("is complete when there are no requirements configured", async () => {
@@ -53,7 +57,7 @@ describe("isLessonComplete", () => {
     });
     hasTextCompletion.mockResolvedValue(true);
     hasVideoCompletion.mockResolvedValue(true);
-    hasPassingQuizAttempt.mockResolvedValue(true);
+    hasActivePassingAttempt.mockResolvedValue(true);
 
     const { isLessonComplete } = await import("./lesson-progress");
     expect(await isLessonComplete("lesson-1", "actor-1")).toBe(true);
@@ -67,7 +71,7 @@ describe("isLessonComplete", () => {
     });
     hasTextCompletion.mockResolvedValue(true);
     hasVideoCompletion.mockResolvedValue(true);
-    hasPassingQuizAttempt.mockResolvedValue(false);
+    hasActivePassingAttempt.mockResolvedValue(false);
 
     const { isLessonComplete } = await import("./lesson-progress");
     expect(await isLessonComplete("lesson-1", "actor-1")).toBe(false);
@@ -80,7 +84,7 @@ describe("isLessonAccessible", () => {
     findPreviousLessonByPosition.mockReset();
     hasTextCompletion.mockReset();
     hasVideoCompletion.mockReset();
-    hasPassingQuizAttempt.mockReset();
+    hasActivePassingAttempt.mockReset();
   });
 
   it("is always accessible when there is no previous lesson", async () => {

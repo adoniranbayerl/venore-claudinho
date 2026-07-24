@@ -1,12 +1,25 @@
+import { isEnrolled } from "../../../shared/enrollment";
 import { findLessonRequirements, isLessonComplete } from "../../../shared/lesson-progress";
-import { findCourseById, findLessonsByCourse, findQuizAttempts, hasTextCompletion, hasVideoCompletion } from "./store";
+import { findActiveAttempts } from "../../../shared/quiz-attempts";
+import { findCourseById, findLessonsByCourse, hasTextCompletion, hasVideoCompletion } from "./store";
 import { toLessonProgressView } from "./view";
 import type { GetCourseProgressQuery, GetCourseProgressResult, LessonProgressView } from "./types";
 
+// "Progresso" só faz sentido pra quem está matriculado — visualização de professor (sem
+// matrícula) usa listLessonsByCourse/getLesson (barrel admin) em vez desta função (plano da
+// sessão de matrícula, item 4).
 export async function getCourseProgress(query: GetCourseProgressQuery): Promise<GetCourseProgressResult> {
   const course = await findCourseById(query.courseId);
   if (!course) {
     return { success: false, error: { code: "academy.courses.not_found", message: `Course "${query.courseId}" não encontrado.` } };
+  }
+
+  const enrolled = await isEnrolled(query.courseId, query.actorId);
+  if (!enrolled) {
+    return {
+      success: false,
+      error: { code: "academy.enrollments.not_enrolled", message: "É necessário estar matriculado neste curso." },
+    };
   }
 
   const lessons = await findLessonsByCourse(query.courseId);
@@ -25,7 +38,7 @@ export async function getCourseProgress(query: GetCourseProgressQuery): Promise<
       findLessonRequirements(lesson.id),
       hasTextCompletion(lesson.id, query.actorId),
       hasVideoCompletion(lesson.id, query.actorId),
-      findQuizAttempts(lesson.id, query.actorId),
+      findActiveAttempts(lesson.id, query.actorId),
       isLessonComplete(lesson.id, query.actorId),
     ]);
 

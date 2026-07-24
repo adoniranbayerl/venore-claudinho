@@ -1,11 +1,11 @@
 import type { ThemeManifest } from "@/contexts/themes";
-import * as defaultTheme from "./default";
+import * as venoreSlime from "./venore-slime";
 
 export type ThemeSlotComponents = {
-  Header: typeof defaultTheme.HeaderSlot;
-  Footer: typeof defaultTheme.FooterSlot;
-  Content: typeof defaultTheme.ContentSlot;
-  SidebarRight: typeof defaultTheme.SidebarRightSlot;
+  Header: typeof venoreSlime.HeaderSlot;
+  Footer: typeof venoreSlime.FooterSlot;
+  Content: typeof venoreSlime.ContentSlot;
+  SidebarRight: typeof venoreSlime.SidebarRightSlot;
 };
 
 export type ThemeRegistryEntry = { manifest: ThemeManifest; components: ThemeSlotComponents };
@@ -14,13 +14,13 @@ export type ThemeRegistryEntry = { manifest: ThemeManifest; components: ThemeSlo
 // import estático para bundling, então instalar um tema novo é uma entrada nova aqui, não um
 // scan de filesystem em runtime.
 export const THEME_REGISTRY: Record<string, ThemeRegistryEntry> = {
-  default: {
-    manifest: defaultTheme.defaultThemeManifest,
+  "venore-slime": {
+    manifest: venoreSlime.venoreSlimeManifest,
     components: {
-      Header: defaultTheme.HeaderSlot,
-      Footer: defaultTheme.FooterSlot,
-      Content: defaultTheme.ContentSlot,
-      SidebarRight: defaultTheme.SidebarRightSlot,
+      Header: venoreSlime.HeaderSlot,
+      Footer: venoreSlime.FooterSlot,
+      Content: venoreSlime.ContentSlot,
+      SidebarRight: venoreSlime.SidebarRightSlot,
     },
   },
 };

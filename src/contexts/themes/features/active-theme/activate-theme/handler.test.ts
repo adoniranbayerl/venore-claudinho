@@ -13,7 +13,7 @@ describe("activateThemeHandler", () => {
 
   it("rejects an empty themeKey without calling the service", async () => {
     const { activateThemeHandler } = await import("./handler");
-    const result = await activateThemeHandler({ themeKey: "  ", themeContractVersion: "1.0.0" });
+    const result = await activateThemeHandler({ themeKey: "  ", themeContractVersion: "2.0.0" });
 
     expect(result).toEqual({
       success: false,
@@ -26,8 +26,8 @@ describe("activateThemeHandler", () => {
     activateTheme.mockResolvedValue({ success: true, data: { themeKey: "default", activatedAt: new Date() } });
 
     const { activateThemeHandler } = await import("./handler");
-    await activateThemeHandler({ themeKey: "default", themeContractVersion: "1.0.0" });
+    await activateThemeHandler({ themeKey: "default", themeContractVersion: "2.0.0" });
 
-    expect(activateTheme).toHaveBeenCalledWith({ themeKey: "default", themeContractVersion: "1.0.0" });
+    expect(activateTheme).toHaveBeenCalledWith({ themeKey: "default", themeContractVersion: "2.0.0" });
   });
 });

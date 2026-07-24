@@ -16,13 +16,16 @@ export type ActiveThemeState = {
 
 export type NavItem = { key: string; label: string; href: string };
 export type SitemapItem = { key: string; label: string; href: string };
-export type SidebarBlock = { key: string; type: string; data: unknown };
 export type ScrollState = { isScrolled: boolean };
+
+export type NavMode = "main" | "admin";
 
 export type HeaderSlotProps = {
   brand: { name: string; logoUrl?: string };
   userbarEnabled: boolean;
-  navItems: NavItem[];
+  // header-nav: navegação própria do Header, distinta de main-nav/admin-nav (que vivem no
+  // SidebarRight) — opcional, lista vazia = tema não renderiza nada aqui.
+  headerNavItems: NavItem[];
   scrollState: ScrollState;
 };
 
@@ -37,7 +40,12 @@ export type ContentSlotProps = {
   sidebarContextualEnabled: boolean;
 };
 
+// SidebarRight é exclusivo de navegação (main-nav ou admin-nav, conforme navMode) — não é área
+// de widgets. O controle de alternância main-nav/admin-nav também mora aqui, não no Header.
 export type SidebarRightSlotProps = {
   enabled: boolean;
-  blocks: SidebarBlock[];
+  navMode: NavMode;
+  navItems: NavItem[];
+  canToggleAdminNav: boolean;
+  onToggleNavMode: () => Promise<void>;
 };

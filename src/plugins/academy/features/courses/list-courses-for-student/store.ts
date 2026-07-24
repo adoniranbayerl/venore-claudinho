@@ -3,6 +3,8 @@ import { db } from "@/infrastructure/database/client";
 import { courses } from "../../../database/schema";
 import type { CourseRecord } from "../../../contracts/types";
 
+export { findEnrollmentsByActor } from "../../../shared/enrollment-store";
+
 export async function findPublishedCourses(): Promise<CourseRecord[]> {
   const rows = await db
     .select()

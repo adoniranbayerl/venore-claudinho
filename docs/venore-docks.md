@@ -19,12 +19,40 @@ Temas são instalados no código (arquivo/pacote), mas a escolha de qual tema es
 
 O tema ativo (e qualquer configuração trocável em runtime, incluindo `registrationApprovalRequired` e o papel padrão de registro, hoje via env var como solução provisória) vive em `contexts/settings` — key-value por site, não em variável de ambiente. Variável de ambiente exige redeploy pra mudar; não serve pra algo que um admin troca num painel.
 
+### Shell única — sem área admin separada
+Não existe uma "área admin" com casca própria, independente do tema. Existe **uma shell**, um único `Header`/`Footer`/`Content`/`SidebarRight`, e a navegação alterna entre `main-nav` e `admin-nav` através de um controle no próprio Header — visível só para quem tem alguma permission administrativa. CSS, espaçamento, cor, tudo continua vindo do mesmo tema, nos dois modos. Isso substitui a decisão anterior de admin shell independente (documentada até esta versão) — código já implementado com casca própria é dívida a retrofitar, não o padrão a seguir daqui em diante.
+
+Mecanicamente, isso é um route group do Next.js: `app/(platform)/` contém tanto as páginas públicas (`[...slug]`, `academy`, etc.) quanto `app/(platform)/admin/**` — todos puxando o **mesmo** `(platform)/layout.tsx`, que monta a shell uma vez. `admin` continua existindo como path normal; a diferença é só que ele não tem `layout.tsx` próprio, herda o do grupo. Um grupo `(auth)` separado (login, setup) não usa a shell cheia — não precisa dela.
+
+O gate de página (regra 13) continua existindo e continua sendo checado no servidor — o que muda é só o *modo de apresentação*: uma página administrativa renderiza dentro da mesma shell/tema, no modo `admin-nav`, em vez de um layout à parte.
+
+### Contrato de design tokens — proibido valor hardcoded
+Nenhum componente (tema, admin, página pública) escreve valor de cor, espaçamento ou raio de borda diretamente — nada de `bg-white`, `p-3`, `rounded-lg` com valor fixo do Tailwind. Todo valor visual vem de uma variável CSS semântica, mapeada no tema ativo via `@theme inline` do Tailwind v4, seguindo o padrão:
+
+```css
+:root {
+  --surface-panel: oklch(0.991 0.004 145);
+  --text-primary: oklch(0.235 0.026 176);
+  --radius: 0.2rem;
+  --sidebar-bg-admin-start: oklch(0.97 0.01 160); /* admin-nav pode ter variação sutil própria, ainda dentro do tema */
+}
+
+@theme inline {
+  --color-surface-panel: var(--surface-panel);
+  --color-text-primary: var(--text-primary);
+  --radius-md: var(--radius);
+}
+```
+
+Motivo: dois temas podem ter `border-radius` completamente diferente (`0` num, `1rem` noutro) ou fundo claro diferente (`#FFF` vs `#ccc`) — se o valor estiver hardcoded num componente (`rounded-lg`, `bg-white`), trocar de tema não muda nada ali, porque o componente nunca consultou o tema pra começo de conversa. Categorias mínimas de token que todo tema precisa fornecer: cor de superfície (`surface-*`), cor de texto (`text-*`), borda (`border-*`), raio (`radius-*`), sombra (`shadow-*`) — cada uma com variantes semânticas (ex: `surface-panel`, `surface-elevated`, `surface-overlay`), não só uma cor genérica por categoria.
+
 Os temas customizam todo o design do site, incluindo CSS e shells. A plataforma vai ter áreas definidas que podem ser manipuladas pelos temas:
 
 ### Áreas estruturais
 1. Header
    1.1 Brand
    1.2 Userbar (pode ativar ou desativar para sites que não têm usuários)
+   1.3 Controle de alternância main-nav / admin-nav (visível só para quem tem alguma permission administrativa)
 2. Footer
    2.1 Brand
    2.2 Sitemap
@@ -34,7 +62,7 @@ Os temas customizam todo o design do site, incluindo CSS e shells. A plataforma 
 4. Sidebar Right (pode ativar ou desativar)
 
 ### Áreas dinâmicas
-1. Navegações (`main-nav`, `header-nav`, `contextual-nav`, `user-nav`, `sitemap`)
+1. Navegações (`main-nav`, `admin-nav`, `header-nav`, `contextual-nav`, `user-nav`, `sitemap`)
 2. Breadcrumbs
 3. Page Headers (pode ativar ou desativar)
 
@@ -44,11 +72,11 @@ A navegação administrativa (`admin-nav`) é resolvida no servidor, item por it
 
 Cada área estrutural é implementada pelo tema como um componente React que recebe um objeto de props definido pelo core — o tema nunca busca dado sozinho, ele só recebe e renderiza.
 
-Existe um tema `fallback`, embutido no código (não instalado, não depende de linha em `contexts/settings` nem de banco), usado sempre que a resolução de tema ativo falhar por qualquer motivo — não só ausência de configuração. Nenhum outro tema deve ser tratado como "à prova de falha"; só o `fallback` tem essa garantia, porque só ele não depende de nada resolvível em runtime.
+**Venore Slime** é ao mesmo tempo o tema padrão e o `fallback` — não são dois temas diferentes. Os valores dele (cor, tipografia, raio, sombra) ficam embutidos no código (não dependem de linha em `contexts/settings` nem de banco), usado sempre que a resolução de tema ativo falhar por qualquer motivo — não só ausência de configuração. Essa é a garantia que importa: um tema de terceiro pode ser instalado e escolhido depois, mas o Venore Slime nunca deixa de existir como opção resolvível sem depender de runtime.
 
 | Slot | Props recebidas (mínimo) |
 | --- | --- |
-| `HeaderSlot` | `brand`, `userbarEnabled`, `navItems` (de `header-nav`), `scrollState` |
+| `HeaderSlot` | `brand`, `userbarEnabled`, `navMode` (`"main" \| "admin"`), `navItems` (de `main-nav` ou `admin-nav`, conforme `navMode`), `canToggleAdminNav` (o ator tem alguma permission administrativa), `scrollState` |
 | `FooterSlot` | `brand`, `sitemapItems`, `creditsEnabled` |
 | `ContentSlot` | `children` (conteúdo resolvido da página), `sidebarContextualEnabled` |
 | `SidebarRightSlot` | `enabled`, `blocks` (lista de blocos a renderizar, quando habilitado) |
@@ -57,6 +85,9 @@ Regras do contrato de slot:
 - O tema recebe **dados já resolvidos** (ex: itens de navegação já filtrados por permissão) — nunca uma referência crua a `context` para ele mesmo buscar.
 - Um tema pode optar por não renderizar uma área opcional, mas não pode inventar uma área nova fora dessa lista sem virar uma extensão formal do core.
 - Toda prop nova que um slot passar a receber precisa ser uma mudança versionada do contrato (`themeContractVersion`), porque temas de terceiros/sites diferentes dependem dela.
+- Nenhum componente do tema usa valor hardcoded — só as variáveis do contrato de design tokens acima.
+
+
 
 ## Stack inicial
 - Next.js (framework React)
@@ -191,7 +222,7 @@ plugins/
 | 10 | Um `service` pode chamar o `service` público (via `index.ts` barrel) de outro `context` diretamente, para compor dado de mais de um domínio (ex: resolver uma página precisa de CMS + RBAC). Isso não contradiz a regra 5 — a regra 5 proíbe `use case` importando `use case` de outro context; chamar a API pública de outro context é o canal permitido. |
 | 11 | Dependência entre contexts não pode ser cíclica: se `cms` chama `rbac`, `rbac` não pode chamar `cms` de volta. Dependência entre contexts é uma hierarquia, não uma rede — isso evita acoplamento disfarçado de composição. |
 | 12 | Hierarquia declarada: `auth` não depende de nenhum outro context. `rbac` depende de `auth` (para resolver o ator). `settings` depende de `auth` e `rbac` (para checar permissão de alterar configuração). Contexts de domínio (CMS, mídia, temas, etc.) podem depender de `auth`, `rbac` e `settings`, nunca o contrário. Composição que pareça exigir que um context "de baixo" chame um "de cima" deve morar fora dos dois — num ponto de wiring (ex: o handler de evento do NextAuth chamando uma função de composição externa aos contexts), nunca como import direto de um context "de baixo" para um "de cima". |
-| 13 | Toda seção administrativa em `app/` (ex: `app/admin/settings/*`) usa um loader compartilhado por seção (ex: `getSettingsPageData()`) que resolve o ator e barra acesso antes de qualquer página da seção renderizar — não é responsabilidade de cada página individual repetir essa checagem. Isso é sobre "quem pode ver essa área do admin", separado da autorização dentro do `handler` de cada `context` (que é sobre "quem pode executar essa ação"). |
+| 13 | Toda página administrativa (ex: gerenciamento de RBAC, CMS, Academy) usa um loader compartilhado por seção (ex: `getSettingsPageData()`) que resolve o ator e barra acesso antes de a página renderizar — não é responsabilidade de cada página individual repetir essa checagem. Isso é sobre "quem pode ver essa página", separado da autorização dentro do `handler` de cada `context` (que é sobre "quem pode executar essa ação"). O gate roda no servidor independente de existir ou não uma casca visual separada — a partir da decisão de shell única, ele decide acesso à página, não a um layout à parte. |
 | 14 | Uma função exportada por um `context` que só é segura chamar através de um ponto de composição em `platform/` (ex: `deleteMedia`, que devia ser precedida por checagem de uso em `cms`) recebe um comentário no próprio código-fonte, no ponto de exportação do barrel, apontando para o arquivo de `platform/` que deveria ser usado no lugar. Já aconteceu duas vezes (registro de usuário, exclusão de mídia) sem mecanismo de bloqueio — por ora é convenção de comentário, não lint; numa terceira ocorrência, vale desenhar enforcement de verdade. |
 | 15 | O menu administrativo (`nav-admin`) é resolvido no servidor, por ator — cada item só existe na resposta se o ator tiver a permission correspondente, nunca renderizado e escondido via CSS/client. Nav filtrado complementa a regra 13, mas nunca substitui: esconder um item de menu não protege a rota por trás dele. |
 

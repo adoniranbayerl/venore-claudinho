@@ -13,6 +13,12 @@ vi.mock("../../../shared/lesson-progress", () => ({
   isLessonAccessible: (...args: unknown[]) => isLessonAccessible(...args),
 }));
 
+const isEnrolled = vi.fn();
+
+vi.mock("../../../shared/enrollment", () => ({
+  isEnrolled: (...args: unknown[]) => isEnrolled(...args),
+}));
+
 const findLessonById = vi.fn();
 const insertVideoCompletionIfMissing = vi.fn();
 
@@ -27,11 +33,40 @@ describe("markVideoWatched", () => {
   beforeEach(() => {
     findLessonById.mockReset();
     isLessonAccessible.mockReset();
+    isEnrolled.mockReset();
     findLessonRequirements.mockReset();
     insertVideoCompletionIfMissing.mockReset();
 
     findLessonById.mockResolvedValue(lesson);
+    isEnrolled.mockResolvedValue(true);
     isLessonAccessible.mockResolvedValue(true);
+  });
+
+  it("fails when the actor is not enrolled, even if the lesson would otherwise be unlocked", async () => {
+    isEnrolled.mockResolvedValue(false);
+
+    const { markVideoWatched } = await import("./service");
+    const result = await markVideoWatched({ lessonId: "lesson-1", actorId: "actor-1" });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "academy.enrollments.not_enrolled", message: expect.any(String) },
+    });
+    expect(isLessonAccessible).not.toHaveBeenCalled();
+    expect(insertVideoCompletionIfMissing).not.toHaveBeenCalled();
+  });
+
+  it("fails with not_enrolled (not lesson_locked) when the actor is neither enrolled nor would pass the lock-chain", async () => {
+    isEnrolled.mockResolvedValue(false);
+    isLessonAccessible.mockResolvedValue(false);
+
+    const { markVideoWatched } = await import("./service");
+    const result = await markVideoWatched({ lessonId: "lesson-1", actorId: "actor-1" });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "academy.enrollments.not_enrolled", message: expect.any(String) },
+    });
   });
 
   it("fails when watchVideoEnabled is not set on the lesson", async () => {

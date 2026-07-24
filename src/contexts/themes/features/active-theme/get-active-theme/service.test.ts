@@ -27,7 +27,7 @@ describe("getActiveTheme", () => {
     const { getActiveTheme } = await import("./service");
     const result = await getActiveTheme();
 
-    expect(result).toEqual({ success: true, data: { themeKey: "default", activatedAt: null } });
+    expect(result).toEqual({ success: true, data: { themeKey: "venore-slime", activatedAt: null } });
   });
 
   it("falls back to the default theme when the stored value is not a string", async () => {
@@ -36,6 +36,6 @@ describe("getActiveTheme", () => {
     const { getActiveTheme } = await import("./service");
     const result = await getActiveTheme();
 
-    expect(result).toEqual({ success: true, data: { themeKey: "default", activatedAt: null } });
+    expect(result).toEqual({ success: true, data: { themeKey: "venore-slime", activatedAt: null } });
   });
 });

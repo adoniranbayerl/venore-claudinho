@@ -1,6 +1,6 @@
 import { and, eq, lt } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
-import { lessonRequirements, lessonTextCompletions, lessonVideoCompletions, lessons, quizAttempts } from "../database/schema";
+import { lessonRequirements, lessonTextCompletions, lessonVideoCompletions, lessons } from "../database/schema";
 import type { LessonRecord, LessonRequirementsRecord } from "../contracts/types";
 
 export async function findLessonRequirements(lessonId: string): Promise<LessonRequirementsRecord | null> {
@@ -22,15 +22,6 @@ export async function hasVideoCompletion(lessonId: string, actorId: string): Pro
     .select({ id: lessonVideoCompletions.id })
     .from(lessonVideoCompletions)
     .where(and(eq(lessonVideoCompletions.lessonId, lessonId), eq(lessonVideoCompletions.actorId, actorId)))
-    .limit(1);
-  return row !== undefined;
-}
-
-export async function hasPassingQuizAttempt(lessonId: string, actorId: string): Promise<boolean> {
-  const [row] = await db
-    .select({ id: quizAttempts.id })
-    .from(quizAttempts)
-    .where(and(eq(quizAttempts.lessonId, lessonId), eq(quizAttempts.actorId, actorId), eq(quizAttempts.passed, true)))
     .limit(1);
   return row !== undefined;
 }

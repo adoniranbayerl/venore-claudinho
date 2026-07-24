@@ -1,4 +1,5 @@
 import { beginOperation, endOperation } from "@/observability";
+import { isEnrolled } from "../../../shared/enrollment";
 import { findLessonRequirements, isLessonAccessible } from "../../../shared/lesson-progress";
 import { findLessonById, insertTextCompletionIfMissing } from "./store";
 import type { MarkTextReadCommand, MarkTextReadResult } from "./types";
@@ -13,6 +14,16 @@ export async function markTextRead(command: MarkTextReadCommand): Promise<MarkTe
   const lesson = await findLessonById(command.lessonId);
   if (!lesson) {
     const error = { code: "academy.lessons.not_found", message: `Lesson "${command.lessonId}" não encontrada.` };
+    endOperation(handle, { success: false, error });
+    return { success: false, error };
+  }
+
+  // Matrícula checada ANTES do lock-chain: a primeira aula de um curso é sempre acessível (sem
+  // antecessora), então um ator não matriculado batendo direto nela só é barrado se a matrícula
+  // for a primeira checagem (docs/venore-docks.md, plano da sessão de matrícula).
+  const enrolled = await isEnrolled(lesson.courseId, command.actorId);
+  if (!enrolled) {
+    const error = { code: "academy.enrollments.not_enrolled", message: "É necessário estar matriculado neste curso." };
     endOperation(handle, { success: false, error });
     return { success: false, error };
   }

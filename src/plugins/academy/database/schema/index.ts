@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { boolean, integer, jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const academySchema = pgSchema("academy");
@@ -14,6 +15,11 @@ export const courses = academySchema.table("courses", {
   // "draft" | "published" — ver contracts/types.ts (CourseStatus).
   status: text("status").notNull().default("draft"),
   createdBy: text("created_by").notNull(),
+  // Independentes um do outro (plano da sessão de matrícula): selfEnrollmentEnabled controla se
+  // o botão "matricular-se" existe; publiclyListed controla só a listagem
+  // (list-courses-for-student) — acesso direto por URL não depende de publiclyListed.
+  selfEnrollmentEnabled: boolean("self_enrollment_enabled").notNull().default(true),
+  publiclyListed: boolean("publicly_listed").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -109,6 +115,32 @@ export const quizAttempts = academySchema.table(
     passed: boolean("passed").notNull(),
     answers: jsonb("answers").$type<{ questionId: string; selectedOptionIndex: number }[]>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // Reset de professor invalida em vez de apagar (auditoria — plano da sessão de reset de
+    // tentativas). null = tentativa ativa, conta pro limite de quizMaxAttempts.
+    invalidatedAt: timestamp("invalidated_at", { withTimezone: true }),
   },
-  (table) => [uniqueIndex("quiz_attempts_lesson_actor_attempt_idx").on(table.lessonId, table.actorId, table.attemptNumber)],
+  (table) => [
+    // Parcial (só linhas ativas): permite a numeração de tentativa reiniciar em 1 depois de
+    // um reset sem colidir com attempt_number de linhas antigas já invalidadas.
+    uniqueIndex("quiz_attempts_lesson_actor_attempt_idx")
+      .on(table.lessonId, table.actorId, table.attemptNumber)
+      .where(sql`${table.invalidatedAt} is null`),
+  ],
+);
+
+export const enrollments = academySchema.table(
+  "enrollments",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    actorId: text("actor_id").notNull(),
+    enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull().defaultNow(),
+    // "self" (enroll-self) ou o actorId de quem matriculou manualmente (enroll-student).
+    enrolledBy: text("enrolled_by").notNull(),
+  },
+  (table) => [uniqueIndex("enrollments_course_actor_idx").on(table.courseId, table.actorId)],
 );
