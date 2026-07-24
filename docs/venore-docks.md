@@ -1,5 +1,7 @@
 # Venore Docks
-`Version: 2.0.0-forge`
+`Version do documento: 2.0.0-forge`
+
+> `CORE_VERSION` (usado em `compatibility.coreVersion` do manifesto de plugin) é um semver puro, sem sufixo de prerelease, vivendo em código (`platform/plugin-engine/core-version.ts`) — deliberadamente desacoplado do "Version" acima. Sufixo de prerelease quebra `semver.satisfies` contra faixas como `>=2.0.0 <3.0.0` por padrão; a versão do documento pode evoluir livremente sem afetar checagem de compatibilidade de plugin.
 
 ## Resumo
 Venore Docks é um boilerplate — não uma plataforma multi-tenant — que integra autenticação, RBAC, observabilidade, gerenciamento de conteúdo, gerenciamento de mídia, banco de dados (Postgres) e customização de UI (temas), com capacidades específicas de cada site chegando através de plugins.
@@ -14,6 +16,8 @@ Cada site mantém o repositório do Venore Docks como remote `upstream` e traz m
 
 ## Sobre temas
 Temas são instalados no código (arquivo/pacote), mas a escolha de qual tema está ativo é uma configuração trocável em runtime pelo admin — não é fixada no deploy. O core mantém um registro dos temas instalados e qual está ativo; trocar de tema não exige rebuild, só a mudança dessa configuração.
+
+O tema ativo (e qualquer configuração trocável em runtime, incluindo `registrationApprovalRequired` e o papel padrão de registro, hoje via env var como solução provisória) vive em `contexts/settings` — key-value por site, não em variável de ambiente. Variável de ambiente exige redeploy pra mudar; não serve pra algo que um admin troca num painel.
 
 Os temas customizam todo o design do site, incluindo CSS e shells. A plataforma vai ter áreas definidas que podem ser manipuladas pelos temas:
 
@@ -34,9 +38,13 @@ Os temas customizam todo o design do site, incluindo CSS e shells. A plataforma 
 2. Breadcrumbs
 3. Page Headers (pode ativar ou desativar)
 
+A navegação administrativa (`admin-nav`) é resolvida no servidor, item por item, filtrada pela permission do ator — nunca a lista completa é montada e depois escondida no client. Esconder item de menu não substitui a regra 13 (gate de página): um item ausente do menu não significa que a rota por trás dele está protegida, e uma rota protegida não dispensa filtrar o menu (usuário sem acesso não deveria nem ver o link).
+
 ### Contrato de slot
 
 Cada área estrutural é implementada pelo tema como um componente React que recebe um objeto de props definido pelo core — o tema nunca busca dado sozinho, ele só recebe e renderiza.
+
+Existe um tema `fallback`, embutido no código (não instalado, não depende de linha em `contexts/settings` nem de banco), usado sempre que a resolução de tema ativo falhar por qualquer motivo — não só ausência de configuração. Nenhum outro tema deve ser tratado como "à prova de falha"; só o `fallback` tem essa garantia, porque só ele não depende de nada resolvível em runtime.
 
 | Slot | Props recebidas (mínimo) |
 | --- | --- |
@@ -82,7 +90,26 @@ export const db = drizzle({ client: pool });
 ### Configuração
 - Connection string: variável de ambiente `DATABASE_URL`, uma por instância/site — mesmo padrão já usado para client ID/secret do Google OAuth.
 - Migrations: `drizzle-kit generate` + aplicação em CI/deploy. `drizzle-kit push` fica reservado para desenvolvimento local, nunca produção.
+- Nunca editar `drizzle.__drizzle_migrations` ou `drizzle/meta/_journal.json` manualmente fora do fluxo padrão do `drizzle-kit` — um timestamp inconsistente entre os dois faz o migrator pular migration subsequente **silenciosamente, reportando sucesso**. Depois de qualquer sessão que gere migration, confirme o número de migrations rastreadas bate com o número de arquivos em `drizzle/migrations`, não só que o comando não deu erro.
 - Todo `context`, `plugin` e o core acessam o banco através desse client único exportado por `infrastructure/database` — nenhum arquivo `store.ts` cria sua própria conexão.
+
+### Schema do Postgres por domínio
+Cada `context` (e cada `plugin`, seguindo a mesma regra de "domínio próprio no banco" já definida em "Sistema de plugins") declara seu próprio schema real do Postgres via `pgSchema`, não só prefixo de nome de tabela:
+
+```ts
+// contexts/rbac/database/schema/index.ts
+import { pgSchema, uuid, text } from "drizzle-orm/pg-core";
+
+export const rbacSchema = pgSchema("rbac");
+
+export const roles = rbacSchema.table("roles", {
+  id: uuid("id").primaryKey(),
+  key: text("key").notNull(),
+  // ...
+});
+```
+
+Isso adiciona uma proteção a mais além do `eslint-plugin-boundaries`: join acidental entre domínios vira erro de SQL, não só erro de lint — a barreira existe também dentro do banco, não só no código.
 
 ## Organização pretendida
 
@@ -146,6 +173,7 @@ plugins/
 | `infrastructure/` | Implementações de infraestrutura e adapters. |
 | `observability/` | Monitoramento geral (logs, métricas e tracing). |
 | `shared/` | Kernel compartilhado: tipos e constantes usados por todo o sistema (ex: `OperationResult<T>`). Só tipo/constante — zero lógica de negócio, zero acesso a dado. Importável por qualquer `context` ou `plugin` sem violar boundary, porque não carrega regra de domínio nenhuma. |
+| `platform/` | Raiz de composição entre contexts que não pode viver dentro de nenhum context sozinho, conforme regra 12 (ex: wiring do evento de registro do NextAuth chamando `auth` + `rbac`). Só código de composição — nunca regra de negócio de domínio, nunca substitui a comunicação via barrel entre contexts. |
 
 ### Regras de limites de contexto (boundary)
 
@@ -162,6 +190,10 @@ plugins/
 | 9 | Essa regra precisa de enforcement mecânico (ex.: `eslint-plugin-boundaries` restringindo import de `plugins/**` para qualquer caminho profundo dentro de `contexts/**` — só `contexts/<nome>/index.ts` e `contexts/<nome>/contracts/**` são permitidos), não só de documentação — regra escrita sem lint vira regra ignorada sob prazo. |
 | 10 | Um `service` pode chamar o `service` público (via `index.ts` barrel) de outro `context` diretamente, para compor dado de mais de um domínio (ex: resolver uma página precisa de CMS + RBAC). Isso não contradiz a regra 5 — a regra 5 proíbe `use case` importando `use case` de outro context; chamar a API pública de outro context é o canal permitido. |
 | 11 | Dependência entre contexts não pode ser cíclica: se `cms` chama `rbac`, `rbac` não pode chamar `cms` de volta. Dependência entre contexts é uma hierarquia, não uma rede — isso evita acoplamento disfarçado de composição. |
+| 12 | Hierarquia declarada: `auth` não depende de nenhum outro context. `rbac` depende de `auth` (para resolver o ator). `settings` depende de `auth` e `rbac` (para checar permissão de alterar configuração). Contexts de domínio (CMS, mídia, temas, etc.) podem depender de `auth`, `rbac` e `settings`, nunca o contrário. Composição que pareça exigir que um context "de baixo" chame um "de cima" deve morar fora dos dois — num ponto de wiring (ex: o handler de evento do NextAuth chamando uma função de composição externa aos contexts), nunca como import direto de um context "de baixo" para um "de cima". |
+| 13 | Toda seção administrativa em `app/` (ex: `app/admin/settings/*`) usa um loader compartilhado por seção (ex: `getSettingsPageData()`) que resolve o ator e barra acesso antes de qualquer página da seção renderizar — não é responsabilidade de cada página individual repetir essa checagem. Isso é sobre "quem pode ver essa área do admin", separado da autorização dentro do `handler` de cada `context` (que é sobre "quem pode executar essa ação"). |
+| 14 | Uma função exportada por um `context` que só é segura chamar através de um ponto de composição em `platform/` (ex: `deleteMedia`, que devia ser precedida por checagem de uso em `cms`) recebe um comentário no próprio código-fonte, no ponto de exportação do barrel, apontando para o arquivo de `platform/` que deveria ser usado no lugar. Já aconteceu duas vezes (registro de usuário, exclusão de mídia) sem mecanismo de bloqueio — por ora é convenção de comentário, não lint; numa terceira ocorrência, vale desenhar enforcement de verdade. |
+| 15 | O menu administrativo (`nav-admin`) é resolvido no servidor, por ator — cada item só existe na resposta se o ator tiver a permission correspondente, nunca renderizado e escondido via CSS/client. Nav filtrado complementa a regra 13, mas nunca substitui: esconder um item de menu não protege a rota por trás dele. |
 
 ### Regras de `use cases`
 
@@ -226,11 +258,14 @@ Provedor inicial: Google OAuth, via Auth.js. Client ID e secret são configurado
 ### Identidade separada de credencial
 O modelo de usuário separa **identidade** (o registro `user`, dono dos papéis de RBAC) de **credencial** (o vínculo com o provider usado para provar quem é aquele usuário) — mesmo havendo só um provider ativo hoje. É o padrão nativo do adapter do Auth.js (tabela de contas vinculada a usuários), não uma camada extra a construir. O motivo de fixar isso agora: quando o login por OTP (senha única por email) entrar, ele deve virar só mais um provider vinculado ao mesmo `user` — nunca uma migração de dado de usuário existente.
 
-### Fluxo de registro (herdado do protótipo — confirmar se continua valendo)
+### Fluxo de registro (configurável por site)
+O core oferece o fluxo como capacidade, mas cada site liga ou desliga via configuração (`settings`) — não é comportamento fixo obrigatório:
 1. Usuário faz login pela primeira vez via Google.
-2. Registro é criado com status `pending`.
-3. Um `admin` aprova o registro.
-4. Só após aprovação o usuário recebe um papel (`member` por padrão, ou outro atribuído manualmente).
+2. Se o site tem a aprovação manual **ligada**: registro é criado com status `pending`; um `admin` aprova; só então o usuário recebe um papel (`member` por padrão, ou outro atribuído manualmente).
+3. Se o site tem a aprovação manual **desligada**: usuário recebe o papel padrão configurado (ex: `member`) automaticamente no primeiro login, sem etapa de aprovação.
+
+### Bootstrap de superadmin
+Se nenhum `superadmin` existir ainda no banco, o próximo usuário a se registrar pula `pending` e o papel padrão — recebe `superadmin` diretamente, independente de `registrationApprovalRequired` estar ligado. Resolve o mesmo problema pelas duas pontas: instalação nova nunca fica travada esperando um admin que não existe pra aprovar o primeiro usuário, e sempre existe alguém pra conceder o resto das permissions depois. Para uma instância já com usuário criado mas sem superadmin (situação de migração, não instalação nova), um script (`scripts/bootstrap-superadmin.mjs`, mesmo padrão dos scripts de seed já existentes) promove um usuário existente por email — rodado manualmente, uma vez, fora do fluxo automático.
 
 ### Fora do escopo desta v1
 - Login por senha única (OTP) enviada por email — entra como um segundo provider no futuro, sem alterar o modelo de identidade.
@@ -250,6 +285,8 @@ Existe um pequeno conjunto de papéis de sistema, fixos e não deletáveis, que 
 | `member` | Consumidor autenticado do site, sem acesso administrativo. |
 
 Além desses três, qualquer site pode criar **papéis customizados** (novo `key`, novo nome) e atribuir a eles qualquer combinação de permissions do catálogo — é assim que se resolve o caso de "editor que gerencia todo o CMS" vs "editor menor" com escopo mais restrito.
+
+`remove-role-from-user` recusa remover o papel `superadmin` de um usuário se isso deixar o sistema com zero superadmin — mesmo o próprio superadmin tentando remover a si mesmo. Sem essa checagem, o sistema reabre o mesmo deadlock que o bootstrap resolve, sem nenhum aviso na hora.
 
 ### Permissions
 - Nomeadas por namespace: `dominio.recurso.acao` (ex: `cms.entries.manage`, `birthdays.read`).
@@ -280,4 +317,3 @@ Regras para a v1 nova:
 - Permission com escopo dentro de um recurso (RBAC granular por seção/instância, não só por tipo de recurso).
 - Estratégia de teste (Vitest) por camada — o que cada tipo de teste precisa provar.
 - Segurança: rate limiting, auditoria de ações sensíveis, acesso a arquivos de mídia.
-- Fluxo de registro de usuário (aprovação manual `pending → admin aprova`): confirmar se fica fixo no core ou vira configuração por site.

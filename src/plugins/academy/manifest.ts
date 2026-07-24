@@ -1,0 +1,14 @@
+import type { PluginManifest } from "@/platform/plugin-engine/manifest-schema";
+
+// Faixa escrita à mão, não importada de platform/plugin-engine/core-version.ts: se importasse o
+// CORE_VERSION corrente, a checagem de compatibilidade seria sempre trivialmente satisfeita e
+// perderia o sentido (docs/venore-docks.md — "Sistema de plugins" / compatibility.coreVersion).
+export const academyManifest: PluginManifest = {
+  manifestVersion: "1.0.0",
+  key: "academy",
+  name: "Academy",
+  version: "1.0.0",
+  description: "Cursos com aulas sequenciais, requisitos configuráveis e progresso do aluno.",
+  compatibility: { coreVersion: ">=2.0.0 <3.0.0" },
+  permissions: [{ key: "academy.courses.manage", label: "Gerenciar cursos, aulas e perguntas da Academy" }],
+};

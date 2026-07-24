@@ -1,6 +1,8 @@
-import { boolean, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, integer, pgSchema, text, timestamp } from "drizzle-orm/pg-core";
 
-export const observabilityLogEntries = pgTable("observability_log_entries", {
+export const observabilitySchema = pgSchema("observability");
+
+export const observabilityLogEntries = observabilitySchema.table("observability_log_entries", {
   id: text("id").primaryKey(),
   useCase: text("use_case").notNull(),
   actorId: text("actor_id").notNull(),
@@ -14,7 +16,7 @@ export const observabilityLogEntries = pgTable("observability_log_entries", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const observabilityTraceEntries = pgTable("observability_trace_entries", {
+export const observabilityTraceEntries = observabilitySchema.table("observability_trace_entries", {
   id: text("id").primaryKey(),
   useCase: text("use_case").notNull(),
   actorId: text("actor_id").notNull(),

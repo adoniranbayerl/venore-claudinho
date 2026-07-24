@@ -6,9 +6,13 @@ vi.mock("@/observability", () => ({
 }));
 
 const deleteUserRole = vi.fn();
+const findRoleById = vi.fn();
+const findUserIdsWithRole = vi.fn();
 
 vi.mock("./store", () => ({
   deleteUserRole: (...args: unknown[]) => deleteUserRole(...args),
+  findRoleById: (...args: unknown[]) => findRoleById(...args),
+  findUserIdsWithRole: (...args: unknown[]) => findUserIdsWithRole(...args),
 }));
 
 const invalidateUserContext = vi.fn();
@@ -21,6 +25,9 @@ describe("removeRoleFromUser", () => {
   beforeEach(() => {
     deleteUserRole.mockReset();
     deleteUserRole.mockResolvedValue(undefined);
+    findRoleById.mockReset();
+    findRoleById.mockResolvedValue(null);
+    findUserIdsWithRole.mockReset();
     invalidateUserContext.mockReset();
   });
 
@@ -38,5 +45,32 @@ describe("removeRoleFromUser", () => {
     const result = await removeRoleFromUser({ userId: "user-1", roleId: "never-assigned", actor: { id: "actor-1" } });
 
     expect(result).toEqual({ success: true, data: undefined });
+  });
+
+  it("refuses to remove superadmin from the last user who has it, even when the actor removes themselves", async () => {
+    findRoleById.mockResolvedValue({ id: "role-superadmin", key: "superadmin", name: "Superadmin", isSystem: true });
+    findUserIdsWithRole.mockResolvedValue(["user-1"]);
+
+    const { removeRoleFromUser } = await import("./service");
+    const result = await removeRoleFromUser({ userId: "user-1", roleId: "role-superadmin", actor: { id: "user-1" } });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "rbac.roles.cannot_remove_last_superadmin", message: expect.any(String) },
+    });
+    expect(deleteUserRole).not.toHaveBeenCalled();
+    expect(invalidateUserContext).not.toHaveBeenCalled();
+  });
+
+  it("allows removing superadmin from a user when another user still has the role", async () => {
+    findRoleById.mockResolvedValue({ id: "role-superadmin", key: "superadmin", name: "Superadmin", isSystem: true });
+    findUserIdsWithRole.mockResolvedValue(["user-1", "user-2"]);
+
+    const { removeRoleFromUser } = await import("./service");
+    const result = await removeRoleFromUser({ userId: "user-1", roleId: "role-superadmin", actor: { id: "user-2" } });
+
+    expect(result).toEqual({ success: true, data: undefined });
+    expect(deleteUserRole).toHaveBeenCalledWith("user-1", "role-superadmin");
+    expect(invalidateUserContext).toHaveBeenCalledWith("user-1");
   });
 });

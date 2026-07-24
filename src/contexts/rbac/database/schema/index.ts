@@ -1,7 +1,9 @@
-import { boolean, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, pgSchema, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 import { users } from "@/contexts/auth/database/schema";
 
-export const roles = pgTable("roles", {
+export const rbacSchema = pgSchema("rbac");
+
+export const roles = rbacSchema.table("roles", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -12,7 +14,7 @@ export const roles = pgTable("roles", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const rolePermissions = pgTable(
+export const rolePermissions = rbacSchema.table(
   "role_permissions",
   {
     roleId: text("role_id")
@@ -25,7 +27,7 @@ export const rolePermissions = pgTable(
   ],
 );
 
-export const userRoles = pgTable(
+export const userRoles = rbacSchema.table(
   "user_roles",
   {
     userId: text("user_id")

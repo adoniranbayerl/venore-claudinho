@@ -4,3 +4,5 @@ export type AuthenticatedUser = {
   name: string | null;
   image: string | null;
 };
+
+export type UserRegistrationStatus = "pending" | "approved";

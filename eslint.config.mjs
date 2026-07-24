@@ -18,15 +18,17 @@ const eslintConfig = defineConfig([
     files: ["src/**/*.{js,jsx,ts,tsx}"],
     plugins: { boundaries },
     settings: {
-      // Elements classify by folder ("context" / "plugin"); files classify
+      // Elements classify by folder ("context" / "plugin" / "theme"); files classify
       // by category within a context. "context-public" (exclusive) covers
       // index.ts and contracts/**; everything else under a context falls
       // through to the "context-internal" catch-all. The dependency rule
-      // below disallows plugins reaching "context-internal" files.
+      // below disallows plugins/themes reaching "context-internal" files.
       "boundaries/elements": [
         { type: "context", pattern: "src/contexts/*", partialMatch: false },
         { type: "plugin", pattern: "src/plugins/*", partialMatch: false },
+        { type: "theme", pattern: "src/themes/*", partialMatch: false },
         { type: "observability", pattern: "src/observability", partialMatch: false },
+        { type: "platform", pattern: "src/platform/*", partialMatch: false },
       ],
       "boundaries/files": [
         { pattern: "src/contexts/*/index.ts", category: "context-public", exclusive: true },
@@ -44,7 +46,7 @@ const eslintConfig = defineConfig([
           default: "allow",
           policies: [
             {
-              from: { element: { type: "plugin" } },
+              from: { element: { type: ["plugin", "theme"] } },
               disallow: {
                 to: {
                   element: { type: "context" },
@@ -52,7 +54,7 @@ const eslintConfig = defineConfig([
                 },
               },
               message:
-                "Um plugin só pode importar de contexts/<nome>/index.ts (barrel público) ou contexts/<nome>/contracts/** — nunca de arquivos internos do context (store, service fora do barrel, schema, etc).",
+                "Um plugin/tema só pode importar de contexts/<nome>/index.ts (barrel público) ou contexts/<nome>/contracts/** — nunca de arquivos internos do context (store, service fora do barrel, schema, etc).",
             },
             {
               from: { element: { type: ["context", "plugin"] } },
@@ -64,6 +66,17 @@ const eslintConfig = defineConfig([
               },
               message:
                 "Observability é consumida via porta/adapter — importe só de observability/index.ts (barrel público), nunca de buffer, flush, config ou do schema do banco internos.",
+            },
+            {
+              from: { element: { type: "platform" } },
+              disallow: {
+                to: {
+                  element: { type: "context" },
+                  file: { categories: "context-internal" },
+                },
+              },
+              message:
+                "platform/ só pode importar de contexts/<nome>/index.ts (barrel público) ou contexts/<nome>/contracts/** — nunca de arquivos internos do context (store, service fora do barrel, schema, etc), mesma regra que já vale pra plugin/tema.",
             },
           ],
         },

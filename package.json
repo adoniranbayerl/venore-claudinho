@@ -9,7 +9,12 @@
     "lint": "eslint",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:generate:academy": "drizzle-kit generate --config=src/plugins/academy/drizzle.config.ts",
+    "db:migrate:academy": "drizzle-kit migrate --config=src/plugins/academy/drizzle.config.ts",
+    "db:seed:admin-access": "node --env-file=.env scripts/seed-admin-access-permission.mjs",
+    "db:seed:media-manage": "node --env-file=.env scripts/seed-media-manage-permission.mjs",
+    "db:bootstrap-superadmin": "tsx --env-file=.env scripts/bootstrap-superadmin.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",
@@ -19,7 +24,9 @@
     "next-auth": "^5.0.0-beta.32",
     "pg": "^8.22.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "semver": "^7.8.5",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -27,11 +34,13 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/semver": "^7.7.1",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "eslint-plugin-boundaries": "^7.1.0",
     "tailwindcss": "^4",
+    "tsx": "^4.19.2",
     "typescript": "^5",
     "vitest": "^4.1.10"
   }

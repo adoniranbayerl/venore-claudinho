@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# media (driver local de contexts/media, dev)
+/public/uploads/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

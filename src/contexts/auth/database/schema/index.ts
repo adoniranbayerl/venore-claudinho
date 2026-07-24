@@ -1,7 +1,9 @@
 import type { AdapterAccountType } from "next-auth/adapters";
-import { integer, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { integer, pgSchema, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 
-export const users = pgTable("users", {
+export const authSchema = pgSchema("auth");
+
+export const users = authSchema.table("users", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -9,9 +11,12 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   emailVerified: timestamp("email_verified", { withTimezone: true }),
   image: text("image"),
+  // "pending" | "approved" — ver contracts/registration.ts. Escrita por provision-user/approve-user-registration.
+  status: text("status").notNull().default("approved"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const accounts = pgTable(
+export const accounts = authSchema.table(
   "accounts",
   {
     userId: text("user_id")
@@ -33,7 +38,7 @@ export const accounts = pgTable(
   ],
 );
 
-export const sessions = pgTable("sessions", {
+export const sessions = authSchema.table("sessions", {
   sessionToken: text("session_token").primaryKey(),
   userId: text("user_id")
     .notNull()
@@ -41,7 +46,7 @@ export const sessions = pgTable("sessions", {
   expires: timestamp("expires", { withTimezone: true }).notNull(),
 });
 
-export const verificationTokens = pgTable(
+export const verificationTokens = authSchema.table(
   "verification_tokens",
   {
     identifier: text("identifier").notNull(),
