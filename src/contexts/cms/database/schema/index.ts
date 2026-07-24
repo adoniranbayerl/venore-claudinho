@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "@/contexts/auth/database/schema";
 
@@ -19,6 +20,8 @@ export const categories = cmsSchema.table("categories", {
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   key: text("key").notNull().unique(),
+  // URL pública da categoria: /<slug>/<entry-slug> (docs/venore-docks.md — decisão de rota pública).
+  slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
   description: text("description"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -52,5 +55,14 @@ export const entries = cmsSchema.table(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (entry) => [uniqueIndex("entries_content_type_slug_idx").on(entry.contentTypeId, entry.slug)],
+  (entry) => [
+    // URL pública: /<slug> quando categoryId é null, /<categoria-slug>/<slug> quando não é —
+    // content type nunca aparece na URL, então a unicidade migra de (contentTypeId, slug) pra
+    // (categoryId, slug). NULL != NULL num índice único do Postgres, então este índice sozinho já
+    // não colide entre entries sem categoria; o segundo cobre a unicidade isolada desse caso.
+    uniqueIndex("entries_category_slug_idx").on(entry.categoryId, entry.slug),
+    uniqueIndex("entries_null_category_slug_idx")
+      .on(entry.slug)
+      .where(sql`${entry.categoryId} is null`),
+  ],
 );

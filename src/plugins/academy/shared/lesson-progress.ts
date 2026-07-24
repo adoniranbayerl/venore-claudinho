@@ -33,9 +33,18 @@ export async function isLessonComplete(lessonId: string, actorId: string): Promi
 
 // Aula sem antecessora (menor position do curso) sempre acessível; as demais exigem a anterior
 // completa (item 4 do pedido: "aula só é acessível se a aula anterior estiver completa").
+//
+// Transitivo até a primeira aula, não só um nível — bug corrigido nesta sessão (ver
+// docs/venore-docks.md): checar só se a anterior está "completed" deixava passar o caso em que
+// a anterior está trivialmente completa (sem lesson_requirements configurado) mas ela própria
+// estava bloqueada, porque a SUA anterior estava incompleta. Uma aula "completed" que nunca foi
+// de fato acessível não pode contar como satisfeita pra liberar a próxima.
 export async function isLessonAccessible(lesson: LessonRecord, actorId: string): Promise<boolean> {
   const previous = await findPreviousLessonByPosition(lesson.courseId, lesson.position);
   if (!previous) return true;
 
-  return isLessonComplete(previous.id, actorId);
+  const previousComplete = await isLessonComplete(previous.id, actorId);
+  if (!previousComplete) return false;
+
+  return isLessonAccessible(previous, actorId);
 }

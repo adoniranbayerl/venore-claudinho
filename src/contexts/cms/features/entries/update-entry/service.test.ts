@@ -16,10 +16,12 @@ vi.mock("@/contexts/media", () => ({
 }));
 
 const findEntryById = vi.fn();
+const findOtherEntryByCategoryAndSlug = vi.fn();
 const updateEntryFields = vi.fn();
 
 vi.mock("./store", () => ({
   findEntryById: (...args: unknown[]) => findEntryById(...args),
+  findOtherEntryByCategoryAndSlug: (...args: unknown[]) => findOtherEntryByCategoryAndSlug(...args),
   updateEntryFields: (...args: unknown[]) => updateEntryFields(...args),
 }));
 
@@ -41,6 +43,8 @@ const existingEntry = {
 describe("updateEntry", () => {
   beforeEach(() => {
     findEntryById.mockReset();
+    findOtherEntryByCategoryAndSlug.mockReset();
+    findOtherEntryByCategoryAndSlug.mockResolvedValue(null);
     updateEntryFields.mockReset();
     getMedia.mockReset();
   });
@@ -93,5 +97,40 @@ describe("updateEntry", () => {
 
     expect(result.success).toBe(true);
     expect(getMedia).not.toHaveBeenCalled();
+  });
+
+  it("fails when the new slug/category combination is already taken by another entry", async () => {
+    findEntryById.mockResolvedValue(existingEntry);
+    findOtherEntryByCategoryAndSlug.mockResolvedValue({ id: "other-entry" });
+
+    const { updateEntry } = await import("./service");
+    const result = await updateEntry({ id: "entry-1", slug: "taken", actorId: "actor-1" });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "cms.entries.slug_taken", message: expect.any(String) },
+    });
+    expect(updateEntryFields).not.toHaveBeenCalled();
+  });
+
+  it("checks duplicates against the effective (post-update) categoryId and slug, excluding itself", async () => {
+    findEntryById.mockResolvedValue(existingEntry);
+    updateEntryFields.mockResolvedValue({ ...existingEntry, categoryId: "cat-1", slug: "new-slug" });
+
+    const { updateEntry } = await import("./service");
+    await updateEntry({ id: "entry-1", categoryId: "cat-1", slug: "new-slug", actorId: "actor-1" });
+
+    expect(findOtherEntryByCategoryAndSlug).toHaveBeenCalledWith("entry-1", "cat-1", "new-slug");
+  });
+
+  it("does not flag a collision with itself when saving without changing slug/category", async () => {
+    findEntryById.mockResolvedValue(existingEntry);
+    updateEntryFields.mockResolvedValue({ ...existingEntry, title: "Updated" });
+
+    const { updateEntry } = await import("./service");
+    const result = await updateEntry({ id: "entry-1", title: "Updated", actorId: "actor-1" });
+
+    expect(result.success).toBe(true);
+    expect(findOtherEntryByCategoryAndSlug).toHaveBeenCalledWith("entry-1", existingEntry.categoryId, existingEntry.slug);
   });
 });

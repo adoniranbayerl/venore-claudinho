@@ -10,6 +10,7 @@ export type ContentTypeRecord = {
 export type CategoryRecord = {
   id: string;
   key: string;
+  slug: string;
   name: string;
   description: string | null;
   createdAt: Date;

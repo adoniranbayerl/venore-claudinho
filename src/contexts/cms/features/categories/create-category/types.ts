@@ -3,6 +3,7 @@ import type { CategoryRecord } from "../../../contracts/types";
 
 export type CreateCategoryCommand = {
   key: string;
+  slug: string;
   name: string;
   description?: string;
   actorId: string;

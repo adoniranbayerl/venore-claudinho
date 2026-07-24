@@ -1,15 +1,8 @@
 import { notFound } from "next/navigation";
-import { getEntry, listCategories } from "@/contexts/cms";
+import { getEntry, getEntryBody, listCategories } from "@/contexts/cms";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { EditEntryForm } from "./_components/edit-entry-form";
 import { PublishButton } from "./_components/publish-button";
-
-function extractBody(data: unknown): string {
-  if (data && typeof data === "object" && "body" in data && typeof (data as { body: unknown }).body === "string") {
-    return (data as { body: string }).body;
-  }
-  return "";
-}
 
 export default async function EditEntryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -60,7 +53,7 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
           entryId={entry.id}
           title={entry.title}
           slug={entry.slug}
-          body={extractBody(entry.data)}
+          body={getEntryBody(entry.data)}
           categoryId={entry.categoryId}
           mediaId={entry.mediaId}
           categories={categoriesResult.data}

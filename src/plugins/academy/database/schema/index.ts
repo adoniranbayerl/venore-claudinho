@@ -11,6 +11,8 @@ export const courses = academySchema.table("courses", {
     .$defaultFn(() => crypto.randomUUID()),
   title: text("title").notNull(),
   description: text("description"),
+  // "draft" | "published" — ver contracts/types.ts (CourseStatus).
+  status: text("status").notNull().default("draft"),
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -18,6 +18,12 @@ const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: "/admin/cms",
         requiredPermission: ["cms.entries.manage", "cms.content-types.manage", "cms.categories.manage"],
       },
+      {
+        key: "academy",
+        label: "Academy",
+        href: "/admin/academy",
+        requiredPermission: "academy.courses.manage",
+      },
     ],
   },
   {

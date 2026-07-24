@@ -1,7 +1,10 @@
+export type CourseStatus = "draft" | "published";
+
 export type CourseRecord = {
   id: string;
   title: string;
   description: string | null;
+  status: CourseStatus;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -35,6 +38,11 @@ export type QuizQuestionRecord = {
   correctOptionIndex: number;
   createdAt: Date;
 };
+
+// Mesma forma de QuizQuestionRecord, sem correctOptionIndex — leitura de aluno respondendo o
+// quiz, que não pode saber a resposta certa antes de responder (ver
+// list-quiz-questions-for-student/service.ts).
+export type StudentQuizQuestionRecord = Omit<QuizQuestionRecord, "correctOptionIndex">;
 
 export type QuizAnswer = { questionId: string; selectedOptionIndex: number };
 

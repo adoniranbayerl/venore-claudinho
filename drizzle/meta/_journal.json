@@ -71,6 +71,13 @@
       "when": 1784827301725,
       "tag": "0009_amusing_hannibal_king",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784893742093,
+      "tag": "0010_spooky_giant_girl",
+      "breakpoints": true
     }
   ]
 }

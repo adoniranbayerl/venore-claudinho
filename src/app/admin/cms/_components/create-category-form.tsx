@@ -25,6 +25,12 @@ export function CreateCategoryForm() {
         />
       </div>
       <input
+        name="slug"
+        placeholder="slug da URL (kebab-case, ex: eventos)"
+        required
+        className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+      />
+      <input
         name="description"
         placeholder="descrição (opcional)"
         className="w-full rounded border border-gray-300 px-2 py-1 text-sm"

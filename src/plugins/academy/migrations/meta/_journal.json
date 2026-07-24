@@ -8,6 +8,13 @@
       "when": 1784838801533,
       "tag": "0000_broken_centennial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784897999240,
+      "tag": "0001_fat_vindicator",
+      "breakpoints": true
     }
   ]
 }

@@ -74,7 +74,7 @@ export default async function CmsAdminPage() {
           <ul className="mt-3 space-y-1">
             {categories.map((category) => (
               <li key={category.id} className="text-sm text-gray-700">
-                {category.name} <span className="text-gray-500">({category.key})</span>
+                {category.name} <span className="text-gray-500">({category.key}, /{category.slug})</span>
                 {category.description && <span className="text-gray-500"> — {category.description}</span>}
               </li>
             ))}

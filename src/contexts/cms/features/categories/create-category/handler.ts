@@ -12,6 +12,13 @@ export async function createCategoryHandler(input: CreateCategoryInput): Promise
     };
   }
 
+  if (!KEBAB_CASE_PATTERN.test(input.slug)) {
+    return {
+      success: false,
+      error: { code: "cms.categories.invalid_slug", message: "O slug da categoria deve estar em kebab-case." },
+    };
+  }
+
   if (input.name.trim().length === 0) {
     return {
       success: false,

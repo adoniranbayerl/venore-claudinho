@@ -1,6 +1,6 @@
 import { getMedia } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
-import { findEntryByContentTypeAndSlug, insertEntry } from "./store";
+import { findEntryByCategoryAndSlug, insertEntry } from "./store";
 import type { CreateEntryCommand, CreateEntryResult } from "./types";
 
 export async function createEntry(command: CreateEntryCommand): Promise<CreateEntryResult> {
@@ -10,11 +10,13 @@ export async function createEntry(command: CreateEntryCommand): Promise<CreateEn
     kind: "write",
   });
 
-  const existing = await findEntryByContentTypeAndSlug(command.contentTypeId, command.slug);
+  const existing = await findEntryByCategoryAndSlug(command.categoryId ?? null, command.slug);
   if (existing) {
     const error = {
       code: "cms.entries.slug_taken",
-      message: `Já existe uma entry com o slug "${command.slug}" para esse content type.`,
+      message: command.categoryId
+        ? `Já existe uma entry com o slug "${command.slug}" nessa categoria.`
+        : `Já existe uma entry sem categoria com o slug "${command.slug}".`,
     };
     endOperation(handle, { success: false, error });
     return { success: false, error };

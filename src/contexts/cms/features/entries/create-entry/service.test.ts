@@ -11,23 +11,23 @@ vi.mock("@/contexts/media", () => ({
   getMedia: (...args: unknown[]) => getMedia(...args),
 }));
 
-const findEntryByContentTypeAndSlug = vi.fn();
+const findEntryByCategoryAndSlug = vi.fn();
 const insertEntry = vi.fn();
 
 vi.mock("./store", () => ({
-  findEntryByContentTypeAndSlug: (...args: unknown[]) => findEntryByContentTypeAndSlug(...args),
+  findEntryByCategoryAndSlug: (...args: unknown[]) => findEntryByCategoryAndSlug(...args),
   insertEntry: (...args: unknown[]) => insertEntry(...args),
 }));
 
 describe("createEntry", () => {
   beforeEach(() => {
-    findEntryByContentTypeAndSlug.mockReset();
+    findEntryByCategoryAndSlug.mockReset();
     insertEntry.mockReset();
     getMedia.mockReset();
   });
 
-  it("creates an entry when the slug is not taken for the content type", async () => {
-    findEntryByContentTypeAndSlug.mockResolvedValue(null);
+  it("creates an entry when the slug is not taken for the category", async () => {
+    findEntryByCategoryAndSlug.mockResolvedValue(null);
     insertEntry.mockResolvedValue({
       id: "entry-1",
       contentTypeId: "ct-1",
@@ -63,8 +63,8 @@ describe("createEntry", () => {
     });
   });
 
-  it("fails when the slug is already taken for the content type", async () => {
-    findEntryByContentTypeAndSlug.mockResolvedValue({ id: "existing" });
+  it("fails when the slug is already taken for the category", async () => {
+    findEntryByCategoryAndSlug.mockResolvedValue({ id: "existing" });
 
     const { createEntry } = await import("./service");
     const result = await createEntry({
@@ -81,8 +81,60 @@ describe("createEntry", () => {
     expect(insertEntry).not.toHaveBeenCalled();
   });
 
+  it("checks slug uniqueness scoped to categoryId, not contentTypeId", async () => {
+    findEntryByCategoryAndSlug.mockResolvedValue(null);
+    insertEntry.mockResolvedValue({
+      id: "entry-1",
+      contentTypeId: "ct-1",
+      categoryId: "cat-1",
+      title: "Hello",
+      slug: "hello",
+      status: "draft",
+      data: {},
+      mediaId: null,
+      authorId: "actor-1",
+      publishedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { createEntry } = await import("./service");
+    await createEntry({
+      contentTypeId: "ct-1",
+      categoryId: "cat-1",
+      title: "Hello",
+      slug: "hello",
+      actorId: "actor-1",
+    });
+
+    expect(findEntryByCategoryAndSlug).toHaveBeenCalledWith("cat-1", "hello");
+  });
+
+  it("checks slug uniqueness among entries without a category when categoryId is absent", async () => {
+    findEntryByCategoryAndSlug.mockResolvedValue(null);
+    insertEntry.mockResolvedValue({
+      id: "entry-1",
+      contentTypeId: "ct-1",
+      categoryId: null,
+      title: "Hello",
+      slug: "hello",
+      status: "draft",
+      data: {},
+      mediaId: null,
+      authorId: "actor-1",
+      publishedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const { createEntry } = await import("./service");
+    await createEntry({ contentTypeId: "ct-1", title: "Hello", slug: "hello", actorId: "actor-1" });
+
+    expect(findEntryByCategoryAndSlug).toHaveBeenCalledWith(null, "hello");
+  });
+
   it("fails when mediaId does not reference an existing media file", async () => {
-    findEntryByContentTypeAndSlug.mockResolvedValue(null);
+    findEntryByCategoryAndSlug.mockResolvedValue(null);
     getMedia.mockResolvedValue({ success: true, data: null });
 
     const { createEntry } = await import("./service");
@@ -102,7 +154,7 @@ describe("createEntry", () => {
   });
 
   it("creates an entry when mediaId references an existing media file", async () => {
-    findEntryByContentTypeAndSlug.mockResolvedValue(null);
+    findEntryByCategoryAndSlug.mockResolvedValue(null);
     getMedia.mockResolvedValue({ success: true, data: { id: "media-1" } });
     insertEntry.mockResolvedValue({
       id: "entry-2",

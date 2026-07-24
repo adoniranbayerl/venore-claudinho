@@ -29,6 +29,7 @@ export async function createContentTypeAction(
 export async function createCategoryAction(_prevState: CmsActionState, formData: FormData): Promise<CmsActionState> {
   const result = await createCategory({
     key: String(formData.get("key") ?? ""),
+    slug: String(formData.get("slug") ?? ""),
     name: String(formData.get("name") ?? ""),
     description: String(formData.get("description") ?? "") || undefined,
   });

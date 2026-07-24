@@ -1,7 +1,7 @@
 import { getMedia } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
 import { invalidateCacheByPrefix } from "../../../../../infrastructure/cache/memory-cache";
-import { findEntryById, updateEntryFields } from "./store";
+import { findEntryById, findOtherEntryByCategoryAndSlug, updateEntryFields } from "./store";
 import type { UpdateEntryCommand, UpdateEntryResult } from "./types";
 
 export async function updateEntry(command: UpdateEntryCommand): Promise<UpdateEntryResult> {
@@ -14,6 +14,21 @@ export async function updateEntry(command: UpdateEntryCommand): Promise<UpdateEn
   const existing = await findEntryById(command.id);
   if (!existing) {
     const error = { code: "cms.entries.not_found", message: `Entry "${command.id}" não encontrada.` };
+    endOperation(handle, { success: false, error });
+    return { success: false, error };
+  }
+
+  const effectiveCategoryId = command.categoryId !== undefined ? command.categoryId : existing.categoryId;
+  const effectiveSlug = command.slug ?? existing.slug;
+
+  const duplicate = await findOtherEntryByCategoryAndSlug(command.id, effectiveCategoryId, effectiveSlug);
+  if (duplicate) {
+    const error = {
+      code: "cms.entries.slug_taken",
+      message: effectiveCategoryId
+        ? `Já existe uma entry com o slug "${effectiveSlug}" nessa categoria.`
+        : `Já existe uma entry sem categoria com o slug "${effectiveSlug}".`,
+    };
     endOperation(handle, { success: false, error });
     return { success: false, error };
   }

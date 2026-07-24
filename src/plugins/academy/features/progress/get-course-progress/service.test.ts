@@ -25,6 +25,7 @@ vi.mock("./store", () => ({
 const course = { id: "course-1", title: "Course", description: null, createdBy: "prof-1", createdAt: new Date(), updatedAt: new Date() };
 const lesson1 = { id: "lesson-1", courseId: "course-1", cmsEntryId: "entry-1", videoUrl: null, position: 1, createdAt: new Date(), updatedAt: new Date() };
 const lesson2 = { id: "lesson-2", courseId: "course-1", cmsEntryId: "entry-2", videoUrl: null, position: 2, createdAt: new Date(), updatedAt: new Date() };
+const lesson3 = { id: "lesson-3", courseId: "course-1", cmsEntryId: "entry-3", videoUrl: null, position: 3, createdAt: new Date(), updatedAt: new Date() };
 
 describe("getCourseProgress", () => {
   beforeEach(() => {
@@ -80,5 +81,26 @@ describe("getCourseProgress", () => {
 
     expect(result.data.lessons[1]).toMatchObject({ locked: false, completed: true });
     expect(result.data.courseCompleted).toBe(true);
+  });
+
+  // Bug 2 (reportado em uso manual): lesson-2 sem requirements configurados é trivialmente
+  // "completed" mesmo estando "locked" (lesson-1 incompleta) — encadear locked a partir só do
+  // completed anterior (sem considerar se essa própria lesson estava locked) deixava lesson-3
+  // marcada como liberada, permitindo acesso/submissão do quiz pulando lesson-1. locked de uma
+  // lesson só pode "contar como completa" pra desbloquear a próxima se ela própria não estava
+  // bloqueada.
+  it("keeps the third lesson locked when the chain is broken by an incomplete first lesson, even if the second is trivially complete", async () => {
+    findLessonsByCourse.mockResolvedValue([lesson1, lesson2, lesson3]);
+    isLessonComplete.mockImplementation(async (lessonId: string) => lessonId !== "lesson-1");
+
+    const { getCourseProgress } = await import("./service");
+    const result = await getCourseProgress({ courseId: "course-1", actorId: "actor-1" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    expect(result.data.lessons[0]).toMatchObject({ lessonId: "lesson-1", locked: false, completed: false });
+    expect(result.data.lessons[1]).toMatchObject({ lessonId: "lesson-2", locked: true, completed: true });
+    expect(result.data.lessons[2]).toMatchObject({ lessonId: "lesson-3", locked: true });
   });
 });

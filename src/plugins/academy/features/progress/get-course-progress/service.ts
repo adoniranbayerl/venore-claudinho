@@ -1,7 +1,7 @@
 import { findLessonRequirements, isLessonComplete } from "../../../shared/lesson-progress";
 import { findCourseById, findLessonsByCourse, findQuizAttempts, hasTextCompletion, hasVideoCompletion } from "./store";
 import { toLessonProgressView } from "./view";
-import type { GetCourseProgressQuery, GetCourseProgressResult } from "./types";
+import type { GetCourseProgressQuery, GetCourseProgressResult, LessonProgressView } from "./types";
 
 export async function getCourseProgress(query: GetCourseProgressQuery): Promise<GetCourseProgressResult> {
   const course = await findCourseById(query.courseId);
@@ -11,8 +11,14 @@ export async function getCourseProgress(query: GetCourseProgressQuery): Promise<
 
   const lessons = await findLessonsByCourse(query.courseId);
 
-  const lessonViews = [];
-  let previousComplete = true; // primeira lesson sempre acessível
+  const lessonViews: LessonProgressView[] = [];
+  // "satisfeita" carrega completed E acessível da aula anterior, não só completed — bug
+  // corrigido nesta sessão (ver docs/venore-docks.md): uma aula sem lesson_requirements
+  // configurado é trivialmente "completed" mesmo estando ela própria locked (porque SUA
+  // anterior está incompleta); deixar essa aula "completed" sozinha satisfazer a próxima
+  // pulava o bloqueio real da cadeia. Mesma correção espelhada em
+  // shared/lesson-progress.ts::isLessonAccessible, usado pelas actions de escrita.
+  let previousSatisfied = true; // primeira lesson sempre acessível
 
   for (const lesson of lessons) {
     const [requirements, textRead, videoWatched, attempts, completed] = await Promise.all([
@@ -23,10 +29,12 @@ export async function getCourseProgress(query: GetCourseProgressQuery): Promise<
       isLessonComplete(lesson.id, query.actorId),
     ]);
 
+    const isLocked: boolean = !previousSatisfied;
+
     lessonViews.push(
       toLessonProgressView({
         lesson,
-        locked: !previousComplete,
+        locked: isLocked,
         completed,
         requirements,
         textRead,
@@ -35,7 +43,7 @@ export async function getCourseProgress(query: GetCourseProgressQuery): Promise<
       }),
     );
 
-    previousComplete = completed;
+    previousSatisfied = completed && !isLocked;
   }
 
   const completedLessons = lessonViews.filter((l) => l.completed).length;

@@ -1,16 +1,20 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import { entries } from "../../../database/schema";
 import type { EntryRecord } from "../../../contracts/types";
 
-export async function findEntryByContentTypeAndSlug(
-  contentTypeId: string,
+// Unicidade pública é por (categoryId, slug) — content type nunca aparece na URL
+// (docs/venore-docks.md — decisão de rota pública /<slug> ou /<categoria>/<slug>).
+export async function findEntryByCategoryAndSlug(
+  categoryId: string | null,
   slug: string,
 ): Promise<EntryRecord | null> {
   const [row] = await db
     .select()
     .from(entries)
-    .where(and(eq(entries.contentTypeId, contentTypeId), eq(entries.slug, slug)))
+    .where(
+      and(categoryId ? eq(entries.categoryId, categoryId) : isNull(entries.categoryId), eq(entries.slug, slug)),
+    )
     .limit(1);
 
   return (row as EntryRecord) ?? null;
