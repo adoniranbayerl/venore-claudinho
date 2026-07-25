@@ -16,7 +16,14 @@ export {
 // de cms e media, pra evitar ciclo com a validação de mediaId em create-entry/update-entry).
 export { isMediaReferencedHandler as isMediaReferenced } from "./features/entries/is-media-referenced/handler";
 
-export type { ContentTypeRecord, CategoryRecord, EntryRecord, EntryStatus } from "./contracts/types";
+export { createMenuItemHandler as createMenuItem } from "./features/menus/create-menu-item/handler";
+export { removeMenuItemHandler as removeMenuItem } from "./features/menus/remove-menu-item/handler";
+export { reorderMenuItemsHandler as reorderMenuItems } from "./features/menus/reorder-menu-items/handler";
+// Leitura pública, sem authorizeActor — consumida por platform/theme-rendering para resolver o
+// main-nav a partir de dado real do CMS.
+export { getMenuByLocationHandler as getMenuByLocation } from "./features/menus/get-menu-by-location/handler";
+
+export type { ContentTypeRecord, CategoryRecord, EntryRecord, EntryStatus, MenuRecord, MenuItemRecord } from "./contracts/types";
 export { getEntryBody } from "./contracts/entry-body";
 
 export type { CreateContentTypeInput, CreateContentTypeResult } from "./features/content-types/create-content-type/types";
@@ -41,3 +48,7 @@ export type {
   GetPublishedEntryBySlugResult,
 } from "./features/entries/get-published-entry-by-slug/types";
 export type { IsMediaReferencedQuery, IsMediaReferencedResult } from "./features/entries/is-media-referenced/types";
+export type { CreateMenuItemInput, CreateMenuItemResult } from "./features/menus/create-menu-item/types";
+export type { RemoveMenuItemInput, RemoveMenuItemResult } from "./features/menus/remove-menu-item/types";
+export type { ReorderMenuItemsInput, ReorderMenuItemsResult } from "./features/menus/reorder-menu-items/types";
+export type { GetMenuByLocationQuery, GetMenuByLocationResult } from "./features/menus/get-menu-by-location/types";

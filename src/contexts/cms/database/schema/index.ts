@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "@/contexts/auth/database/schema";
 
 export const cmsSchema = pgSchema("cms");
@@ -66,3 +66,26 @@ export const entries = cmsSchema.table(
       .where(sql`${entry.categoryId} is null`),
   ],
 );
+
+export const menus = cmsSchema.table("menus", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  // ex: "main-nav" — identifica onde o menu é renderizado.
+  location: text("location").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const menuItems = cmsSchema.table("menu_items", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  menuId: text("menu_id")
+    .notNull()
+    .references(() => menus.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  href: text("href").notNull(),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

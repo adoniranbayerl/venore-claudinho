@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getEntry, getEntryBody, listCategories } from "@/contexts/cms";
+import { getMedia } from "@/contexts/media";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { EditEntryForm } from "./_components/edit-entry-form";
 import { PublishButton } from "./_components/publish-button";
@@ -41,6 +42,9 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
     notFound();
   }
 
+  const mediaResult = entry.mediaId ? await getMedia({ id: entry.mediaId }) : null;
+  const media = mediaResult?.success && mediaResult.data ? mediaResult.data : null;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -55,7 +59,7 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
           slug={entry.slug}
           body={getEntryBody(entry.data)}
           categoryId={entry.categoryId}
-          mediaId={entry.mediaId}
+          media={media}
           categories={categoriesResult.data}
         />
       </div>

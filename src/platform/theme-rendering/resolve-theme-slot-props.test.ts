@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getCurrentUser = vi.fn();
+const getMenuByLocation = vi.fn();
 
 vi.mock("@/contexts/auth", () => ({
   getCurrentUser: (...args: unknown[]) => getCurrentUser(...args),
+}));
+
+vi.mock("@/contexts/cms", () => ({
+  getMenuByLocation: (...args: unknown[]) => getMenuByLocation(...args),
 }));
 
 function sidebarNavInput(overrides: Partial<{ canAccessAdmin: boolean; onSignOut: () => Promise<void> }> = {}) {
@@ -21,6 +26,8 @@ function sidebarNavInput(overrides: Partial<{ canAccessAdmin: boolean; onSignOut
 describe("resolveThemeSlotProps", () => {
   beforeEach(() => {
     getCurrentUser.mockReset();
+    getMenuByLocation.mockReset();
+    getMenuByLocation.mockResolvedValue({ success: true, data: { location: "main-nav", items: [] } });
   });
 
   it("resolves header.user as null when there is no authenticated user", async () => {
@@ -77,5 +84,39 @@ describe("resolveThemeSlotProps", () => {
 
     expect(props.header.canAccessAdmin).toBe(true);
     expect(props.header.onSignOut).toBe(onSignOut);
+  });
+
+  it("resolves sidebarLeft.navItems from the main-nav menu when navMode is main", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: null });
+    getMenuByLocation.mockResolvedValue({
+      success: true,
+      data: { location: "main-nav", items: [{ id: "item-1", menuId: "menu-1", label: "Home", href: "/", order: 0, createdAt: new Date() }] },
+    });
+
+    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
+    const props = await resolveThemeSlotProps(sidebarNavInput());
+
+    expect(props.sidebarLeft.navItems).toEqual([{ key: "item-1", label: "Home", href: "/" }]);
+    expect(getMenuByLocation).toHaveBeenCalledWith({ location: "main-nav" });
+  });
+
+  it("falls back to the mock nav items when the main-nav menu lookup fails", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: null });
+    getMenuByLocation.mockResolvedValue({ success: false, error: { code: "err", message: "boom" } });
+
+    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
+    const props = await resolveThemeSlotProps(sidebarNavInput());
+
+    expect(props.sidebarLeft.navItems).toEqual([{ key: "home", label: "Home", href: "/" }]);
+  });
+
+  it("uses adminNavItems, not the main-nav menu, when navMode is admin", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: null });
+    const adminNavItems = [{ key: "admin.roles", label: "Papéis", href: "/admin/rbac" }];
+
+    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
+    const props = await resolveThemeSlotProps({ ...sidebarNavInput(), navMode: "admin", adminNavItems });
+
+    expect(props.sidebarLeft.navItems).toBe(adminNavItems);
   });
 });

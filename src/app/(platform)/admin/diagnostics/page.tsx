@@ -1,0 +1,161 @@
+import Link from "next/link";
+import { listLogEntries } from "@/observability";
+import { getDiagnosticsPageData } from "@/platform/admin-shell/get-diagnostics-page-data";
+
+type DiagnosticsSearchParams = {
+  success?: string;
+  useCase?: string;
+  cursor?: string;
+};
+
+function parseSuccessFilter(value: string | undefined): boolean | undefined {
+  if (value === "success") return true;
+  if (value === "error") return false;
+  return undefined;
+}
+
+function buildLoadMoreHref(searchParams: DiagnosticsSearchParams, cursor: string): string {
+  const params = new URLSearchParams();
+  if (searchParams.success) params.set("success", searchParams.success);
+  if (searchParams.useCase) params.set("useCase", searchParams.useCase);
+  params.set("cursor", cursor);
+  return `/admin/diagnostics?${params.toString()}`;
+}
+
+export default async function DiagnosticsAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<DiagnosticsSearchParams>;
+}) {
+  const gate = await getDiagnosticsPageData();
+
+  if (!gate.granted) {
+    return (
+      <div className="rounded border border-gray-200 bg-white p-8 text-center">
+        <h1 className="text-lg font-semibold text-gray-900">Acesso negado</h1>
+        <p className="mt-2 text-sm text-gray-600">Você não tem permissão para ver os logs de observabilidade.</p>
+      </div>
+    );
+  }
+
+  const resolvedSearchParams = await searchParams;
+  const successFilter = parseSuccessFilter(resolvedSearchParams.success);
+
+  const result = await listLogEntries({
+    success: successFilter,
+    useCase: resolvedSearchParams.useCase || undefined,
+    cursor: resolvedSearchParams.cursor,
+  });
+
+  if (!result.success) {
+    return <p className="text-sm text-red-600">Erro ao carregar logs: {result.error.message}</p>;
+  }
+
+  const { entries, hasMore } = result.data;
+  const lastEntry = entries[entries.length - 1];
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-xl font-semibold text-gray-900">Diagnostics</h1>
+        <p className="mt-1 text-sm text-gray-600">Logs recentes de operações registradas pela camada de observabilidade.</p>
+      </div>
+
+      <section className="rounded border border-gray-200 bg-white p-4">
+        <form method="get" className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="success" className="text-xs font-medium text-gray-700">
+              Status
+            </label>
+            <select
+              id="success"
+              name="success"
+              defaultValue={resolvedSearchParams.success ?? "all"}
+              className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-900"
+            >
+              <option value="all">Todos</option>
+              <option value="success">Só sucesso</option>
+              <option value="error">Só erros</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="useCase" className="text-xs font-medium text-gray-700">
+              Use case
+            </label>
+            <input
+              id="useCase"
+              name="useCase"
+              type="text"
+              defaultValue={resolvedSearchParams.useCase ?? ""}
+              placeholder="ex: cms.entries.publish"
+              className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-900"
+            />
+          </div>
+          <button type="submit" className="rounded bg-gray-900 px-3 py-1 text-sm font-medium text-white">
+            Filtrar
+          </button>
+        </form>
+      </section>
+
+      <section className="rounded border border-gray-200 bg-white p-4">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-xs font-medium text-gray-500">
+                <th className="py-2 pr-4">Horário</th>
+                <th className="py-2 pr-4">Use case</th>
+                <th className="py-2 pr-4">Ator</th>
+                <th className="py-2 pr-4">Status</th>
+                <th className="py-2 pr-4">Duração</th>
+                <th className="py-2 pr-4">Erro</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((entry) => (
+                <tr key={entry.id} className="border-b border-gray-100 text-gray-700">
+                  <td className="py-2 pr-4 whitespace-nowrap">{entry.startedAt.toLocaleString("pt-BR")}</td>
+                  <td className="py-2 pr-4">{entry.useCase}</td>
+                  <td className="py-2 pr-4">
+                    {entry.actorType}:{entry.actorId}
+                  </td>
+                  <td className="py-2 pr-4">
+                    <span className={entry.success ? "text-green-700" : "text-red-600"}>
+                      {entry.success ? "sucesso" : "erro"}
+                    </span>
+                  </td>
+                  <td className="py-2 pr-4">{entry.durationMs}ms</td>
+                  <td className="py-2 pr-4 text-xs text-gray-500">
+                    {entry.errorCode && (
+                      <>
+                        {entry.errorCode}
+                        {entry.errorMessage && <>: {entry.errorMessage}</>}
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {entries.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-4 text-center text-sm text-gray-500">
+                    Nenhum log encontrado.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {hasMore && lastEntry && (
+          <div className="mt-4 text-center">
+            <Link
+              href={buildLoadMoreHref(resolvedSearchParams, lastEntry.id)}
+              className="text-sm font-medium text-gray-900 hover:underline"
+            >
+              Carregar mais
+            </Link>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

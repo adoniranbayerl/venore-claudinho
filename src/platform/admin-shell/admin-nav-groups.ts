@@ -17,13 +17,24 @@ const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         key: "cms",
         label: "CMS",
         href: "/admin/cms",
-        requiredPermission: ["cms.entries.manage", "cms.content-types.manage", "cms.categories.manage"],
+        requiredPermission: [
+          "cms.entries.manage",
+          "cms.content-types.manage",
+          "cms.categories.manage",
+          "cms.menus.manage",
+        ],
       },
       {
         key: "academy",
         label: "Academy",
         href: "/admin/academy",
         requiredPermission: "academy.courses.manage",
+      },
+      {
+        key: "media",
+        label: "Mídia",
+        href: "/admin/media",
+        requiredPermission: "media.manage",
       },
     ],
   },
@@ -33,6 +44,12 @@ const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     items: [
       { key: "settings", label: "Configurações do site", href: "/admin/settings", requiredPermission: "settings.manage" },
       { key: "themes", label: "Temas", href: "/admin/themes", requiredPermission: "settings.manage" },
+      {
+        key: "diagnostics",
+        label: "Diagnostics",
+        href: "/admin/diagnostics",
+        requiredPermission: "observability.logs.view",
+      },
     ],
   },
 ];

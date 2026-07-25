@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
+import { MediaPickerField } from "@/components/media-picker-field";
+import type { PickableMedia } from "@/components/media-picker-field.actions";
 import { updateEntryAction, type EditEntryActionState } from "../actions";
 
 const initialState: EditEntryActionState = { error: null };
@@ -11,7 +13,7 @@ export function EditEntryForm({
   slug,
   body,
   categoryId,
-  mediaId,
+  media,
   categories,
 }: {
   entryId: string;
@@ -19,7 +21,7 @@ export function EditEntryForm({
   slug: string;
   body: string;
   categoryId: string | null;
-  mediaId: string | null;
+  media: PickableMedia | null;
   categories: { id: string; name: string }[];
 }) {
   const [state, formAction, pending] = useActionState(updateEntryAction, initialState);
@@ -74,14 +76,7 @@ export function EditEntryForm({
         />
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-gray-700">Media ID (opcional)</label>
-        <input
-          name="mediaId"
-          defaultValue={mediaId ?? ""}
-          className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"
-        />
-      </div>
+      <MediaPickerField name="mediaId" initialMedia={media} />
 
       <button
         type="submit"

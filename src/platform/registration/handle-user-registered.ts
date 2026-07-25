@@ -1,5 +1,6 @@
 import { provisionUser } from "@/contexts/auth";
 import { grantDefaultRoleOnRegistration, grantSuperadmin, superadminExists } from "@/contexts/rbac";
+import { getSetting } from "@/contexts/settings";
 import type { OperationResult } from "@/shared/types";
 
 export type UserRegisteredInput = {
@@ -8,10 +9,18 @@ export type UserRegisteredInput = {
   name: string | null;
 };
 
-// TODO: migrar para settings de plugin quando o manifesto existir (docs/venore-docks.md — Sistema de plugins).
-function isApprovalRequired(): boolean {
-  const raw = process.env.AUTH_REGISTRATION_APPROVAL_REQUIRED;
-  return raw === undefined ? true : raw !== "false";
+export const REGISTRATION_APPROVAL_REQUIRED_SETTING_KEY = "auth.registration_approval_required";
+
+// Configurável em runtime via /admin/settings (contexts/settings, chave acima). Nenhum default é
+// registrado no bootstrap — mesmo padrão de FALLBACK_ACTIVE_THEME em
+// contexts/themes/features/active-theme/get-active-theme/service.ts: setting ausente ou erro na
+// leitura cai no mesmo comportamento de hoje (aprovação exigida).
+async function isApprovalRequired(): Promise<boolean> {
+  const result = await getSetting({ key: REGISTRATION_APPROVAL_REQUIRED_SETTING_KEY });
+  if (!result.success || !result.data || typeof result.data.value !== "string") {
+    return true;
+  }
+  return result.data.value !== "false";
 }
 
 // Ponto de composição fora de auth e rbac (docs/venore-docks.md — regra 12): a hierarquia
@@ -21,7 +30,7 @@ function isApprovalRequired(): boolean {
 export async function handleUserRegistered(user: UserRegisteredInput): Promise<OperationResult<void>> {
   // Bootstrap de superadmin (docs/venore-docks.md — Autenticação / Bootstrap de superadmin):
   // se ninguém no sistema tem o papel superadmin ainda, o próximo usuário a se registrar pula
-  // pending e o papel padrão — independente de AUTH_REGISTRATION_APPROVAL_REQUIRED estar ligado.
+  // pending e o papel padrão — independente da setting de aprovação estar ligada.
   const hasSuperadmin = await superadminExists();
   if (!hasSuperadmin.success) {
     return hasSuperadmin;
@@ -30,7 +39,7 @@ export async function handleUserRegistered(user: UserRegisteredInput): Promise<O
     return grantSuperadmin({ userId: user.id });
   }
 
-  if (isApprovalRequired()) {
+  if (await isApprovalRequired()) {
     return provisionUser(user);
   }
 

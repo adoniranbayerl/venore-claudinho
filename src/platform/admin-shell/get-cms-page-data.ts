@@ -1,7 +1,12 @@
 import { getAdminPageData } from "./get-admin-page-data";
 import type { AdminPageGate } from "./types";
 
-const CMS_SECTION_PERMISSIONS = ["cms.content-types.manage", "cms.categories.manage", "cms.entries.manage"];
+const CMS_SECTION_PERMISSIONS = [
+  "cms.content-types.manage",
+  "cms.categories.manage",
+  "cms.entries.manage",
+  "cms.menus.manage",
+];
 
 // Loader "de seção" do admin (docs/venore-docks.md — regra 13): getAdminPageData() já resolveu o
 // ator e o acesso geral ao admin; aqui só acrescenta a checagem de acesso à seção /admin/cms.

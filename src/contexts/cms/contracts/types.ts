@@ -33,3 +33,17 @@ export type EntryRecord = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type MenuItemRecord = {
+  id: string;
+  menuId: string;
+  label: string;
+  href: string;
+  order: number;
+  createdAt: Date;
+};
+
+export type MenuRecord = {
+  location: string;
+  items: MenuItemRecord[];
+};

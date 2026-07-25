@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { MediaPickerField } from "@/components/media-picker-field";
 import { createEntryAction, type CreateEntryActionState } from "../actions";
 
 const initialState: CreateEntryActionState = { error: null };
@@ -55,10 +56,7 @@ export function CreateEntryForm({
         <textarea name="body" rows={8} className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm" />
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-gray-700">Media ID (opcional)</label>
-        <input name="mediaId" className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm" />
-      </div>
+      <MediaPickerField name="mediaId" />
 
       <button
         type="submit"

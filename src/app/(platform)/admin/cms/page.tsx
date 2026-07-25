@@ -21,6 +21,7 @@ export default async function CmsAdminPage() {
   const canManageContentTypes = actor.isSuperadmin || actor.permissions.includes("cms.content-types.manage");
   const canManageCategories = actor.isSuperadmin || actor.permissions.includes("cms.categories.manage");
   const canManageEntries = actor.isSuperadmin || actor.permissions.includes("cms.entries.manage");
+  const canManageMenus = actor.isSuperadmin || actor.permissions.includes("cms.menus.manage");
 
   const [contentTypesResult, categoriesResult, entriesResult] = await Promise.all([
     listContentTypes(),
@@ -110,6 +111,17 @@ export default async function CmsAdminPage() {
             ))}
             {entries.length === 0 && <li className="text-sm text-gray-500">Nenhuma entry cadastrada.</li>}
           </ul>
+        </section>
+      )}
+
+      {canManageMenus && (
+        <section className="rounded border border-gray-200 bg-white p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-900">Menus</h2>
+            <Link href="/admin/cms/menus" className="text-xs font-medium text-gray-900 hover:underline">
+              Gerenciar main-nav
+            </Link>
+          </div>
         </section>
       )}
     </div>
