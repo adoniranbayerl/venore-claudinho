@@ -1,4 +1,4 @@
-import type { HeaderSlotProps, FooterSlotProps, SidebarRightSlotProps, NavItem } from "@/contexts/themes";
+import type { HeaderSlotProps, FooterSlotProps, SidebarLeftSlotProps, NavItem } from "@/contexts/themes";
 
 // Dado mockado do tema Venore Slime — não existe CMS nem RBAC de navegação ainda para resolver
 // brand/navItems/sitemap de verdade (docs/venore-docks.md — "Sobre temas", ponto 6).
@@ -7,14 +7,15 @@ import type { HeaderSlotProps, FooterSlotProps, SidebarRightSlotProps, NavItem }
 // composição em platform/theme-rendering/resolve-theme-slot-props.ts pode importá-lo e passar
 // os valores como props — um tema nunca busca dado sozinho (Contrato de slot).
 //
-// header aqui é o HeaderSlotProps completo (brand/userbar/header-nav/scrollState não têm fonte
-// real ainda). sidebarRight só cobre enabled + a lista main-nav (usada quando navMode === "main")
-// — navMode/canToggleAdminNav/onToggleNavMode/admin-nav são resolvidos de verdade pelo layout e
+// header aqui cobre brand/userbar/header-nav/scrollState (sem fonte real ainda). user/
+// canAccessAdmin/onSignOut vêm de @/contexts/auth via resolve-theme-slot-props.ts, nunca do
+// mock. sidebarLeft só cobre enabled + a lista main-nav (usada quando navMode === "main") —
+// navMode/canToggleAdminNav/onToggleNavMode/admin-nav são resolvidos de verdade pelo layout e
 // mesclados por cima em resolve-theme-slot-props.ts.
 export const venoreSlimeMockProps: {
-  header: HeaderSlotProps;
+  header: Omit<HeaderSlotProps, "user" | "canAccessAdmin" | "onSignOut">;
   footer: FooterSlotProps;
-  sidebarRight: Omit<SidebarRightSlotProps, "navMode" | "canToggleAdminNav" | "onToggleNavMode"> & {
+  sidebarLeft: Omit<SidebarLeftSlotProps, "navMode" | "canToggleAdminNav" | "onToggleNavMode"> & {
     navItems: NavItem[];
   };
 } = {
@@ -29,5 +30,5 @@ export const venoreSlimeMockProps: {
     sitemapItems: [],
     creditsEnabled: true,
   },
-  sidebarRight: { enabled: true, navItems: [{ key: "home", label: "Home", href: "/" }] },
+  sidebarLeft: { enabled: true, navItems: [{ key: "home", label: "Home", href: "/" }] },
 };

@@ -20,13 +20,27 @@ export type ScrollState = { isScrolled: boolean };
 
 export type NavMode = "main" | "admin";
 
+// Dado de usuário já resolvido para o Header — o tema nunca busca isso sozinho (Contrato de
+// slot). displayName já vem com fallback (name -> email -> "Usuário") resolvido pela composição.
+export type HeaderUserInfo = {
+  displayName: string;
+  email: string | null;
+  imageUrl: string | null;
+};
+
 export type HeaderSlotProps = {
   brand: { name: string; logoUrl?: string };
   userbarEnabled: boolean;
   // header-nav: navegação própria do Header, distinta de main-nav/admin-nav (que vivem no
-  // SidebarRight) — opcional, lista vazia = tema não renderiza nada aqui.
+  // SidebarLeft) — opcional, lista vazia = tema não renderiza nada aqui.
   headerNavItems: NavItem[];
   scrollState: ScrollState;
+  // user null = ninguém logado. Extensão aditiva do contrato (nenhum campo existente mudou) —
+  // mantida em themeContractVersion "2.0.0" por não haver ainda segundo tema publicado
+  // (docs/venore-docks.md — decisão registrada junto ao CURRENT_THEME_CONTRACT_VERSION).
+  user: HeaderUserInfo | null;
+  canAccessAdmin: boolean;
+  onSignOut: () => Promise<void>;
 };
 
 export type FooterSlotProps = {
@@ -40,9 +54,9 @@ export type ContentSlotProps = {
   sidebarContextualEnabled: boolean;
 };
 
-// SidebarRight é exclusivo de navegação (main-nav ou admin-nav, conforme navMode) — não é área
+// SidebarLeft é exclusivo de navegação (main-nav ou admin-nav, conforme navMode) — não é área
 // de widgets. O controle de alternância main-nav/admin-nav também mora aqui, não no Header.
-export type SidebarRightSlotProps = {
+export type SidebarLeftSlotProps = {
   enabled: boolean;
   navMode: NavMode;
   navItems: NavItem[];

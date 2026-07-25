@@ -20,7 +20,7 @@ Temas são instalados no código (arquivo/pacote), mas a escolha de qual tema es
 O tema ativo (e qualquer configuração trocável em runtime, incluindo `registrationApprovalRequired` e o papel padrão de registro, hoje via env var como solução provisória) vive em `contexts/settings` — key-value por site, não em variável de ambiente. Variável de ambiente exige redeploy pra mudar; não serve pra algo que um admin troca num painel.
 
 ### Shell única — sem área admin separada
-Não existe uma "área admin" com casca própria, independente do tema. Existe **uma shell**, um único `Header`/`Footer`/`Content`/`SidebarRight`, e a navegação alterna entre `main-nav` e `admin-nav` através de um controle no próprio Header — visível só para quem tem alguma permission administrativa. CSS, espaçamento, cor, tudo continua vindo do mesmo tema, nos dois modos. Isso substitui a decisão anterior de admin shell independente (documentada até esta versão) — código já implementado com casca própria é dívida a retrofitar, não o padrão a seguir daqui em diante.
+Não existe uma "área admin" com casca própria, independente do tema. Existe **uma shell**, um único `Header`/`Footer`/`Content`/`SidebarLeft`, e a navegação alterna entre `main-nav` e `admin-nav` através de um controle no próprio Header — visível só para quem tem alguma permission administrativa. CSS, espaçamento, cor, tudo continua vindo do mesmo tema, nos dois modos. Isso substitui a decisão anterior de admin shell independente (documentada até esta versão) — código já implementado com casca própria é dívida a retrofitar, não o padrão a seguir daqui em diante.
 
 Mecanicamente, isso é um route group do Next.js: `app/(platform)/` contém tanto as páginas públicas (`[...slug]`, `academy`, etc.) quanto `app/(platform)/admin/**` — todos puxando o **mesmo** `(platform)/layout.tsx`, que monta a shell uma vez. `admin` continua existindo como path normal; a diferença é só que ele não tem `layout.tsx` próprio, herda o do grupo. Um grupo `(auth)` separado (login, setup) não usa a shell cheia — não precisa dela.
 
@@ -59,7 +59,7 @@ Os temas customizam todo o design do site, incluindo CSS e shells. A plataforma 
    2.3 Credits (pode ativar ou desativar)
 3. Content
    3.1 Sidebar Contextual (pode ativar ou desativar)
-4. Sidebar Right (pode ativar ou desativar)
+4. Sidebar Left (pode ativar ou desativar)
 
 ### Áreas dinâmicas
 1. Navegações (`main-nav`, `admin-nav`, `header-nav`, `contextual-nav`, `user-nav`, `sitemap`)
@@ -79,13 +79,14 @@ Cada área estrutural é implementada pelo tema como um componente React que rec
 | `HeaderSlot` | `brand`, `userbarEnabled`, `navMode` (`"main" \| "admin"`), `navItems` (de `main-nav` ou `admin-nav`, conforme `navMode`), `canToggleAdminNav` (o ator tem alguma permission administrativa), `scrollState` |
 | `FooterSlot` | `brand`, `sitemapItems`, `creditsEnabled` |
 | `ContentSlot` | `children` (conteúdo resolvido da página), `sidebarContextualEnabled` |
-| `SidebarRightSlot` | `enabled`, `blocks` (lista de blocos a renderizar, quando habilitado) |
+| `SidebarLeftSlot` | `enabled`, `blocks` (lista de blocos a renderizar, quando habilitado) |
 
 Regras do contrato de slot:
 - O tema recebe **dados já resolvidos** (ex: itens de navegação já filtrados por permissão) — nunca uma referência crua a `context` para ele mesmo buscar.
 - Um tema pode optar por não renderizar uma área opcional, mas não pode inventar uma área nova fora dessa lista sem virar uma extensão formal do core.
 - Toda prop nova que um slot passar a receber precisa ser uma mudança versionada do contrato (`themeContractVersion`), porque temas de terceiros/sites diferentes dependem dela.
 - Nenhum componente do tema usa valor hardcoded — só as variáveis do contrato de design tokens acima.
+- O arranjo espacial entre Content e SidebarLeft (lado a lado, sidebar à esquerda do conteúdo) é responsabilidade da composição da shell (`platform/`), não do tema; o tema só estiliza dentro da área que recebe.
 
 
 

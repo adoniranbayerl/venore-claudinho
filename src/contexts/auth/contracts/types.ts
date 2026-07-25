@@ -6,3 +6,10 @@ export type AuthenticatedUser = {
 };
 
 export type UserRegistrationStatus = "pending" | "approved";
+
+export type AuthProviderDescriptor = {
+  key: "github" | "google" | "microsoft-entra-id" | "credentials";
+  label: string;
+  kind: "oauth" | "development";
+  enabled: boolean;
+};

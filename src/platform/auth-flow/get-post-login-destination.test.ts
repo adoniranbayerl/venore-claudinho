@@ -1,0 +1,79 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const getCurrentUser = vi.fn();
+
+vi.mock("@/contexts/auth", () => ({
+  getCurrentUser: (...args: unknown[]) => getCurrentUser(...args),
+}));
+
+const getUserContext = vi.fn();
+const superadminExists = vi.fn();
+
+vi.mock("@/contexts/rbac", () => ({
+  getUserContext: (...args: unknown[]) => getUserContext(...args),
+  superadminExists: (...args: unknown[]) => superadminExists(...args),
+}));
+
+describe("getPostLoginDestination", () => {
+  beforeEach(() => {
+    getCurrentUser.mockReset();
+    getUserContext.mockReset();
+    superadminExists.mockReset();
+  });
+
+  it("goes to /login when there is no authenticated user", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: null });
+
+    const { getPostLoginDestination } = await import("./get-post-login-destination");
+    expect(await getPostLoginDestination()).toBe("/login");
+    expect(superadminExists).not.toHaveBeenCalled();
+  });
+
+  it("goes to /setup when no superadmin exists yet", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: { id: "user-1" } });
+    superadminExists.mockResolvedValue({ success: true, data: false });
+
+    const { getPostLoginDestination } = await import("./get-post-login-destination");
+    expect(await getPostLoginDestination()).toBe("/setup");
+    expect(getUserContext).not.toHaveBeenCalled();
+  });
+
+  it("goes to /admin when the user is superadmin", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: { id: "user-1" } });
+    superadminExists.mockResolvedValue({ success: true, data: true });
+    getUserContext.mockResolvedValue({ success: true, data: { isSuperadmin: true, permissions: [], roles: [] } });
+
+    const { getPostLoginDestination } = await import("./get-post-login-destination");
+    expect(await getPostLoginDestination()).toBe("/admin");
+  });
+
+  it("goes to /admin when the user has platform.admin.access", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: { id: "user-1" } });
+    superadminExists.mockResolvedValue({ success: true, data: true });
+    getUserContext.mockResolvedValue({
+      success: true,
+      data: { isSuperadmin: false, permissions: ["platform.admin.access"], roles: [] },
+    });
+
+    const { getPostLoginDestination } = await import("./get-post-login-destination");
+    expect(await getPostLoginDestination()).toBe("/admin");
+  });
+
+  it("goes to / for a regular user without admin access", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: { id: "user-1" } });
+    superadminExists.mockResolvedValue({ success: true, data: true });
+    getUserContext.mockResolvedValue({ success: true, data: { isSuperadmin: false, permissions: [], roles: [] } });
+
+    const { getPostLoginDestination } = await import("./get-post-login-destination");
+    expect(await getPostLoginDestination()).toBe("/");
+  });
+
+  it("goes to / when the rbac context lookup fails", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: { id: "user-1" } });
+    superadminExists.mockResolvedValue({ success: true, data: true });
+    getUserContext.mockResolvedValue({ success: false, error: { code: "x", message: "x" } });
+
+    const { getPostLoginDestination } = await import("./get-post-login-destination");
+    expect(await getPostLoginDestination()).toBe("/");
+  });
+});

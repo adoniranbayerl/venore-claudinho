@@ -1,4 +1,6 @@
 import { getAdminPageData } from "@/platform/admin-shell/get-admin-page-data";
+import { Button } from "@/components/ui/button";
+import { signOutAction } from "@/app/(auth)/actions";
 
 export default async function AdminPage() {
   const gate = await getAdminPageData();
@@ -14,8 +16,17 @@ export default async function AdminPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-gray-900">Bem-vindo ao painel administrativo</h1>
-      <p className="mt-2 text-sm text-gray-600">Escolha uma área no menu ao lado.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">Bem-vindo ao painel administrativo</h1>
+          <p className="mt-2 text-sm text-gray-600">Escolha uma área no menu ao lado.</p>
+        </div>
+        <form action={signOutAction}>
+          <Button type="submit" variant="outline" size="sm">
+            Sair
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

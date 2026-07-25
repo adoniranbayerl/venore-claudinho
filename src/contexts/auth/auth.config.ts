@@ -1,9 +1,9 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
 import { db } from "@/infrastructure/database/client";
 import { handleUserRegistered } from "@/platform/registration/handle-user-registered";
 import * as schema from "./database/schema";
+import { buildAuthProviders } from "./providers";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
@@ -12,12 +12,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     sessionsTable: schema.sessions,
     verificationTokensTable: schema.verificationTokens,
   }),
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_ID,
-      clientSecret: process.env.GOOGLE_SECRET,
-    }),
-  ],
+  providers: buildAuthProviders(),
   callbacks: {
     async session({ session, user }) {
       session.user.id = user.id;

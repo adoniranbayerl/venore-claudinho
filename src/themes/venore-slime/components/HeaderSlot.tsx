@@ -1,9 +1,11 @@
+import Link from "next/link";
 import type { HeaderSlotProps } from "@/contexts/themes";
+import { UserMenu } from "./UserMenu";
 
 // Header encolhe e inverte pra bg-primary/text-primary-foreground ao rolar — mesma técnica de
 // "header-surface" / "header-surface-scrolled" do repositório de referência (Venore Pulse),
 // só com os tokens do contrato deste projeto.
-export function HeaderSlot({ brand, userbarEnabled, headerNavItems, scrollState }: HeaderSlotProps) {
+export function HeaderSlot({ brand, userbarEnabled, headerNavItems, scrollState, user, canAccessAdmin, onSignOut }: HeaderSlotProps) {
   const { isScrolled } = scrollState;
 
   return (
@@ -46,12 +48,19 @@ export function HeaderSlot({ brand, userbarEnabled, headerNavItems, scrollState 
       )}
 
       {userbarEnabled ? (
-        <div
-          data-userbar
-          className={
-            "h-9 w-9 rounded-full " + (isScrolled ? "bg-primary-foreground/15" : "bg-header-avatar-bg")
-          }
-        />
+        user ? (
+          <UserMenu user={user} canAccessAdmin={canAccessAdmin} onSignOut={onSignOut} isScrolled={isScrolled} />
+        ) : (
+          <Link
+            href="/login"
+            className={
+              "rounded-control px-3 py-1.5 text-xs font-medium uppercase tracking-caps transition-colors " +
+              (isScrolled ? "hover:bg-primary-foreground/10" : "text-text-secondary hover:bg-accent-soft hover:text-text-primary")
+            }
+          >
+            Entrar
+          </Link>
+        )
       ) : null}
     </header>
   );

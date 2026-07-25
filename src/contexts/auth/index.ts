@@ -1,7 +1,10 @@
 export { handlers, signIn, signOut } from "./auth.config";
 export { getCurrentUserHandler as getCurrentUser } from "./features/session/get-current-user/handler";
-export type { AuthenticatedUser } from "./contracts/types";
+export { getCurrentUserRegistrationStatusHandler as getCurrentUserRegistrationStatus } from "./features/session/get-current-user-registration-status/handler";
+export { listAvailableAuthProviders } from "./providers";
+export type { AuthenticatedUser, AuthProviderDescriptor, UserRegistrationStatus } from "./contracts/types";
 export type { GetCurrentUserResult } from "./features/session/get-current-user/types";
+export type { GetCurrentUserRegistrationStatusResult } from "./features/session/get-current-user-registration-status/types";
 
 // Marca um usuário recém-criado como pending. Usado pelo ponto de composição do fluxo de
 // registro (src/platform/registration/handle-user-registered.ts, docs/venore-docks.md — regra 12).

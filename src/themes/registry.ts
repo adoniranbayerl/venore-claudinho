@@ -5,7 +5,7 @@ export type ThemeSlotComponents = {
   Header: typeof venoreSlime.HeaderSlot;
   Footer: typeof venoreSlime.FooterSlot;
   Content: typeof venoreSlime.ContentSlot;
-  SidebarRight: typeof venoreSlime.SidebarRightSlot;
+  SidebarLeft: typeof venoreSlime.SidebarLeftSlot;
 };
 
 export type ThemeRegistryEntry = { manifest: ThemeManifest; components: ThemeSlotComponents };
@@ -20,7 +20,7 @@ export const THEME_REGISTRY: Record<string, ThemeRegistryEntry> = {
       Header: venoreSlime.HeaderSlot,
       Footer: venoreSlime.FooterSlot,
       Content: venoreSlime.ContentSlot,
-      SidebarRight: venoreSlime.SidebarRightSlot,
+      SidebarLeft: venoreSlime.SidebarLeftSlot,
     },
   },
 };

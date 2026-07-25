@@ -1,11 +1,11 @@
-import type { SidebarRightSlotProps } from "@/contexts/themes";
+import type { SidebarLeftSlotProps } from "@/contexts/themes";
 
 // Exclusivo de navegação (main-nav ou admin-nav, conforme navMode) — não é área de widgets. O
 // toggle main-nav/admin-nav mora aqui, não no Header (docs/venore-docks.md — "Shell única").
 // Gradiente distinto por navMode (--sidebar-bg vs --sidebar-bg-admin) e item com borda de
 // destaque no hover, mesma linguagem visual do PlatformSidebar de referência (Venore Pulse) —
 // sem estado ativo por rota, que o contrato deste projeto ainda não expõe.
-export function SidebarRightSlot({ enabled, navMode, navItems, canToggleAdminNav, onToggleNavMode }: SidebarRightSlotProps) {
+export function SidebarLeftSlot({ enabled, navMode, navItems, canToggleAdminNav, onToggleNavMode }: SidebarLeftSlotProps) {
   if (!enabled) return null;
 
   const isAdmin = navMode === "admin";
@@ -14,7 +14,7 @@ export function SidebarRightSlot({ enabled, navMode, navItems, canToggleAdminNav
     <aside
       data-nav-mode={navMode}
       className={
-        "flex w-56 shrink-0 flex-col gap-4 border-l p-4 text-text-primary " +
+        "flex w-56 shrink-0 flex-col gap-4 border-r p-4 text-text-primary " +
         (isAdmin ? "border-border-strong bg-(image:--sidebar-bg-admin)" : "border-border-subtle bg-(image:--sidebar-bg)")
       }
     >
