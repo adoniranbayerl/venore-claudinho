@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { getColorMode } from "@/platform/ui-preferences/get-color-mode";
@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   title: "Venore Docks",
   description: "Painel administrativo e área do aluno da Venore Docks.",
 };
+
+export const viewport: Viewport = { width: "device-width", initialScale: 1 };
 
 export default async function RootLayout({
   children,

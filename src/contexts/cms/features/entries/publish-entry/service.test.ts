@@ -84,4 +84,38 @@ describe("publishEntry", () => {
     }
     expect(markEntryPublished).not.toHaveBeenCalled();
   });
+
+  it("qualifies the problem with row/column when the unconfigured block sits in a hidden column", async () => {
+    findEntryById.mockResolvedValue({
+      id: "entry-1",
+      status: "draft",
+      data: {
+        blocks: [
+          {
+            id: "row-1",
+            key: "core.layout.row",
+            slot: "",
+            data: { columns: 2 },
+            areas: [
+              { key: "col-1", blocks: [] },
+              { key: "col-2", blocks: [] },
+              {
+                key: "col-3",
+                blocks: [{ id: "b1", key: "core.content.button", slot: "", data: { href: "" }, areas: [] }],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const { publishEntry } = await import("./service");
+    const result = await publishEntry({ id: "entry-1", resolveDefinition, actorId: "actor-1" });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.message).toBe("Linha 1, coluna 3 (oculta): Botão: Sem link definido");
+    }
+    expect(markEntryPublished).not.toHaveBeenCalled();
+  });
 });

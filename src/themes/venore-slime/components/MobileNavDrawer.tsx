@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { closeMobileNav, useMobileNavOpen } from "./mobile-nav-store";
 
 // Envolve o conteúdo (nav + toggle admin) já montado pelo SidebarLeftSlot (server component) —
@@ -31,11 +32,11 @@ export function MobileNavDrawer({ children, asideClassName }: { children: ReactN
         />
       )}
       <div
-        className={
-          "fixed inset-y-0 left-0 z-50 w-64 max-w-[85vw] -translate-x-full transition-transform duration-200 ease-out " +
-          "lg:static lg:z-auto lg:w-auto lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:transition-none " +
-          (isOpen ? "translate-x-0" : "")
-        }
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-64 max-w-[85vw] transition-transform duration-200 ease-out",
+          "lg:static lg:z-auto lg:w-auto lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:transition-none",
+          isOpen ? "translate-x-0" : "-translate-x-full",
+        )}
       >
         <aside className={asideClassName}>{children}</aside>
       </div>
