@@ -4,6 +4,7 @@ import type { CourseRecord } from "../../../contracts/types";
 export type CreateCourseCommand = {
   title: string;
   description?: string;
+  slug?: string;
   selfEnrollmentEnabled?: boolean;
   publiclyListed?: boolean;
   actorId: string;

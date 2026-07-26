@@ -31,9 +31,9 @@ export default async function DiagnosticsAdminPage({
 
   if (!gate.granted) {
     return (
-      <div className="rounded border border-gray-200 bg-white p-8 text-center">
-        <h1 className="text-lg font-semibold text-gray-900">Acesso negado</h1>
-        <p className="mt-2 text-sm text-gray-600">Você não tem permissão para ver os logs de observabilidade.</p>
+      <div className="rounded border border-border-subtle bg-surface-panel p-8 text-center">
+        <h1 className="text-lg font-semibold text-text-primary">Acesso negado</h1>
+        <p className="mt-2 text-sm text-text-secondary">Você não tem permissão para ver os logs de observabilidade.</p>
       </div>
     );
   }
@@ -48,7 +48,7 @@ export default async function DiagnosticsAdminPage({
   });
 
   if (!result.success) {
-    return <p className="text-sm text-red-600">Erro ao carregar logs: {result.error.message}</p>;
+    return <p className="text-sm text-destructive">Erro ao carregar logs: {result.error.message}</p>;
   }
 
   const { entries, hasMore } = result.data;
@@ -57,21 +57,21 @@ export default async function DiagnosticsAdminPage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">Diagnostics</h1>
-        <p className="mt-1 text-sm text-gray-600">Logs recentes de operações registradas pela camada de observabilidade.</p>
+        <h1 className="text-xl font-semibold text-text-primary">Diagnostics</h1>
+        <p className="mt-1 text-sm text-text-secondary">Logs recentes de operações registradas pela camada de observabilidade.</p>
       </div>
 
-      <section className="rounded border border-gray-200 bg-white p-4">
+      <section className="rounded border border-border-subtle bg-surface-panel p-4">
         <form method="get" className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
-            <label htmlFor="success" className="text-xs font-medium text-gray-700">
+            <label htmlFor="success" className="text-xs font-medium text-text-secondary">
               Status
             </label>
             <select
               id="success"
               name="success"
               defaultValue={resolvedSearchParams.success ?? "all"}
-              className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-900"
+              className="rounded border border-border-subtle px-2 py-1 text-sm text-text-primary"
             >
               <option value="all">Todos</option>
               <option value="success">Só sucesso</option>
@@ -79,7 +79,7 @@ export default async function DiagnosticsAdminPage({
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="useCase" className="text-xs font-medium text-gray-700">
+            <label htmlFor="useCase" className="text-xs font-medium text-text-secondary">
               Use case
             </label>
             <input
@@ -88,20 +88,20 @@ export default async function DiagnosticsAdminPage({
               type="text"
               defaultValue={resolvedSearchParams.useCase ?? ""}
               placeholder="ex: cms.entries.publish"
-              className="rounded border border-gray-300 px-2 py-1 text-sm text-gray-900"
+              className="rounded border border-border-subtle px-2 py-1 text-sm text-text-primary"
             />
           </div>
-          <button type="submit" className="rounded bg-gray-900 px-3 py-1 text-sm font-medium text-white">
+          <button type="submit" className="rounded bg-primary px-3 py-1 text-sm font-medium text-primary-foreground">
             Filtrar
           </button>
         </form>
       </section>
 
-      <section className="rounded border border-gray-200 bg-white p-4">
+      <section className="rounded border border-border-subtle bg-surface-panel p-4">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-gray-200 text-xs font-medium text-gray-500">
+              <tr className="border-b border-border-subtle text-xs font-medium text-text-tertiary">
                 <th className="py-2 pr-4">Horário</th>
                 <th className="py-2 pr-4">Use case</th>
                 <th className="py-2 pr-4">Ator</th>
@@ -112,19 +112,19 @@ export default async function DiagnosticsAdminPage({
             </thead>
             <tbody>
               {entries.map((entry) => (
-                <tr key={entry.id} className="border-b border-gray-100 text-gray-700">
+                <tr key={entry.id} className="border-b border-border-subtle text-text-secondary">
                   <td className="py-2 pr-4 whitespace-nowrap">{entry.startedAt.toLocaleString("pt-BR")}</td>
                   <td className="py-2 pr-4">{entry.useCase}</td>
                   <td className="py-2 pr-4">
                     {entry.actorType}:{entry.actorId}
                   </td>
                   <td className="py-2 pr-4">
-                    <span className={entry.success ? "text-green-700" : "text-red-600"}>
+                    <span className={entry.success ? "text-success" : "text-destructive"}>
                       {entry.success ? "sucesso" : "erro"}
                     </span>
                   </td>
                   <td className="py-2 pr-4">{entry.durationMs}ms</td>
-                  <td className="py-2 pr-4 text-xs text-gray-500">
+                  <td className="py-2 pr-4 text-xs text-text-tertiary">
                     {entry.errorCode && (
                       <>
                         {entry.errorCode}
@@ -136,7 +136,7 @@ export default async function DiagnosticsAdminPage({
               ))}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-4 text-center text-sm text-gray-500">
+                  <td colSpan={6} className="py-4 text-center text-sm text-text-tertiary">
                     Nenhum log encontrado.
                   </td>
                 </tr>
@@ -149,7 +149,7 @@ export default async function DiagnosticsAdminPage({
           <div className="mt-4 text-center">
             <Link
               href={buildLoadMoreHref(resolvedSearchParams, lastEntry.id)}
-              className="text-sm font-medium text-gray-900 hover:underline"
+              className="text-sm font-medium text-text-primary hover:underline"
             >
               Carregar mais
             </Link>

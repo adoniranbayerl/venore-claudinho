@@ -18,18 +18,18 @@ export function CreateEntryForm({
   return (
     <form action={formAction} className="space-y-3">
       <div>
-        <label className="block text-xs font-medium text-gray-700">Título</label>
-        <input name="title" required className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm" />
+        <label className="block text-xs font-medium text-text-secondary">Título</label>
+        <input name="title" required className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm" />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700">Slug</label>
-        <input name="slug" required className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm" />
+        <label className="block text-xs font-medium text-text-secondary">Slug</label>
+        <input name="slug" required className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm" />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700">Content type</label>
-        <select name="contentTypeId" required className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm">
+        <label className="block text-xs font-medium text-text-secondary">Content type</label>
+        <select name="contentTypeId" required className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm">
           <option value="">selecione...</option>
           {contentTypes.map((contentType) => (
             <option key={contentType.id} value={contentType.id}>
@@ -40,8 +40,8 @@ export function CreateEntryForm({
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700">Categoria (opcional)</label>
-        <select name="categoryId" className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm">
+        <label className="block text-xs font-medium text-text-secondary">Categoria (opcional)</label>
+        <select name="categoryId" className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm">
           <option value="">nenhuma</option>
           {categories.map((category) => (
             <option key={category.id} value={category.id}>
@@ -52,8 +52,8 @@ export function CreateEntryForm({
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700">Corpo</label>
-        <textarea name="body" rows={8} className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm" />
+        <label className="block text-xs font-medium text-text-secondary">Corpo</label>
+        <textarea name="body" rows={8} className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm" />
       </div>
 
       <MediaPickerField name="mediaId" />
@@ -61,11 +61,11 @@ export function CreateEntryForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded bg-gray-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+        className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
       >
         Criar entry
       </button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
     </form>
   );
 }

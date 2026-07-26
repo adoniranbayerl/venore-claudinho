@@ -10,19 +10,19 @@ export function RegistrationApprovalToggleForm({ enabled }: { enabled: boolean }
 
   return (
     <form action={formAction} className="space-y-3">
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        <input type="checkbox" name="enabled" defaultChecked={enabled} className="h-4 w-4 rounded border-gray-300" />
+      <label className="flex items-center gap-2 text-sm text-text-secondary">
+        <input type="checkbox" name="enabled" defaultChecked={enabled} className="h-4 w-4 rounded border-border-subtle" />
         Exigir aprovação manual para novos registros
       </label>
 
       <button
         type="submit"
         disabled={pending}
-        className="rounded bg-gray-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+        className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
       >
         Salvar
       </button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
     </form>
   );
 }

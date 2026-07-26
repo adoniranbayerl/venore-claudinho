@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "vite";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
@@ -11,6 +11,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    exclude: [...configDefaults.exclude, "src/**/*.integration.test.{ts,tsx}"],
     passWithNoTests: true,
     env: loadEnv("", process.cwd(), ""),
   },

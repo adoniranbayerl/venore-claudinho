@@ -8,16 +8,16 @@ export default async function MediaAdminPage() {
 
   if (!gate.granted) {
     return (
-      <div className="rounded border border-gray-200 bg-white p-8 text-center">
-        <h1 className="text-lg font-semibold text-gray-900">Acesso negado</h1>
-        <p className="mt-2 text-sm text-gray-600">Você não tem permissão para gerenciar mídia.</p>
+      <div className="rounded border border-border-subtle bg-surface-panel p-8 text-center">
+        <h1 className="text-lg font-semibold text-text-primary">Acesso negado</h1>
+        <p className="mt-2 text-sm text-text-secondary">Você não tem permissão para gerenciar mídia.</p>
       </div>
     );
   }
 
   const mediaResult = await listMedia();
   if (!mediaResult.success) {
-    return <p className="text-sm text-red-600">Erro ao carregar mídia: {mediaResult.error.message}</p>;
+    return <p className="text-sm text-destructive">Erro ao carregar mídia: {mediaResult.error.message}</p>;
   }
 
   const files = mediaResult.data;
@@ -25,12 +25,12 @@ export default async function MediaAdminPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">Mídia</h1>
-        <p className="mt-1 text-sm text-gray-600">Envie e gerencie os arquivos usados pelo CMS.</p>
+        <h1 className="text-xl font-semibold text-text-primary">Mídia</h1>
+        <p className="mt-1 text-sm text-text-secondary">Envie e gerencie os arquivos usados pelo CMS.</p>
       </div>
 
-      <section className="rounded border border-gray-200 bg-white p-4">
-        <h2 className="text-sm font-semibold text-gray-900">Enviar arquivo</h2>
+      <section className="rounded border border-border-subtle bg-surface-panel p-4">
+        <h2 className="text-sm font-semibold text-text-primary">Enviar arquivo</h2>
         <div className="mt-3">
           <UploadMediaForm />
         </div>
@@ -48,7 +48,7 @@ export default async function MediaAdminPage() {
             createdAt={file.createdAt.toISOString()}
           />
         ))}
-        {files.length === 0 && <p className="text-sm text-gray-500">Nenhum arquivo enviado ainda.</p>}
+        {files.length === 0 && <p className="text-sm text-text-tertiary">Nenhum arquivo enviado ainda.</p>}
       </section>
     </div>
   );

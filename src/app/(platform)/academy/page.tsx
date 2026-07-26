@@ -1,7 +1,14 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { listCoursesForStudent } from "@/plugins/academy";
+import { BookOpen } from "lucide-react";
+import {
+  getCourseProgress,
+  listCoursesForStudent,
+  listLessonsByCourse,
+  type CourseForStudentView,
+} from "@/plugins/academy";
 import { getAcademyStudentPageData } from "@/platform/academy-student/get-academy-student-page-data";
+import { EmptyState } from "@/components/empty-state";
+import { StudentCourseCard } from "@/components/academy/student-course-card";
 
 export const dynamic = "force-dynamic";
 
@@ -17,41 +24,52 @@ export default async function AcademyCoursesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Cursos</h1>
-        <p className="mt-1 text-sm text-gray-600">Cursos disponíveis para você.</p>
+        <h1 className="text-3xl font-semibold tracking-tight">Cursos</h1>
+        <p className="mt-1 text-sm text-text-secondary">Cursos disponíveis para você.</p>
       </div>
 
       {!coursesResult.success && (
-        <p className="text-sm text-red-600">Erro ao carregar cursos: {coursesResult.error.message}</p>
+        <p className="text-sm text-destructive">Erro ao carregar cursos: {coursesResult.error.message}</p>
       )}
 
-      {coursesResult.success && (
-        <ul className="space-y-3">
-          {coursesResult.data.map((course) => {
-            // enrolled decide o acesso de verdade (checado de novo no servidor ao abrir o
-            // curso); esta badge é só indicação — nunca a única barreira (docs/venore-docks.md).
-            const badge = course.enrolled
-              ? "matriculado"
-              : course.selfEnrollmentEnabled
-                ? "matrícula disponível"
-                : "acesso restrito";
-            return (
-              <li key={course.id} className="rounded border border-gray-200 p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <Link href={`/academy/${course.id}`} className="font-medium hover:underline">
-                    {course.title}
-                  </Link>
-                  <span className="text-xs text-gray-500">{badge}</span>
-                </div>
-                {course.description && <p className="mt-1 text-sm text-gray-600">{course.description}</p>}
-              </li>
-            );
-          })}
-          {coursesResult.data.length === 0 && (
-            <li className="text-sm text-gray-500">Nenhum curso disponível no momento.</li>
-          )}
-        </ul>
+      {coursesResult.success && coursesResult.data.length === 0 && (
+        <EmptyState
+          icon={<BookOpen className="size-8" strokeWidth={1.5} />}
+          title="Nenhum curso disponível no momento"
+          description="Volte mais tarde — novos cursos aparecem aqui assim que forem publicados."
+        />
       )}
+
+      {coursesResult.success && coursesResult.data.length > 0 && (
+        <CourseGrid courses={coursesResult.data} />
+      )}
+    </div>
+  );
+}
+
+async function CourseGrid({ courses }: { courses: CourseForStudentView[] }) {
+  const [lessonCounts, progresses] = await Promise.all([
+    Promise.all(courses.map((course) => listLessonsByCourse({ courseId: course.id }))),
+    Promise.all(
+      courses.map((course) => (course.enrolled ? getCourseProgress({ courseId: course.id }) : Promise.resolve(null))),
+    ),
+  ]);
+
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {courses.map((course, index) => {
+        const lessonCountResult = lessonCounts[index];
+        const lessonCount = lessonCountResult.success ? lessonCountResult.data.length : 0;
+        const progressResult = progresses[index];
+        const progressPercent =
+          progressResult && progressResult.success && progressResult.data.totalLessons > 0
+            ? Math.round((progressResult.data.completedLessons / progressResult.data.totalLessons) * 100)
+            : null;
+
+        return (
+          <StudentCourseCard key={course.id} course={course} lessonCount={lessonCount} progressPercent={progressPercent} />
+        );
+      })}
     </div>
   );
 }

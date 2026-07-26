@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getEntry, getEntryBody } from "@/contexts/cms";
 import { getCourseProgress, getLesson, listQuizQuestionsByLesson, listQuizQuestionsForStudent } from "@/plugins/academy";
 import { getAcademyCourseAccess } from "@/platform/academy-student/get-academy-course-access";
+import { LessonVideoEmbed } from "./_components/lesson-video-embed";
 import { MarkProgressButton } from "./_components/mark-progress-button";
 import { QuizForm } from "./_components/quiz-form";
 
@@ -12,12 +13,12 @@ export default async function AcademyLessonPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ courseId: string; lessonId: string }>;
+  params: Promise<{ courseSlug: string; lessonId: string }>;
   searchParams: Promise<{ blocked?: string }>;
 }) {
-  const { courseId, lessonId } = await params;
+  const { courseSlug, lessonId } = await params;
   const { blocked } = await searchParams;
-  const access = await getAcademyCourseAccess({ courseId });
+  const access = await getAcademyCourseAccess({ courseSlug });
 
   if (access.mode === "unauthenticated") {
     redirect("/api/auth/signin");
@@ -25,20 +26,27 @@ export default async function AcademyLessonPage({
   if (access.mode === "not-found") {
     notFound();
   }
+  // URL antiga por id (UUID) ainda resolve o curso — redireciona pra URL canônica por slug em vez
+  // de renderizar aqui (item 2 do pedido da sessão: "/academy/<uuid antigo> redireciona").
+  if (access.mode === "redirect") {
+    redirect(`/academy/${access.slug}/${lessonId}`);
+  }
   // Sem matrícula (e sem preview de professor), não existe motivo legítimo pra estar numa URL de
   // aula específica — mesma disciplina do bloqueio de lock-chain: checado no servidor, não só
   // escondido na UI (docs/venore-docks.md, item 5 do pedido desta sessão).
   if (access.mode === "restricted" || access.mode === "enroll-available") {
-    redirect(`/academy/${courseId}`);
+    redirect(`/academy/${courseSlug}`);
   }
+
+  const { course } = access;
 
   if (access.mode === "preview") {
     const lessonResult = await getLesson({ id: lessonId });
     if (!lessonResult.success) {
-      return <p className="text-sm text-red-600">Erro ao carregar aula: {lessonResult.error.message}</p>;
+      return <p className="text-sm text-destructive">Erro ao carregar aula: {lessonResult.error.message}</p>;
     }
     const lesson = lessonResult.data;
-    if (!lesson || lesson.courseId !== courseId) {
+    if (!lesson || lesson.courseId !== course.id) {
       notFound();
     }
 
@@ -48,7 +56,7 @@ export default async function AcademyLessonPage({
     ]);
 
     if (!entryResult.success) {
-      return <p className="text-sm text-red-600">Erro ao carregar conteúdo: {entryResult.error.message}</p>;
+      return <p className="text-sm text-destructive">Erro ao carregar conteúdo: {entryResult.error.message}</p>;
     }
 
     const entry = entryResult.data;
@@ -56,14 +64,14 @@ export default async function AcademyLessonPage({
 
     return (
       <div className="space-y-6">
-        <p className="rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+        <p className="rounded border border-info-border bg-info-soft p-3 text-sm text-info">
           Modo de visualização (professor) — sem ações de progresso.
         </p>
         <div>
-          <Link href={`/academy/${courseId}`} className="text-xs font-medium text-gray-500 hover:underline">
+          <Link href={`/academy/${course.slug}`} className="text-xs font-medium text-text-tertiary hover:underline">
             ← Curso
           </Link>
-          <h1 className="mt-1 text-xl font-semibold">{entry ? entry.title : `Aula ${lesson.position}`}</h1>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{entry ? entry.title : `Aula ${lesson.position}`}</h1>
         </div>
 
         {entry && (
@@ -75,9 +83,9 @@ export default async function AcademyLessonPage({
         {lesson.videoUrl && (
           <section>
             <h2 className="text-sm font-semibold">Vídeo</h2>
-            <a href={lesson.videoUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline">
-              {lesson.videoUrl}
-            </a>
+            <div className="mt-2">
+              <LessonVideoEmbed url={lesson.videoUrl} />
+            </div>
           </section>
         )}
 
@@ -86,7 +94,7 @@ export default async function AcademyLessonPage({
             <h2 className="text-sm font-semibold">Quiz ({questions.length} pergunta(s))</h2>
             <ul className="mt-2 space-y-2">
               {questions.map((question) => (
-                <li key={question.id} className="rounded border border-gray-200 p-3 text-sm">
+                <li key={question.id} className="rounded border border-border-subtle p-3 text-sm">
                   {question.text}
                 </li>
               ))}
@@ -97,9 +105,9 @@ export default async function AcademyLessonPage({
     );
   }
 
-  const progressResult = await getCourseProgress({ courseId });
+  const progressResult = await getCourseProgress({ courseId: course.id });
   if (!progressResult.success) {
-    return <p className="text-sm text-red-600">Erro ao carregar progresso: {progressResult.error.message}</p>;
+    return <p className="text-sm text-destructive">Erro ao carregar progresso: {progressResult.error.message}</p>;
   }
 
   const progress = progressResult.data;
@@ -113,9 +121,9 @@ export default async function AcademyLessonPage({
   if (lesson.locked) {
     const currentLesson = progress.lessons.find((item) => !item.locked && !item.completed);
     if (currentLesson) {
-      redirect(`/academy/${courseId}/${currentLesson.lessonId}?blocked=1`);
+      redirect(`/academy/${course.slug}/${currentLesson.lessonId}?blocked=1`);
     }
-    redirect(`/academy/${courseId}?blocked=1`);
+    redirect(`/academy/${course.slug}?blocked=1`);
   }
 
   const [entryResult, quizResult] = await Promise.all([
@@ -126,7 +134,7 @@ export default async function AcademyLessonPage({
   ]);
 
   if (!entryResult.success) {
-    return <p className="text-sm text-red-600">Erro ao carregar conteúdo: {entryResult.error.message}</p>;
+    return <p className="text-sm text-destructive">Erro ao carregar conteúdo: {entryResult.error.message}</p>;
   }
 
   const entry = entryResult.data;
@@ -138,15 +146,15 @@ export default async function AcademyLessonPage({
   return (
     <div className="space-y-6">
       {blocked && (
-        <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+        <p className="rounded border border-warning-border bg-warning-soft p-3 text-sm text-warning">
           A aula que você tentou acessar está bloqueada. Esta é sua aula liberada atual.
         </p>
       )}
       <div>
-        <Link href={`/academy/${courseId}`} className="text-xs font-medium text-gray-500 hover:underline">
+        <Link href={`/academy/${course.slug}`} className="text-xs font-medium text-text-tertiary hover:underline">
           ← Curso
         </Link>
-        <h1 className="mt-1 text-xl font-semibold">{entry ? entry.title : `Aula ${lesson.position}`}</h1>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight">{entry ? entry.title : `Aula ${lesson.position}`}</h1>
       </div>
 
       {entry && (
@@ -158,25 +166,30 @@ export default async function AcademyLessonPage({
       {lesson.videoUrl && (
         <section>
           <h2 className="text-sm font-semibold">Vídeo</h2>
-          <a href={lesson.videoUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline">
-            {lesson.videoUrl}
-          </a>
+          <div className="mt-2">
+            <LessonVideoEmbed url={lesson.videoUrl} />
+          </div>
         </section>
       )}
 
       <section className="flex flex-wrap gap-4">
         {lesson.requirements.readTextEnabled &&
           (lesson.requirements.textRead ? (
-            <p className="text-sm text-gray-600">Texto lido ✓</p>
+            <p className="text-sm text-text-secondary">Texto lido ✓</p>
           ) : (
-            <MarkProgressButton courseId={courseId} lessonId={lessonId} kind="text" label="Marcar texto como lido" />
+            <MarkProgressButton courseSlug={course.slug} lessonId={lessonId} kind="text" label="Marcar texto como lido" />
           ))}
 
         {lesson.requirements.watchVideoEnabled &&
           (lesson.requirements.videoWatched ? (
-            <p className="text-sm text-gray-600">Vídeo assistido ✓</p>
+            <p className="text-sm text-text-secondary">Vídeo assistido ✓</p>
           ) : (
-            <MarkProgressButton courseId={courseId} lessonId={lessonId} kind="video" label="Marcar vídeo como assistido" />
+            <MarkProgressButton
+              courseSlug={course.slug}
+              lessonId={lessonId}
+              kind="video"
+              label="Marcar vídeo como assistido"
+            />
           ))}
       </section>
 
@@ -184,13 +197,13 @@ export default async function AcademyLessonPage({
         <section>
           <h2 className="text-sm font-semibold">Quiz</h2>
           {lesson.requirements.quizPassed ? (
-            <p className="mt-2 text-sm text-gray-600">Você já passou neste quiz.</p>
+            <p className="mt-2 text-sm text-text-secondary">Você já passou neste quiz.</p>
           ) : !quizResult.success ? (
-            <p className="mt-2 text-sm text-red-600">Erro ao carregar o quiz: {quizResult.error.message}</p>
+            <p className="mt-2 text-sm text-destructive">Erro ao carregar o quiz: {quizResult.error.message}</p>
           ) : (
             <div className="mt-2">
               <QuizForm
-                courseId={courseId}
+                courseSlug={course.slug}
                 lessonId={lessonId}
                 questions={quizResult.data}
                 attemptsExhausted={attemptsExhausted}

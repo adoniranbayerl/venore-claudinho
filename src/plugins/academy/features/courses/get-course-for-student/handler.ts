@@ -3,8 +3,9 @@ import { getCourseForStudent } from "./service";
 import type { GetCourseForStudentQuery, GetCourseForStudentResult } from "./types";
 
 export async function getCourseForStudentHandler(query: GetCourseForStudentQuery): Promise<GetCourseForStudentResult> {
-  if (query.id.trim().length === 0) {
-    return { success: false, error: { code: "academy.courses.invalid_id", message: "id não pode ser vazio." } };
+  const key = "slug" in query ? query.slug : query.id;
+  if (key.trim().length === 0) {
+    return { success: false, error: { code: "academy.courses.invalid_id", message: "id/slug não pode ser vazio." } };
   }
 
   const currentUser = await getCurrentUser();

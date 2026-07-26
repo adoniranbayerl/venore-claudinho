@@ -10,13 +10,14 @@ export async function enrollSelfAction(
   formData: FormData,
 ): Promise<EnrollSelfActionState> {
   const courseId = String(formData.get("courseId") ?? "");
+  const courseSlug = String(formData.get("courseSlug") ?? "");
 
   const result = await enrollSelf({ courseId });
   if (!result.success) {
     return { error: result.error.message };
   }
 
-  revalidatePath(`/academy/${courseId}`);
+  revalidatePath(`/academy/${courseSlug}`);
   revalidatePath("/academy");
   return { error: null };
 }

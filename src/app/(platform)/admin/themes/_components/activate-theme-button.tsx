@@ -14,11 +14,11 @@ export function ActivateThemeButton({ themeKey, disabled }: { themeKey: string; 
       <button
         type="submit"
         disabled={disabled || pending}
-        className="rounded bg-gray-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+        className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
       >
         {disabled ? "Ativo" : "Ativar"}
       </button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
     </form>
   );
 }

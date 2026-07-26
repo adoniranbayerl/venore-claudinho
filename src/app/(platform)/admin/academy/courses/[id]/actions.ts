@@ -72,7 +72,7 @@ export async function publishCourseAction(_prevState: CourseActionState, formDat
   revalidatePath("/admin/academy");
   revalidatePath(`/admin/academy/courses/${id}`);
   revalidatePath("/academy");
-  revalidatePath(`/academy/${id}`);
+  revalidatePath(`/academy/${result.data.slug}`);
   return { error: null };
 }
 
@@ -84,6 +84,7 @@ export async function updateCourseSettingsAction(
 
   const result = await updateCourseSettings({
     id,
+    slug: String(formData.get("slug") ?? "") || undefined,
     selfEnrollmentEnabled: formData.get("selfEnrollmentEnabled") === "on",
     publiclyListed: formData.get("publiclyListed") === "on",
   });
@@ -94,7 +95,7 @@ export async function updateCourseSettingsAction(
 
   revalidatePath(`/admin/academy/courses/${id}`);
   revalidatePath("/academy");
-  revalidatePath(`/academy/${id}`);
+  revalidatePath(`/academy/${result.data.slug}`);
   return { error: null };
 }
 

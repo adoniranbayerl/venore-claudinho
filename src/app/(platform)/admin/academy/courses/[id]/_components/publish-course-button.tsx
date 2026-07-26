@@ -1,24 +1,22 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button } from "@/components/ui/button";
+import { useActionToast } from "@/hooks/use-action-toast";
 import { publishCourseAction, type CourseActionState } from "../actions";
 
 const initialState: CourseActionState = { error: null };
 
 export function PublishCourseButton({ courseId }: { courseId: string }) {
   const [state, formAction, pending] = useActionState(publishCourseAction, initialState);
+  useActionToast({ pending, error: state.error, successMessage: "Curso publicado." });
 
   return (
-    <form action={formAction} className="flex flex-col items-start gap-1">
+    <form action={formAction}>
       <input type="hidden" name="id" value={courseId} />
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-900 disabled:opacity-50"
-      >
+      <Button type="submit" variant="outline" disabled={pending}>
         Publicar
-      </button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      </Button>
     </form>
   );
 }

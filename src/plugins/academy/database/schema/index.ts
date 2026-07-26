@@ -6,23 +6,30 @@ export const academySchema = pgSchema("academy");
 // createdBy é texto solto, sem FK pra auth.users: um plugin não pode importar
 // contexts/auth/database/schema (regra 7 — "nunca de store, schema, database/client... vale
 // tanto pra leitura quanto escrita"). Vale pra toda coluna actorId/createdBy deste schema.
-export const courses = academySchema.table("courses", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  title: text("title").notNull(),
-  description: text("description"),
-  // "draft" | "published" — ver contracts/types.ts (CourseStatus).
-  status: text("status").notNull().default("draft"),
-  createdBy: text("created_by").notNull(),
-  // Independentes um do outro (plano da sessão de matrícula): selfEnrollmentEnabled controla se
-  // o botão "matricular-se" existe; publiclyListed controla só a listagem
-  // (list-courses-for-student) — acesso direto por URL não depende de publiclyListed.
-  selfEnrollmentEnabled: boolean("self_enrollment_enabled").notNull().default(true),
-  publiclyListed: boolean("publicly_listed").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const courses = academySchema.table(
+  "courses",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    title: text("title").notNull(),
+    description: text("description"),
+    // Gerado do título na criação (slugify), editável depois — usado nas rotas públicas de aluno
+    // em vez do id (item 2 do pedido da sessão de publish-course/slug/embed).
+    slug: text("slug").notNull(),
+    // "draft" | "published" — ver contracts/types.ts (CourseStatus).
+    status: text("status").notNull().default("draft"),
+    createdBy: text("created_by").notNull(),
+    // Independentes um do outro (plano da sessão de matrícula): selfEnrollmentEnabled controla se
+    // o botão "matricular-se" existe; publiclyListed controla só a listagem
+    // (list-courses-for-student) — acesso direto por URL não depende de publiclyListed.
+    selfEnrollmentEnabled: boolean("self_enrollment_enabled").notNull().default(true),
+    publiclyListed: boolean("publicly_listed").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("courses_slug_idx").on(table.slug)],
+);
 
 export const lessons = academySchema.table(
   "lessons",

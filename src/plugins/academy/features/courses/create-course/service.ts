@@ -1,6 +1,20 @@
 import { beginOperation, endOperation } from "@/observability";
-import { insertCourse } from "./store";
+import { slugify } from "../../../shared/slug";
+import { findCourseBySlug, insertCourse } from "./store";
 import type { CreateCourseCommand, CreateCourseResult } from "./types";
+
+// Slug parte do título (ou do slug sugerido pelo form) e ganha sufixo numérico só se colidir —
+// curso normal nunca leva sufixo, só o raro caso de dois títulos gerando o mesmo slug base.
+async function generateUniqueSlug(base: string): Promise<string> {
+  const root = slugify(base) || "curso";
+  let candidate = root;
+  let attempt = 1;
+  while (await findCourseBySlug(candidate)) {
+    attempt += 1;
+    candidate = `${root}-${attempt}`;
+  }
+  return candidate;
+}
 
 export async function createCourse(command: CreateCourseCommand): Promise<CreateCourseResult> {
   const handle = beginOperation({
@@ -9,9 +23,12 @@ export async function createCourse(command: CreateCourseCommand): Promise<Create
     kind: "write",
   });
 
+  const slug = await generateUniqueSlug(command.slug?.trim() || command.title);
+
   const course = await insertCourse({
     title: command.title,
     description: command.description,
+    slug,
     selfEnrollmentEnabled: command.selfEnrollmentEnabled,
     publiclyListed: command.publiclyListed,
     createdBy: command.actorId,

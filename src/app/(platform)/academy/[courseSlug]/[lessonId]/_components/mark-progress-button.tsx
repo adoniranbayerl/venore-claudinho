@@ -1,36 +1,34 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button } from "@/components/ui/button";
+import { useActionToast } from "@/hooks/use-action-toast";
 import { markTextReadAction, markVideoWatchedAction, type LessonActionState } from "../actions";
 
 const initialState: LessonActionState = { error: null };
 
 export function MarkProgressButton({
-  courseId,
+  courseSlug,
   lessonId,
   kind,
   label,
 }: {
-  courseId: string;
+  courseSlug: string;
   lessonId: string;
   kind: "text" | "video";
   label: string;
 }) {
   const action = kind === "text" ? markTextReadAction : markVideoWatchedAction;
   const [state, formAction, pending] = useActionState(action, initialState);
+  useActionToast({ pending, error: state.error, successMessage: "Progresso salvo." });
 
   return (
-    <form action={formAction} className="flex flex-col items-start gap-1">
-      <input type="hidden" name="courseId" value={courseId} />
+    <form action={formAction}>
+      <input type="hidden" name="courseSlug" value={courseSlug} />
       <input type="hidden" name="lessonId" value={lessonId} />
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded border border-gray-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-      >
+      <Button type="submit" variant="outline" disabled={pending}>
         {label}
-      </button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      </Button>
     </form>
   );
 }

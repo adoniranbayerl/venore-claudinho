@@ -10,6 +10,7 @@ export type AcademyStudentPageGate =
 
 export type AcademyCourseAccessCourse = {
   id: string;
+  slug: string;
   title: string;
   description: string | null;
   selfEnrollmentEnabled: boolean;
@@ -20,6 +21,9 @@ export type AcademyCourseAccessCourse = {
 export type AcademyCourseAccess =
   | { mode: "unauthenticated" }
   | { mode: "not-found" }
+  // Curso resolvido pelo antigo id (UUID) usado antes das rotas por slug — página deve
+  // redirecionar pra `/academy/<slug>` (ou `/academy/<slug>/<lessonId>`), nunca renderizar aqui.
+  | { mode: "redirect"; slug: string }
   | { mode: "restricted"; course: AcademyCourseAccessCourse }
   | { mode: "enroll-available"; actor: AcademyStudentActor; course: AcademyCourseAccessCourse }
   | { mode: "preview"; actor: AcademyStudentActor; course: AcademyCourseAccessCourse }

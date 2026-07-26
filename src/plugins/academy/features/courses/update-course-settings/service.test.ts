@@ -6,21 +6,24 @@ vi.mock("@/observability", () => ({
 }));
 
 const findCourseById = vi.fn();
+const findCourseBySlug = vi.fn();
 const applyCourseSettings = vi.fn();
 
 vi.mock("./store", () => ({
   findCourseById: (...args: unknown[]) => findCourseById(...args),
+  findCourseBySlug: (...args: unknown[]) => findCourseBySlug(...args),
   applyCourseSettings: (...args: unknown[]) => applyCourseSettings(...args),
 }));
 
 describe("updateCourseSettings", () => {
   beforeEach(() => {
     findCourseById.mockReset();
+    findCourseBySlug.mockReset();
     applyCourseSettings.mockReset();
   });
 
   it("updates the course flags when the course exists", async () => {
-    findCourseById.mockResolvedValue({ id: "course-1", selfEnrollmentEnabled: true, publiclyListed: true });
+    findCourseById.mockResolvedValue({ id: "course-1", slug: "curso-1", selfEnrollmentEnabled: true, publiclyListed: true });
     applyCourseSettings.mockResolvedValue({ id: "course-1", selfEnrollmentEnabled: false, publiclyListed: false });
 
     const { updateCourseSettings } = await import("./service");
@@ -32,7 +35,13 @@ describe("updateCourseSettings", () => {
     });
 
     expect(result).toEqual({ success: true, data: { id: "course-1", selfEnrollmentEnabled: false, publiclyListed: false } });
-    expect(applyCourseSettings).toHaveBeenCalledWith({ id: "course-1", selfEnrollmentEnabled: false, publiclyListed: false });
+    expect(applyCourseSettings).toHaveBeenCalledWith({
+      id: "course-1",
+      slug: undefined,
+      selfEnrollmentEnabled: false,
+      publiclyListed: false,
+    });
+    expect(findCourseBySlug).not.toHaveBeenCalled();
   });
 
   it("fails when the course does not exist", async () => {
@@ -51,5 +60,57 @@ describe("updateCourseSettings", () => {
       error: { code: "academy.courses.not_found", message: expect.any(String) },
     });
     expect(applyCourseSettings).not.toHaveBeenCalled();
+  });
+
+  it("rejects a slug already used by another course", async () => {
+    findCourseById.mockResolvedValue({ id: "course-1", slug: "curso-1", selfEnrollmentEnabled: true, publiclyListed: true });
+    findCourseBySlug.mockResolvedValue({ id: "course-2", slug: "curso-2" });
+
+    const { updateCourseSettings } = await import("./service");
+    const result = await updateCourseSettings({
+      id: "course-1",
+      slug: "curso-2",
+      selfEnrollmentEnabled: true,
+      publiclyListed: true,
+      actorId: "actor-1",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.code).toBe("academy.courses.slug_taken");
+    expect(applyCourseSettings).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty/invalid slug", async () => {
+    findCourseById.mockResolvedValue({ id: "course-1", slug: "curso-1", selfEnrollmentEnabled: true, publiclyListed: true });
+
+    const { updateCourseSettings } = await import("./service");
+    const result = await updateCourseSettings({
+      id: "course-1",
+      slug: "   ",
+      selfEnrollmentEnabled: true,
+      publiclyListed: true,
+      actorId: "actor-1",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.code).toBe("academy.courses.invalid_slug");
+    expect(applyCourseSettings).not.toHaveBeenCalled();
+  });
+
+  it("allows keeping the same slug the course already has", async () => {
+    findCourseById.mockResolvedValue({ id: "course-1", slug: "curso-1", selfEnrollmentEnabled: true, publiclyListed: true });
+    applyCourseSettings.mockResolvedValue({ id: "course-1", slug: "curso-1" });
+
+    const { updateCourseSettings } = await import("./service");
+    const result = await updateCourseSettings({
+      id: "course-1",
+      slug: "curso-1",
+      selfEnrollmentEnabled: true,
+      publiclyListed: true,
+      actorId: "actor-1",
+    });
+
+    expect(result.success).toBe(true);
+    expect(findCourseBySlug).not.toHaveBeenCalled();
   });
 });

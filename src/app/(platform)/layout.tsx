@@ -12,7 +12,17 @@ import type { NavItem } from "@/contexts/themes";
 // academy e admin — não existe mais um layout de admin à parte com casca própria.
 export const dynamic = "force-dynamic";
 
-export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
+export default async function PlatformLayout({
+  children,
+  sidebarContextual,
+}: {
+  children: React.ReactNode;
+  // Slot paralelo @sidebarContextual (Next.js parallel routes) — só as rotas que definem um
+  // page.tsx dentro de app/(platform)/@sidebarContextual/<segmento> preenchem isso; as demais
+  // caem no default.tsx do slot, que devolve null (item 5 do pedido: preencher o slot que hoje
+  // é passado sempre vazio, sem tocar em handler/service/store da Academy).
+  sidebarContextual: React.ReactNode;
+}) {
   const { components: Slots } = await resolveActiveTheme();
 
   const adminGate = await getAdminPageData();
@@ -34,7 +44,9 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       <Slots.Header {...props.header} />
       <div className="flex flex-1">
         <Slots.SidebarLeft {...props.sidebarLeft} />
-        <Slots.Content sidebarContextualEnabled={false}>{children}</Slots.Content>
+        <Slots.Content sidebarContextualEnabled={sidebarContextual !== null} sidebarContextual={sidebarContextual}>
+          {children}
+        </Slots.Content>
       </div>
       <Slots.Footer {...props.footer} />
     </>

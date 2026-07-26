@@ -4,6 +4,7 @@ export type CourseRecord = {
   id: string;
   title: string;
   description: string | null;
+  slug: string;
   status: CourseStatus;
   createdBy: string;
   selfEnrollmentEnabled: boolean;

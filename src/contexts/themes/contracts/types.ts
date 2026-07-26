@@ -52,6 +52,12 @@ export type FooterSlotProps = {
 export type ContentSlotProps = {
   children: ReactNode;
   sidebarContextualEnabled: boolean;
+  // Conteúdo já resolvido da sidebar contextual (ex: trilha de aulas da Academy), vindo do slot
+  // paralelo @sidebarContextual — o tema só recebe e renderiza, nunca busca dado sozinho (Contrato
+  // de slot). null quando a rota atual não tem conteúdo contextual. Extensão aditiva do contrato,
+  // mesmo princípio do campo `user` em HeaderSlotProps — mantida em themeContractVersion "2.0.0"
+  // por não haver ainda segundo tema publicado (docs/venore-docks.md).
+  sidebarContextual: ReactNode | null;
 };
 
 // SidebarLeft é exclusivo de navegação (main-nav ou admin-nav, conforme navMode) — não é área

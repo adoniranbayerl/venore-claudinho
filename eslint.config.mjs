@@ -83,6 +83,29 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    // Cor deve vir sempre dos tokens semânticos em globals.css (bg-surface-*, text-text-*,
+    // border-border-*, text-destructive, text-success, text-warning, text-info, etc.) —
+    // nunca de classes Tailwind de paleta cru. Ver docs/venore-docks.md.
+    files: ["src/app/**/*.{js,jsx,ts,tsx}", "src/themes/**/*.{js,jsx,ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            'JSXAttribute[name.name="className"] Literal[value=/\\b(bg-white|text-white|bg-gray-[0-9]+|text-gray-[0-9]+|border-gray-[0-9]+|text-red-[0-9]+|bg-red-[0-9]+|border-red-[0-9]+|text-blue-[0-9]+|bg-blue-[0-9]+|border-blue-[0-9]+|text-green-[0-9]+|bg-green-[0-9]+|border-green-[0-9]+|text-amber-[0-9]+|bg-amber-[0-9]+|border-amber-[0-9]+)\\b/]',
+          message:
+            "Não use cores Tailwind cruas (bg-white, text-gray-*, border-gray-*, text-red-*, text-blue-*, text-green-*, bg-amber-*, ...) em src/app ou src/themes — use os tokens semânticos do tema (bg-surface-panel, text-text-primary, text-text-secondary, text-text-tertiary, border-border-subtle, text-destructive, text-success, text-warning, text-info, bg-primary/text-primary-foreground, etc).",
+        },
+        {
+          selector:
+            'JSXAttribute[name.name="className"] TemplateElement[value.raw=/\\b(bg-white|text-white|bg-gray-[0-9]+|text-gray-[0-9]+|border-gray-[0-9]+|text-red-[0-9]+|bg-red-[0-9]+|border-red-[0-9]+|text-blue-[0-9]+|bg-blue-[0-9]+|border-blue-[0-9]+|text-green-[0-9]+|bg-green-[0-9]+|border-green-[0-9]+|text-amber-[0-9]+|bg-amber-[0-9]+|border-amber-[0-9]+)\\b/]',
+          message:
+            "Não use cores Tailwind cruas (bg-white, text-gray-*, border-gray-*, text-red-*, text-blue-*, text-green-*, bg-amber-*, ...) em src/app ou src/themes — use os tokens semânticos do tema (bg-surface-panel, text-text-primary, text-text-secondary, text-text-tertiary, border-border-subtle, text-destructive, text-success, text-warning, text-info, bg-primary/text-primary-foreground, etc).",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

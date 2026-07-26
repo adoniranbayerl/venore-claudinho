@@ -1,16 +1,18 @@
-import Link from "next/link";
-import { listCourses } from "@/plugins/academy";
+import { GraduationCap } from "lucide-react";
+import { listCourses, listLessonsByCourse } from "@/plugins/academy";
 import { getAcademyPageData } from "@/platform/admin-shell/get-academy-page-data";
-import { CreateCourseForm } from "./_components/create-course-form";
+import { EmptyState } from "@/components/empty-state";
+import { AdminCourseCard } from "@/components/academy/admin-course-card";
+import { CreateCourseDialog } from "./_components/create-course-dialog";
 
 export default async function AcademyAdminPage() {
   const gate = await getAcademyPageData();
 
   if (!gate.granted) {
     return (
-      <div className="rounded border border-gray-200  p-8 text-center">
-        <h1 className="text-lg font-semibold ">Acesso negado</h1>
-        <p className="mt-2 text-sm ">Você não tem permissão para gerenciar a Academy.</p>
+      <div className="rounded-panel border border-border-subtle bg-surface-panel p-8 text-center">
+        <h1 className="text-lg font-semibold text-text-primary">Acesso negado</h1>
+        <p className="mt-2 text-sm text-text-secondary">Você não tem permissão para gerenciar a Academy.</p>
       </div>
     );
   }
@@ -18,34 +20,42 @@ export default async function AcademyAdminPage() {
   const coursesResult = await listCourses();
 
   if (!coursesResult.success) {
-    return <p className="text-sm text-red-600">Erro ao carregar cursos: {coursesResult.error.message}</p>;
+    return <p className="text-sm text-destructive">Erro ao carregar cursos: {coursesResult.error.message}</p>;
   }
 
   const courses = coursesResult.data;
+  const lessonCounts = await Promise.all(courses.map((course) => listLessonsByCourse({ courseId: course.id })));
+  const lessonCountByCourse = new Map(
+    courses.map((course, index) => {
+      const result = lessonCounts[index];
+      return [course.id, result.success ? result.data.length : 0];
+    }),
+  );
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold ">Academy</h1>
-        <p className="mt-1 text-sm ">Gerencie cursos, aulas e requisitos de conclusão.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight text-text-primary">Academy</h1>
+          <p className="mt-1 text-sm text-text-secondary">Gerencie cursos, aulas e requisitos de conclusão.</p>
+        </div>
+        {courses.length > 0 && <CreateCourseDialog />}
       </div>
 
-      <section className="rounded border  p-4">
-        <h2 className="text-sm font-semibold ">Cursos</h2>
-        <ul className="mt-3 space-y-1">
+      {courses.length === 0 ? (
+        <EmptyState
+          icon={<GraduationCap className="size-8" strokeWidth={1.5} />}
+          title="Nenhum curso cadastrado"
+          description="Crie o primeiro curso para começar a montar a trilha de aulas."
+          action={<CreateCourseDialog />}
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {courses.map((course) => (
-            <li key={course.id} className="text-sm text-gray-700">
-              <Link href={`/admin/academy/courses/${course.id}`} className="font-medium  hover:underline">
-                {course.title}
-              </Link>
-              <span className=""> · {course.status === "published" ? "publicado" : "rascunho"}</span>
-              {course.description && <span className=""> — {course.description}</span>}
-            </li>
+            <AdminCourseCard key={course.id} course={course} lessonCount={lessonCountByCourse.get(course.id) ?? 0} />
           ))}
-          {courses.length === 0 && <li className="text-sm ">Nenhum curso cadastrado.</li>}
-        </ul>
-        <CreateCourseForm />
-      </section>
+        </div>
+      )}
     </div>
   );
 }

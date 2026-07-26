@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useActionToast } from "@/hooks/use-action-toast";
 import { createLessonAction, type CourseActionState } from "../actions";
 
 const initialState: CourseActionState = { error: null };
@@ -13,6 +15,7 @@ export function CreateLessonForm({
   entries: { id: string; title: string; slug: string }[];
 }) {
   const [state, formAction, pending] = useActionState(createLessonAction, initialState);
+  useActionToast({ pending, error: state.error, successMessage: "Aula criada." });
   const [videoUrl, setVideoUrl] = useState("");
   const [quizEnabled, setQuizEnabled] = useState(false);
 
@@ -21,8 +24,8 @@ export function CreateLessonForm({
       <input type="hidden" name="courseId" value={courseId} />
 
       <div>
-        <label className="block text-xs font-medium text-gray-700">Entry do CMS</label>
-        <select name="cmsEntryId" required className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm">
+        <label className="block text-xs font-medium text-text-secondary">Entry do CMS</label>
+        <select name="cmsEntryId" required className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm">
           <option value="">selecione...</option>
           {entries.map((entry) => (
             <option key={entry.id} value={entry.id}>
@@ -31,35 +34,35 @@ export function CreateLessonForm({
           ))}
         </select>
         {entries.length === 0 && (
-          <p className="mt-1 text-xs text-gray-500">Nenhuma entry publicada no CMS ainda.</p>
+          <p className="mt-1 text-xs text-text-tertiary">Nenhuma entry publicada no CMS ainda.</p>
         )}
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700">URL do vídeo (opcional)</label>
+        <label className="block text-xs font-medium text-text-secondary">URL do vídeo (opcional)</label>
         <input
           name="videoUrl"
           value={videoUrl}
           onChange={(event) => setVideoUrl(event.target.value)}
-          className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"
+          className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
         />
       </div>
 
-      <div className="space-y-2 border-t border-gray-200 pt-3">
-        <p className="text-xs font-medium text-gray-700">Requisitos de conclusão (opcional, dá pra ajustar depois)</p>
+      <div className="space-y-2 border-t border-border-subtle pt-3">
+        <p className="text-xs font-medium text-text-secondary">Requisitos de conclusão (opcional, dá pra ajustar depois)</p>
 
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 text-sm text-text-secondary">
           <input type="checkbox" name="readTextEnabled" />
           Exigir leitura do texto
         </label>
 
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 text-sm text-text-secondary">
           <input type="checkbox" name="watchVideoEnabled" disabled={videoUrl.trim().length === 0} />
           Exigir assistir o vídeo
-          {videoUrl.trim().length === 0 && <span className="text-xs text-gray-500">(preencha a URL do vídeo)</span>}
+          {videoUrl.trim().length === 0 && <span className="text-xs text-text-tertiary">(preencha a URL do vídeo)</span>}
         </label>
 
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 text-sm text-text-secondary">
           <input
             type="checkbox"
             name="quizEnabled"
@@ -70,43 +73,38 @@ export function CreateLessonForm({
         </label>
 
         {quizEnabled && (
-          <div className="ml-6 space-y-3 border-l border-gray-200 pl-4">
+          <div className="ml-6 space-y-3 border-l border-border-subtle pl-4">
             <div>
-              <label className="block text-xs font-medium text-gray-700">Nota mínima para aprovação (%)</label>
+              <label className="block text-xs font-medium text-text-secondary">Nota mínima para aprovação (%)</label>
               <input
                 type="number"
                 name="quizPassThresholdPercent"
                 min={1}
                 max={100}
                 defaultValue={70}
-                className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700">Tentativas máximas</label>
+              <label className="block text-xs font-medium text-text-secondary">Tentativas máximas</label>
               <input
                 type="number"
                 name="quizMaxAttempts"
                 min={1}
                 defaultValue={3}
-                className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
               />
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-text-tertiary">
               As perguntas do quiz são cadastradas na página da aula depois de criá-la.
             </p>
           </div>
         )}
       </div>
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-gray-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
-      >
+      <Button type="submit" disabled={pending}>
         Criar aula
-      </button>
-      {state.error && <p className="text-xs text-red-600">{state.error}</p>}
+      </Button>
     </form>
   );
 }

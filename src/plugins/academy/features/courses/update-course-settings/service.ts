@@ -1,5 +1,6 @@
 import { beginOperation, endOperation } from "@/observability";
-import { applyCourseSettings, findCourseById } from "./store";
+import { isValidSlug, slugify } from "../../../shared/slug";
+import { applyCourseSettings, findCourseById, findCourseBySlug } from "./store";
 import type { UpdateCourseSettingsCommand, UpdateCourseSettingsResult } from "./types";
 
 export async function updateCourseSettings(command: UpdateCourseSettingsCommand): Promise<UpdateCourseSettingsResult> {
@@ -16,8 +17,27 @@ export async function updateCourseSettings(command: UpdateCourseSettingsCommand)
     return { success: false, error };
   }
 
+  let slug: string | undefined;
+  if (command.slug !== undefined) {
+    slug = slugify(command.slug);
+    if (!isValidSlug(slug)) {
+      const error = { code: "academy.courses.invalid_slug", message: "Slug inválido — use apenas letras, números e hífen." };
+      endOperation(handle, { success: false, error });
+      return { success: false, error };
+    }
+    if (slug !== existing.slug) {
+      const conflict = await findCourseBySlug(slug);
+      if (conflict && conflict.id !== command.id) {
+        const error = { code: "academy.courses.slug_taken", message: `O slug "${slug}" já está em uso por outro curso.` };
+        endOperation(handle, { success: false, error });
+        return { success: false, error };
+      }
+    }
+  }
+
   const course = await applyCourseSettings({
     id: command.id,
+    slug,
     selfEnrollmentEnabled: command.selfEnrollmentEnabled,
     publiclyListed: command.publiclyListed,
   });

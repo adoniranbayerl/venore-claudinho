@@ -11,3 +11,12 @@ export async function findPublishedCourseById(id: string): Promise<CourseRecord 
     .limit(1);
   return (row as CourseRecord) ?? null;
 }
+
+export async function findPublishedCourseBySlug(slug: string): Promise<CourseRecord | null> {
+  const [row] = await db
+    .select()
+    .from(courses)
+    .where(and(eq(courses.slug, slug), eq(courses.status, "published")))
+    .limit(1);
+  return (row as CourseRecord) ?? null;
+}

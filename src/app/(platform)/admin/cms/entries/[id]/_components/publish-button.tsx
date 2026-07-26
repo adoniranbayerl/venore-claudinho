@@ -14,11 +14,11 @@ export function PublishButton({ entryId }: { entryId: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-900 disabled:opacity-50"
+        className="rounded border border-border-subtle px-3 py-1.5 text-sm font-medium text-text-primary disabled:opacity-50"
       >
         Publicar
       </button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
     </form>
   );
 }

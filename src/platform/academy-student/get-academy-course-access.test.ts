@@ -20,6 +20,7 @@ vi.mock("@/plugins/academy", () => ({
 const actorUser = { id: "actor-1", email: "actor@example.com", name: "Actor" };
 const course = {
   id: "course-1",
+  slug: "curso",
   title: "Curso",
   description: "desc",
   status: "published",
@@ -40,7 +41,7 @@ describe("getAcademyCourseAccess", () => {
     getCurrentUser.mockResolvedValue({ success: true, data: null });
 
     const { getAcademyCourseAccess } = await import("./get-academy-course-access");
-    const result = await getAcademyCourseAccess({ courseId: "course-1" });
+    const result = await getAcademyCourseAccess({ courseSlug: "curso" });
 
     expect(result).toEqual({ mode: "unauthenticated" });
     expect(getCourseForStudent).not.toHaveBeenCalled();
@@ -51,7 +52,35 @@ describe("getAcademyCourseAccess", () => {
     getCourseForStudent.mockResolvedValue({ success: true, data: null });
 
     const { getAcademyCourseAccess } = await import("./get-academy-course-access");
-    const result = await getAcademyCourseAccess({ courseId: "course-1" });
+    const result = await getAcademyCourseAccess({ courseSlug: "curso" });
+
+    expect(result).toEqual({ mode: "not-found" });
+    expect(getCourseForStudent).toHaveBeenCalledWith({ slug: "curso" });
+  });
+
+  it("redirects to the slug when the legacy uuid still resolves to a course", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: actorUser });
+    const legacyId = "11111111-2222-3333-4444-555555555555";
+    getCourseForStudent.mockImplementation(async (query: { id?: string; slug?: string }) => {
+      if ("slug" in query) return { success: true, data: null };
+      return { success: true, data: course };
+    });
+
+    const { getAcademyCourseAccess } = await import("./get-academy-course-access");
+    const result = await getAcademyCourseAccess({ courseSlug: legacyId });
+
+    expect(result).toEqual({ mode: "redirect", slug: "curso" });
+    expect(getCourseForStudent).toHaveBeenCalledWith({ slug: legacyId });
+    expect(getCourseForStudent).toHaveBeenCalledWith({ id: legacyId });
+  });
+
+  it("is not-found when the slug looks like a uuid but resolves nowhere", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: actorUser });
+    const legacyId = "11111111-2222-3333-4444-555555555555";
+    getCourseForStudent.mockResolvedValue({ success: true, data: null });
+
+    const { getAcademyCourseAccess } = await import("./get-academy-course-access");
+    const result = await getAcademyCourseAccess({ courseSlug: legacyId });
 
     expect(result).toEqual({ mode: "not-found" });
   });
@@ -62,7 +91,7 @@ describe("getAcademyCourseAccess", () => {
     isEnrolled.mockResolvedValue({ success: true, data: true });
 
     const { getAcademyCourseAccess } = await import("./get-academy-course-access");
-    const result = await getAcademyCourseAccess({ courseId: "course-1" });
+    const result = await getAcademyCourseAccess({ courseSlug: "curso" });
 
     expect(result.mode).toBe("full");
     expect(getUserContext).not.toHaveBeenCalled();
@@ -78,7 +107,7 @@ describe("getAcademyCourseAccess", () => {
     });
 
     const { getAcademyCourseAccess } = await import("./get-academy-course-access");
-    const result = await getAcademyCourseAccess({ courseId: "course-1" });
+    const result = await getAcademyCourseAccess({ courseSlug: "curso" });
 
     expect(result.mode).toBe("preview");
   });
@@ -93,7 +122,7 @@ describe("getAcademyCourseAccess", () => {
     });
 
     const { getAcademyCourseAccess } = await import("./get-academy-course-access");
-    const result = await getAcademyCourseAccess({ courseId: "course-1" });
+    const result = await getAcademyCourseAccess({ courseSlug: "curso" });
 
     expect(result.mode).toBe("preview");
   });
@@ -108,7 +137,7 @@ describe("getAcademyCourseAccess", () => {
     });
 
     const { getAcademyCourseAccess } = await import("./get-academy-course-access");
-    const result = await getAcademyCourseAccess({ courseId: "course-1" });
+    const result = await getAcademyCourseAccess({ courseSlug: "curso" });
 
     expect(result.mode).toBe("enroll-available");
   });
@@ -123,7 +152,7 @@ describe("getAcademyCourseAccess", () => {
     });
 
     const { getAcademyCourseAccess } = await import("./get-academy-course-access");
-    const result = await getAcademyCourseAccess({ courseId: "course-1" });
+    const result = await getAcademyCourseAccess({ courseSlug: "curso" });
 
     expect(result.mode).toBe("enroll-available");
   });
@@ -138,7 +167,7 @@ describe("getAcademyCourseAccess", () => {
     });
 
     const { getAcademyCourseAccess } = await import("./get-academy-course-access");
-    const result = await getAcademyCourseAccess({ courseId: "course-1" });
+    const result = await getAcademyCourseAccess({ courseSlug: "curso" });
 
     expect(result.mode).toBe("restricted");
   });

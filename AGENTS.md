@@ -22,4 +22,8 @@ type OperationResult<T> = { success: true; data: T } | { success: false; error: 
 - `plugin` só importa `contexts/<nome>/contracts` e `contexts/<nome>/index.ts` (barrel público). Nunca `store`, `schema`, `database/client`, nem `service` fora do barrel — nem para leitura.
 - `service` pode chamar `service` público de outro `context` via barrel, para compor dado (ex: CMS + RBAC). Sem ciclo entre contexts.
 - Toda regra de boundary acima precisa virar `eslint-plugin-boundaries` ou hook — não confiar só em instrução.
+
+## Testes: unitário vs integração
+- Arquivos `*.test.ts` são unitários e não podem depender de banco real; `npm test` roda só esses (e é o que o CI executa).
+- Arquivos `*.integration.test.ts` (ex: `client.integration.test.ts`) exigem Postgres via `DATABASE_URL` e rodam com `npm run test:integration`, fora do CI.
 <!-- END:venore-docks-rules -->

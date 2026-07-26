@@ -11,6 +11,7 @@ export async function createCourseAction(_prevState: AcademyActionState, formDat
   const result = await createCourse({
     title: String(formData.get("title") ?? ""),
     description: String(formData.get("description") ?? "") || undefined,
+    slug: String(formData.get("slug") ?? "") || undefined,
     selfEnrollmentEnabled: formData.get("selfEnrollmentEnabled") === "on",
     publiclyListed: formData.get("publiclyListed") === "on",
   });

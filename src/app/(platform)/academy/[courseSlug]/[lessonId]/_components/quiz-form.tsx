@@ -1,37 +1,44 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button } from "@/components/ui/button";
+import { useActionToast } from "@/hooks/use-action-toast";
 import { submitQuizAction, type QuizActionState } from "../actions";
 import type { StudentQuizQuestionRecord } from "@/plugins/academy";
 
 const initialState: QuizActionState = { error: null, result: null };
 
 export function QuizForm({
-  courseId,
+  courseSlug,
   lessonId,
   questions,
   attemptsExhausted,
 }: {
-  courseId: string;
+  courseSlug: string;
   lessonId: string;
   questions: StudentQuizQuestionRecord[];
   attemptsExhausted: boolean;
 }) {
   const [state, formAction, pending] = useActionState(submitQuizAction, initialState);
+  useActionToast({
+    pending,
+    error: state.error,
+    successMessage: state.result ? (state.result.passed ? "Você passou no quiz!" : "Respostas enviadas.") : null,
+  });
 
   const exhaustedNow = attemptsExhausted || (state.result !== null && !state.result.passed && state.result.attemptsRemaining <= 0);
 
   if (exhaustedNow) {
     return (
-      <div className="rounded border border-gray-200 p-4">
-        <p className="text-sm text-gray-700">Você esgotou suas tentativas para este quiz.</p>
+      <div className="rounded border border-border-subtle p-4">
+        <p className="text-sm text-text-secondary">Você esgotou suas tentativas para este quiz.</p>
       </div>
     );
   }
 
   return (
-    <form action={formAction} className="space-y-4 rounded border border-gray-200 p-4">
-      <input type="hidden" name="courseId" value={courseId} />
+    <form action={formAction} className="space-y-4 rounded border border-border-subtle p-4">
+      <input type="hidden" name="courseSlug" value={courseSlug} />
       <input type="hidden" name="lessonId" value={lessonId} />
 
       {questions.map((question) => (
@@ -47,15 +54,10 @@ export function QuizForm({
         </fieldset>
       ))}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded border border-gray-300 px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-      >
+      <Button type="submit" variant="outline" disabled={pending}>
         Enviar respostas
-      </button>
+      </Button>
 
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
       {state.result && (
         <p className="text-sm">
           {state.result.passed

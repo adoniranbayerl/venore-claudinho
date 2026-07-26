@@ -30,10 +30,10 @@ export function MenuItemRow({
   const error = upState.error ?? downState.error ?? removeState.error;
 
   return (
-    <li className="flex items-center justify-between gap-4 text-sm text-gray-700">
+    <li className="flex items-center justify-between gap-4 text-sm text-text-secondary">
       <div>
-        <span className="font-medium text-gray-900">{label}</span>{" "}
-        <span className="text-gray-500">({href})</span>
+        <span className="font-medium text-text-primary">{label}</span>{" "}
+        <span className="text-text-tertiary">({href})</span>
       </div>
       <div className="flex items-center gap-1">
         <form action={upAction}>
@@ -41,7 +41,7 @@ export function MenuItemRow({
           <button
             type="submit"
             disabled={isFirst || upPending}
-            className="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-900 disabled:opacity-50"
+            className="rounded border border-border-subtle px-2 py-1 text-xs font-medium text-text-primary disabled:opacity-50"
           >
             Subir
           </button>
@@ -51,7 +51,7 @@ export function MenuItemRow({
           <button
             type="submit"
             disabled={isLast || downPending}
-            className="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-900 disabled:opacity-50"
+            className="rounded border border-border-subtle px-2 py-1 text-xs font-medium text-text-primary disabled:opacity-50"
           >
             Descer
           </button>
@@ -61,13 +61,13 @@ export function MenuItemRow({
           <button
             type="submit"
             disabled={removePending}
-            className="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-red-600 disabled:opacity-50"
+            className="rounded border border-border-subtle px-2 py-1 text-xs font-medium text-destructive disabled:opacity-50"
           >
             Remover
           </button>
         </form>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </li>
   );
 }

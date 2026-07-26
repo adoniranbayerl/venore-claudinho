@@ -2,6 +2,7 @@ export { createCourseHandler as createCourse } from "./features/courses/create-c
 export { listCoursesHandler as listCourses } from "./features/courses/list-courses/handler";
 export { getCourseHandler as getCourse } from "./features/courses/get-course/handler";
 export { publishCourseHandler as publishCourse } from "./features/courses/publish-course/handler";
+export { unpublishCourseHandler as unpublishCourse } from "./features/courses/unpublish-course/handler";
 export {
   updateCourseSettingsHandler as updateCourseSettings,
 } from "./features/courses/update-course-settings/handler";
@@ -12,11 +13,16 @@ export {
   getCourseForStudentHandler as getCourseForStudent,
 } from "./features/courses/get-course-for-student/handler";
 export { createLessonHandler as createLesson } from "./features/lessons/create-lesson/handler";
+export { updateLessonHandler as updateLesson } from "./features/lessons/update-lesson/handler";
+export { deleteLessonHandler as deleteLesson } from "./features/lessons/delete-lesson/handler";
+export { reorderLessonsHandler as reorderLessons } from "./features/lessons/reorder-lessons/handler";
 export { listLessonsByCourseHandler as listLessonsByCourse } from "./features/lessons/list-lessons-by-course/handler";
 export { getLessonHandler as getLesson } from "./features/lessons/get-lesson/handler";
 export { configureLessonRequirementsHandler as configureLessonRequirements } from "./features/lessons/configure-lesson-requirements/handler";
 export { getLessonRequirementsHandler as getLessonRequirements } from "./features/lessons/get-lesson-requirements/handler";
 export { addQuizQuestionHandler as addQuizQuestion } from "./features/lessons/add-quiz-question/handler";
+export { updateQuizQuestionHandler as updateQuizQuestion } from "./features/lessons/update-quiz-question/handler";
+export { deleteQuizQuestionHandler as deleteQuizQuestion } from "./features/lessons/delete-quiz-question/handler";
 export {
   listQuizQuestionsByLessonHandler as listQuizQuestionsByLesson,
 } from "./features/lessons/list-quiz-questions-by-lesson/handler";
@@ -34,6 +40,7 @@ export {
 
 export { enrollSelfHandler as enrollSelf } from "./features/enrollments/enroll-self/handler";
 export { enrollStudentHandler as enrollStudent } from "./features/enrollments/enroll-student/handler";
+export { unenrollStudentHandler as unenrollStudent } from "./features/enrollments/unenroll-student/handler";
 export {
   listEnrollmentsForCourseHandler as listEnrollmentsForCourse,
 } from "./features/enrollments/list-enrollments-for-course/handler";
@@ -55,6 +62,7 @@ export type { CreateCourseInput, CreateCourseResult } from "./features/courses/c
 export type { ListCoursesResult } from "./features/courses/list-courses/types";
 export type { GetCourseQuery, GetCourseResult } from "./features/courses/get-course/types";
 export type { PublishCourseInput, PublishCourseResult } from "./features/courses/publish-course/types";
+export type { UnpublishCourseInput, UnpublishCourseResult } from "./features/courses/unpublish-course/types";
 export type {
   UpdateCourseSettingsInput,
   UpdateCourseSettingsResult,
@@ -69,6 +77,9 @@ export type {
   GetCourseForStudentResult,
 } from "./features/courses/get-course-for-student/types";
 export type { CreateLessonInput, CreateLessonResult } from "./features/lessons/create-lesson/types";
+export type { UpdateLessonInput, UpdateLessonResult } from "./features/lessons/update-lesson/types";
+export type { DeleteLessonInput, DeleteLessonResult } from "./features/lessons/delete-lesson/types";
+export type { ReorderLessonsInput, ReorderLessonsResult } from "./features/lessons/reorder-lessons/types";
 export type {
   ListLessonsByCourseQuery,
   ListLessonsByCourseResult,
@@ -83,6 +94,14 @@ export type {
   GetLessonRequirementsResult,
 } from "./features/lessons/get-lesson-requirements/types";
 export type { AddQuizQuestionInput, AddQuizQuestionResult } from "./features/lessons/add-quiz-question/types";
+export type {
+  UpdateQuizQuestionInput,
+  UpdateQuizQuestionResult,
+} from "./features/lessons/update-quiz-question/types";
+export type {
+  DeleteQuizQuestionInput,
+  DeleteQuizQuestionResult,
+} from "./features/lessons/delete-quiz-question/types";
 export type {
   ListQuizQuestionsByLessonQuery,
   ListQuizQuestionsByLessonResult,
@@ -112,6 +131,7 @@ export type {
 
 export type { EnrollSelfInput, EnrollSelfResult } from "./features/enrollments/enroll-self/types";
 export type { EnrollStudentInput, EnrollStudentResult } from "./features/enrollments/enroll-student/types";
+export type { UnenrollStudentInput, UnenrollStudentResult } from "./features/enrollments/unenroll-student/types";
 export type {
   ListEnrollmentsForCourseQuery,
   EnrollmentView,

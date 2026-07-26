@@ -3,6 +3,7 @@ import type { CourseRecord } from "../../../contracts/types";
 
 export type UpdateCourseSettingsCommand = {
   id: string;
+  slug?: string;
   selfEnrollmentEnabled: boolean;
   publiclyListed: boolean;
   actorId: string;

@@ -1,42 +1,33 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useActionToast } from "@/hooks/use-action-toast";
 import { createCourseAction, type AcademyActionState } from "../actions";
 
 const initialState: AcademyActionState = { error: null };
 
-export function CreateCourseForm() {
+export function CreateCourseForm({ onSuccess }: { onSuccess?: () => void }) {
   const [state, formAction, pending] = useActionState(createCourseAction, initialState);
+  useActionToast({ pending, error: state.error, successMessage: "Curso criado.", onSuccess });
 
   return (
-    <form action={formAction} className="mt-3 space-y-3">
-      <input
-        name="title"
-        placeholder="título do curso"
-        required
-        className="w-full rounded border px-2 py-1 text-sm"
-      />
-      <input
-        name="description"
-        placeholder="descrição (opcional)"
-        className="w-full rounded border  px-2 py-1 text-sm"
-      />
-      <label className="flex items-center gap-2 text-sm ">
+    <form action={formAction} className="space-y-3">
+      <Input name="title" placeholder="título do curso" required />
+      <Input name="description" placeholder="descrição (opcional)" />
+      <Input name="slug" placeholder="slug (opcional — gerado do título se vazio)" />
+      <label className="flex items-center gap-2 text-sm text-text-secondary">
         <input type="checkbox" name="selfEnrollmentEnabled" defaultChecked />
         Permitir matrícula automática
       </label>
-      <label className="flex items-center gap-2 text-sm ">
+      <label className="flex items-center gap-2 text-sm text-text-secondary">
         <input type="checkbox" name="publiclyListed" defaultChecked />
         Listar publicamente
       </label>
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-gray-900 px-3 py-1.5 text-sm font-medium disabled:opacity-50"
-      >
+      <Button type="submit" disabled={pending} className="w-full">
         Criar curso
-      </button>
-      {state.error && <p className="text-xs text-red-600">{state.error}</p>}
+      </Button>
     </form>
   );
 }

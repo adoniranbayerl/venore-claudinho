@@ -12,10 +12,10 @@ export function RemoveRoleButton({ roleId, userId }: { roleId: string; userId: s
     <form action={formAction} className="flex flex-col items-end gap-1">
       <input type="hidden" name="roleId" value={roleId} />
       <input type="hidden" name="userId" value={userId} />
-      <button type="submit" disabled={pending} className="text-xs text-red-600 hover:underline disabled:opacity-50">
+      <button type="submit" disabled={pending} className="text-xs text-destructive hover:underline disabled:opacity-50">
         remover
       </button>
-      {state.error && <p className="text-xs text-red-600">{state.error}</p>}
+      {state.error && <p className="text-xs text-destructive">{state.error}</p>}
     </form>
   );
 }

@@ -5,21 +5,21 @@ import { markTextRead, markVideoWatched, submitQuizAttempt } from "@/plugins/aca
 
 export type LessonActionState = { error: string | null };
 
-function revalidateLesson(courseId: string, lessonId: string) {
-  revalidatePath(`/academy/${courseId}`);
-  revalidatePath(`/academy/${courseId}/${lessonId}`);
+function revalidateLesson(courseSlug: string, lessonId: string) {
+  revalidatePath(`/academy/${courseSlug}`);
+  revalidatePath(`/academy/${courseSlug}/${lessonId}`);
 }
 
 export async function markTextReadAction(_prevState: LessonActionState, formData: FormData): Promise<LessonActionState> {
   const lessonId = String(formData.get("lessonId") ?? "");
-  const courseId = String(formData.get("courseId") ?? "");
+  const courseSlug = String(formData.get("courseSlug") ?? "");
 
   const result = await markTextRead({ lessonId });
   if (!result.success) {
     return { error: result.error.message };
   }
 
-  revalidateLesson(courseId, lessonId);
+  revalidateLesson(courseSlug, lessonId);
   return { error: null };
 }
 
@@ -28,14 +28,14 @@ export async function markVideoWatchedAction(
   formData: FormData,
 ): Promise<LessonActionState> {
   const lessonId = String(formData.get("lessonId") ?? "");
-  const courseId = String(formData.get("courseId") ?? "");
+  const courseSlug = String(formData.get("courseSlug") ?? "");
 
   const result = await markVideoWatched({ lessonId });
   if (!result.success) {
     return { error: result.error.message };
   }
 
-  revalidateLesson(courseId, lessonId);
+  revalidateLesson(courseSlug, lessonId);
   return { error: null };
 }
 
@@ -46,7 +46,7 @@ export type QuizActionState = {
 
 export async function submitQuizAction(_prevState: QuizActionState, formData: FormData): Promise<QuizActionState> {
   const lessonId = String(formData.get("lessonId") ?? "");
-  const courseId = String(formData.get("courseId") ?? "");
+  const courseSlug = String(formData.get("courseSlug") ?? "");
   const questionIds = formData.getAll("questionId").map((value) => String(value));
 
   const answers = questionIds.map((questionId) => ({
@@ -59,6 +59,6 @@ export async function submitQuizAction(_prevState: QuizActionState, formData: Fo
     return { error: result.error.message, result: null };
   }
 
-  revalidateLesson(courseId, lessonId);
+  revalidateLesson(courseSlug, lessonId);
   return { error: null, result: result.data };
 }

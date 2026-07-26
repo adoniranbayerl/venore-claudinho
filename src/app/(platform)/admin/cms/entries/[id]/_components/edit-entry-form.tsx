@@ -31,31 +31,31 @@ export function EditEntryForm({
       <input type="hidden" name="id" value={entryId} />
 
       <div>
-        <label className="block text-xs font-medium text-gray-700">Título</label>
+        <label className="block text-xs font-medium text-text-secondary">Título</label>
         <input
           name="title"
           defaultValue={title}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"
+          className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700">Slug</label>
+        <label className="block text-xs font-medium text-text-secondary">Slug</label>
         <input
           name="slug"
           defaultValue={slug}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"
+          className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700">Categoria (opcional)</label>
+        <label className="block text-xs font-medium text-text-secondary">Categoria (opcional)</label>
         <select
           name="categoryId"
           defaultValue={categoryId ?? ""}
-          className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"
+          className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
         >
           <option value="">nenhuma</option>
           {categories.map((category) => (
@@ -67,12 +67,12 @@ export function EditEntryForm({
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700">Corpo</label>
+        <label className="block text-xs font-medium text-text-secondary">Corpo</label>
         <textarea
           name="body"
           rows={8}
           defaultValue={body}
-          className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-sm"
+          className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
         />
       </div>
 
@@ -81,11 +81,11 @@ export function EditEntryForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded bg-gray-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+        className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
       >
         Salvar
       </button>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
     </form>
   );
 }

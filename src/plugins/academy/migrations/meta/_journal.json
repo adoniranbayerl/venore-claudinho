@@ -29,6 +29,13 @@
       "when": 1784911057146,
       "tag": "0003_previous_zodiak",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785036007599,
+      "tag": "0004_spotty_firebird",
+      "breakpoints": true
     }
   ]
 }

@@ -30,6 +30,7 @@
   --accent: oklch(0.9 0.205 102);
   --accent-foreground: oklch(0.17 0.018 158);
   --destructive: oklch(0.59 0.213 25);
+  --destructive-foreground: oklch(0.98 0.01 25);
   --border: oklch(0.89 0.022 162);
   --input: oklch(0.89 0.022 162);
   --ring: oklch(0.736 0.058 160);
@@ -102,6 +103,18 @@
 
   /* accent soft — halo usado em chips/painéis de destaque (brand panel do footer, hover de nav) */
   --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+
+  /* status semântico — texto/banner de sucesso, aviso e informação */
+  --success: oklch(0.5 0.15 145);
+  --success-foreground: oklch(0.98 0.01 145);
+  --warning: oklch(0.45 0.15 65);
+  --warning-foreground: oklch(0.98 0.01 65);
+  --warning-soft: color-mix(in oklch, var(--warning) 12%, var(--surface-panel));
+  --warning-border: color-mix(in oklch, var(--warning) 30%, var(--border-subtle));
+  --info: oklch(0.45 0.16 255);
+  --info-foreground: oklch(0.98 0.01 255);
+  --info-soft: color-mix(in oklch, var(--info) 12%, var(--surface-panel));
+  --info-border: color-mix(in oklch, var(--info) 30%, var(--border-subtle));
 }
 
 .dark {
@@ -120,6 +133,7 @@
   --accent: oklch(0.94 0.214 131);
   --accent-foreground: oklch(0.17 0.018 158);
   --destructive: oklch(0.64 0.226 26);
+  --destructive-foreground: oklch(0.98 0.01 25);
   --border: oklch(0.318 0.029 161);
   --input: oklch(0.318 0.029 161);
   --ring: oklch(0.458 0.056 156);
@@ -184,6 +198,17 @@
   --header-border-strong: color-mix(in oklch, var(--accent) 36%, var(--border-strong));
 
   --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+
+  --success: oklch(0.75 0.17 145);
+  --success-foreground: oklch(0.17 0.02 145);
+  --warning: oklch(0.78 0.16 65);
+  --warning-foreground: oklch(0.17 0.02 65);
+  --warning-soft: color-mix(in oklch, var(--warning) 16%, var(--surface-panel));
+  --warning-border: color-mix(in oklch, var(--warning) 34%, var(--border-subtle));
+  --info: oklch(0.72 0.14 255);
+  --info-foreground: oklch(0.17 0.02 255);
+  --info-soft: color-mix(in oklch, var(--info) 16%, var(--surface-panel));
+  --info-border: color-mix(in oklch, var(--info) 34%, var(--border-subtle));
 }
 
 @theme inline {
@@ -202,6 +227,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -232,6 +258,17 @@
 
   --color-accent-soft: var(--accent-soft);
 
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-border: var(--warning-border);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-soft: var(--info-soft);
+  --color-info-border: var(--info-border);
+
   --radius-sm: calc(var(--radius) * 0.5);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) * 2);
@@ -253,5 +290,5 @@
 body {
   background: var(--color-surface-base);
   color: var(--color-text-primary);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
