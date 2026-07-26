@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { publishEntry, updateEntry } from "@/contexts/cms";
+import { resolveBlockDefinition } from "@/platform/page-builder/block-registry";
 
 export type EditEntryActionState = { error: string | null };
 
@@ -39,7 +40,7 @@ export async function publishEntryFromEditAction(
   formData: FormData,
 ): Promise<EditEntryActionState> {
   const id = String(formData.get("id") ?? "");
-  const result = await publishEntry({ id });
+  const result = await publishEntry({ id, resolveDefinition: resolveBlockDefinition });
 
   if (!result.success) {
     return { error: result.error.message };

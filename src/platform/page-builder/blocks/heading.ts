@@ -7,6 +7,8 @@ export const headingBlockDefinition: BlockDefinition = {
   structure: "leaf",
   allowedInRoot: false,
   defaultData: { level: 2, text: "Título", align: "start" },
+  requiredDataFields: ["text"],
+  missingConfigMessage: "Sem texto definido",
   editorFields: [
     {
       name: "level",

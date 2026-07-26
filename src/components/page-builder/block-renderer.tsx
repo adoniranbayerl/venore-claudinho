@@ -1,8 +1,9 @@
 import Link from "next/link";
 import Markdown from "react-markdown";
-import type { Block, Composition } from "@/contexts/cms";
+import { isBlockConfigured, type Block, type Composition } from "@/contexts/cms";
 import { getMedia } from "@/contexts/media";
 import { resolveBlockDefinition } from "@/platform/page-builder/block-registry";
+import { ROW_BLOCK_KEY, ROW_COLUMN_GRID_CLASSES, resolveRowColumns } from "@/platform/page-builder/row-columns";
 import { Button, type buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { VariantProps } from "class-variance-authority";
@@ -11,6 +12,11 @@ import { AcademyCourseListBlock } from "./academy/course-list-block";
 import { AcademyEnrollCtaBlock } from "./academy/enroll-cta-block";
 
 type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
+
+// "edit": bloco não configurado vira placeholder visível (o editor precisa mostrar que o botão
+// existe mas está incompleto). "published": some, como sempre foi — pedido explícito da sessão
+// pra parar de confundir "não configurado" com "não existe" só no modo edit.
+export type BlockRenderMode = "edit" | "published";
 
 const GAP_CLASSES: Record<string, string> = {
   sm: "gap-2 sm:gap-3",
@@ -74,20 +80,42 @@ function UnknownBlockWarning({ blockKey }: { blockKey: string }) {
   );
 }
 
-export async function BlockRenderer({ blocks }: { blocks: Composition }) {
-  const rendered = await Promise.all(blocks.map((block) => renderBlock(block)));
+function UnconfiguredBlockPlaceholder({ label, missingMessage }: { label: string; missingMessage: string }) {
+  return (
+    <div className="rounded border border-dashed border-border-subtle p-3 text-xs">
+      <p className="font-medium text-text-secondary">{label}</p>
+      <p className="mt-1 text-text-tertiary">{missingMessage}</p>
+    </div>
+  );
+}
+
+export async function BlockRenderer({ blocks, mode }: { blocks: Composition; mode: BlockRenderMode }) {
+  const rendered = await Promise.all(blocks.map((block) => renderBlock(block, mode)));
   return <>{rendered}</>;
 }
 
-async function renderBlock(block: Block) {
+async function renderBlock(block: Block, mode: BlockRenderMode) {
   const definition = resolveBlockDefinition(block.key);
   if (!definition) {
     return <UnknownBlockWarning key={block.id} blockKey={block.key} />;
   }
 
+  if (!isBlockConfigured(definition, block.data)) {
+    if (mode === "published") {
+      return null;
+    }
+    return (
+      <UnconfiguredBlockPlaceholder
+        key={block.id}
+        label={definition.label}
+        missingMessage={definition.missingConfigMessage ?? "Bloco não configurado."}
+      />
+    );
+  }
+
   switch (block.key) {
-    case "core.layout.row":
-      return <RowBlock key={block.id} block={block} />;
+    case ROW_BLOCK_KEY:
+      return <RowBlock key={block.id} block={block} mode={mode} />;
     case "core.content.heading":
       return <HeadingBlock key={block.id} data={block.data} />;
     case "core.content.richtext":
@@ -107,25 +135,26 @@ async function renderBlock(block: Block) {
   }
 }
 
-async function RowBlock({ block }: { block: Block }) {
+async function RowBlock({ block, mode }: { block: Block; mode: BlockRenderMode }) {
+  const columns = resolveRowColumns(block.data);
   const gap = GAP_CLASSES[readString(block.data, "gap", "md")] ?? GAP_CLASSES.md;
   const align = ALIGN_CLASSES[readString(block.data, "align", "stretch")] ?? ALIGN_CLASSES.stretch;
   const surface = SURFACE_CLASSES[readString(block.data, "surface", "none")] ?? "";
 
+  // Só as N primeiras areas (na ordem em que foram criadas: col-1..col-4) — bloco em coluna
+  // oculta continua no dado, só não é renderizado aqui (o editor mostra o aviso).
   const areas = await Promise.all(
-    block.areas.map(async (area) => ({
+    block.areas.slice(0, columns).map(async (area) => ({
       key: area.key,
-      content: await Promise.all(area.blocks.map((child) => renderBlock(child))),
+      content: await Promise.all(area.blocks.map((child) => renderBlock(child, mode))),
     })),
   );
 
   return (
     <div
       className={cn(
-        // Mobile-first sem media query manual: auto-fit encolhe pra 1 coluna sozinho quando o
-        // container não cabe minmax(100%, 17rem) — pedido explícito da sessão, não trocar por
-        // grid-cols-N fixo.
-        "grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr))]",
+        "grid",
+        ROW_COLUMN_GRID_CLASSES[columns] ?? ROW_COLUMN_GRID_CLASSES[2],
         gap,
         align,
         surface,
@@ -152,9 +181,6 @@ function HeadingBlock({ data }: { data: Block["data"] }) {
 
 function RichtextBlock({ data }: { data: Block["data"] }) {
   const markdown = readString(data, "markdown");
-  if (!markdown) {
-    return null;
-  }
 
   return (
     <div
@@ -175,11 +201,7 @@ function RichtextBlock({ data }: { data: Block["data"] }) {
 }
 
 async function ImageBlock({ data }: { data: Block["data"] }) {
-  const mediaId = typeof data.mediaId === "string" ? data.mediaId : null;
-  if (!mediaId) {
-    return null;
-  }
-
+  const mediaId = readString(data, "mediaId");
   const mediaResult = await getMedia({ id: mediaId });
   if (!mediaResult.success || !mediaResult.data) {
     return null;
@@ -201,10 +223,6 @@ async function ImageBlock({ data }: { data: Block["data"] }) {
 
 function ButtonBlock({ data }: { data: Block["data"] }) {
   const href = readString(data, "href");
-  if (!href) {
-    return null;
-  }
-
   const label = readString(data, "label", "Saiba mais");
   const requestedVariant = readString(data, "variant", "default") as ButtonVariant;
   const variant = BUTTON_VARIANTS.has(requestedVariant) ? requestedVariant : "default";

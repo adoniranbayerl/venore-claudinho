@@ -28,12 +28,14 @@ export function CompositionBuilder({
   entrySlug,
   initialComposition,
   definitions,
+  preview,
 }: {
   entryId: string;
   entryTitle: string;
   entrySlug: string;
   initialComposition: Composition;
   definitions: BlockDefinition[];
+  preview: React.ReactNode;
 }) {
   const [composition, setComposition] = useState<Composition>(initialComposition);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -168,6 +170,11 @@ export function CompositionBuilder({
               onDuplicate: (id) => mutate(duplicateBlock(composition, id)),
               onRemove: handleRemove,
               onMove: (id, direction) => mutate(moveBlock(composition, id, direction)),
+              onSetColumns: (id, columns) => {
+                const target = findBlock(composition, id);
+                if (!target) return;
+                mutate(updateBlockData(composition, id, { ...target.data, columns }));
+              },
             }}
           />
         </div>
@@ -184,6 +191,14 @@ export function CompositionBuilder({
             <p className="text-sm text-text-tertiary">Selecione um bloco na árvore para editar seus campos.</p>
           )}
         </div>
+      </div>
+
+      <div className="rounded border border-border-subtle bg-surface-panel p-4">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-medium text-text-tertiary uppercase">Pré-visualização</p>
+          <p className="text-xs text-text-tertiary">Reflete a última versão salva</p>
+        </div>
+        <div className="space-y-4">{preview}</div>
       </div>
 
       {paletteRequest && (

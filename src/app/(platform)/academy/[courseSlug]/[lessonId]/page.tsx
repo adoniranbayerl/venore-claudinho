@@ -79,7 +79,7 @@ export default async function AcademyLessonPage({
 
         {entry &&
           (previewComposition ? (
-            <BlockRenderer blocks={previewComposition} />
+            <BlockRenderer blocks={previewComposition} mode="published" />
           ) : (
             <article className="prose max-w-none">
               <p>{getEntryBody(entry.data)}</p>
@@ -167,7 +167,7 @@ export default async function AcademyLessonPage({
 
       {entry &&
         (composition ? (
-          <BlockRenderer blocks={composition} />
+          <BlockRenderer blocks={composition} mode="published" />
         ) : (
           <article className="prose max-w-none">
             <p>{getEntryBody(entry.data)}</p>

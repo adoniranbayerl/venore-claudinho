@@ -39,7 +39,7 @@ export default async function CatchAllPage({ params }: { params: Promise<{ slug:
   return (
     <article>
       <h1>{entry.title}</h1>
-      {composition ? <BlockRenderer blocks={composition} /> : <p>{getEntryBody(entry.data)}</p>}
+      {composition ? <BlockRenderer blocks={composition} mode="published" /> : <p>{getEntryBody(entry.data)}</p>}
     </article>
   );
 }

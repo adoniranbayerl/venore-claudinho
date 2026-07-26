@@ -1,5 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getCache, setCache } from "../../../../../infrastructure/cache/memory-cache";
+import type { BlockDefinition } from "../../../contracts/block-definition";
+
+const buttonDefinition: BlockDefinition = {
+  key: "core.content.button",
+  label: "Botão",
+  category: "conteúdo",
+  structure: "leaf",
+  allowedInRoot: false,
+  defaultData: { label: "Saiba mais", href: "", variant: "default" },
+  editorFields: [],
+  requiredDataFields: ["href"],
+  missingConfigMessage: "Sem link definido",
+};
+
+function resolveDefinition(key: string): BlockDefinition | null {
+  return key === "core.content.button" ? buttonDefinition : null;
+}
 
 vi.mock("@/observability", () => ({
   beginOperation: vi.fn(() => ({ operationId: "op-1", useCase: "test", actor: { id: "actor-1", type: "user" }, kind: "write", startedAt: new Date() })),
@@ -26,7 +43,7 @@ describe("publishEntry", () => {
     setCache("cms:entries:published:*:*", [{ id: "stale" }], 60);
 
     const { publishEntry } = await import("./service");
-    const result = await publishEntry({ id: "entry-1", actorId: "actor-1" });
+    const result = await publishEntry({ id: "entry-1", resolveDefinition, actorId: "actor-1" });
 
     expect(result).toEqual({ success: true, data: { id: "entry-1", status: "published" } });
     expect(getCache("cms:entries:published:*:*")).toBeNull();
@@ -36,12 +53,35 @@ describe("publishEntry", () => {
     findEntryById.mockResolvedValue(null);
 
     const { publishEntry } = await import("./service");
-    const result = await publishEntry({ id: "missing", actorId: "actor-1" });
+    const result = await publishEntry({ id: "missing", resolveDefinition, actorId: "actor-1" });
 
     expect(result).toEqual({
       success: false,
       error: { code: "cms.entries.not_found", message: expect.any(String) },
     });
+    expect(markEntryPublished).not.toHaveBeenCalled();
+  });
+
+  it("fails and lists every unconfigured block instead of publishing", async () => {
+    findEntryById.mockResolvedValue({
+      id: "entry-1",
+      status: "draft",
+      data: {
+        blocks: [
+          { id: "b1", key: "core.content.button", slot: "", data: { href: "" }, areas: [] },
+          { id: "b2", key: "core.content.button", slot: "", data: { href: "/ok" }, areas: [] },
+        ],
+      },
+    });
+
+    const { publishEntry } = await import("./service");
+    const result = await publishEntry({ id: "entry-1", resolveDefinition, actorId: "actor-1" });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe("cms.entries.publish_validation_failed");
+      expect(result.error.message).toContain("Sem link definido");
+    }
     expect(markEntryPublished).not.toHaveBeenCalled();
   });
 });

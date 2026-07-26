@@ -30,6 +30,17 @@ export type BlockDefinition = {
   allowedInRoot: boolean;
   // Só quando structure === "areas".
   areaDefinitions?: AreaDefinition[];
+  // Ausente/vazio = bloco sempre considerado configurado (ex: row, blocos de plugin sem
+  // pré-requisito). Cada nome aqui precisa existir em `data` e, se for string, não pode ficar
+  // vazia após trim — checado por isBlockConfigured (contracts/block-config.ts), a única fonte
+  // da verdade sobre "este bloco tem o que precisa pra renderizar" (renderer e builder nunca
+  // espalham esse `if`). BlockDefinition é dado puro e precisa continuar serializável (atravessa
+  // o boundary RSC como prop de client component) — nada de função aqui; por isso lista de
+  // campos, não predicado.
+  requiredDataFields?: string[];
+  // Linha exibida no placeholder do modo "edit" quando isBlockConfigured(definition, data) é
+  // false, e usada na lista de pendências ao tentar publicar uma entry com bloco incompleto.
+  missingConfigMessage?: string;
 };
 
 export type ResolveBlockDefinition = (key: string) => BlockDefinition | null;

@@ -7,6 +7,8 @@ export const buttonBlockDefinition: BlockDefinition = {
   structure: "leaf",
   allowedInRoot: false,
   defaultData: { label: "Saiba mais", href: "", variant: "default" },
+  requiredDataFields: ["href"],
+  missingConfigMessage: "Sem link definido",
   editorFields: [
     { name: "label", type: "text", label: "Texto" },
     { name: "href", type: "url", label: "Link" },

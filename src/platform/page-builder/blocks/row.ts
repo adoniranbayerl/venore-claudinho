@@ -1,20 +1,19 @@
 import type { AreaDefinition, BlockDefinition } from "@/contexts/cms";
-
-const AREA_KEYS = ["col-1", "col-2", "col-3", "col-4"] as const;
+import { ROW_AREA_KEYS, ROW_BLOCK_KEY } from "../row-columns";
 
 // allowedBlockKeys só é conhecido depois que o registry soma blocos core + blocos de plugin
 // (platform/page-builder/block-registry.ts) — por isso row é uma fábrica, não um objeto
 // estático como os demais blocos core. "Dentro de area do row, tudo menos row" (pedido da
 // sessão): quem chama passa a lista de keys nesteáveis, sem incluir "core.layout.row" nela.
 export function createRowBlockDefinition(nestableBlockKeys: string[]): BlockDefinition {
-  const areaDefinitions: AreaDefinition[] = AREA_KEYS.map((key, index) => ({
+  const areaDefinitions: AreaDefinition[] = ROW_AREA_KEYS.map((key, index) => ({
     key,
     label: `Coluna ${index + 1}`,
     allowedBlockKeys: nestableBlockKeys,
   }));
 
   return {
-    key: "core.layout.row",
+    key: ROW_BLOCK_KEY,
     label: "Linha",
     category: "estrutura",
     structure: "areas",

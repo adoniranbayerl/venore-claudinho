@@ -7,5 +7,7 @@ export const richtextBlockDefinition: BlockDefinition = {
   structure: "leaf",
   allowedInRoot: false,
   defaultData: { markdown: "" },
+  requiredDataFields: ["markdown"],
+  missingConfigMessage: "Sem conteúdo definido",
   editorFields: [{ name: "markdown", type: "richtext", label: "Conteúdo (markdown)" }],
 };

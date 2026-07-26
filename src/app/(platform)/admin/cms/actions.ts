@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createCategory, createContentType, publishEntry } from "@/contexts/cms";
+import { resolveBlockDefinition } from "@/platform/page-builder/block-registry";
 
 export type CmsActionState = { error: string | null };
 
@@ -43,7 +44,7 @@ export async function createCategoryAction(_prevState: CmsActionState, formData:
 }
 
 export async function publishEntryAction(_prevState: CmsActionState, formData: FormData): Promise<CmsActionState> {
-  const result = await publishEntry({ id: String(formData.get("id") ?? "") });
+  const result = await publishEntry({ id: String(formData.get("id") ?? ""), resolveDefinition: resolveBlockDefinition });
 
   if (!result.success) {
     return { error: result.error.message };

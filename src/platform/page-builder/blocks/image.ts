@@ -7,6 +7,8 @@ export const imageBlockDefinition: BlockDefinition = {
   structure: "leaf",
   allowedInRoot: false,
   defaultData: { mediaId: null, alt: "", width: "full", caption: "" },
+  requiredDataFields: ["mediaId"],
+  missingConfigMessage: "Nenhuma mídia selecionada",
   editorFields: [
     { name: "mediaId", type: "image", label: "Mídia" },
     { name: "alt", type: "text", label: "Texto alternativo" },

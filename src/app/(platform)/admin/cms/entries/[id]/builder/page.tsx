@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getEntry, getEntryComposition } from "@/contexts/cms";
 import { listBlockDefinitions } from "@/platform/page-builder/block-registry";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
+import { BlockRenderer } from "@/components/page-builder/block-renderer";
 import { CompositionBuilder } from "./_components/composition-builder";
 
 export default async function EntryBuilderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -40,13 +41,16 @@ export default async function EntryBuilderPage({ params }: { params: Promise<{ i
     return <p className="text-sm text-destructive">Erro ao carregar composição: {compositionResult.error.message}</p>;
   }
 
+  const composition = compositionResult.data ?? [];
+
   return (
     <CompositionBuilder
       entryId={entry.id}
       entryTitle={entry.title}
       entrySlug={entry.slug}
-      initialComposition={compositionResult.data ?? []}
+      initialComposition={composition}
       definitions={listBlockDefinitions()}
+      preview={<BlockRenderer blocks={composition} mode="edit" />}
     />
   );
 }

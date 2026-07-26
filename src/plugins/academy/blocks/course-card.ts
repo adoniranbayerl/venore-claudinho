@@ -7,5 +7,7 @@ export const courseCardBlockDefinition: BlockDefinition = {
   structure: "leaf",
   allowedInRoot: false,
   defaultData: { slug: "" },
+  requiredDataFields: ["slug"],
+  missingConfigMessage: "Slug do curso não definido",
   editorFields: [{ name: "slug", type: "text", label: "Slug do curso" }],
 };

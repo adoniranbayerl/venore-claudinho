@@ -3,6 +3,7 @@
 import { ChevronDownIcon, ChevronRightIcon, CopyIcon, PlusIcon, TrashIcon } from "lucide-react";
 import type { Block, BlockDefinition, Composition } from "@/contexts/cms";
 import { cn } from "@/lib/utils";
+import { ROW_BLOCK_KEY, ROW_MAX_COLUMNS, resolveRowColumns } from "@/platform/page-builder/row-columns";
 
 export type BlockTreeActions = {
   onSelect: (id: string) => void;
@@ -12,6 +13,7 @@ export type BlockTreeActions = {
   onDuplicate: (id: string) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, direction: "up" | "down") => void;
+  onSetColumns: (id: string, columns: number) => void;
 };
 
 export function BlockTree({
@@ -80,6 +82,15 @@ function BlockNode({
   const isSelected = selectedId === block.id;
   const hasError = errorBlockId === block.id;
 
+  // Row só mostra as N primeiras colunas (mesma regra do render público) — bloco em coluna
+  // oculta continua no dado, e o editor precisa deixar isso visível em vez de escondê-lo de vez.
+  const isRow = block.key === ROW_BLOCK_KEY;
+  const columns = isRow ? resolveRowColumns(block.data) : block.areas.length;
+  const visibleAreas = isRow ? block.areas.slice(0, columns) : block.areas;
+  const hiddenAreas = isRow ? block.areas.slice(columns) : [];
+  const hiddenBlockCount = hiddenAreas.reduce((sum, area) => sum + area.blocks.length, 0);
+  const nextColumns = Math.min(ROW_MAX_COLUMNS, columns + 1);
+
   return (
     <div>
       <div
@@ -137,9 +148,24 @@ function BlockNode({
         </div>
       </div>
 
+      {hiddenBlockCount > 0 && (
+        <div className="mt-1 ml-4 flex items-center justify-between gap-2 rounded border border-warning-border bg-warning-soft px-2 py-1 text-xs text-warning">
+          <span>
+            {hiddenBlockCount} bloco(s) em colunas ocultas.
+          </span>
+          <button
+            type="button"
+            onClick={() => actions.onSetColumns(block.id, nextColumns)}
+            className="shrink-0 underline"
+          >
+            Mostrar coluna {nextColumns}
+          </button>
+        </div>
+      )}
+
       {hasAreas && !isCollapsed && (
         <div className="mt-1 ml-4 space-y-2 border-l border-border-subtle pl-3">
-          {block.areas.map((area) => (
+          {visibleAreas.map((area) => (
             <div key={area.key}>
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-medium text-text-tertiary uppercase">

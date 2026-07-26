@@ -35,6 +35,7 @@ export type { Block, Area, Composition } from "./contracts/block";
 export { blockSchema, areaSchema, compositionSchema } from "./contracts/block";
 export { validateComposition } from "./validate-composition";
 export type { ValidateCompositionError, ValidateCompositionResult } from "./validate-composition";
+export { isBlockConfigured } from "./contracts/block-config";
 export type {
   BlockDefinition,
   BlockStructure,
