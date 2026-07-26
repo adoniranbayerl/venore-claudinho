@@ -1,6 +1,13 @@
 import { listUsers } from "@/contexts/auth";
 import { listRoles, listUsersByRole, RBAC_PERMISSIONS } from "@/contexts/rbac";
 import { getRbacPageData } from "@/platform/admin-shell/get-rbac-page-data";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RemoveRoleButton } from "./_components/remove-role-button";
 import { assignRoleAction, createRoleAction, updateRolePermissionsAction } from "./actions";
 
@@ -118,13 +125,18 @@ export default async function RbacAdminPage() {
                 {assignableUsers.length > 0 && (
                   <form action={assignRoleAction} className="mt-3 flex items-center gap-2">
                     <input type="hidden" name="roleId" value={role.id} />
-                    <select name="userId" required className="rounded border border-border-subtle px-2 py-1 text-sm">
-                      {assignableUsers.map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.name ?? user.email} ({user.email})
-                        </option>
-                      ))}
-                    </select>
+                    <Select name="userId" required>
+                      <SelectTrigger className="w-64">
+                        <SelectValue placeholder="selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {assignableUsers.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name ?? user.email} ({user.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <button type="submit" className="rounded border border-border-subtle px-2 py-1 text-xs font-medium text-text-primary">
                       Atribuir
                     </button>

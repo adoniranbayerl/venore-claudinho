@@ -13,7 +13,7 @@ import type { HeaderSlotProps, FooterSlotProps, SidebarLeftSlotProps, NavItem } 
 // navMode/canToggleAdminNav/onToggleNavMode/admin-nav são resolvidos de verdade pelo layout e
 // mesclados por cima em resolve-theme-slot-props.ts.
 export const venoreSlimeMockProps: {
-  header: Omit<HeaderSlotProps, "user" | "canAccessAdmin" | "onSignOut">;
+  header: Omit<HeaderSlotProps, "user" | "canAccessAdmin" | "onSignOut" | "isDark" | "onToggleColorMode">;
   footer: FooterSlotProps;
   sidebarLeft: Omit<SidebarLeftSlotProps, "navMode" | "canToggleAdminNav" | "onToggleNavMode"> & {
     navItems: NavItem[];

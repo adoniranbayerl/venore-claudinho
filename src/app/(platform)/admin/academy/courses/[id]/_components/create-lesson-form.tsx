@@ -2,6 +2,13 @@
 
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { createLessonAction, type CourseActionState } from "../actions";
 
@@ -25,14 +32,18 @@ export function CreateLessonForm({
 
       <div>
         <label className="block text-xs font-medium text-text-secondary">Entry do CMS</label>
-        <select name="cmsEntryId" required className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm">
-          <option value="">selecione...</option>
-          {entries.map((entry) => (
-            <option key={entry.id} value={entry.id}>
-              {entry.title} ({entry.slug})
-            </option>
-          ))}
-        </select>
+        <Select name="cmsEntryId" required>
+          <SelectTrigger className="mt-1 w-full">
+            <SelectValue placeholder="selecione..." />
+          </SelectTrigger>
+          <SelectContent>
+            {entries.map((entry) => (
+              <SelectItem key={entry.id} value={entry.id}>
+                {entry.title} ({entry.slug})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {entries.length === 0 && (
           <p className="mt-1 text-xs text-text-tertiary">Nenhuma entry publicada no CMS ainda.</p>
         )}

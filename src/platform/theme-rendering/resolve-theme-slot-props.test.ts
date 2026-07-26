@@ -11,7 +11,14 @@ vi.mock("@/contexts/cms", () => ({
   getMenuByLocation: (...args: unknown[]) => getMenuByLocation(...args),
 }));
 
-function sidebarNavInput(overrides: Partial<{ canAccessAdmin: boolean; onSignOut: () => Promise<void> }> = {}) {
+function sidebarNavInput(
+  overrides: Partial<{
+    canAccessAdmin: boolean;
+    onSignOut: () => Promise<void>;
+    isDark: boolean;
+    onToggleColorMode: () => Promise<void>;
+  }> = {},
+) {
   return {
     navMode: "main" as const,
     adminNavItems: [],
@@ -19,6 +26,8 @@ function sidebarNavInput(overrides: Partial<{ canAccessAdmin: boolean; onSignOut
     onToggleNavMode: vi.fn(),
     canAccessAdmin: false,
     onSignOut: vi.fn(),
+    isDark: false,
+    onToggleColorMode: vi.fn(),
     ...overrides,
   };
 }
@@ -84,6 +93,17 @@ describe("resolveThemeSlotProps", () => {
 
     expect(props.header.canAccessAdmin).toBe(true);
     expect(props.header.onSignOut).toBe(onSignOut);
+  });
+
+  it("passes isDark and onToggleColorMode through to header props", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: null });
+    const onToggleColorMode = vi.fn();
+
+    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
+    const props = await resolveThemeSlotProps(sidebarNavInput({ isDark: true, onToggleColorMode }));
+
+    expect(props.header.isDark).toBe(true);
+    expect(props.header.onToggleColorMode).toBe(onToggleColorMode);
   });
 
   it("resolves sidebarLeft.navItems from the main-nav menu when navMode is main", async () => {

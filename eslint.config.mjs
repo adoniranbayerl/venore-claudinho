@@ -87,7 +87,7 @@ const eslintConfig = defineConfig([
     // Cor deve vir sempre dos tokens semânticos em globals.css (bg-surface-*, text-text-*,
     // border-border-*, text-destructive, text-success, text-warning, text-info, etc.) —
     // nunca de classes Tailwind de paleta cru. Ver docs/venore-docks.md.
-    files: ["src/app/**/*.{js,jsx,ts,tsx}", "src/themes/**/*.{js,jsx,ts,tsx}"],
+    files: ["src/app/**/*.{js,jsx,ts,tsx}", "src/themes/**/*.{js,jsx,ts,tsx}", "src/components/**/*.{js,jsx,ts,tsx}"],
     rules: {
       "no-restricted-syntax": [
         "error",

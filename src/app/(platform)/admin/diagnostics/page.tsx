@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { listLogEntries } from "@/observability";
 import { getDiagnosticsPageData } from "@/platform/admin-shell/get-diagnostics-page-data";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type DiagnosticsSearchParams = {
   success?: string;
@@ -67,16 +74,16 @@ export default async function DiagnosticsAdminPage({
             <label htmlFor="success" className="text-xs font-medium text-text-secondary">
               Status
             </label>
-            <select
-              id="success"
-              name="success"
-              defaultValue={resolvedSearchParams.success ?? "all"}
-              className="rounded border border-border-subtle px-2 py-1 text-sm text-text-primary"
-            >
-              <option value="all">Todos</option>
-              <option value="success">Só sucesso</option>
-              <option value="error">Só erros</option>
-            </select>
+            <Select name="success" defaultValue={resolvedSearchParams.success ?? "all"}>
+              <SelectTrigger id="success" className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="success">Só sucesso</SelectItem>
+                <SelectItem value="error">Só erros</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex flex-col gap-1">
             <label htmlFor="useCase" className="text-xs font-medium text-text-secondary">

@@ -4,6 +4,8 @@ import { getAdminPageData } from "@/platform/admin-shell/get-admin-page-data";
 import { getVisibleAdminNavItems } from "@/platform/admin-shell/admin-nav-groups";
 import { getNavMode } from "@/platform/nav-mode/get-nav-mode";
 import { toggleNavModeAction } from "@/platform/nav-mode/toggle-nav-mode-action";
+import { getColorMode } from "@/platform/ui-preferences/get-color-mode";
+import { toggleColorModeAction } from "@/platform/ui-preferences/toggle-color-mode-action";
 import { signOutAction } from "@/app/(auth)/actions";
 import type { NavItem } from "@/contexts/themes";
 
@@ -29,6 +31,7 @@ export default async function PlatformLayout({
   const canToggleAdminNav = adminGate.granted;
   const navMode = await getNavMode(canToggleAdminNav);
   const adminNavItems: NavItem[] = adminGate.granted ? getVisibleAdminNavItems(adminGate.actor) : [];
+  const isDark = await getColorMode();
 
   const props = await resolveThemeSlotProps({
     navMode,
@@ -37,6 +40,8 @@ export default async function PlatformLayout({
     onToggleNavMode: toggleNavModeAction,
     canAccessAdmin: adminGate.granted,
     onSignOut: signOutAction,
+    isDark,
+    onToggleColorMode: toggleColorModeAction,
   });
 
   return (

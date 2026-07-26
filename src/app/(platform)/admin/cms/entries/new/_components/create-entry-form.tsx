@@ -2,6 +2,13 @@
 
 import { useActionState } from "react";
 import { MediaPickerField } from "@/components/media-picker-field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createEntryAction, type CreateEntryActionState } from "../actions";
 
 const initialState: CreateEntryActionState = { error: null };
@@ -29,26 +36,34 @@ export function CreateEntryForm({
 
       <div>
         <label className="block text-xs font-medium text-text-secondary">Content type</label>
-        <select name="contentTypeId" required className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm">
-          <option value="">selecione...</option>
-          {contentTypes.map((contentType) => (
-            <option key={contentType.id} value={contentType.id}>
-              {contentType.name}
-            </option>
-          ))}
-        </select>
+        <Select name="contentTypeId" required>
+          <SelectTrigger className="mt-1 w-full">
+            <SelectValue placeholder="selecione..." />
+          </SelectTrigger>
+          <SelectContent>
+            {contentTypes.map((contentType) => (
+              <SelectItem key={contentType.id} value={contentType.id}>
+                {contentType.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div>
         <label className="block text-xs font-medium text-text-secondary">Categoria (opcional)</label>
-        <select name="categoryId" className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm">
-          <option value="">nenhuma</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
+        <Select name="categoryId">
+          <SelectTrigger className="mt-1 w-full">
+            <SelectValue placeholder="nenhuma" />
+          </SelectTrigger>
+          <SelectContent>
+            {categories.map((category) => (
+              <SelectItem key={category.id} value={category.id}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div>

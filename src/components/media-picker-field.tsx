@@ -32,21 +32,21 @@ export function MediaPickerField({
 
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-700">{label}</label>
+      <label className="block text-xs font-medium text-text-secondary">{label}</label>
       <input type="hidden" name={name} value={selected?.id ?? ""} />
 
       <div className="mt-1 flex items-center gap-3">
         {selected && (
-          <div className="flex items-center gap-2 rounded border border-gray-200 px-2 py-1">
+          <div className="flex items-center gap-2 rounded border border-border-subtle px-2 py-1">
             {selected.mimeType.startsWith("image/") ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={selected.url} alt={selected.filename} className="h-8 w-8 rounded object-cover" />
             ) : null}
-            <span className="max-w-[12rem] truncate text-xs text-gray-700">{selected.filename}</span>
+            <span className="max-w-[12rem] truncate text-xs text-text-secondary">{selected.filename}</span>
             <button
               type="button"
               onClick={() => setSelected(null)}
-              className="text-xs font-medium text-red-600"
+              className="text-xs font-medium text-destructive"
             >
               Remover
             </button>
@@ -56,7 +56,7 @@ export function MediaPickerField({
           type="button"
           onClick={openPicker}
           disabled={isPending}
-          className="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-900 disabled:opacity-50"
+          className="rounded border border-border-default px-2 py-1 text-xs font-medium text-text-primary disabled:opacity-50"
         >
           {selected ? "Trocar" : "Selecionar mídia"}
         </button>
@@ -64,14 +64,14 @@ export function MediaPickerField({
 
       <dialog
         ref={dialogRef}
-        className="w-full max-w-2xl rounded border border-gray-200 p-4 backdrop:bg-black/40"
+        className="w-full max-w-2xl rounded border border-border-subtle bg-surface-panel p-4 text-text-primary backdrop:bg-black/40"
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900">Selecionar mídia</h2>
+          <h2 className="text-sm font-semibold text-text-primary">Selecionar mídia</h2>
           <button
             type="button"
             onClick={() => dialogRef.current?.close()}
-            className="text-sm text-gray-500"
+            className="text-sm text-text-tertiary"
           >
             Fechar
           </button>
@@ -83,22 +83,22 @@ export function MediaPickerField({
               type="button"
               key={item.id}
               onClick={() => selectMedia(item)}
-              className="flex flex-col gap-1 rounded border border-gray-200 p-2 text-left hover:border-gray-400"
+              className="flex flex-col gap-1 rounded border border-border-subtle p-2 text-left hover:border-border-strong"
             >
-              <div className="flex h-16 items-center justify-center overflow-hidden rounded bg-gray-50">
+              <div className="flex h-16 items-center justify-center overflow-hidden rounded bg-surface-subtle">
                 {item.mimeType.startsWith("image/") ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={item.url} alt={item.filename} className="h-full w-full object-cover" />
                 ) : (
-                  <span className="text-[10px] text-gray-500">{item.mimeType || "arquivo"}</span>
+                  <span className="text-[10px] text-text-tertiary">{item.mimeType || "arquivo"}</span>
                 )}
               </div>
-              <span className="truncate text-[11px] text-gray-700" title={item.filename}>
+              <span className="truncate text-[11px] text-text-secondary" title={item.filename}>
                 {item.filename}
               </span>
             </button>
           ))}
-          {items.length === 0 && <p className="col-span-full text-sm text-gray-500">Nenhum arquivo enviado ainda.</p>}
+          {items.length === 0 && <p className="col-span-full text-sm text-text-tertiary">Nenhum arquivo enviado ainda.</p>}
         </div>
       </dialog>
     </div>

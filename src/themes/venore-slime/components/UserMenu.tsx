@@ -15,11 +15,13 @@ type UserMenuProps = {
   canAccessAdmin: boolean;
   onSignOut: () => Promise<void>;
   isScrolled: boolean;
+  isDark: boolean;
+  onToggleColorMode: () => Promise<void>;
 };
 
 // Dropdown sem JS extra (<details>/<summary>), mesmo padrão já usado em
 // src/app/(auth)/login/page.tsx para as credenciais de desenvolvimento.
-export function UserMenu({ user, canAccessAdmin, onSignOut, isScrolled }: UserMenuProps) {
+export function UserMenu({ user, canAccessAdmin, onSignOut, isScrolled, isDark, onToggleColorMode }: UserMenuProps) {
   const firstName = user.displayName.split(/\s+/)[0];
 
   return (
@@ -44,7 +46,11 @@ export function UserMenu({ user, canAccessAdmin, onSignOut, isScrolled }: UserMe
         </div>
 
         <div className="flex flex-col gap-1 py-2">
-          <ColorModeToggle className="rounded-control px-2 py-1.5 text-left text-sm text-text-secondary transition-colors hover:bg-accent-soft hover:text-text-primary" />
+          <ColorModeToggle
+            isDark={isDark}
+            onToggleColorMode={onToggleColorMode}
+            className="w-full rounded-control px-2 py-1.5 text-left text-sm text-text-secondary transition-colors hover:bg-accent-soft hover:text-text-primary"
+          />
 
           {canAccessAdmin ? (
             <Link

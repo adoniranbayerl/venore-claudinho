@@ -19,6 +19,8 @@ export async function resolveThemeSlotProps(sidebarNav: {
   onToggleNavMode: () => Promise<void>;
   canAccessAdmin: boolean;
   onSignOut: () => Promise<void>;
+  isDark: boolean;
+  onToggleColorMode: () => Promise<void>;
 }): Promise<{
   header: HeaderSlotProps;
   footer: FooterSlotProps;
@@ -46,6 +48,8 @@ export async function resolveThemeSlotProps(sidebarNav: {
       user,
       canAccessAdmin: sidebarNav.canAccessAdmin,
       onSignOut: sidebarNav.onSignOut,
+      isDark: sidebarNav.isDark,
+      onToggleColorMode: sidebarNav.onToggleColorMode,
     },
     sidebarLeft: {
       enabled: venoreSlimeMockProps.sidebarLeft.enabled,
