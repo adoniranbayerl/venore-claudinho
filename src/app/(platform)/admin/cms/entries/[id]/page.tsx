@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEntry, getEntryBody, listCategories } from "@/contexts/cms";
 import { getMedia } from "@/contexts/media";
@@ -49,7 +50,12 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-text-primary">Editar entry</h1>
-        <span className="text-sm text-text-tertiary">{entry.status === "published" ? "publicada" : "rascunho"}</span>
+        <div className="flex items-center gap-3">
+          <Link href={`/admin/cms/entries/${entry.id}/builder`} className="text-sm text-text-accent hover:underline">
+            Editor visual
+          </Link>
+          <span className="text-sm text-text-tertiary">{entry.status === "published" ? "publicada" : "rascunho"}</span>
+        </div>
       </div>
 
       <div className="rounded border border-border-subtle bg-surface-panel p-4">

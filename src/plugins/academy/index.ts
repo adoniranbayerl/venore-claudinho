@@ -46,6 +46,12 @@ export {
 } from "./features/enrollments/list-enrollments-for-course/handler";
 export { isEnrolledHandler as isEnrolled } from "./features/enrollments/is-enrolled/handler";
 
+// Ponto de extensão "blocks" do plugin engine (docs/venore-docks.md — "Sistema de plugins"): o
+// registry de page-builder (platform/page-builder/block-registry.ts) importa este array estático
+// pra compor os blocos nesteáveis do editor. Os renderers ficam em components/page-builder/academy
+// (fora do plugin) e consomem só os handlers públicos abaixo — nenhuma query nova.
+export { blockDefinitions } from "./blocks";
+
 export type {
   CourseRecord,
   CourseStatus,

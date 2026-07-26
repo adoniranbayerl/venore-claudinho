@@ -1,0 +1,52 @@
+import { notFound } from "next/navigation";
+import { getEntry, getEntryComposition } from "@/contexts/cms";
+import { listBlockDefinitions } from "@/platform/page-builder/block-registry";
+import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
+import { CompositionBuilder } from "./_components/composition-builder";
+
+export default async function EntryBuilderPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const gate = await getCmsPageData();
+
+  if (!gate.granted) {
+    return (
+      <div className="rounded border border-border-subtle bg-surface-panel p-8 text-center">
+        <h1 className="text-lg font-semibold text-text-primary">Acesso negado</h1>
+        <p className="mt-2 text-sm text-text-secondary">Você não tem permissão para gerenciar o CMS.</p>
+      </div>
+    );
+  }
+
+  const canManageEntries = gate.actor.isSuperadmin || gate.actor.permissions.includes("cms.entries.manage");
+  if (!canManageEntries) {
+    return (
+      <div className="rounded border border-border-subtle bg-surface-panel p-8 text-center">
+        <h1 className="text-lg font-semibold text-text-primary">Acesso negado</h1>
+        <p className="mt-2 text-sm text-text-secondary">Você não tem permissão para gerenciar entries do CMS.</p>
+      </div>
+    );
+  }
+
+  const [entryResult, compositionResult] = await Promise.all([getEntry({ id }), getEntryComposition({ id })]);
+
+  if (!entryResult.success) {
+    return <p className="text-sm text-destructive">Erro ao carregar entry: {entryResult.error.message}</p>;
+  }
+  const entry = entryResult.data;
+  if (!entry) {
+    notFound();
+  }
+  if (!compositionResult.success) {
+    return <p className="text-sm text-destructive">Erro ao carregar composição: {compositionResult.error.message}</p>;
+  }
+
+  return (
+    <CompositionBuilder
+      entryId={entry.id}
+      entryTitle={entry.title}
+      entrySlug={entry.slug}
+      initialComposition={compositionResult.data ?? []}
+      definitions={listBlockDefinitions()}
+    />
+  );
+}

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getEntry, getEntryBody } from "@/contexts/cms";
+import { getEntry, getEntryBody, getEntryComposition } from "@/contexts/cms";
 import { getCourseProgress, getLesson, listQuizQuestionsByLesson, listQuizQuestionsForStudent } from "@/plugins/academy";
 import { getAcademyCourseAccess } from "@/platform/academy-student/get-academy-course-access";
+import { BlockRenderer } from "@/components/page-builder/block-renderer";
 import { LessonVideoEmbed } from "./_components/lesson-video-embed";
 import { MarkProgressButton } from "./_components/mark-progress-button";
 import { QuizForm } from "./_components/quiz-form";
@@ -61,6 +62,8 @@ export default async function AcademyLessonPage({
 
     const entry = entryResult.data;
     const questions = quizResult.success ? quizResult.data : [];
+    const previewCompositionResult = entry ? await getEntryComposition({ id: entry.id }) : null;
+    const previewComposition = previewCompositionResult?.success ? previewCompositionResult.data : null;
 
     return (
       <div className="space-y-6">
@@ -74,11 +77,14 @@ export default async function AcademyLessonPage({
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">{entry ? entry.title : `Aula ${lesson.position}`}</h1>
         </div>
 
-        {entry && (
-          <article className="prose max-w-none">
-            <p>{getEntryBody(entry.data)}</p>
-          </article>
-        )}
+        {entry &&
+          (previewComposition ? (
+            <BlockRenderer blocks={previewComposition} />
+          ) : (
+            <article className="prose max-w-none">
+              <p>{getEntryBody(entry.data)}</p>
+            </article>
+          ))}
 
         {lesson.videoUrl && (
           <section>
@@ -138,6 +144,8 @@ export default async function AcademyLessonPage({
   }
 
   const entry = entryResult.data;
+  const compositionResult = entry ? await getEntryComposition({ id: entry.id }) : null;
+  const composition = compositionResult?.success ? compositionResult.data : null;
   const attemptsExhausted =
     lesson.requirements.quizMaxAttempts !== null &&
     !lesson.requirements.quizPassed &&
@@ -157,11 +165,14 @@ export default async function AcademyLessonPage({
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">{entry ? entry.title : `Aula ${lesson.position}`}</h1>
       </div>
 
-      {entry && (
-        <article className="prose max-w-none">
-          <p>{getEntryBody(entry.data)}</p>
-        </article>
-      )}
+      {entry &&
+        (composition ? (
+          <BlockRenderer blocks={composition} />
+        ) : (
+          <article className="prose max-w-none">
+            <p>{getEntryBody(entry.data)}</p>
+          </article>
+        ))}
 
       {lesson.videoUrl && (
         <section>

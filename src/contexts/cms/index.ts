@@ -5,6 +5,12 @@ export { listCategoriesHandler as listCategories } from "./features/categories/l
 export { getCategoryBySlugHandler as getCategoryBySlug } from "./features/categories/get-category-by-slug/handler";
 export { createEntryHandler as createEntry } from "./features/entries/create-entry/handler";
 export { updateEntryHandler as updateEntry } from "./features/entries/update-entry/handler";
+export {
+  updateEntryCompositionHandler as updateEntryComposition,
+} from "./features/entries/update-entry-composition/handler";
+export {
+  getEntryCompositionHandler as getEntryComposition,
+} from "./features/entries/get-entry-composition/handler";
 export { publishEntryHandler as publishEntry } from "./features/entries/publish-entry/handler";
 export { listEntriesHandler as listEntries } from "./features/entries/list-entries/handler";
 export { listEntriesForAdminHandler as listEntriesForAdmin } from "./features/entries/list-entries-for-admin/handler";
@@ -25,6 +31,18 @@ export { getMenuByLocationHandler as getMenuByLocation } from "./features/menus/
 
 export type { ContentTypeRecord, CategoryRecord, EntryRecord, EntryStatus, MenuRecord, MenuItemRecord } from "./contracts/types";
 export { getEntryBody } from "./contracts/entry-body";
+export type { Block, Area, Composition } from "./contracts/block";
+export { blockSchema, areaSchema, compositionSchema } from "./contracts/block";
+export { validateComposition } from "./validate-composition";
+export type { ValidateCompositionError, ValidateCompositionResult } from "./validate-composition";
+export type {
+  BlockDefinition,
+  BlockStructure,
+  AreaDefinition,
+  EditorField,
+  EditorFieldType,
+  ResolveBlockDefinition,
+} from "./contracts/block-definition";
 
 export type { CreateContentTypeInput, CreateContentTypeResult } from "./features/content-types/create-content-type/types";
 export type { ListContentTypesResult } from "./features/content-types/list-content-types/types";
@@ -36,6 +54,14 @@ export type {
 } from "./features/categories/get-category-by-slug/types";
 export type { CreateEntryInput, CreateEntryResult } from "./features/entries/create-entry/types";
 export type { UpdateEntryInput, UpdateEntryResult } from "./features/entries/update-entry/types";
+export type {
+  UpdateEntryCompositionInput,
+  UpdateEntryCompositionResult,
+} from "./features/entries/update-entry-composition/types";
+export type {
+  GetEntryCompositionQuery,
+  GetEntryCompositionResult,
+} from "./features/entries/get-entry-composition/types";
 export type { PublishEntryInput, PublishEntryResult } from "./features/entries/publish-entry/types";
 export type { ListEntriesQuery, ListEntriesResult } from "./features/entries/list-entries/types";
 export type {

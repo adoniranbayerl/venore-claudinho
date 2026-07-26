@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getCategoryBySlug, getEntryBody, getPublishedEntryBySlug } from "@/contexts/cms";
+import { getCategoryBySlug, getEntryBody, getEntryComposition, getPublishedEntryBySlug } from "@/contexts/cms";
+import { BlockRenderer } from "@/components/page-builder/block-renderer";
 
 // force-dynamic: mesmo motivo de app/page.tsx — conteúdo e tema ativo mudam em runtime.
 export const dynamic = "force-dynamic";
@@ -32,11 +33,13 @@ export default async function CatchAllPage({ params }: { params: Promise<{ slug:
   }
 
   const entry = entryResult.data;
+  const compositionResult = await getEntryComposition({ id: entry.id });
+  const composition = compositionResult.success ? compositionResult.data : null;
 
   return (
     <article>
       <h1>{entry.title}</h1>
-      <p>{getEntryBody(entry.data)}</p>
+      {composition ? <BlockRenderer blocks={composition} /> : <p>{getEntryBody(entry.data)}</p>}
     </article>
   );
 }
