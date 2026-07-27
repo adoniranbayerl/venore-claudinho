@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { blockDefinitions as academyBlockDefinitions } from "@/plugins/academy/blocks";
+import { blockDefinitions as academyBlockDefinitions } from "@/plugins/academy/blocks/definitions";
 
 // block-registry.ts importa o barrel público de academy pra somar os blocos do plugin; esse
 // barrel reexporta handlers que puxam next-auth (não resolve nesse ambiente de teste). Mocka só

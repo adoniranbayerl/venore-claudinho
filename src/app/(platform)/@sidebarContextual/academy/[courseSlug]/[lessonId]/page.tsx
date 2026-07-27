@@ -1,7 +1,11 @@
 import { getEntry } from "@/contexts/cms";
-import { getCourseProgress, listLessonsByCourse } from "@/plugins/academy";
+import {
+  LessonTrail,
+  getCourseProgress,
+  listLessonsByCourse,
+  type LessonTrailItem,
+} from "@/plugins/academy";
 import { getAcademyCourseAccess } from "@/platform/academy-student/get-academy-course-access";
-import { LessonTrail, type LessonTrailItem } from "@/components/academy/lesson-trail";
 
 export const dynamic = "force-dynamic";
 

@@ -1,8 +1,9 @@
 import Link from "next/link";
-import type { Block } from "@/contexts/cms";
-import { getCourseProgress, listCoursesForStudent } from "@/plugins/academy";
-import type { CourseForStudentView } from "@/plugins/academy";
+import { getCourseProgressHandler as getCourseProgress } from "../features/progress/get-course-progress/handler";
+import { listCoursesForStudentHandler as listCoursesForStudent } from "../features/courses/list-courses-for-student/handler";
+import type { CourseForStudentView } from "../features/courses/list-courses-for-student/types";
 import { Progress } from "@/components/ui/progress";
+import type { BlockRendererProps } from "@/platform/page-builder/block-renderers";
 
 // Progresso por curso não existe como view agregada no plugin (só get-course-progress, por
 // curso+aluno) — reaproveitar o handler público N vezes é a forma permitida de compor isso aqui
@@ -18,8 +19,8 @@ async function withProgress(course: CourseForStudentView): Promise<{ course: Cou
   return { course, percent: Math.round((progress.data.completedLessons / progress.data.totalLessons) * 100) };
 }
 
-export async function AcademyCourseListBlock({ data }: { data: Block["data"] }) {
-  const limitRaw = data.limit;
+export async function AcademyCourseListBlock({ block }: BlockRendererProps) {
+  const limitRaw = block.data.limit;
   const limit = typeof limitRaw === "number" && limitRaw > 0 ? limitRaw : undefined;
 
   const result = await listCoursesForStudent();

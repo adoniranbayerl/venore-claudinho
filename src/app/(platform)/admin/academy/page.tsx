@@ -1,8 +1,7 @@
 import { GraduationCap } from "lucide-react";
-import { listCourses, listLessonsByCourse } from "@/plugins/academy";
+import { AdminCourseCard, listCourses, listLessonsByCourse } from "@/plugins/academy";
 import { getAcademyPageData } from "@/platform/admin-shell/get-academy-page-data";
 import { EmptyState } from "@/components/empty-state";
-import { AdminCourseCard } from "@/components/academy/admin-course-card";
 import { CreateCourseDialog } from "./_components/create-course-dialog";
 
 export default async function AcademyAdminPage() {

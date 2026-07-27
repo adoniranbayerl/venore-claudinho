@@ -29,6 +29,7 @@ const eslintConfig = defineConfig([
         { type: "theme", pattern: "src/themes/*", partialMatch: false },
         { type: "observability", pattern: "src/observability", partialMatch: false },
         { type: "platform", pattern: "src/platform/*", partialMatch: false },
+        { type: "component", pattern: "src/components", partialMatch: false },
       ],
       "boundaries/files": [
         { pattern: "src/contexts/*/index.ts", category: "context-public", exclusive: true },
@@ -77,6 +78,12 @@ const eslintConfig = defineConfig([
               },
               message:
                 "platform/ só pode importar de contexts/<nome>/index.ts (barrel público) ou contexts/<nome>/contracts/** — nunca de arquivos internos do context (store, service fora do barrel, schema, etc), mesma regra que já vale pra plugin/tema.",
+            },
+            {
+              from: { element: { type: "component" } },
+              disallow: { to: { element: { type: "plugin" } } },
+              message:
+                "src/components não pode importar de src/plugins/* — um plugin contribui pro page-builder via platform/page-builder (block-registry.ts + block-renderers.tsx), nunca direto num componente do core.",
             },
           ],
         },

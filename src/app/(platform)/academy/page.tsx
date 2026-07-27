@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { BookOpen } from "lucide-react";
 import {
+  StudentCourseCard,
   getCourseProgress,
   listCoursesForStudent,
   listLessonsByCourse,
@@ -8,7 +9,6 @@ import {
 } from "@/plugins/academy";
 import { getAcademyStudentPageData } from "@/platform/academy-student/get-academy-student-page-data";
 import { EmptyState } from "@/components/empty-state";
-import { StudentCourseCard } from "@/components/academy/student-course-card";
 
 export const dynamic = "force-dynamic";
 

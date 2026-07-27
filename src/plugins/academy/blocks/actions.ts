@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { enrollSelf } from "@/plugins/academy";
+import { enrollSelfHandler as enrollSelf } from "../features/enrollments/enroll-self/handler";
 
 export type AcademyEnrollActionState = { error: string | null };
 

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { Block } from "@/contexts/cms";
-import { getCourseForStudent, isEnrolled } from "@/plugins/academy";
+import { getCourseForStudentHandler as getCourseForStudent } from "../features/courses/get-course-for-student/handler";
+import { isEnrolledHandler as isEnrolled } from "../features/enrollments/is-enrolled/handler";
 import { Button } from "@/components/ui/button";
+import type { BlockRendererProps } from "@/platform/page-builder/block-renderers";
 import { AcademyEnrollButton } from "./enroll-button";
 
 function readString(data: Block["data"], key: string, fallback = ""): string {
@@ -9,12 +11,12 @@ function readString(data: Block["data"], key: string, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
-export async function AcademyEnrollCtaBlock({ data }: { data: Block["data"] }) {
-  const slug = readString(data, "slug").trim();
+export async function AcademyEnrollCtaBlock({ block }: BlockRendererProps) {
+  const slug = readString(block.data, "slug").trim();
   if (!slug) {
     return null;
   }
-  const label = readString(data, "label", "Matricular-se");
+  const label = readString(block.data, "label", "Matricular-se");
 
   const courseResult = await getCourseForStudent({ slug });
   if (!courseResult.success || !courseResult.data) {

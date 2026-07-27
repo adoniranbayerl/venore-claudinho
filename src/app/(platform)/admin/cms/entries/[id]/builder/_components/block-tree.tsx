@@ -16,6 +16,21 @@ export type BlockTreeActions = {
   onSetColumns: (id: string, columns: number) => void;
 };
 
+// Mesma travessia pré-ordem de collectUnconfiguredBlockProblems em
+// contexts/cms/features/entries/publish-entry/service.ts: contador global de rows, incrementado
+// ao encontrar ROW_BLOCK_KEY, recursando em todas as areas de todo bloco — sem filtrar
+// visível/oculto, pra "Linha N" na árvore bater com "Linha N" da mensagem de erro de publicação.
+function buildRowNumberMap(blocks: Composition, counter: { value: number }, map: Map<string, number>): Map<string, number> {
+  blocks.forEach((block) => {
+    if (block.key === ROW_BLOCK_KEY) {
+      counter.value += 1;
+      map.set(block.id, counter.value);
+    }
+    block.areas.forEach((area) => buildRowNumberMap(area.blocks, counter, map));
+  });
+  return map;
+}
+
 export function BlockTree({
   blocks,
   definitionsByKey,
@@ -23,6 +38,7 @@ export function BlockTree({
   errorBlockId,
   collapsed,
   actions,
+  rowNumbers,
 }: {
   blocks: Composition;
   definitionsByKey: Map<string, BlockDefinition>;
@@ -30,10 +46,16 @@ export function BlockTree({
   errorBlockId: string | null;
   collapsed: Set<string>;
   actions: BlockTreeActions;
+  rowNumbers?: Map<string, number>;
 }) {
   if (blocks.length === 0) {
     return <p className="pl-2 text-xs text-text-tertiary">Vazio.</p>;
   }
+
+  // rowNumbers ausente = chamada raiz (único call site: composition-builder.tsx) — computa a
+  // numeração pra árvore inteira uma vez; chamadas recursivas (área -> BlockTree) sempre
+  // recebem o mesmo Map já pronto.
+  const resolvedRowNumbers = rowNumbers ?? buildRowNumberMap(blocks, { value: 0 }, new Map());
 
   return (
     <ul className="space-y-1">
@@ -49,6 +71,7 @@ export function BlockTree({
             errorBlockId={errorBlockId}
             collapsed={collapsed}
             actions={actions}
+            rowNumbers={resolvedRowNumbers}
           />
         </li>
       ))}
@@ -66,6 +89,7 @@ function BlockNode({
   errorBlockId,
   collapsed,
   actions,
+  rowNumbers,
 }: {
   block: Block;
   definition: BlockDefinition | null;
@@ -76,6 +100,7 @@ function BlockNode({
   errorBlockId: string | null;
   collapsed: Set<string>;
   actions: BlockTreeActions;
+  rowNumbers: Map<string, number>;
 }) {
   const hasAreas = block.areas.length > 0;
   const isCollapsed = collapsed.has(block.id);
@@ -90,6 +115,8 @@ function BlockNode({
   const hiddenAreas = isRow ? block.areas.slice(columns) : [];
   const hiddenBlockCount = hiddenAreas.reduce((sum, area) => sum + area.blocks.length, 0);
   const nextColumns = Math.min(ROW_MAX_COLUMNS, columns + 1);
+  const rowNumber = isRow ? rowNumbers.get(block.id) : undefined;
+  const nodeLabel = definition?.label ?? `? ${block.key}`;
 
   return (
     <div>
@@ -114,7 +141,7 @@ function BlockNode({
         )}
 
         <button type="button" onClick={() => actions.onSelect(block.id)} className="flex-1 truncate text-left text-sm text-text-primary">
-          {definition?.label ?? `? ${block.key}`}
+          {rowNumber !== undefined ? `${nodeLabel} ${rowNumber}` : nodeLabel}
         </button>
 
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
@@ -187,6 +214,7 @@ function BlockNode({
                 errorBlockId={errorBlockId}
                 collapsed={collapsed}
                 actions={actions}
+                rowNumbers={rowNumbers}
               />
             </div>
           ))}

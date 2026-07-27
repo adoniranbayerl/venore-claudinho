@@ -47,10 +47,19 @@ export {
 export { isEnrolledHandler as isEnrolled } from "./features/enrollments/is-enrolled/handler";
 
 // Ponto de extensão "blocks" do plugin engine (docs/venore-docks.md — "Sistema de plugins"): o
-// registry de page-builder (platform/page-builder/block-registry.ts) importa este array estático
-// pra compor os blocos nesteáveis do editor. Os renderers ficam em components/page-builder/academy
-// (fora do plugin) e consomem só os handlers públicos abaixo — nenhuma query nova.
-export { blockDefinitions } from "./blocks";
+// registry de page-builder (platform/page-builder/block-registry.ts) importa blockDefinitions
+// (dado, serializável) e block-renderers.tsx importa blockRenderers (componente) — dois
+// registries paralelos, nunca misturados. Os renderers consomem só os handlers públicos
+// abaixo — nenhuma query nova.
+export { blockDefinitions, blockRenderers } from "./blocks";
+
+// Componentes de apresentação academy-specific (cards de curso, trilha de aulas) — moram no
+// plugin porque consomem tipos do plugin (CourseRecord, CourseForStudentView); src/components
+// não pode importar de src/plugins/* (regra de boundary desta sessão).
+export { AdminCourseCard } from "./components/admin-course-card";
+export { StudentCourseCard } from "./components/student-course-card";
+export { CourseCover } from "./components/course-cover";
+export { LessonTrail, type LessonTrailItem } from "./components/lesson-trail";
 
 export type {
   CourseRecord,

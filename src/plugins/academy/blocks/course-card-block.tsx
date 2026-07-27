@@ -1,15 +1,18 @@
 import Link from "next/link";
 import type { Block } from "@/contexts/cms";
-import { getCourseForStudent, getCourseProgress, isEnrolled } from "@/plugins/academy";
+import { getCourseForStudentHandler as getCourseForStudent } from "../features/courses/get-course-for-student/handler";
+import { getCourseProgressHandler as getCourseProgress } from "../features/progress/get-course-progress/handler";
+import { isEnrolledHandler as isEnrolled } from "../features/enrollments/is-enrolled/handler";
 import { Progress } from "@/components/ui/progress";
+import type { BlockRendererProps } from "@/platform/page-builder/block-renderers";
 
 function readSlug(data: Block["data"]): string {
   const value = data.slug;
   return typeof value === "string" ? value.trim() : "";
 }
 
-export async function AcademyCourseCardBlock({ data }: { data: Block["data"] }) {
-  const slug = readSlug(data);
+export async function AcademyCourseCardBlock({ block }: BlockRendererProps) {
+  const slug = readSlug(block.data);
   if (!slug) {
     return null;
   }
