@@ -1,45 +1,43 @@
-import { findLessonRequirements, findPreviousLessonByPosition, hasTextCompletion, hasVideoCompletion } from "./lesson-progress-store";
-import { hasActivePassingAttempt } from "./quiz-attempts-store";
+import { computeLessonChain, type LessonChainFacts, type LessonChainState } from "./lesson-chain";
+import { loadLessonChainRawData, type LessonChainRawData } from "./lesson-chain-store";
 import type { LessonRecord } from "../contracts/types";
 
 export { findLessonRequirements } from "./lesson-progress-store";
 
-// Sem linha em lesson_requirements = nenhum requisito habilitado = completa trivialmente
-// (decisão registrada no plano da sessão que criou este arquivo — docs/venore-docks.md não
-// cobre esse caso explicitamente).
-export async function isLessonComplete(lessonId: string, actorId: string): Promise<boolean> {
-  const requirements = await findLessonRequirements(lessonId);
-  if (!requirements) return true;
+export type LessonChain = LessonChainRawData & { chain: LessonChainState[] };
 
-  if (requirements.readTextEnabled && !(await hasTextCompletion(lessonId, actorId))) {
-    return false;
-  }
+// Carrega os fatos da cadeia inteira do curso em lote e aplica a regra pura (lesson-chain.ts).
+// Usado tanto por isLessonAccessible (fronteira de autorização) quanto por get-course-progress
+// (tela) — mesma função, mesmos dados, sem chance de divergir.
+export async function loadLessonChain(courseId: string, actorId: string): Promise<LessonChain> {
+  const raw = await loadLessonChainRawData(courseId, actorId);
 
-  if (requirements.watchVideoEnabled && !(await hasVideoCompletion(lessonId, actorId))) {
-    return false;
-  }
+  const facts: LessonChainFacts[] = raw.lessons.map((lesson) => {
+    const requirements = raw.requirementsByLessonId.get(lesson.id) ?? null;
+    const attempts = raw.attemptsByLessonId.get(lesson.id) ?? [];
 
-  if (requirements.quizEnabled && !(await hasActivePassingAttempt(lessonId, actorId))) {
-    return false;
-  }
+    return {
+      lessonId: lesson.id,
+      readTextEnabled: requirements?.readTextEnabled ?? false,
+      textRead: raw.textCompletedLessonIds.has(lesson.id),
+      watchVideoEnabled: requirements?.watchVideoEnabled ?? false,
+      videoWatched: raw.videoCompletedLessonIds.has(lesson.id),
+      quizEnabled: requirements?.quizEnabled ?? false,
+      quizPassed: attempts.some((attempt) => attempt.passed),
+    };
+  });
 
-  return true;
+  return { ...raw, chain: computeLessonChain(facts) };
 }
 
-// Aula sem antecessora (menor position do curso) sempre acessível; as demais exigem a anterior
-// completa (item 4 do pedido: "aula só é acessível se a aula anterior estiver completa").
-//
-// Transitivo até a primeira aula, não só um nível — bug corrigido nesta sessão (ver
-// docs/venore-docks.md): checar só se a anterior está "completed" deixava passar o caso em que
-// a anterior está trivialmente completa (sem lesson_requirements configurado) mas ela própria
-// estava bloqueada, porque a SUA anterior estava incompleta. Uma aula "completed" que nunca foi
-// de fato acessível não pode contar como satisfeita pra liberar a próxima.
+// FRONTEIRA DE SEGURANÇA — autoriza mark-text-read, mark-video-watched, submit-quiz-attempt e
+// list-quiz-questions-for-student. Assinatura preservada de propósito: os quatro call sites não
+// precisam saber que por baixo isso agora carrega a cadeia inteira em lote em vez de andar
+// aula a aula.
 export async function isLessonAccessible(lesson: LessonRecord, actorId: string): Promise<boolean> {
-  const previous = await findPreviousLessonByPosition(lesson.courseId, lesson.position);
-  if (!previous) return true;
-
-  const previousComplete = await isLessonComplete(previous.id, actorId);
-  if (!previousComplete) return false;
-
-  return isLessonAccessible(previous, actorId);
+  const { chain } = await loadLessonChain(lesson.courseId, actorId);
+  const state = chain.find((s) => s.lessonId === lesson.id);
+  // Não deveria acontecer (lesson.courseId sempre bate com a própria lesson), mas se acontecer,
+  // negar acesso é o lado seguro.
+  return state ? !state.locked : false;
 }

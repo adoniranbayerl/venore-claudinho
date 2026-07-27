@@ -1,138 +1,104 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const findLessonRequirements = vi.fn();
-const findPreviousLessonByPosition = vi.fn();
-const hasTextCompletion = vi.fn();
-const hasVideoCompletion = vi.fn();
+const loadLessonChainRawData = vi.fn();
 
-vi.mock("./lesson-progress-store", () => ({
-  findLessonRequirements: (...args: unknown[]) => findLessonRequirements(...args),
-  findPreviousLessonByPosition: (...args: unknown[]) => findPreviousLessonByPosition(...args),
-  hasTextCompletion: (...args: unknown[]) => hasTextCompletion(...args),
-  hasVideoCompletion: (...args: unknown[]) => hasVideoCompletion(...args),
+vi.mock("./lesson-chain-store", () => ({
+  loadLessonChainRawData: (...args: unknown[]) => loadLessonChainRawData(...args),
 }));
 
-const hasActivePassingAttempt = vi.fn();
+const lesson1 = { id: "lesson-1", courseId: "course-1", cmsEntryId: "e1", videoUrl: null, position: 1, createdAt: new Date(), updatedAt: new Date() };
+const lesson2 = { id: "lesson-2", courseId: "course-1", cmsEntryId: "e2", videoUrl: null, position: 2, createdAt: new Date(), updatedAt: new Date() };
 
-vi.mock("./quiz-attempts-store", () => ({
-  hasActivePassingAttempt: (...args: unknown[]) => hasActivePassingAttempt(...args),
-}));
-
-const lesson1 = { id: "lesson-1", courseId: "course-1", position: 1 } as never;
-const lesson2 = { id: "lesson-2", courseId: "course-1", position: 2 } as never;
-const lesson3 = { id: "lesson-3", courseId: "course-1", position: 3 } as never;
-
-describe("isLessonComplete", () => {
+describe("loadLessonChain", () => {
   beforeEach(() => {
-    findLessonRequirements.mockReset();
-    hasTextCompletion.mockReset();
-    hasVideoCompletion.mockReset();
-    hasActivePassingAttempt.mockReset();
+    loadLessonChainRawData.mockReset();
   });
 
-  it("is complete when there are no requirements configured", async () => {
-    findLessonRequirements.mockResolvedValue(null);
-
-    const { isLessonComplete } = await import("./lesson-progress");
-    expect(await isLessonComplete("lesson-1", "actor-1")).toBe(true);
-  });
-
-  it("is incomplete when a single enabled requirement is unmet", async () => {
-    findLessonRequirements.mockResolvedValue({
-      readTextEnabled: true,
-      watchVideoEnabled: false,
-      quizEnabled: false,
+  it("maps requirements, completions and passing attempts into the chain facts", async () => {
+    loadLessonChainRawData.mockResolvedValue({
+      lessons: [lesson1, lesson2],
+      requirementsByLessonId: new Map([
+        ["lesson-1", { lessonId: "lesson-1", readTextEnabled: true, watchVideoEnabled: false, quizEnabled: false, quizPassThresholdPercent: null, quizMaxAttempts: null, updatedAt: new Date() }],
+        ["lesson-2", null],
+      ]),
+      textCompletedLessonIds: new Set(["lesson-1"]),
+      videoCompletedLessonIds: new Set(),
+      attemptsByLessonId: new Map(),
     });
-    hasTextCompletion.mockResolvedValue(false);
 
-    const { isLessonComplete } = await import("./lesson-progress");
-    expect(await isLessonComplete("lesson-1", "actor-1")).toBe(false);
+    const { loadLessonChain } = await import("./lesson-progress");
+    const { chain } = await loadLessonChain("course-1", "actor-1");
+
+    expect(chain).toEqual([
+      { lessonId: "lesson-1", completed: true, locked: false },
+      { lessonId: "lesson-2", completed: true, locked: false },
+    ]);
   });
 
-  it("is complete only when all three enabled requirements are satisfied", async () => {
-    findLessonRequirements.mockResolvedValue({
-      readTextEnabled: true,
-      watchVideoEnabled: true,
-      quizEnabled: true,
+  it("treats a lesson as quiz-passed only when some active attempt has passed", async () => {
+    loadLessonChainRawData.mockResolvedValue({
+      lessons: [lesson1],
+      requirementsByLessonId: new Map([
+        ["lesson-1", { lessonId: "lesson-1", readTextEnabled: false, watchVideoEnabled: false, quizEnabled: true, quizPassThresholdPercent: 70, quizMaxAttempts: 3, updatedAt: new Date() }],
+      ]),
+      textCompletedLessonIds: new Set(),
+      videoCompletedLessonIds: new Set(),
+      attemptsByLessonId: new Map([
+        ["lesson-1", [{ id: "a1", lessonId: "lesson-1", actorId: "actor-1", attemptNumber: 1, score: 40, passed: false, answers: [], createdAt: new Date(), invalidatedAt: null }]],
+      ]),
     });
-    hasTextCompletion.mockResolvedValue(true);
-    hasVideoCompletion.mockResolvedValue(true);
-    hasActivePassingAttempt.mockResolvedValue(true);
 
-    const { isLessonComplete } = await import("./lesson-progress");
-    expect(await isLessonComplete("lesson-1", "actor-1")).toBe(true);
-  });
+    const { loadLessonChain } = await import("./lesson-progress");
+    const { chain } = await loadLessonChain("course-1", "actor-1");
 
-  it("is incomplete when quiz is enabled but has no passing attempt yet", async () => {
-    findLessonRequirements.mockResolvedValue({
-      readTextEnabled: true,
-      watchVideoEnabled: true,
-      quizEnabled: true,
-    });
-    hasTextCompletion.mockResolvedValue(true);
-    hasVideoCompletion.mockResolvedValue(true);
-    hasActivePassingAttempt.mockResolvedValue(false);
-
-    const { isLessonComplete } = await import("./lesson-progress");
-    expect(await isLessonComplete("lesson-1", "actor-1")).toBe(false);
+    expect(chain[0].completed).toBe(false);
   });
 });
 
 describe("isLessonAccessible", () => {
   beforeEach(() => {
-    findLessonRequirements.mockReset();
-    findPreviousLessonByPosition.mockReset();
-    hasTextCompletion.mockReset();
-    hasVideoCompletion.mockReset();
-    hasActivePassingAttempt.mockReset();
+    loadLessonChainRawData.mockReset();
   });
 
-  it("is always accessible when there is no previous lesson", async () => {
-    findPreviousLessonByPosition.mockResolvedValue(null);
-
-    const { isLessonAccessible } = await import("./lesson-progress");
-    expect(await isLessonAccessible(lesson1, "actor-1")).toBe(true);
-  });
-
-  it("is blocked when the previous lesson is incomplete", async () => {
-    findPreviousLessonByPosition.mockResolvedValue(lesson1);
-    findLessonRequirements.mockResolvedValue({ readTextEnabled: true, watchVideoEnabled: false, quizEnabled: false });
-    hasTextCompletion.mockResolvedValue(false);
-
-    const { isLessonAccessible } = await import("./lesson-progress");
-    expect(await isLessonAccessible(lesson2, "actor-1")).toBe(false);
-  });
-
-  it("is accessible when the previous lesson is complete and itself accessible", async () => {
-    findPreviousLessonByPosition.mockImplementation(async (_courseId: string, position: number) =>
-      position === 2 ? lesson1 : null,
-    );
-    findLessonRequirements.mockResolvedValue(null);
+  it("is accessible when the chain reports the lesson as not locked", async () => {
+    loadLessonChainRawData.mockResolvedValue({
+      lessons: [lesson1, lesson2],
+      requirementsByLessonId: new Map([["lesson-1", null], ["lesson-2", null]]),
+      textCompletedLessonIds: new Set(),
+      videoCompletedLessonIds: new Set(),
+      attemptsByLessonId: new Map(),
+    });
 
     const { isLessonAccessible } = await import("./lesson-progress");
     expect(await isLessonAccessible(lesson2, "actor-1")).toBe(true);
   });
 
-  // Bug 2 (reportado em uso manual): lesson-2 sem nenhuma linha de requirements é "completa"
-  // trivialmente mesmo estando ela própria bloqueada (lesson-1 incompleta) — checar só o
-  // predecessor imediato deixava lesson-3 acessível, pulando o bloqueio de lesson-1 por trás de
-  // lesson-2. isLessonAccessible precisa ser transitivo: toda a cadeia até a primeira lesson
-  // precisa estar completa, não só o predecessor direto.
-  it("stays blocked through a trivially-complete-but-itself-locked middle lesson", async () => {
-    findPreviousLessonByPosition.mockImplementation(async (_courseId: string, position: number) => {
-      if (position === 3) return lesson2;
-      if (position === 2) return lesson1;
-      return null;
+  it("is blocked when the chain reports the lesson as locked", async () => {
+    loadLessonChainRawData.mockResolvedValue({
+      lessons: [lesson1, lesson2],
+      requirementsByLessonId: new Map([
+        ["lesson-1", { lessonId: "lesson-1", readTextEnabled: true, watchVideoEnabled: false, quizEnabled: false, quizPassThresholdPercent: null, quizMaxAttempts: null, updatedAt: new Date() }],
+        ["lesson-2", null],
+      ]),
+      textCompletedLessonIds: new Set(),
+      videoCompletedLessonIds: new Set(),
+      attemptsByLessonId: new Map(),
     });
-    findLessonRequirements.mockImplementation(async (lessonId: string) => {
-      if (lessonId === "lesson-1") return { readTextEnabled: true, watchVideoEnabled: false, quizEnabled: false };
-      // lesson-2 nunca teve requirements configurados — completa trivialmente, mas está
-      // bloqueada porque lesson-1 (sua própria predecessora) não foi concluída.
-      return null;
-    });
-    hasTextCompletion.mockResolvedValue(false);
 
     const { isLessonAccessible } = await import("./lesson-progress");
-    expect(await isLessonAccessible(lesson3, "actor-1")).toBe(false);
+    expect(await isLessonAccessible(lesson2, "actor-1")).toBe(false);
+  });
+
+  it("denies access (safe default) when the lesson is missing from its own course's chain", async () => {
+    loadLessonChainRawData.mockResolvedValue({
+      lessons: [],
+      requirementsByLessonId: new Map(),
+      textCompletedLessonIds: new Set(),
+      videoCompletedLessonIds: new Set(),
+      attemptsByLessonId: new Map(),
+    });
+
+    const { isLessonAccessible } = await import("./lesson-progress");
+    expect(await isLessonAccessible(lesson1, "actor-1")).toBe(false);
   });
 });

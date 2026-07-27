@@ -1,7 +1,6 @@
 import { isEnrolled } from "../../../shared/enrollment";
-import { findLessonRequirements, isLessonComplete } from "../../../shared/lesson-progress";
-import { findActiveAttempts } from "../../../shared/quiz-attempts";
-import { findCourseById, findLessonsByCourse, hasTextCompletion, hasVideoCompletion } from "./store";
+import { loadLessonChain } from "../../../shared/lesson-progress";
+import { findCourseById } from "./store";
 import { toLessonProgressView } from "./view";
 import type { GetCourseProgressQuery, GetCourseProgressResult, LessonProgressView } from "./types";
 
@@ -22,42 +21,27 @@ export async function getCourseProgress(query: GetCourseProgressQuery): Promise<
     };
   }
 
-  const lessons = await findLessonsByCourse(query.courseId);
+  // Mesma função (e mesmo carregador em lote) usada pela fronteira de autorização em
+  // shared/lesson-progress.ts::isLessonAccessible — locked/completed não podem divergir entre a
+  // tela e o servidor (ver docs/venore-docks.md, plano da sessão que unificou a regra).
+  const { lessons, requirementsByLessonId, textCompletedLessonIds, videoCompletedLessonIds, attemptsByLessonId, chain } =
+    await loadLessonChain(query.courseId, query.actorId);
 
-  const lessonViews: LessonProgressView[] = [];
-  // "satisfeita" carrega completed E acessível da aula anterior, não só completed — bug
-  // corrigido nesta sessão (ver docs/venore-docks.md): uma aula sem lesson_requirements
-  // configurado é trivialmente "completed" mesmo estando ela própria locked (porque SUA
-  // anterior está incompleta); deixar essa aula "completed" sozinha satisfazer a próxima
-  // pulava o bloqueio real da cadeia. Mesma correção espelhada em
-  // shared/lesson-progress.ts::isLessonAccessible, usado pelas actions de escrita.
-  let previousSatisfied = true; // primeira lesson sempre acessível
+  const chainByLessonId = new Map(chain.map((state) => [state.lessonId, state]));
 
-  for (const lesson of lessons) {
-    const [requirements, textRead, videoWatched, attempts, completed] = await Promise.all([
-      findLessonRequirements(lesson.id),
-      hasTextCompletion(lesson.id, query.actorId),
-      hasVideoCompletion(lesson.id, query.actorId),
-      findActiveAttempts(lesson.id, query.actorId),
-      isLessonComplete(lesson.id, query.actorId),
-    ]);
+  const lessonViews: LessonProgressView[] = lessons.map((lesson) => {
+    const state = chainByLessonId.get(lesson.id)!;
 
-    const isLocked: boolean = !previousSatisfied;
-
-    lessonViews.push(
-      toLessonProgressView({
-        lesson,
-        locked: isLocked,
-        completed,
-        requirements,
-        textRead,
-        videoWatched,
-        quizAttempts: attempts,
-      }),
-    );
-
-    previousSatisfied = completed && !isLocked;
-  }
+    return toLessonProgressView({
+      lesson,
+      locked: state.locked,
+      completed: state.completed,
+      requirements: requirementsByLessonId.get(lesson.id) ?? null,
+      textRead: textCompletedLessonIds.has(lesson.id),
+      videoWatched: videoCompletedLessonIds.has(lesson.id),
+      quizAttempts: attemptsByLessonId.get(lesson.id) ?? [],
+    });
+  });
 
   const completedLessons = lessonViews.filter((l) => l.completed).length;
 

@@ -1,6 +1,1 @@
-export {
-  countActiveAttempts,
-  findActiveAttempts,
-  hasActivePassingAttempt,
-  invalidateAttempts,
-} from "./quiz-attempts-store";
+export { countActiveAttempts, invalidateAttempts } from "./quiz-attempts-store";
