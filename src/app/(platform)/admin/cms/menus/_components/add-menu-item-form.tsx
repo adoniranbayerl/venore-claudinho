@@ -11,13 +11,13 @@ export function AddMenuItemForm() {
   return (
     <form action={formAction} className="space-y-3">
       <div>
-        <label className="block text-xs font-medium text-text-secondary">Label</label>
-        <input name="label" required className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm" />
+        <label className="block text-xs font-medium text-muted-foreground">Label</label>
+        <input name="label" required className="mt-1 w-full rounded border border-border px-2 py-1 text-sm" />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-text-secondary">Href</label>
-        <input name="href" required className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm" />
+        <label className="block text-xs font-medium text-muted-foreground">Href</label>
+        <input name="href" required className="mt-1 w-full rounded border border-border px-2 py-1 text-sm" />
       </div>
 
       <button

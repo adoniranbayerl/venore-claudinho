@@ -15,11 +15,11 @@ export default async function SetupPage() {
   const user = currentUser.success ? currentUser.data : null;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-4 text-text-primary">
-      <div className="w-full max-w-sm space-y-6 rounded-panel border border-border-subtle bg-card p-8 shadow-panel text-center">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-4 text-foreground">
+      <div className="w-full max-w-sm space-y-6 rounded-panel border border-border bg-card p-8 shadow-panel text-center">
         <div className="space-y-1">
           <h1 className="text-lg font-semibold">Configuração inicial</h1>
-          <p className="text-sm text-text-secondary">
+          <p className="text-sm text-muted-foreground">
             Nenhum superadmin foi configurado ainda. {user ? "Torne-se o superadmin inicial abaixo." : "Entre para continuar."}
           </p>
         </div>

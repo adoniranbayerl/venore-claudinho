@@ -8,9 +8,9 @@ export default async function SettingsAdminPage() {
 
   if (!gate.granted) {
     return (
-      <div className="rounded border border-border-subtle bg-surface-panel p-8 text-center">
-        <h1 className="text-lg font-semibold text-text-primary">Acesso negado</h1>
-        <p className="mt-2 text-sm text-text-secondary">Você não tem permissão para gerenciar configurações do site.</p>
+      <div className="rounded border border-border bg-card p-8 text-center">
+        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar configurações do site.</p>
       </div>
     );
   }
@@ -27,13 +27,13 @@ export default async function SettingsAdminPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl font-semibold text-text-primary">Configurações</h1>
-        <p className="mt-1 text-sm text-text-secondary">Configurações gerais do site.</p>
+        <h1 className="text-xl font-semibold text-foreground">Configurações</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Configurações gerais do site.</p>
       </div>
 
-      <section className="rounded border border-border-subtle bg-surface-panel p-4">
-        <h2 className="text-sm font-semibold text-text-primary">Registro de usuários</h2>
-        <p className="mt-1 text-sm text-text-secondary">
+      <section className="rounded border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold text-foreground">Registro de usuários</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
           Quando ativado, novos registros ficam pendentes até um admin aprovar (exceto o primeiro usuário do sistema,
           que sempre vira superadmin).
         </p>

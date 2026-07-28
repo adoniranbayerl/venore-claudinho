@@ -53,15 +53,15 @@ export function BlockFieldsPanel({
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-sm font-semibold text-text-primary">{definition.label}</h2>
-        <p className="text-xs text-text-tertiary">{definition.key}</p>
+        <h2 className="text-sm font-semibold text-foreground">{definition.label}</h2>
+        <p className="text-xs text-muted-foreground/56">{definition.key}</p>
       </div>
 
       {errorMessage && (
         <p className="rounded border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">{errorMessage}</p>
       )}
 
-      {definition.editorFields.length === 0 && <p className="text-sm text-text-tertiary">Este bloco não tem campos.</p>}
+      {definition.editorFields.length === 0 && <p className="text-sm text-muted-foreground/56">Este bloco não tem campos.</p>}
 
       {definition.editorFields.map((field) => (
         <FieldControl key={field.name} field={field} block={block} onChange={setField} />
@@ -79,7 +79,7 @@ function FieldControl({
   block: Block;
   onChange: (name: string, value: unknown) => void;
 }) {
-  const label = <label className="block text-xs font-medium text-text-secondary">{field.label}</label>;
+  const label = <label className="block text-xs font-medium text-muted-foreground">{field.label}</label>;
 
   switch (field.type) {
     case "text":
@@ -91,7 +91,7 @@ function FieldControl({
             type={field.type === "url" ? "url" : "text"}
             value={readString(block.data, field.name)}
             onChange={(event) => onChange(field.name, event.target.value)}
-            className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
+            className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
           />
         </div>
       );
@@ -104,7 +104,7 @@ function FieldControl({
             rows={field.type === "richtext" ? 8 : 4}
             value={readString(block.data, field.name)}
             onChange={(event) => onChange(field.name, event.target.value)}
-            className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
+            className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
           />
         </div>
       );
@@ -116,13 +116,13 @@ function FieldControl({
             type="number"
             value={readNumber(block.data, field.name)}
             onChange={(event) => onChange(field.name, event.target.value === "" ? "" : Number(event.target.value))}
-            className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
+            className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
           />
         </div>
       );
     case "boolean":
       return (
-        <label className="flex items-center gap-2 text-xs font-medium text-text-secondary">
+        <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <input
             type="checkbox"
             checked={readBoolean(block.data, field.name)}

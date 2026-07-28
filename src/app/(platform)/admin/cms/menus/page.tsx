@@ -10,9 +10,9 @@ export default async function MenusAdminPage() {
 
   if (!gate.granted) {
     return (
-      <div className="rounded border border-border-subtle bg-surface-panel p-8 text-center">
-        <h1 className="text-lg font-semibold text-text-primary">Acesso negado</h1>
-        <p className="mt-2 text-sm text-text-secondary">Você não tem permissão para gerenciar o CMS.</p>
+      <div className="rounded border border-border bg-card p-8 text-center">
+        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar o CMS.</p>
       </div>
     );
   }
@@ -20,9 +20,9 @@ export default async function MenusAdminPage() {
   const canManageMenus = gate.actor.isSuperadmin || gate.actor.permissions.includes("cms.menus.manage");
   if (!canManageMenus) {
     return (
-      <div className="rounded border border-border-subtle bg-surface-panel p-8 text-center">
-        <h1 className="text-lg font-semibold text-text-primary">Acesso negado</h1>
-        <p className="mt-2 text-sm text-text-secondary">Você não tem permissão para gerenciar menus do CMS.</p>
+      <div className="rounded border border-border bg-card p-8 text-center">
+        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar menus do CMS.</p>
       </div>
     );
   }
@@ -37,12 +37,12 @@ export default async function MenusAdminPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold text-text-primary">Menus</h1>
-        <p className="mt-1 text-sm text-text-secondary">Gerencie os itens do menu principal (main-nav).</p>
+        <h1 className="text-xl font-semibold text-foreground">Menus</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Gerencie os itens do menu principal (main-nav).</p>
       </div>
 
-      <section className="rounded border border-border-subtle bg-surface-panel p-4">
-        <h2 className="text-sm font-semibold text-text-primary">Main nav</h2>
+      <section className="rounded border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold text-foreground">Main nav</h2>
         <ul className="mt-3 space-y-2">
           {items.map((item, index) => (
             <MenuItemRow
@@ -54,10 +54,10 @@ export default async function MenusAdminPage() {
               isLast={index === items.length - 1}
             />
           ))}
-          {items.length === 0 && <li className="text-sm text-text-tertiary">Nenhum item cadastrado.</li>}
+          {items.length === 0 && <li className="text-sm text-muted-foreground/56">Nenhum item cadastrado.</li>}
         </ul>
 
-        <div className="mt-4 border-t border-border-subtle pt-4">
+        <div className="mt-4 border-t border-border pt-4">
           <AddMenuItemForm />
         </div>
       </section>

@@ -10,8 +10,8 @@ export function RegistrationApprovalToggleForm({ enabled }: { enabled: boolean }
 
   return (
     <form action={formAction} className="space-y-3">
-      <label className="flex items-center gap-2 text-sm text-text-secondary">
-        <input type="checkbox" name="enabled" defaultChecked={enabled} className="h-4 w-4 rounded border-border-subtle" />
+      <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        <input type="checkbox" name="enabled" defaultChecked={enabled} className="h-4 w-4 rounded border-border" />
         Exigir aprovação manual para novos registros
       </label>
 

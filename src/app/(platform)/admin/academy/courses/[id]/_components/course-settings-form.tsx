@@ -26,17 +26,17 @@ export function CourseSettingsForm({
     <form action={formAction} className="space-y-3">
       <input type="hidden" name="id" value={courseId} />
 
-      <label className="flex flex-col gap-1 text-sm text-text-secondary">
+      <label className="flex flex-col gap-1 text-sm text-muted-foreground">
         Slug (URL pública)
         <Input name="slug" defaultValue={slug} required />
       </label>
 
-      <label className="flex items-center gap-2 text-sm text-text-secondary">
+      <label className="flex items-center gap-2 text-sm text-muted-foreground">
         <input type="checkbox" name="selfEnrollmentEnabled" defaultChecked={selfEnrollmentEnabled} />
         Permitir matrícula automática
       </label>
 
-      <label className="flex items-center gap-2 text-sm text-text-secondary">
+      <label className="flex items-center gap-2 text-sm text-muted-foreground">
         <input type="checkbox" name="publiclyListed" defaultChecked={publiclyListed} />
         Listar publicamente
       </label>

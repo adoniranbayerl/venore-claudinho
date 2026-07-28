@@ -15,7 +15,7 @@ function Toaster(props: ToasterProps) {
           description: "text-muted-foreground",
           actionButton: "rounded-xl bg-primary px-2 py-1 text-xs font-medium text-primary-foreground",
           cancelButton: "rounded-xl bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground",
-          closeButton: "border-border bg-popover text-muted-foreground",
+          closeButton: "border-border bg-muted text-muted-foreground",
           success: "!border-primary !bg-primary !text-primary-foreground",
           error: "!border-destructive !bg-destructive !text-destructive-foreground",
         },

@@ -15,9 +15,9 @@ export default async function LessonDetailPage({ params }: { params: Promise<{ i
 
   if (!gate.granted) {
     return (
-      <div className="rounded border border-border-subtle bg-surface-panel p-8 text-center">
-        <h1 className="text-lg font-semibold text-text-primary">Acesso negado</h1>
-        <p className="mt-2 text-sm text-text-secondary">Você não tem permissão para gerenciar a Academy.</p>
+      <div className="rounded border border-border bg-card p-8 text-center">
+        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar a Academy.</p>
       </div>
     );
   }
@@ -55,14 +55,14 @@ export default async function LessonDetailPage({ params }: { params: Promise<{ i
   return (
     <div className="space-y-8">
       <div>
-        <Link href={`/admin/academy/courses/${lesson.courseId}`} className="text-xs font-medium text-text-tertiary hover:underline">
+        <Link href={`/admin/academy/courses/${lesson.courseId}`} className="text-xs font-medium text-muted-foreground/56 hover:underline">
           ← Curso
         </Link>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-text-primary">
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
           Aula {lesson.position}: {entry ? entry.title : lesson.cmsEntryId}
         </h1>
         {lesson.videoUrl && (
-          <p className="mt-2 text-[11px] font-medium tracking-caps text-text-tertiary uppercase">Com vídeo</p>
+          <p className="mt-2 text-[11px] font-medium tracking-caps text-muted-foreground/56 uppercase">Com vídeo</p>
         )}
       </div>
 
@@ -99,8 +99,8 @@ export default async function LessonDetailPage({ params }: { params: Promise<{ i
           ) : (
             <ul className="space-y-2">
               {questions.map((question) => (
-                <li key={question.id} className="text-sm text-text-secondary">
-                  <p className="font-medium text-text-primary">{question.text}</p>
+                <li key={question.id} className="text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground">{question.text}</p>
                   <ul className="mt-1 ml-4 list-disc">
                     {question.options.map((option, index) => (
                       <li key={index} className={index === question.correctOptionIndex ? "font-medium text-success" : ""}>

@@ -30,19 +30,19 @@ export function MediaItem({
   const isImage = mimeType.startsWith("image/");
 
   return (
-    <div className="flex flex-col gap-2 rounded border border-border-subtle bg-surface-panel p-3">
-      <div className="flex h-32 items-center justify-center overflow-hidden rounded bg-surface-subtle">
+    <div className="flex flex-col gap-2 rounded border border-border bg-card p-3">
+      <div className="flex h-32 items-center justify-center overflow-hidden rounded bg-muted">
         {isImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={url} alt={filename} className="h-full w-full object-cover" />
         ) : (
-          <span className="text-xs text-text-tertiary">{mimeType || "arquivo"}</span>
+          <span className="text-xs text-muted-foreground/56">{mimeType || "arquivo"}</span>
         )}
       </div>
-      <p className="truncate text-sm font-medium text-text-primary" title={filename}>
+      <p className="truncate text-sm font-medium text-foreground" title={filename}>
         {filename}
       </p>
-      <p className="text-xs text-text-tertiary">
+      <p className="text-xs text-muted-foreground/56">
         {formatSize(size)} · {new Date(createdAt).toLocaleDateString("pt-BR")}
       </p>
       <form action={formAction}>
@@ -50,7 +50,7 @@ export function MediaItem({
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded border border-border-subtle px-2 py-1 text-xs font-medium text-destructive disabled:opacity-50"
+          className="w-full rounded border border-border px-2 py-1 text-xs font-medium text-destructive disabled:opacity-50"
         >
           Excluir
         </button>

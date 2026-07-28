@@ -74,26 +74,6 @@
   --input: oklch(0.89 0.022 162);
   --ring: oklch(0.736 0.058 160);
 
-  /* surface */
-  --surface-base: oklch(0.972 0.011 154);
-  --surface-canvas: oklch(0.972 0.011 154);
-  --surface-panel: oklch(0.991 0.004 145);
-  --surface-elevated: oklch(0.954 0.018 162);
-  --surface-overlay: oklch(0.944 0.03 160);
-  --surface-subtle: color-mix(in oklch, var(--surface-elevated) 62%, var(--surface-panel));
-
-  /* text */
-  --text-primary: oklch(0.235 0.026 176);
-  --text-secondary: oklch(0.445 0.034 172);
-  --text-tertiary: color-mix(in oklch, var(--text-secondary) 56%, transparent);
-  --text-muted: color-mix(in oklch, var(--text-secondary) 72%, var(--surface-panel));
-  --text-accent: oklch(0.52 0.103 165);
-
-  /* border (contrato estendido) */
-  --border-subtle: oklch(0.89 0.022 162);
-  --border-default: var(--border-strong);
-  --border-strong: oklch(0.736 0.058 160);
-
   /* shadow — cor base + variantes soft via color-mix, mesma cadeia do repositório de referência */
   --shadow-color: oklch(0.828 0.021 170);
   --shadow-color-strong: oklch(0.69 0.026 175);
@@ -111,16 +91,11 @@
   --sidebar-bg-admin-end: oklch(0.948 0.019 162);
   --sidebar-bg-admin: linear-gradient(180deg, var(--sidebar-bg-admin-start) 0%, var(--sidebar-bg-admin-end) 100%);
 
-  /* accent soft — halo usado em chips/painéis de destaque (brand panel do footer, hover de nav) */
-  --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
-
-  /* status semântico — texto/banner de aviso. info-* foi descontinuado nesta sessão (colapsado
-     em secondary via @theme inline abaixo — ver bloco "colapso de info-* em secondary"); os dois
-     usos que restam (src/app/(platform)/academy/**) ficam pra próxima sessão trocar de classe. */
+  /* status semântico — texto/banner de aviso. */
   --warning: oklch(0.45 0.15 65);
   --warning-foreground: oklch(0.98 0.01 65);
-  --warning-soft: color-mix(in oklch, var(--warning) 12%, var(--surface-panel));
-  --warning-border: color-mix(in oklch, var(--warning) 30%, var(--border-subtle));
+  --warning-soft: color-mix(in oklch, var(--warning) 12%, var(--card));
+  --warning-border: color-mix(in oklch, var(--warning) 30%, var(--border));
 }
 
 .dark {
@@ -144,23 +119,6 @@
   --input: oklch(0.318 0.029 161);
   --ring: oklch(0.458 0.056 156);
 
-  --surface-base: oklch(0.145 0.016 162);
-  --surface-canvas: oklch(0.145 0.016 162);
-  --surface-panel: oklch(0.182 0.015 171);
-  --surface-elevated: oklch(0.214 0.018 166);
-  --surface-overlay: oklch(0.166 0.022 160);
-  --surface-subtle: color-mix(in oklch, var(--surface-elevated) 62%, var(--surface-panel));
-
-  --text-primary: oklch(0.95 0.017 146);
-  --text-secondary: oklch(0.82 0.03 154);
-  --text-tertiary: color-mix(in oklch, var(--text-secondary) 56%, transparent);
-  --text-muted: color-mix(in oklch, var(--text-secondary) 72%, var(--surface-panel));
-  --text-accent: oklch(0.9 0.122 100);
-
-  --border-subtle: oklch(0.318 0.029 161);
-  --border-default: var(--border-strong);
-  --border-strong: oklch(0.458 0.056 156);
-
   --shadow-color: oklch(0.082 0.004 170);
   --shadow-color-strong: oklch(0.042 0.003 170);
   --shadow-color-soft: color-mix(in oklch, var(--shadow-color) 38%, transparent);
@@ -176,12 +134,10 @@
   --sidebar-bg-admin-end: oklch(0.17 0.016 160);
   --sidebar-bg-admin: linear-gradient(180deg, var(--sidebar-bg-admin-start) 0%, var(--sidebar-bg-admin-end) 100%);
 
-  --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
-
   --warning: oklch(0.78 0.16 65);
   --warning-foreground: oklch(0.17 0.02 65);
-  --warning-soft: color-mix(in oklch, var(--warning) 16%, var(--surface-panel));
-  --warning-border: color-mix(in oklch, var(--warning) 34%, var(--border-subtle));
+  --warning-soft: color-mix(in oklch, var(--warning) 16%, var(--card));
+  --warning-border: color-mix(in oklch, var(--warning) 34%, var(--border));
 }
 
 @theme inline {
@@ -205,43 +161,14 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --color-surface-base: var(--surface-base);
-  --color-surface-canvas: var(--surface-canvas);
-  --color-surface-panel: var(--surface-panel);
-  --color-surface-elevated: var(--surface-elevated);
-  --color-surface-overlay: var(--surface-overlay);
-  --color-surface-subtle: var(--surface-subtle);
-
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-text-tertiary: var(--text-tertiary);
-  --color-text-muted: var(--text-muted);
-  --color-text-accent: var(--text-accent);
-
-  --color-border-subtle: var(--border-subtle);
-  --color-border-default: var(--border-default);
-  --color-border-strong: var(--border-strong);
-
   /* header-bg, header-chip-bg, header-avatar-* e header-border-* são identidade do Venore Slime —
      declaradas em src/themes/venore-slime/theme.css, não aqui (docs/venore-docks.md — "Sobre
      temas"). O core não referencia mais esses tokens (ver src/components/ui/avatar.tsx). */
-
-  --color-accent-soft: var(--accent-soft);
 
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-warning-soft: var(--warning-soft);
   --color-warning-border: var(--warning-border);
-
-  /* colapso de info-* em secondary: não existe papel "info" no vocabulário shadcn, e os únicos
-     dois usos (src/app/(platform)/academy/**) ficam fora do escopo desta sessão — em vez de
-     manter --info-* com valores oklch próprios (vocabulário paralelo), as classes existentes
-     (border-info-border/bg-info-soft/text-info) viram alias direto pra secondary/border, sem
-     precisar tocar nos dois arquivos consumidores agora. Próxima sessão troca a classe em si. */
-  --color-info: var(--secondary-foreground);
-  --color-info-foreground: var(--secondary-foreground);
-  --color-info-soft: var(--secondary);
-  --color-info-border: var(--border);
 
   --radius-sm: calc(var(--radius) * 0.5);
   --radius-md: var(--radius);
@@ -360,8 +287,8 @@
 }
 
 body {
-  background: var(--color-surface-base);
-  color: var(--color-text-primary);
+  background: var(--color-background);
+  color: var(--color-foreground);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
 }

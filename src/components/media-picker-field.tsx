@@ -83,7 +83,7 @@ export function MediaPickerField({
               type="button"
               key={item.id}
               onClick={() => selectMedia(item)}
-              className="flex flex-col gap-1 rounded border border-border p-2 text-left hover:border-input"
+              className="flex flex-col gap-1 rounded border border-border p-2 text-left hover:border-ring"
             >
               <div className="flex h-16 items-center justify-center overflow-hidden rounded bg-muted">
                 {item.mimeType.startsWith("image/") ? (

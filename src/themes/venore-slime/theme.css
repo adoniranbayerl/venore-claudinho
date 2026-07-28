@@ -19,22 +19,22 @@
     ),
     radial-gradient(
       120% 92% at 82% 18%,
-      color-mix(in oklch, var(--primary) 10%, var(--surface-overlay)) 0%,
+      color-mix(in oklch, var(--primary) 10%, var(--popover)) 0%,
       transparent 58%
     ),
     radial-gradient(
       130% 110% at 50% 100%,
-      color-mix(in oklch, var(--surface-overlay) 68%, var(--app-bg-end)) 0%,
+      color-mix(in oklch, var(--popover) 68%, var(--app-bg-end)) 0%,
       transparent 62%
     ),
     linear-gradient(180deg, var(--app-bg-start) 0%, var(--app-bg-mid) 46%, var(--app-bg-end) 100%);
 
   --header-bg: oklch(0.982 0.008 152);
-  --header-chip-bg: color-mix(in oklch, var(--header-bg) 74%, var(--surface-panel));
+  --header-chip-bg: color-mix(in oklch, var(--header-bg) 74%, var(--card));
   --header-avatar-bg: color-mix(in oklch, var(--accent) 18%, var(--header-bg));
-  --header-avatar-fg: var(--text-primary);
-  --header-border-subtle: color-mix(in oklch, var(--header-bg) 28%, var(--border-subtle));
-  --header-border-strong: color-mix(in oklch, var(--accent) 36%, var(--border-strong));
+  --header-avatar-fg: var(--foreground);
+  --header-border-subtle: color-mix(in oklch, var(--header-bg) 28%, var(--border));
+  --header-border-strong: color-mix(in oklch, var(--accent) 36%, var(--ring));
 }
 
 [data-theme="venore-slime"].dark {
@@ -48,20 +48,20 @@
     ),
     radial-gradient(
       120% 92% at 82% 18%,
-      color-mix(in oklch, var(--primary) 12%, var(--surface-overlay)) 0%,
+      color-mix(in oklch, var(--primary) 12%, var(--popover)) 0%,
       transparent 58%
     ),
     radial-gradient(
       130% 110% at 50% 100%,
-      color-mix(in oklch, var(--surface-overlay) 68%, var(--app-bg-end)) 0%,
+      color-mix(in oklch, var(--popover) 68%, var(--app-bg-end)) 0%,
       transparent 62%
     ),
     linear-gradient(180deg, var(--app-bg-start) 0%, var(--app-bg-mid) 46%, var(--app-bg-end) 100%);
 
   --header-bg: oklch(0.136 0.018 170);
-  --header-chip-bg: color-mix(in oklch, var(--header-bg) 74%, var(--surface-panel));
+  --header-chip-bg: color-mix(in oklch, var(--header-bg) 74%, var(--card));
   --header-avatar-bg: color-mix(in oklch, var(--accent) 18%, var(--header-bg));
-  --header-avatar-fg: var(--text-primary);
-  --header-border-subtle: color-mix(in oklch, var(--header-bg) 28%, var(--border-subtle));
-  --header-border-strong: color-mix(in oklch, var(--accent) 36%, var(--border-strong));
+  --header-avatar-fg: var(--foreground);
+  --header-border-subtle: color-mix(in oklch, var(--header-bg) 28%, var(--border));
+  --header-border-strong: color-mix(in oklch, var(--accent) 36%, var(--ring));
 }

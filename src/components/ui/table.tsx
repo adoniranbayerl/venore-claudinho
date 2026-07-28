@@ -25,7 +25,7 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
 function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   return (
     <tfoot
-      className={cn("border-t border-border bg-popover font-medium", className)}
+      className={cn("border-t border-border bg-muted font-medium", className)}
       {...props}
     />
   );
@@ -35,7 +35,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   return (
     <tr
       className={cn(
-        "border-b border-border ui-motion-base hover:bg-popover data-[state=selected]:bg-popover",
+        "border-b border-border ui-motion-base hover:bg-muted data-[state=selected]:bg-muted",
         className,
       )}
       {...props}

@@ -53,7 +53,7 @@ export default async function HomePage() {
             )}
             {adminGate.granted && (
               <Button asChild variant="ghost" size="sm">
-                <Link href="/admin/cms/entries/new" className="inline-flex items-center gap-2 text-text-tertiary">
+                <Link href="/admin/cms/entries/new" className="inline-flex items-center gap-2 text-muted-foreground/56">
                   <Settings2 className="size-4" strokeWidth={1.5} />
                   Criar entry &quot;home&quot; no CMS
                 </Link>

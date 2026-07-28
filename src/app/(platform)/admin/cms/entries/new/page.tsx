@@ -7,9 +7,9 @@ export default async function NewEntryPage() {
 
   if (!gate.granted) {
     return (
-      <div className="rounded border border-border-subtle bg-surface-panel p-8 text-center">
-        <h1 className="text-lg font-semibold text-text-primary">Acesso negado</h1>
-        <p className="mt-2 text-sm text-text-secondary">Você não tem permissão para gerenciar o CMS.</p>
+      <div className="rounded border border-border bg-card p-8 text-center">
+        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar o CMS.</p>
       </div>
     );
   }
@@ -17,9 +17,9 @@ export default async function NewEntryPage() {
   const canManageEntries = gate.actor.isSuperadmin || gate.actor.permissions.includes("cms.entries.manage");
   if (!canManageEntries) {
     return (
-      <div className="rounded border border-border-subtle bg-surface-panel p-8 text-center">
-        <h1 className="text-lg font-semibold text-text-primary">Acesso negado</h1>
-        <p className="mt-2 text-sm text-text-secondary">Você não tem permissão para gerenciar entries do CMS.</p>
+      <div className="rounded border border-border bg-card p-8 text-center">
+        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar entries do CMS.</p>
       </div>
     );
   }
@@ -35,8 +35,8 @@ export default async function NewEntryPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold text-text-primary">Nova entry</h1>
-      <div className="rounded border border-border-subtle bg-surface-panel p-4">
+      <h1 className="text-xl font-semibold text-foreground">Nova entry</h1>
+      <div className="rounded border border-border bg-card p-4">
         <CreateEntryForm contentTypes={contentTypesResult.data} categories={categoriesResult.data} />
       </div>
     </div>

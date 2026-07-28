@@ -91,24 +91,32 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    // Cor deve vir sempre dos tokens semânticos em globals.css (bg-surface-*, text-text-*,
-    // border-border-*, text-destructive, text-success, text-warning, text-info, etc.) —
-    // nunca de classes Tailwind de paleta cru. Ver docs/venore-docks.md.
-    files: ["src/app/**/*.{js,jsx,ts,tsx}", "src/themes/**/*.{js,jsx,ts,tsx}", "src/components/**/*.{js,jsx,ts,tsx}"],
+    // Cor deve vir sempre dos tokens semânticos shadcn (bg-card, text-foreground,
+    // text-muted-foreground, border-border, text-destructive, text-success, text-warning, etc.)
+    // — nunca de classes Tailwind de paleta cru, nem do vocabulário próprio já eliminado
+    // (bg-surface-*, text-text-*, border-border-*, accent-soft, info-*). Ver AGENTS.md —
+    // "Vocabulário de cor — migração pra shadcn".
+    files: [
+      "src/app/**/*.{js,jsx,ts,tsx}",
+      "src/themes/**/*.{js,jsx,ts,tsx}",
+      "src/components/**/*.{js,jsx,ts,tsx}",
+      "src/plugins/**/*.{js,jsx,ts,tsx}",
+      "src/platform/**/*.{js,jsx,ts,tsx}",
+    ],
     rules: {
       "no-restricted-syntax": [
         "error",
         {
           selector:
-            'JSXAttribute[name.name="className"] Literal[value=/\\b(bg-white|text-white|bg-gray-[0-9]+|text-gray-[0-9]+|border-gray-[0-9]+|text-red-[0-9]+|bg-red-[0-9]+|border-red-[0-9]+|text-blue-[0-9]+|bg-blue-[0-9]+|border-blue-[0-9]+|text-green-[0-9]+|bg-green-[0-9]+|border-green-[0-9]+|text-amber-[0-9]+|bg-amber-[0-9]+|border-amber-[0-9]+)\\b/]',
+            'JSXAttribute[name.name="className"] Literal[value=/\\b(bg-white|text-white|bg-gray-[0-9]+|text-gray-[0-9]+|border-gray-[0-9]+|text-red-[0-9]+|bg-red-[0-9]+|border-red-[0-9]+|text-blue-[0-9]+|bg-blue-[0-9]+|border-blue-[0-9]+|text-green-[0-9]+|bg-green-[0-9]+|border-green-[0-9]+|text-amber-[0-9]+|bg-amber-[0-9]+|border-amber-[0-9]+|bg-surface-[a-z]+|text-text-[a-z]+|border-border-[a-z]+|accent-soft|(bg|text|border)-info(-[a-z]+)?)\\b/]',
           message:
-            "Não use cores Tailwind cruas (bg-white, text-gray-*, border-gray-*, text-red-*, text-blue-*, text-green-*, bg-amber-*, ...) em src/app ou src/themes — use os tokens semânticos do tema (bg-surface-panel, text-text-primary, text-text-secondary, text-text-tertiary, border-border-subtle, text-destructive, text-success, text-warning, text-info, bg-primary/text-primary-foreground, etc).",
+            "Não use cores Tailwind cruas (bg-white, text-gray-*, border-gray-*, text-red-*, text-blue-*, text-green-*, bg-amber-*, ...) nem o vocabulário de cor próprio já eliminado (bg-surface-*, text-text-*, border-border-*, accent-soft, info-*) — use os tokens semânticos shadcn (bg-card, bg-muted, text-foreground, text-muted-foreground, text-muted-foreground/56, border-border, border-ring, bg-accent/14, text-destructive, text-success, text-warning, bg-primary/text-primary-foreground, etc).",
         },
         {
           selector:
-            'JSXAttribute[name.name="className"] TemplateElement[value.raw=/\\b(bg-white|text-white|bg-gray-[0-9]+|text-gray-[0-9]+|border-gray-[0-9]+|text-red-[0-9]+|bg-red-[0-9]+|border-red-[0-9]+|text-blue-[0-9]+|bg-blue-[0-9]+|border-blue-[0-9]+|text-green-[0-9]+|bg-green-[0-9]+|border-green-[0-9]+|text-amber-[0-9]+|bg-amber-[0-9]+|border-amber-[0-9]+)\\b/]',
+            'JSXAttribute[name.name="className"] TemplateElement[value.raw=/\\b(bg-white|text-white|bg-gray-[0-9]+|text-gray-[0-9]+|border-gray-[0-9]+|text-red-[0-9]+|bg-red-[0-9]+|border-red-[0-9]+|text-blue-[0-9]+|bg-blue-[0-9]+|border-blue-[0-9]+|text-green-[0-9]+|bg-green-[0-9]+|border-green-[0-9]+|text-amber-[0-9]+|bg-amber-[0-9]+|border-amber-[0-9]+|bg-surface-[a-z]+|text-text-[a-z]+|border-border-[a-z]+|accent-soft|(bg|text|border)-info(-[a-z]+)?)\\b/]',
           message:
-            "Não use cores Tailwind cruas (bg-white, text-gray-*, border-gray-*, text-red-*, text-blue-*, text-green-*, bg-amber-*, ...) em src/app ou src/themes — use os tokens semânticos do tema (bg-surface-panel, text-text-primary, text-text-secondary, text-text-tertiary, border-border-subtle, text-destructive, text-success, text-warning, text-info, bg-primary/text-primary-foreground, etc).",
+            "Não use cores Tailwind cruas (bg-white, text-gray-*, border-gray-*, text-red-*, text-blue-*, text-green-*, bg-amber-*, ...) nem o vocabulário de cor próprio já eliminado (bg-surface-*, text-text-*, border-border-*, accent-soft, info-*) — use os tokens semânticos shadcn (bg-card, bg-muted, text-foreground, text-muted-foreground, text-muted-foreground/56, border-border, border-ring, bg-accent/14, text-destructive, text-success, text-warning, bg-primary/text-primary-foreground, etc).",
         },
       ],
     },

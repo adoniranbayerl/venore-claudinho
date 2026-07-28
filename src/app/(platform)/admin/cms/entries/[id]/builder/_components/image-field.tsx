@@ -49,16 +49,16 @@ export function ImageField({
 
   return (
     <div>
-      <label className="block text-xs font-medium text-text-secondary">{label}</label>
+      <label className="block text-xs font-medium text-muted-foreground">{label}</label>
 
       <div className="mt-1 flex items-center gap-3">
         {selected && (
-          <div className="flex items-center gap-2 rounded border border-border-subtle px-2 py-1">
+          <div className="flex items-center gap-2 rounded border border-border px-2 py-1">
             {selected.mimeType.startsWith("image/") ? (
               // eslint-disable-next-line @next/next/no-img-element -- mesmo padrão de media-picker-field.tsx
               <img src={selected.url} alt={selected.filename} className="h-8 w-8 rounded object-cover" />
             ) : null}
-            <span className="max-w-40 truncate text-xs text-text-secondary">{selected.filename}</span>
+            <span className="max-w-40 truncate text-xs text-muted-foreground">{selected.filename}</span>
             <button
               type="button"
               onClick={() => {
@@ -75,7 +75,7 @@ export function ImageField({
           type="button"
           onClick={openPicker}
           disabled={isPending}
-          className="rounded border border-border-default px-2 py-1 text-xs font-medium text-text-primary disabled:opacity-50"
+          className="rounded border border-ring px-2 py-1 text-xs font-medium text-foreground disabled:opacity-50"
         >
           {selected ? "Trocar" : "Selecionar mídia"}
         </button>
@@ -83,11 +83,11 @@ export function ImageField({
 
       <dialog
         ref={dialogRef}
-        className="w-full max-w-2xl rounded border border-border-subtle bg-surface-panel p-4 text-text-primary backdrop:bg-black/40"
+        className="w-full max-w-2xl rounded border border-border bg-card p-4 text-foreground backdrop:bg-black/40"
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text-primary">Selecionar mídia</h2>
-          <button type="button" onClick={() => dialogRef.current?.close()} className="text-sm text-text-tertiary">
+          <h2 className="text-sm font-semibold text-foreground">Selecionar mídia</h2>
+          <button type="button" onClick={() => dialogRef.current?.close()} className="text-sm text-muted-foreground/56">
             Fechar
           </button>
         </div>
@@ -98,22 +98,22 @@ export function ImageField({
               type="button"
               key={item.id}
               onClick={() => selectMedia(item)}
-              className="flex flex-col gap-1 rounded border border-border-subtle p-2 text-left hover:border-border-strong"
+              className="flex flex-col gap-1 rounded border border-border p-2 text-left hover:border-ring"
             >
-              <div className="flex h-16 items-center justify-center overflow-hidden rounded bg-surface-subtle">
+              <div className="flex h-16 items-center justify-center overflow-hidden rounded bg-muted">
                 {item.mimeType.startsWith("image/") ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={item.url} alt={item.filename} className="h-full w-full object-cover" />
                 ) : (
-                  <span className="text-[10px] text-text-tertiary">{item.mimeType || "arquivo"}</span>
+                  <span className="text-[10px] text-muted-foreground/56">{item.mimeType || "arquivo"}</span>
                 )}
               </div>
-              <span className="truncate text-[11px] text-text-secondary" title={item.filename}>
+              <span className="truncate text-[11px] text-muted-foreground" title={item.filename}>
                 {item.filename}
               </span>
             </button>
           ))}
-          {items.length === 0 && <p className="col-span-full text-sm text-text-tertiary">Nenhum arquivo enviado ainda.</p>}
+          {items.length === 0 && <p className="col-span-full text-sm text-muted-foreground/56">Nenhum arquivo enviado ainda.</p>}
         </div>
       </dialog>
     </div>

@@ -17,12 +17,12 @@ export function AddQuizQuestionForm({ lessonId }: { lessonId: string }) {
       <input type="hidden" name="lessonId" value={lessonId} />
 
       <div>
-        <label className="block text-xs font-medium text-text-secondary">Pergunta</label>
-        <input name="text" required className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm" />
+        <label className="block text-xs font-medium text-muted-foreground">Pergunta</label>
+        <input name="text" required className="mt-1 w-full rounded border border-border px-2 py-1 text-sm" />
       </div>
 
       <div className="space-y-2">
-        <label className="block text-xs font-medium text-text-secondary">Opções (marque a correta)</label>
+        <label className="block text-xs font-medium text-muted-foreground">Opções (marque a correta)</label>
         {Array.from({ length: optionCount }).map((_, index) => (
           <div key={index} className="flex items-center gap-2">
             <input type="radio" name="correctOptionIndex" value={index} required />
@@ -30,14 +30,14 @@ export function AddQuizQuestionForm({ lessonId }: { lessonId: string }) {
               name="options"
               required
               placeholder={`opção ${index + 1}`}
-              className="flex-1 rounded border border-border-subtle px-2 py-1 text-sm"
+              className="flex-1 rounded border border-border px-2 py-1 text-sm"
             />
           </div>
         ))}
         <button
           type="button"
           onClick={() => setOptionCount((count) => count + 1)}
-          className="text-xs font-medium text-text-secondary hover:underline"
+          className="text-xs font-medium text-muted-foreground hover:underline"
         >
           + adicionar opção
         </button>

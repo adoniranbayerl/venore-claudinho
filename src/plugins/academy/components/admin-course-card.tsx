@@ -18,13 +18,13 @@ export function AdminCourseCard({ course, lessonCount }: { course: CourseRecord;
             {isPublished ? "Publicado" : "Rascunho"}
           </Badge>
           <CardTitle className="text-base">{course.title}</CardTitle>
-          <p className="text-[11px] font-medium tracking-caps text-text-tertiary uppercase">
+          <p className="text-[11px] font-medium tracking-caps text-muted-foreground/56 uppercase">
             {lessonCount} {lessonCount === 1 ? "aula" : "aulas"} · criado em {dateFormatter.format(course.createdAt)}
           </p>
         </CardHeader>
         {course.description && (
           <CardContent className="pb-4">
-            <p className="line-clamp-2 text-sm text-text-secondary">{course.description}</p>
+            <p className="line-clamp-2 text-sm text-muted-foreground">{course.description}</p>
           </CardContent>
         )}
       </Card>

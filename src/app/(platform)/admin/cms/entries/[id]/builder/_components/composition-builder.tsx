@@ -122,11 +122,11 @@ export function CompositionBuilder({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">Editor visual — {entryTitle}</h1>
-          <p className="text-xs text-text-tertiary">/{entrySlug}</p>
+          <h1 className="text-xl font-semibold text-foreground">Editor visual — {entryTitle}</h1>
+          <p className="text-xs text-muted-foreground/56">/{entrySlug}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href={`/admin/cms/entries/${entryId}`} className="text-sm text-text-secondary hover:text-text-primary">
+          <Link href={`/admin/cms/entries/${entryId}`} className="text-sm text-muted-foreground hover:text-foreground">
             Voltar
           </Link>
           <button
@@ -144,13 +144,13 @@ export function CompositionBuilder({
       {saveError && !saveError.blockId && <p className="text-sm text-destructive">{saveError.message}</p>}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[380px_1fr]">
-        <div className="rounded border border-border-subtle bg-surface-panel p-3">
+        <div className="rounded border border-border bg-card p-3">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-medium text-text-tertiary uppercase">Composição</p>
+            <p className="text-xs font-medium text-muted-foreground/56 uppercase">Composição</p>
             <button
               type="button"
               onClick={() => setPaletteRequest({ mode: "root" })}
-              className="rounded border border-border-default px-2 py-1 text-xs font-medium text-text-primary"
+              className="rounded border border-ring px-2 py-1 text-xs font-medium text-foreground"
             >
               + Adicionar bloco
             </button>
@@ -179,7 +179,7 @@ export function CompositionBuilder({
           />
         </div>
 
-        <div className="rounded border border-border-subtle bg-surface-panel p-4">
+        <div className="rounded border border-border bg-card p-4">
           {selectedBlock && selectedDefinition ? (
             <BlockFieldsPanel
               block={selectedBlock}
@@ -188,15 +188,15 @@ export function CompositionBuilder({
               onChange={(data) => mutate(updateBlockData(composition, selectedBlock.id, data))}
             />
           ) : (
-            <p className="text-sm text-text-tertiary">Selecione um bloco na árvore para editar seus campos.</p>
+            <p className="text-sm text-muted-foreground/56">Selecione um bloco na árvore para editar seus campos.</p>
           )}
         </div>
       </div>
 
-      <div className="rounded border border-border-subtle bg-surface-panel p-4">
+      <div className="rounded border border-border bg-card p-4">
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs font-medium text-text-tertiary uppercase">Pré-visualização</p>
-          <p className="text-xs text-text-tertiary">Reflete a última versão salva</p>
+          <p className="text-xs font-medium text-muted-foreground/56 uppercase">Pré-visualização</p>
+          <p className="text-xs text-muted-foreground/56">Reflete a última versão salva</p>
         </div>
         <div className="space-y-4">{preview}</div>
       </div>

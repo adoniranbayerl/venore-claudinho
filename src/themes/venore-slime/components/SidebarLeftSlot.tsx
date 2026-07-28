@@ -19,7 +19,7 @@ export function SidebarLeftSlot({ enabled, navMode, navItems, canToggleAdminNav,
     <MobileNavDrawer
       asideClassName={
         "flex h-full w-full flex-col gap-4 p-4 text-foreground shadow-float lg:h-auto lg:w-56 lg:shrink-0 lg:border-r lg:shadow-none " +
-        (isAdmin ? "border-input bg-(image:--sidebar-bg-admin)" : "border-border bg-(image:--sidebar-bg)")
+        (isAdmin ? "border-ring bg-(image:--sidebar-bg-admin)" : "border-border bg-(image:--sidebar-bg)")
       }
     >
       <nav data-nav-mode={navMode} className="flex flex-col gap-1">
@@ -30,7 +30,7 @@ export function SidebarLeftSlot({ enabled, navMode, navItems, canToggleAdminNav,
             className={
               "group flex min-h-11 items-center gap-3 border-l-2 border-transparent px-3 py-2 text-sm font-medium text-muted-foreground ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring " +
               (isAdmin
-                ? "hover:border-input hover:bg-popover hover:text-foreground active:border-input active:bg-popover active:text-foreground"
+                ? "hover:border-ring hover:bg-muted hover:text-foreground active:border-ring active:bg-muted active:text-foreground"
                 : "hover:border-border hover:bg-accent/14 hover:text-primary active:border-border active:bg-accent/14 active:text-primary")
             }
           >
@@ -44,7 +44,7 @@ export function SidebarLeftSlot({ enabled, navMode, navItems, canToggleAdminNav,
         <form action={onToggleNavMode} className="mt-auto">
           <button
             type="submit"
-            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-popover px-3 py-2 text-xs font-semibold uppercase tracking-caps text-foreground shadow-float ui-motion-base outline-none hover:border-input active:border-input focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-muted px-3 py-2 text-xs font-semibold uppercase tracking-caps text-foreground shadow-float ui-motion-base outline-none hover:border-ring active:border-ring focus-visible:ring-2 focus-visible:ring-ring"
           >
             {isAdmin ? "Sair do admin" : "Área administrativa"}
           </button>

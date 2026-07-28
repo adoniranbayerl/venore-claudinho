@@ -42,8 +42,8 @@ const ALIGN_CLASSES: Record<string, string> = {
 
 const SURFACE_CLASSES: Record<string, string> = {
   none: "",
-  panel: "rounded-panel bg-surface-panel p-4",
-  elevated: "rounded-panel bg-surface-elevated p-4",
+  panel: "rounded-panel bg-card p-4",
+  elevated: "rounded-panel bg-muted p-4",
 };
 
 const WIDTH_CLASSES: Record<string, string> = {
@@ -101,7 +101,7 @@ function HeadingBlock({ block }: BlockRendererProps) {
   const level = Number(data.level) || 2;
   const text = readString(data, "text");
   const align = HEADING_ALIGN_CLASSES[readString(data, "align", "start")] ?? HEADING_ALIGN_CLASSES.start;
-  const className = cn("font-semibold tracking-tight text-text-primary", HEADING_SIZE_CLASSES[level] ?? HEADING_SIZE_CLASSES[2], align);
+  const className = cn("font-semibold tracking-tight text-foreground", HEADING_SIZE_CLASSES[level] ?? HEADING_SIZE_CLASSES[2], align);
 
   if (level === 1) return <h1 className={className}>{text}</h1>;
   if (level === 3) return <h3 className={className}>{text}</h3>;
@@ -115,12 +115,12 @@ function RichtextBlock({ block }: BlockRendererProps) {
   return (
     <div
       className={cn(
-        "max-w-none space-y-3 text-text-primary",
-        "[&_a]:text-text-accent [&_a]:underline",
+        "max-w-none space-y-3 text-foreground",
+        "[&_a]:text-primary [&_a]:underline",
         "[&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:text-2xl [&_h2]:font-semibold [&_h3]:text-xl [&_h3]:font-semibold",
         "[&_p]:leading-relaxed",
         "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
-        "[&_blockquote]:border-l-2 [&_blockquote]:border-border-subtle [&_blockquote]:pl-3 [&_blockquote]:text-text-secondary",
+        "[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground",
       )}
     >
       {/* react-markdown nunca renderiza HTML cru do markdown de origem (sem dangerouslySetInnerHTML,
@@ -147,7 +147,7 @@ async function ImageBlock({ block }: BlockRendererProps) {
     <figure className={width}>
       {/* eslint-disable-next-line @next/next/no-img-element -- mesmo padrão de media-picker-field.tsx, sem domínio remoto configurado pra next/image */}
       <img src={media.url} alt={alt} className="w-full rounded-panel object-cover" />
-      {caption && <figcaption className="mt-1 text-xs text-text-tertiary">{caption}</figcaption>}
+      {caption && <figcaption className="mt-1 text-xs text-muted-foreground/56">{caption}</figcaption>}
     </figure>
   );
 }

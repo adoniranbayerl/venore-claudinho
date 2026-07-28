@@ -38,11 +38,11 @@ export default async function AcademyCoursePage({
 
   const header = (
     <div>
-      <Link href="/academy" className="text-xs font-medium text-text-tertiary hover:underline">
+      <Link href="/academy" className="text-xs font-medium text-muted-foreground/56 hover:underline">
         ← Cursos
       </Link>
       <h1 className="mt-1 text-3xl font-semibold tracking-tight">{course.title}</h1>
-      {course.description && <p className="mt-2 text-sm text-text-secondary">{course.description}</p>}
+      {course.description && <p className="mt-2 text-sm text-muted-foreground">{course.description}</p>}
     </div>
   );
 
@@ -50,7 +50,7 @@ export default async function AcademyCoursePage({
     return (
       <div className="space-y-6">
         {header}
-        <p className="rounded border border-border-subtle bg-surface-subtle p-4 text-sm text-text-secondary">
+        <p className="rounded border border-border bg-muted p-4 text-sm text-muted-foreground">
           Acesso restrito. Este curso não permite matrícula automática — fale com um administrador para ser
           matriculado.
         </p>
@@ -85,11 +85,11 @@ export default async function AcademyCoursePage({
     return (
       <div className="space-y-6">
         {header}
-        <p className="rounded border border-info-border bg-info-soft p-3 text-sm text-info">
+        <p className="rounded border border-border bg-secondary p-3 text-sm text-secondary-foreground">
           Modo de visualização (professor) — todas as aulas aparecem liberadas, sem acompanhamento de progresso.
         </p>
         <section>
-          <h2 className="text-[11px] font-semibold tracking-caps text-text-tertiary uppercase">Aulas</h2>
+          <h2 className="text-[11px] font-semibold tracking-caps text-muted-foreground/56 uppercase">Aulas</h2>
           {lessons.length === 0 ? (
             <EmptyState className="mt-3" title="Nenhuma aula cadastrada" />
           ) : (
@@ -97,7 +97,7 @@ export default async function AcademyCoursePage({
               {lessons.map((lesson) => (
                 <li
                   key={lesson.id}
-                  className="flex items-center justify-between rounded-panel border border-border-subtle bg-surface-panel p-3"
+                  className="flex items-center justify-between rounded-panel border border-border bg-card p-3"
                 >
                   <span className="text-sm">
                     {lesson.position}. {entryTitleByLesson.get(lesson.id)}
@@ -141,23 +141,23 @@ export default async function AcademyCoursePage({
       {header}
 
       {progress.totalLessons > 0 && (
-        <div className="space-y-1.5 rounded-panel border border-border-subtle bg-surface-panel p-4">
+        <div className="space-y-1.5 rounded-panel border border-border bg-card p-4">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-text-secondary">
+            <span className="font-medium text-muted-foreground">
               {progress.completedLessons} de {progress.totalLessons}{" "}
               {progress.totalLessons === 1 ? "aula concluída" : "aulas concluídas"}
             </span>
-            <span className="text-text-tertiary">{progressPercent}%</span>
+            <span className="text-muted-foreground/56">{progressPercent}%</span>
           </div>
           <Progress value={progressPercent} />
           {progress.completedLessons === 0 && (
-            <p className="text-xs text-text-tertiary">Você ainda não começou este curso.</p>
+            <p className="text-xs text-muted-foreground/56">Você ainda não começou este curso.</p>
           )}
         </div>
       )}
 
       <section>
-        <h2 className="text-[11px] font-semibold tracking-caps text-text-tertiary uppercase">Aulas</h2>
+        <h2 className="text-[11px] font-semibold tracking-caps text-muted-foreground/56 uppercase">Aulas</h2>
         {progress.lessons.length === 0 ? (
           <EmptyState className="mt-3" title="Nenhuma aula cadastrada" />
         ) : (
@@ -173,7 +173,7 @@ export default async function AcademyCoursePage({
               return (
                 <li
                   key={lesson.lessonId}
-                  className="flex items-center justify-between rounded-panel border border-border-subtle bg-surface-panel p-3"
+                  className="flex items-center justify-between rounded-panel border border-border bg-card p-3"
                 >
                   <span className="text-sm">
                     {lesson.position}. {title}

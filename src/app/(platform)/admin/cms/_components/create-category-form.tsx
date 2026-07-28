@@ -15,25 +15,25 @@ export function CreateCategoryForm() {
           name="key"
           placeholder="chave (kebab-case, ex: eventos)"
           required
-          className="flex-1 rounded border border-border-subtle px-2 py-1 text-sm"
+          className="flex-1 rounded border border-border px-2 py-1 text-sm"
         />
         <input
           name="name"
           placeholder="nome de exibição"
           required
-          className="flex-1 rounded border border-border-subtle px-2 py-1 text-sm"
+          className="flex-1 rounded border border-border px-2 py-1 text-sm"
         />
       </div>
       <input
         name="slug"
         placeholder="slug da URL (kebab-case, ex: eventos)"
         required
-        className="w-full rounded border border-border-subtle px-2 py-1 text-sm"
+        className="w-full rounded border border-border px-2 py-1 text-sm"
       />
       <input
         name="description"
         placeholder="descrição (opcional)"
-        className="w-full rounded border border-border-subtle px-2 py-1 text-sm"
+        className="w-full rounded border border-border px-2 py-1 text-sm"
       />
       <button
         type="submit"

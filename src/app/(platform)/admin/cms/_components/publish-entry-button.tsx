@@ -11,7 +11,7 @@ export function PublishEntryButton({ entryId }: { entryId: string }) {
   return (
     <form action={formAction} className="flex flex-col items-end gap-1">
       <input type="hidden" name="id" value={entryId} />
-      <button type="submit" disabled={pending} className="text-xs text-text-primary hover:underline disabled:opacity-50">
+      <button type="submit" disabled={pending} className="text-xs text-foreground hover:underline disabled:opacity-50">
         publicar
       </button>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}

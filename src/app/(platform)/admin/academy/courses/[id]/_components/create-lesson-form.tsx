@@ -31,7 +31,7 @@ export function CreateLessonForm({
       <input type="hidden" name="courseId" value={courseId} />
 
       <div>
-        <label className="block text-xs font-medium text-text-secondary">Entry do CMS</label>
+        <label className="block text-xs font-medium text-muted-foreground">Entry do CMS</label>
         <Select name="cmsEntryId" required>
           <SelectTrigger className="mt-1 w-full">
             <SelectValue placeholder="selecione..." />
@@ -45,35 +45,35 @@ export function CreateLessonForm({
           </SelectContent>
         </Select>
         {entries.length === 0 && (
-          <p className="mt-1 text-xs text-text-tertiary">Nenhuma entry publicada no CMS ainda.</p>
+          <p className="mt-1 text-xs text-muted-foreground/56">Nenhuma entry publicada no CMS ainda.</p>
         )}
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-text-secondary">URL do vídeo (opcional)</label>
+        <label className="block text-xs font-medium text-muted-foreground">URL do vídeo (opcional)</label>
         <input
           name="videoUrl"
           value={videoUrl}
           onChange={(event) => setVideoUrl(event.target.value)}
-          className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
+          className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
         />
       </div>
 
-      <div className="space-y-2 border-t border-border-subtle pt-3">
-        <p className="text-xs font-medium text-text-secondary">Requisitos de conclusão (opcional, dá pra ajustar depois)</p>
+      <div className="space-y-2 border-t border-border pt-3">
+        <p className="text-xs font-medium text-muted-foreground">Requisitos de conclusão (opcional, dá pra ajustar depois)</p>
 
-        <label className="flex items-center gap-2 text-sm text-text-secondary">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <input type="checkbox" name="readTextEnabled" />
           Exigir leitura do texto
         </label>
 
-        <label className="flex items-center gap-2 text-sm text-text-secondary">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <input type="checkbox" name="watchVideoEnabled" disabled={videoUrl.trim().length === 0} />
           Exigir assistir o vídeo
-          {videoUrl.trim().length === 0 && <span className="text-xs text-text-tertiary">(preencha a URL do vídeo)</span>}
+          {videoUrl.trim().length === 0 && <span className="text-xs text-muted-foreground/56">(preencha a URL do vídeo)</span>}
         </label>
 
-        <label className="flex items-center gap-2 text-sm text-text-secondary">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
             name="quizEnabled"
@@ -84,29 +84,29 @@ export function CreateLessonForm({
         </label>
 
         {quizEnabled && (
-          <div className="ml-6 space-y-3 border-l border-border-subtle pl-4">
+          <div className="ml-6 space-y-3 border-l border-border pl-4">
             <div>
-              <label className="block text-xs font-medium text-text-secondary">Nota mínima para aprovação (%)</label>
+              <label className="block text-xs font-medium text-muted-foreground">Nota mínima para aprovação (%)</label>
               <input
                 type="number"
                 name="quizPassThresholdPercent"
                 min={1}
                 max={100}
                 defaultValue={70}
-                className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
+                className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-secondary">Tentativas máximas</label>
+              <label className="block text-xs font-medium text-muted-foreground">Tentativas máximas</label>
               <input
                 type="number"
                 name="quizMaxAttempts"
                 min={1}
                 defaultValue={3}
-                className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
+                className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
               />
             </div>
-            <p className="text-xs text-text-tertiary">
+            <p className="text-xs text-muted-foreground/56">
               As perguntas do quiz são cadastradas na página da aula depois de criá-la.
             </p>
           </div>

@@ -32,16 +32,16 @@ export function StudentCourseCard({
             {badge.label}
           </Badge>
           <CardTitle className="text-base">{course.title}</CardTitle>
-          <p className="text-[11px] font-medium tracking-caps text-text-tertiary uppercase">
+          <p className="text-[11px] font-medium tracking-caps text-muted-foreground/56 uppercase">
             {lessonCount} {lessonCount === 1 ? "aula" : "aulas"}
           </p>
         </CardHeader>
         <CardContent className="space-y-3 pb-4">
-          {course.description && <p className="line-clamp-2 text-sm text-text-secondary">{course.description}</p>}
+          {course.description && <p className="line-clamp-2 text-sm text-muted-foreground">{course.description}</p>}
           {progressPercent !== null && (
             <div className="space-y-1">
               <Progress value={progressPercent} />
-              <p className="text-[11px] font-medium tracking-caps text-text-tertiary uppercase">
+              <p className="text-[11px] font-medium tracking-caps text-muted-foreground/56 uppercase">
                 {progressPercent}% concluído
               </p>
             </div>

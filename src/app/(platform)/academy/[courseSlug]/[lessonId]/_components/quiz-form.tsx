@@ -30,14 +30,14 @@ export function QuizForm({
 
   if (exhaustedNow) {
     return (
-      <div className="rounded border border-border-subtle p-4">
-        <p className="text-sm text-text-secondary">Você esgotou suas tentativas para este quiz.</p>
+      <div className="rounded border border-border p-4">
+        <p className="text-sm text-muted-foreground">Você esgotou suas tentativas para este quiz.</p>
       </div>
     );
   }
 
   return (
-    <form action={formAction} className="space-y-4 rounded border border-border-subtle p-4">
+    <form action={formAction} className="space-y-4 rounded border border-border p-4">
       <input type="hidden" name="courseSlug" value={courseSlug} />
       <input type="hidden" name="lessonId" value={lessonId} />
 
@@ -61,7 +61,7 @@ export function QuizForm({
       {state.result && (
         <div className="space-y-0.5">
           <p className="text-base font-semibold">Nota: {state.result.grade.toFixed(1)}</p>
-          <p className="text-xs text-text-tertiary">{state.result.score}% de acerto</p>
+          <p className="text-xs text-muted-foreground/56">{state.result.score}% de acerto</p>
           <p className="text-sm">
             {state.result.passed
               ? "Você passou!"

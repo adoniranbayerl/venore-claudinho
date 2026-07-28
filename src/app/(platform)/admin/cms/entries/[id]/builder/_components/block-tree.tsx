@@ -49,7 +49,7 @@ export function BlockTree({
   rowNumbers?: Map<string, number>;
 }) {
   if (blocks.length === 0) {
-    return <p className="pl-2 text-xs text-text-tertiary">Vazio.</p>;
+    return <p className="pl-2 text-xs text-muted-foreground/56">Vazio.</p>;
   }
 
   // rowNumbers ausente = chamada raiz (único call site: composition-builder.tsx) — computa a
@@ -123,7 +123,7 @@ function BlockNode({
       <div
         className={cn(
           "group flex items-center gap-1 rounded border px-2 py-1.5",
-          isSelected ? "border-primary bg-accent" : "border-transparent hover:border-border-subtle",
+          isSelected ? "border-primary bg-accent" : "border-transparent hover:border-border",
           hasError && "border-destructive",
         )}
       >
@@ -131,7 +131,7 @@ function BlockNode({
           <button
             type="button"
             onClick={() => actions.onToggleCollapse(block.id)}
-            className="text-text-tertiary"
+            className="text-muted-foreground/56"
             aria-label={isCollapsed ? "Expandir" : "Recolher"}
           >
             {isCollapsed ? <ChevronRightIcon className="size-3.5" /> : <ChevronDownIcon className="size-3.5" />}
@@ -140,7 +140,7 @@ function BlockNode({
           <span className="w-3.5" />
         )}
 
-        <button type="button" onClick={() => actions.onSelect(block.id)} className="flex-1 truncate text-left text-sm text-text-primary">
+        <button type="button" onClick={() => actions.onSelect(block.id)} className="flex-1 truncate text-left text-sm text-foreground">
           {rowNumber !== undefined ? `${nodeLabel} ${rowNumber}` : nodeLabel}
         </button>
 
@@ -150,7 +150,7 @@ function BlockNode({
             title="Mover para cima"
             disabled={isFirst}
             onClick={() => actions.onMove(block.id, "up")}
-            className="rounded px-1 text-xs text-text-secondary disabled:opacity-30"
+            className="rounded px-1 text-xs text-muted-foreground disabled:opacity-30"
           >
             ↑
           </button>
@@ -159,14 +159,14 @@ function BlockNode({
             title="Mover para baixo"
             disabled={isLast}
             onClick={() => actions.onMove(block.id, "down")}
-            className="rounded px-1 text-xs text-text-secondary disabled:opacity-30"
+            className="rounded px-1 text-xs text-muted-foreground disabled:opacity-30"
           >
             ↓
           </button>
-          <button type="button" title="Adicionar irmão" onClick={() => actions.onAddSibling(block.id)} className="rounded px-1 text-text-secondary">
+          <button type="button" title="Adicionar irmão" onClick={() => actions.onAddSibling(block.id)} className="rounded px-1 text-muted-foreground">
             <PlusIcon className="size-3.5" />
           </button>
-          <button type="button" title="Duplicar" onClick={() => actions.onDuplicate(block.id)} className="rounded px-1 text-text-secondary">
+          <button type="button" title="Duplicar" onClick={() => actions.onDuplicate(block.id)} className="rounded px-1 text-muted-foreground">
             <CopyIcon className="size-3.5" />
           </button>
           <button type="button" title="Remover" onClick={() => actions.onRemove(block.id)} className="rounded px-1 text-destructive">
@@ -191,18 +191,18 @@ function BlockNode({
       )}
 
       {hasAreas && !isCollapsed && (
-        <div className="mt-1 ml-4 space-y-2 border-l border-border-subtle pl-3">
+        <div className="mt-1 ml-4 space-y-2 border-l border-border pl-3">
           {visibleAreas.map((area) => (
             <div key={area.key}>
               <div className="flex items-center justify-between">
-                <p className="text-[11px] font-medium text-text-tertiary uppercase">
+                <p className="text-[11px] font-medium text-muted-foreground/56 uppercase">
                   {definition?.areaDefinitions?.find((candidate) => candidate.key === area.key)?.label ?? area.key}
                 </p>
                 <button
                   type="button"
                   title="Adicionar bloco nesta area"
                   onClick={() => actions.onAddChild(block.id, area.key)}
-                  className="text-text-tertiary hover:text-text-primary"
+                  className="text-muted-foreground/56 hover:text-foreground"
                 >
                   <PlusIcon className="size-3.5" />
                 </button>

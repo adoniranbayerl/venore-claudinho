@@ -67,11 +67,11 @@ export default async function AcademyLessonPage({
 
     return (
       <div className="space-y-6">
-        <p className="rounded border border-info-border bg-info-soft p-3 text-sm text-info">
+        <p className="rounded border border-border bg-secondary p-3 text-sm text-secondary-foreground">
           Modo de visualização (professor) — sem ações de progresso.
         </p>
         <div>
-          <Link href={`/academy/${course.slug}`} className="text-xs font-medium text-text-tertiary hover:underline">
+          <Link href={`/academy/${course.slug}`} className="text-xs font-medium text-muted-foreground/56 hover:underline">
             ← Curso
           </Link>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">{entry ? entry.title : `Aula ${lesson.position}`}</h1>
@@ -100,7 +100,7 @@ export default async function AcademyLessonPage({
             <h2 className="text-sm font-semibold">Quiz ({questions.length} pergunta(s))</h2>
             <ul className="mt-2 space-y-2">
               {questions.map((question) => (
-                <li key={question.id} className="rounded border border-border-subtle p-3 text-sm">
+                <li key={question.id} className="rounded border border-border p-3 text-sm">
                   {question.text}
                 </li>
               ))}
@@ -159,7 +159,7 @@ export default async function AcademyLessonPage({
         </p>
       )}
       <div>
-        <Link href={`/academy/${course.slug}`} className="text-xs font-medium text-text-tertiary hover:underline">
+        <Link href={`/academy/${course.slug}`} className="text-xs font-medium text-muted-foreground/56 hover:underline">
           ← Curso
         </Link>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">{entry ? entry.title : `Aula ${lesson.position}`}</h1>
@@ -186,14 +186,14 @@ export default async function AcademyLessonPage({
       <section className="flex flex-wrap gap-4">
         {lesson.requirements.readTextEnabled &&
           (lesson.requirements.textRead ? (
-            <p className="text-sm text-text-secondary">Texto lido ✓</p>
+            <p className="text-sm text-muted-foreground">Texto lido ✓</p>
           ) : (
             <MarkProgressButton courseSlug={course.slug} lessonId={lessonId} kind="text" label="Marcar texto como lido" />
           ))}
 
         {lesson.requirements.watchVideoEnabled &&
           (lesson.requirements.videoWatched ? (
-            <p className="text-sm text-text-secondary">Vídeo assistido ✓</p>
+            <p className="text-sm text-muted-foreground">Vídeo assistido ✓</p>
           ) : (
             <MarkProgressButton
               courseSlug={course.slug}
@@ -209,9 +209,9 @@ export default async function AcademyLessonPage({
           <h2 className="text-sm font-semibold">Quiz</h2>
           {lesson.requirements.quizPassed ? (
             <div className="mt-2 space-y-0.5">
-              <p className="text-sm text-text-secondary">Você já passou neste quiz.</p>
+              <p className="text-sm text-muted-foreground">Você já passou neste quiz.</p>
               {lesson.requirements.quizBestGrade !== null && (
-                <p className="text-xs text-text-tertiary">
+                <p className="text-xs text-muted-foreground/56">
                   Nota: {lesson.requirements.quizBestGrade.toFixed(1)} ({lesson.requirements.quizBestScore}% de acerto)
                 </p>
               )}

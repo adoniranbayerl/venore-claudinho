@@ -31,13 +31,13 @@ export function BlockPaletteDialog({
         </DialogHeader>
 
         {definitions.length === 0 && (
-          <p className="text-sm text-text-tertiary">Nenhum bloco pode ser adicionado nesta posição.</p>
+          <p className="text-sm text-muted-foreground/56">Nenhum bloco pode ser adicionado nesta posição.</p>
         )}
 
         <div className="max-h-96 space-y-4 overflow-y-auto">
           {Array.from(byCategory.entries()).map(([category, items]) => (
             <div key={category}>
-              <p className="text-xs font-medium text-text-tertiary uppercase">{category}</p>
+              <p className="text-xs font-medium text-muted-foreground/56 uppercase">{category}</p>
               <div className="mt-2 grid grid-cols-2 gap-2">
                 {items.map((definition) => (
                   <button
@@ -47,7 +47,7 @@ export function BlockPaletteDialog({
                       onSelect(definition);
                       onOpenChange(false);
                     }}
-                    className="rounded border border-border-subtle p-2 text-left text-sm text-text-primary hover:border-border-strong hover:bg-accent"
+                    className="rounded border border-border p-2 text-left text-sm text-foreground hover:border-ring hover:bg-accent"
                   >
                     {definition.label}
                   </button>

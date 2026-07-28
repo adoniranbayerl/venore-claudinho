@@ -18,15 +18,15 @@ export default async function LoginPage({
   const showBootstrapNotice = superadminExistsResult.success && !superadminExistsResult.data;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-4 text-text-primary">
-      <div className="w-full max-w-sm space-y-6 rounded-panel border border-border-subtle bg-card p-8 shadow-panel">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-4 text-foreground">
+      <div className="w-full max-w-sm space-y-6 rounded-panel border border-border bg-card p-8 shadow-panel">
         <div className="space-y-1 text-center">
           <h1 className="text-lg font-semibold">Entrar</h1>
-          <p className="text-sm text-text-secondary">Acesse com uma das opções abaixo.</p>
+          <p className="text-sm text-muted-foreground">Acesse com uma das opções abaixo.</p>
         </div>
 
         {showBootstrapNotice ? (
-          <p className="rounded-control border border-border-subtle bg-accent-soft px-3 py-2 text-xs text-text-primary">
+          <p className="rounded-control border border-border bg-accent/14 px-3 py-2 text-xs text-foreground">
             Nenhum superadmin foi configurado ainda. O próximo login se torna o superadmin inicial.
           </p>
         ) : null}
@@ -50,7 +50,7 @@ export default async function LoginPage({
 
         {devCredentials ? (
           <details className="text-sm">
-            <summary className="cursor-pointer text-text-secondary">Credenciais de desenvolvimento</summary>
+            <summary className="cursor-pointer text-muted-foreground">Credenciais de desenvolvimento</summary>
             <form action={signInWithDevCredentialsAction} className="mt-3 space-y-2">
               <Input name="username" placeholder="Usuário" required />
               <Input name="password" type="password" placeholder="Senha" required />

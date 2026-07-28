@@ -30,10 +30,10 @@ export function MenuItemRow({
   const error = upState.error ?? downState.error ?? removeState.error;
 
   return (
-    <li className="flex items-center justify-between gap-4 text-sm text-text-secondary">
+    <li className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
       <div>
-        <span className="font-medium text-text-primary">{label}</span>{" "}
-        <span className="text-text-tertiary">({href})</span>
+        <span className="font-medium text-foreground">{label}</span>{" "}
+        <span className="text-muted-foreground/56">({href})</span>
       </div>
       <div className="flex items-center gap-1">
         <form action={upAction}>
@@ -41,7 +41,7 @@ export function MenuItemRow({
           <button
             type="submit"
             disabled={isFirst || upPending}
-            className="rounded border border-border-subtle px-2 py-1 text-xs font-medium text-text-primary disabled:opacity-50"
+            className="rounded border border-border px-2 py-1 text-xs font-medium text-foreground disabled:opacity-50"
           >
             Subir
           </button>
@@ -51,7 +51,7 @@ export function MenuItemRow({
           <button
             type="submit"
             disabled={isLast || downPending}
-            className="rounded border border-border-subtle px-2 py-1 text-xs font-medium text-text-primary disabled:opacity-50"
+            className="rounded border border-border px-2 py-1 text-xs font-medium text-foreground disabled:opacity-50"
           >
             Descer
           </button>
@@ -61,7 +61,7 @@ export function MenuItemRow({
           <button
             type="submit"
             disabled={removePending}
-            className="rounded border border-border-subtle px-2 py-1 text-xs font-medium text-destructive disabled:opacity-50"
+            className="rounded border border-border px-2 py-1 text-xs font-medium text-destructive disabled:opacity-50"
           >
             Remover
           </button>

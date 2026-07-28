@@ -26,7 +26,7 @@ export default async function AcademyCoursesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Cursos</h1>
-        <p className="mt-1 text-sm text-text-secondary">Cursos disponíveis para você.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Cursos disponíveis para você.</p>
       </div>
 
       {!coursesResult.success && (

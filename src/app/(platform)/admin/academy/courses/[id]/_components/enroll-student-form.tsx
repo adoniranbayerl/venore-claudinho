@@ -16,7 +16,7 @@ export function EnrollStudentForm({ courseId }: { courseId: string }) {
     <form action={formAction} className="mt-3 flex items-end gap-2">
       <input type="hidden" name="courseId" value={courseId} />
       <div className="flex-1">
-        <label className="block text-xs font-medium text-text-secondary">Email do aluno</label>
+        <label className="block text-xs font-medium text-muted-foreground">Email do aluno</label>
         <Input name="email" type="email" required placeholder="aluno@example.com" className="mt-1" />
       </div>
       <Button type="submit" disabled={pending}>

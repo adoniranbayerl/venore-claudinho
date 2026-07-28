@@ -25,17 +25,17 @@ export function CreateEntryForm({
   return (
     <form action={formAction} className="space-y-3">
       <div>
-        <label className="block text-xs font-medium text-text-secondary">Título</label>
-        <input name="title" required className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm" />
+        <label className="block text-xs font-medium text-muted-foreground">Título</label>
+        <input name="title" required className="mt-1 w-full rounded border border-border px-2 py-1 text-sm" />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-text-secondary">Slug</label>
-        <input name="slug" required className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm" />
+        <label className="block text-xs font-medium text-muted-foreground">Slug</label>
+        <input name="slug" required className="mt-1 w-full rounded border border-border px-2 py-1 text-sm" />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-text-secondary">Content type</label>
+        <label className="block text-xs font-medium text-muted-foreground">Content type</label>
         <Select name="contentTypeId" required>
           <SelectTrigger className="mt-1 w-full">
             <SelectValue placeholder="selecione..." />
@@ -51,7 +51,7 @@ export function CreateEntryForm({
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-text-secondary">Categoria (opcional)</label>
+        <label className="block text-xs font-medium text-muted-foreground">Categoria (opcional)</label>
         <Select name="categoryId">
           <SelectTrigger className="mt-1 w-full">
             <SelectValue placeholder="nenhuma" />
@@ -67,8 +67,8 @@ export function CreateEntryForm({
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-text-secondary">Corpo</label>
-        <textarea name="body" rows={8} className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm" />
+        <label className="block text-xs font-medium text-muted-foreground">Corpo</label>
+        <textarea name="body" rows={8} className="mt-1 w-full rounded border border-border px-2 py-1 text-sm" />
       </div>
 
       <MediaPickerField name="mediaId" />

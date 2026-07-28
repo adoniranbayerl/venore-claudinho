@@ -9,9 +9,9 @@ export default async function AcademyAdminPage() {
 
   if (!gate.granted) {
     return (
-      <div className="rounded-panel border border-border-subtle bg-surface-panel p-8 text-center">
-        <h1 className="text-lg font-semibold text-text-primary">Acesso negado</h1>
-        <p className="mt-2 text-sm text-text-secondary">Você não tem permissão para gerenciar a Academy.</p>
+      <div className="rounded-panel border border-border bg-card p-8 text-center">
+        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar a Academy.</p>
       </div>
     );
   }
@@ -35,8 +35,8 @@ export default async function AcademyAdminPage() {
     <div className="space-y-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-text-primary">Academy</h1>
-          <p className="mt-1 text-sm text-text-secondary">Gerencie cursos, aulas e requisitos de conclusão.</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Academy</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Gerencie cursos, aulas e requisitos de conclusão.</p>
         </div>
         {courses.length > 0 && <CreateCourseDialog />}
       </div>

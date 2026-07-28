@@ -21,8 +21,8 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   if (!gate.granted) {
     return (
       <div className="rounded border p-8 text-center">
-        <h1 className="text-lg font-semibold text-text-primary">Acesso negado</h1>
-        <p className="mt-2 text-sm text-text-secondary">Você não tem permissão para gerenciar a Academy.</p>
+        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar a Academy.</p>
       </div>
     );
   }
@@ -72,14 +72,14 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/admin/academy" className="text-xs font-medium text-text-secondary hover:underline">
+        <Link href="/admin/academy" className="text-xs font-medium text-muted-foreground hover:underline">
           ← Academy
         </Link>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-text-primary">{course.title}</h1>
-        <p className="mt-2 text-[11px] font-medium tracking-caps text-text-tertiary uppercase">
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">{course.title}</h1>
+        <p className="mt-2 text-[11px] font-medium tracking-caps text-muted-foreground/56 uppercase">
           {isPublished ? "Publicado" : "Rascunho"} · {lessons.length} {lessons.length === 1 ? "aula" : "aulas"}
         </p>
-        {course.description && <p className="mt-2 text-sm text-text-secondary">{course.description}</p>}
+        {course.description && <p className="mt-2 text-sm text-muted-foreground">{course.description}</p>}
         <div className="mt-4 flex items-center gap-3">
           {course.status === "draft" && <PublishCourseButton courseId={course.id} />}
           {course.status === "published" && (
@@ -110,9 +110,9 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                 return (
                   <li
                     key={lesson.id}
-                    className="flex items-center justify-between gap-2 rounded-control px-2 py-1.5 text-sm hover:bg-surface-elevated"
+                    className="flex items-center justify-between gap-2 rounded-control px-2 py-1.5 text-sm hover:bg-muted"
                   >
-                    <Link href={`/admin/academy/lessons/${lesson.id}`} className="font-medium text-text-primary hover:underline">
+                    <Link href={`/admin/academy/lessons/${lesson.id}`} className="font-medium text-foreground hover:underline">
                       {lesson.position}. {entry ? entry.title : lesson.cmsEntryId}
                     </Link>
                     {lesson.videoUrl && (
@@ -145,7 +145,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           />
 
           <div>
-            <h3 className="text-[11px] font-semibold tracking-caps text-text-tertiary uppercase">
+            <h3 className="text-[11px] font-semibold tracking-caps text-muted-foreground/56 uppercase">
               Matriculados ({enrollments.length})
             </h3>
             {enrollments.length === 0 ? (
@@ -161,16 +161,16 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                   const studentLabel = enrollment.name ?? enrollment.email ?? enrollment.actorId;
                   const quizProgress = quizProgressByStudent.get(enrollment.actorId) ?? [];
                   return (
-                    <li key={enrollment.actorId} className="text-sm text-text-secondary">
-                      <span className="font-medium text-text-primary">{studentLabel}</span>
-                      {enrollment.email && enrollment.name && <span className="text-text-tertiary"> ({enrollment.email})</span>}
+                    <li key={enrollment.actorId} className="text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">{studentLabel}</span>
+                      {enrollment.email && enrollment.name && <span className="text-muted-foreground/56"> ({enrollment.email})</span>}
                       <Badge variant="secondary" className="ml-2">
                         {enrollment.enrolledBy === "self" ? "auto-matrícula" : "matriculado manualmente"}
                       </Badge>
                       {quizProgress.length > 0 && (
                         <ul className="mt-1 space-y-1 pl-4">
                           {quizProgress.map((entry) => (
-                            <li key={entry.lessonId} className="flex items-center gap-2 text-xs text-text-tertiary">
+                            <li key={entry.lessonId} className="flex items-center gap-2 text-xs text-muted-foreground/56">
                               <span>
                                 Aula {entry.lessonPosition}: {entry.attemptsUsed}/{entry.quizMaxAttempts} tentativas
                                 {entry.exhausted && " · esgotado"}

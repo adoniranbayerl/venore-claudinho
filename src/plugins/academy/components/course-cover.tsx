@@ -8,7 +8,7 @@ export function CourseCover({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "flex aspect-[16/9] w-full items-center justify-center rounded-panel bg-(image:--sidebar-bg) text-text-tertiary",
+        "flex aspect-[16/9] w-full items-center justify-center rounded-panel bg-(image:--sidebar-bg) text-muted-foreground/56",
         className,
       )}
     >

@@ -14,7 +14,7 @@ export function UploadMediaForm() {
         type="file"
         name="file"
         required
-        className="text-sm text-text-secondary file:mr-3 file:rounded file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground"
+        className="text-sm text-muted-foreground file:mr-3 file:rounded file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground"
       />
       <button
         type="submit"

@@ -38,14 +38,14 @@ export async function AcademyCourseCardBlock({ block }: BlockRendererProps) {
   return (
     <Link
       href={`/academy/${course.slug}`}
-      className="block rounded-panel border border-border-subtle bg-surface-panel p-4 transition-colors hover:border-border-strong"
+      className="block rounded-panel border border-border bg-card p-4 transition-colors hover:border-ring"
     >
-      <h3 className="font-semibold text-text-primary">{course.title}</h3>
-      {course.description && <p className="mt-1 text-sm text-text-secondary">{course.description}</p>}
+      <h3 className="font-semibold text-foreground">{course.title}</h3>
+      {course.description && <p className="mt-1 text-sm text-muted-foreground">{course.description}</p>}
       {percent !== null && (
         <div className="mt-3 space-y-1">
           <Progress value={percent} />
-          <p className="text-xs text-text-tertiary">{percent}% concluído</p>
+          <p className="text-xs text-muted-foreground/56">{percent}% concluído</p>
         </div>
       )}
     </Link>

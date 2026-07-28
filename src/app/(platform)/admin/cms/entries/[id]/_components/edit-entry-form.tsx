@@ -38,27 +38,27 @@ export function EditEntryForm({
       <input type="hidden" name="id" value={entryId} />
 
       <div>
-        <label className="block text-xs font-medium text-text-secondary">Título</label>
+        <label className="block text-xs font-medium text-muted-foreground">Título</label>
         <input
           name="title"
           defaultValue={title}
           required
-          className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
+          className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-text-secondary">Slug</label>
+        <label className="block text-xs font-medium text-muted-foreground">Slug</label>
         <input
           name="slug"
           defaultValue={slug}
           required
-          className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
+          className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-text-secondary">Categoria (opcional)</label>
+        <label className="block text-xs font-medium text-muted-foreground">Categoria (opcional)</label>
         <Select name="categoryId" defaultValue={categoryId ?? undefined}>
           <SelectTrigger className="mt-1 w-full">
             <SelectValue placeholder="nenhuma" />
@@ -74,12 +74,12 @@ export function EditEntryForm({
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-text-secondary">Corpo</label>
+        <label className="block text-xs font-medium text-muted-foreground">Corpo</label>
         <textarea
           name="body"
           rows={8}
           defaultValue={body}
-          className="mt-1 w-full rounded border border-border-subtle px-2 py-1 text-sm"
+          className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
         />
       </div>
 
