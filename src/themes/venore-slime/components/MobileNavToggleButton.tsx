@@ -19,7 +19,7 @@ export function MobileNavToggleButton({ isScrolled }: { isScrolled: boolean }) {
         "ui-icon-button-lg ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden",
         isScrolled
           ? "hover:bg-primary-foreground/10 active:bg-primary-foreground/10"
-          : "hover:bg-accent-soft active:bg-accent-soft",
+          : "hover:bg-accent/14 active:bg-accent/14",
       )}
     >
       {isOpen ? <X className="size-5" /> : <Menu className="size-5" />}

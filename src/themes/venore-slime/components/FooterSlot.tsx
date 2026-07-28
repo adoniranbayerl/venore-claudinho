@@ -5,20 +5,20 @@ import type { FooterSlotProps } from "@/contexts/themes";
 // ainda não expõe (sitemapItems é uma lista plana).
 export function FooterSlot({ brand, sitemapItems, creditsEnabled }: FooterSlotProps) {
   return (
-    <footer className="mt-auto grid gap-8 border-t border-border-subtle px-6 py-10 text-text-secondary lg:grid-cols-[max-content_minmax(0,1fr)]">
-      <div className="w-fit max-w-full justify-self-start rounded-panel bg-accent-soft px-5 py-6">
-        <span className="text-lg font-semibold text-text-primary">{brand.name}</span>
+    <footer className="mt-auto grid gap-8 border-t border-border px-6 py-10 text-muted-foreground lg:grid-cols-[max-content_minmax(0,1fr)]">
+      <div className="w-fit max-w-full justify-self-start rounded-panel bg-accent/14 px-5 py-6">
+        <span className="text-lg font-semibold text-foreground">{brand.name}</span>
       </div>
 
       {sitemapItems.length > 0 && (
         <div className="pt-1">
-          <p className="text-[11px] font-semibold uppercase tracking-caps text-text-muted">Sitemap</p>
+          <p className="text-[11px] font-semibold uppercase tracking-caps text-muted-foreground">Sitemap</p>
           <nav className="mt-3 grid gap-x-10 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {sitemapItems.map((item) => (
               <a
                 key={item.key}
                 href={item.href}
-                className="block rounded-control text-sm text-text-secondary ui-motion-base outline-none hover:text-text-accent active:text-text-accent focus-visible:ring-2 focus-visible:ring-ring"
+                className="block rounded-xl text-sm text-muted-foreground ui-motion-base outline-none hover:text-primary active:text-primary focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {item.label}
               </a>
@@ -28,7 +28,7 @@ export function FooterSlot({ brand, sitemapItems, creditsEnabled }: FooterSlotPr
       )}
 
       {creditsEnabled ? (
-        <div data-credits className="col-span-full border-t border-border-subtle pt-4 text-xs text-text-muted">
+        <div data-credits className="col-span-full border-t border-border pt-4 text-xs text-muted-foreground">
           Venore Docks
         </div>
       ) : null}

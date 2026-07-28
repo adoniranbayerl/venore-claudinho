@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* Tokens de identidade de cada tema instalado (docs/venore-docks.md — "Sobre temas"). Importado
+   aqui, no único stylesheet global carregado pelo RootLayout, e não via import direto num layout
+   ou componente, por dois motivos: (1) passa pelo mesmo pipeline PostCSS/Tailwind deste arquivo
+   (mesmas transformações, mesmo bundle), e (2) mantém ordem de CSS determinística — Next.js só
+   garante ordem estável quando os imports de CSS ficam contidos num único ponto de entrada; com
+   imports espalhados por layouts a ordem pode variar entre dev e build. Como o tema ativo troca
+   em runtime (sem rebuild), o CSS de todo tema instalado precisa estar no bundle sempre; qual
+   bloco vale é decidido pelo atributo data-theme no <html> (RootLayout), não por qual import
+   rodou — então não há custo em enviar os N temas instalados de uma vez. Instalar um tema novo é
+   uma linha nova aqui, no mesmo espírito do registro estático em src/themes/registry.ts. */
+@import "../themes/venore-slime/theme.css";
+
 @custom-variant dark (&:is(.dark *));
 
 /* Venore Slime — tema único embutido no código: padrão e fallback ao mesmo tempo
@@ -11,7 +23,6 @@
   --radius: 0.2rem;
   --radius-shell: 0rem;
   --radius-panel: 0.2rem;
-  --ui-radius-control: 0.5rem;
   --ui-tracking-caps: 0.22em;
 
   /* motion — vocabulário único de transição, consumido via ui-motion-base / ui-motion-emphasis */
@@ -92,27 +103,6 @@
   --shadow-float: 0 18px 44px -28px var(--shadow-color-strong-soft);
   --shadow-header: 0 12px 30px -24px var(--shadow-color-strong-soft);
 
-  /* app background — gradiente radial triplo sobre o linear-gradient base */
-  --app-bg-start: oklch(0.982 0.012 146);
-  --app-bg-mid: oklch(0.954 0.024 156);
-  --app-bg-end: oklch(0.962 0.024 166);
-  --app-background: radial-gradient(
-      140% 88% at 12% 8%,
-      color-mix(in oklch, var(--accent) 12%, transparent) 0%,
-      transparent 52%
-    ),
-    radial-gradient(
-      120% 92% at 82% 18%,
-      color-mix(in oklch, var(--primary) 10%, var(--surface-overlay)) 0%,
-      transparent 58%
-    ),
-    radial-gradient(
-      130% 110% at 50% 100%,
-      color-mix(in oklch, var(--surface-overlay) 68%, var(--app-bg-end)) 0%,
-      transparent 62%
-    ),
-    linear-gradient(180deg, var(--app-bg-start) 0%, var(--app-bg-mid) 46%, var(--app-bg-end) 100%);
-
   /* sidebar */
   --sidebar-bg-start: oklch(0.963 0.018 158);
   --sidebar-bg-end: oklch(0.938 0.03 164);
@@ -121,28 +111,16 @@
   --sidebar-bg-admin-end: oklch(0.948 0.019 162);
   --sidebar-bg-admin: linear-gradient(180deg, var(--sidebar-bg-admin-start) 0%, var(--sidebar-bg-admin-end) 100%);
 
-  /* header — tokens derivados de --header-bg, mesma cadeia do repositório de referência */
-  --header-bg: oklch(0.982 0.008 152);
-  --header-chip-bg: color-mix(in oklch, var(--header-bg) 74%, var(--surface-panel));
-  --header-avatar-bg: color-mix(in oklch, var(--accent) 18%, var(--header-bg));
-  --header-avatar-fg: var(--text-primary);
-  --header-border-subtle: color-mix(in oklch, var(--header-bg) 28%, var(--border-subtle));
-  --header-border-strong: color-mix(in oklch, var(--accent) 36%, var(--border-strong));
-
   /* accent soft — halo usado em chips/painéis de destaque (brand panel do footer, hover de nav) */
   --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
 
-  /* status semântico — texto/banner de sucesso, aviso e informação */
-  --success: oklch(0.5 0.15 145);
-  --success-foreground: oklch(0.98 0.01 145);
+  /* status semântico — texto/banner de aviso. info-* foi descontinuado nesta sessão (colapsado
+     em secondary via @theme inline abaixo — ver bloco "colapso de info-* em secondary"); os dois
+     usos que restam (src/app/(platform)/academy/**) ficam pra próxima sessão trocar de classe. */
   --warning: oklch(0.45 0.15 65);
   --warning-foreground: oklch(0.98 0.01 65);
   --warning-soft: color-mix(in oklch, var(--warning) 12%, var(--surface-panel));
   --warning-border: color-mix(in oklch, var(--warning) 30%, var(--border-subtle));
-  --info: oklch(0.45 0.16 255);
-  --info-foreground: oklch(0.98 0.01 255);
-  --info-soft: color-mix(in oklch, var(--info) 12%, var(--surface-panel));
-  --info-border: color-mix(in oklch, var(--info) 30%, var(--border-subtle));
 }
 
 .dark {
@@ -191,26 +169,6 @@
   --shadow-float: 0 18px 44px -28px var(--shadow-color-strong-soft);
   --shadow-header: 0 12px 30px -24px var(--shadow-color-strong-soft);
 
-  --app-bg-start: oklch(0.136 0.018 170);
-  --app-bg-mid: oklch(0.136 0.018 170);
-  --app-bg-end: oklch(0.124 0.023 164);
-  --app-background: radial-gradient(
-      140% 88% at 12% 8%,
-      color-mix(in oklch, var(--accent) 16%, transparent) 0%,
-      transparent 52%
-    ),
-    radial-gradient(
-      120% 92% at 82% 18%,
-      color-mix(in oklch, var(--primary) 12%, var(--surface-overlay)) 0%,
-      transparent 58%
-    ),
-    radial-gradient(
-      130% 110% at 50% 100%,
-      color-mix(in oklch, var(--surface-overlay) 68%, var(--app-bg-end)) 0%,
-      transparent 62%
-    ),
-    linear-gradient(180deg, var(--app-bg-start) 0%, var(--app-bg-mid) 46%, var(--app-bg-end) 100%);
-
   --sidebar-bg-start: oklch(0.16 0.014 168);
   --sidebar-bg-end: oklch(0.131 0.018 162);
   --sidebar-bg: linear-gradient(180deg, var(--sidebar-bg-start) 0%, var(--sidebar-bg-end) 100%);
@@ -218,25 +176,12 @@
   --sidebar-bg-admin-end: oklch(0.17 0.016 160);
   --sidebar-bg-admin: linear-gradient(180deg, var(--sidebar-bg-admin-start) 0%, var(--sidebar-bg-admin-end) 100%);
 
-  --header-bg: oklch(0.136 0.018 170);
-  --header-chip-bg: color-mix(in oklch, var(--header-bg) 74%, var(--surface-panel));
-  --header-avatar-bg: color-mix(in oklch, var(--accent) 18%, var(--header-bg));
-  --header-avatar-fg: var(--text-primary);
-  --header-border-subtle: color-mix(in oklch, var(--header-bg) 28%, var(--border-subtle));
-  --header-border-strong: color-mix(in oklch, var(--accent) 36%, var(--border-strong));
-
   --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
 
-  --success: oklch(0.75 0.17 145);
-  --success-foreground: oklch(0.17 0.02 145);
   --warning: oklch(0.78 0.16 65);
   --warning-foreground: oklch(0.17 0.02 65);
   --warning-soft: color-mix(in oklch, var(--warning) 16%, var(--surface-panel));
   --warning-border: color-mix(in oklch, var(--warning) 34%, var(--border-subtle));
-  --info: oklch(0.72 0.14 255);
-  --info-foreground: oklch(0.17 0.02 255);
-  --info-soft: color-mix(in oklch, var(--info) 16%, var(--surface-panel));
-  --info-border: color-mix(in oklch, var(--info) 34%, var(--border-subtle));
 }
 
 @theme inline {
@@ -277,25 +222,26 @@
   --color-border-default: var(--border-default);
   --color-border-strong: var(--border-strong);
 
-  --color-header-bg: var(--header-bg);
-  --color-header-chip-bg: var(--header-chip-bg);
-  --color-header-avatar-bg: var(--header-avatar-bg);
-  --color-header-avatar-fg: var(--header-avatar-fg);
-  --color-header-border-subtle: var(--header-border-subtle);
-  --color-header-border-strong: var(--header-border-strong);
+  /* header-bg, header-chip-bg, header-avatar-* e header-border-* são identidade do Venore Slime —
+     declaradas em src/themes/venore-slime/theme.css, não aqui (docs/venore-docks.md — "Sobre
+     temas"). O core não referencia mais esses tokens (ver src/components/ui/avatar.tsx). */
 
   --color-accent-soft: var(--accent-soft);
 
-  --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-warning-soft: var(--warning-soft);
   --color-warning-border: var(--warning-border);
-  --color-info: var(--info);
-  --color-info-foreground: var(--info-foreground);
-  --color-info-soft: var(--info-soft);
-  --color-info-border: var(--info-border);
+
+  /* colapso de info-* em secondary: não existe papel "info" no vocabulário shadcn, e os únicos
+     dois usos (src/app/(platform)/academy/**) ficam fora do escopo desta sessão — em vez de
+     manter --info-* com valores oklch próprios (vocabulário paralelo), as classes existentes
+     (border-info-border/bg-info-soft/text-info) viram alias direto pra secondary/border, sem
+     precisar tocar nos dois arquivos consumidores agora. Próxima sessão troca a classe em si. */
+  --color-info: var(--secondary-foreground);
+  --color-info-foreground: var(--secondary-foreground);
+  --color-info-soft: var(--secondary);
+  --color-info-border: var(--border);
 
   --radius-sm: calc(var(--radius) * 0.5);
   --radius-md: var(--radius);
@@ -303,7 +249,6 @@
   --radius-xl: calc(var(--radius) * 3);
   --radius-shell: var(--radius-shell);
   --radius-panel: var(--radius-panel);
-  --radius-control: var(--ui-radius-control);
 
   --tracking-caps: var(--ui-tracking-caps);
   --tracking-copy: var(--ui-tracking-copy);
@@ -331,7 +276,7 @@
   justify-content: center;
   gap: 0.5rem;
   white-space: nowrap;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-xl);
   font-weight: var(--ui-font-weight-medium);
 }
 
@@ -362,7 +307,7 @@
   flex-shrink: 0;
   width: var(--ui-control-height-xs);
   height: var(--ui-control-height-xs);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-xl);
 }
 
 @utility ui-icon-button-sm {
@@ -372,7 +317,7 @@
   flex-shrink: 0;
   width: var(--ui-control-height-sm);
   height: var(--ui-control-height-sm);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-xl);
 }
 
 @utility ui-icon-button-md {
@@ -382,7 +327,7 @@
   flex-shrink: 0;
   width: var(--ui-control-height-md);
   height: var(--ui-control-height-md);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-xl);
 }
 
 @utility ui-icon-button-lg {
@@ -392,7 +337,7 @@
   flex-shrink: 0;
   width: var(--ui-control-height-lg);
   height: var(--ui-control-height-lg);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-xl);
 }
 
 /* ui-motion-base / ui-motion-emphasis — vocabulário único de transição (Parte 3.2). base cobre

@@ -26,9 +26,9 @@ function UnknownBlockWarning({ blockKey }: { blockKey: string }) {
 
 function UnconfiguredBlockPlaceholder({ label, missingMessage }: { label: string; missingMessage: string }) {
   return (
-    <div className="rounded border border-dashed border-border-subtle p-3 text-xs">
-      <p className="font-medium text-text-secondary">{label}</p>
-      <p className="mt-1 text-text-tertiary">{missingMessage}</p>
+    <div className="rounded border border-dashed border-border p-3 text-xs">
+      <p className="font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 text-muted-foreground/56">{missingMessage}</p>
     </div>
   );
 }

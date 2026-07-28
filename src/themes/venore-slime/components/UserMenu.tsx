@@ -28,10 +28,10 @@ export function UserMenu({ user, canAccessAdmin, onSignOut, isScrolled, isDark, 
     <details className="group relative">
       <summary
         className={
-          "flex cursor-pointer list-none items-center gap-2 rounded-control px-1.5 py-1 ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden " +
+          "flex cursor-pointer list-none items-center gap-2 rounded-xl px-1.5 py-1 ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden " +
           (isScrolled
             ? "hover:bg-primary-foreground/10 active:bg-primary-foreground/10"
-            : "hover:bg-accent-soft active:bg-accent-soft")
+            : "hover:bg-accent/14 active:bg-accent/14")
         }
       >
         <Avatar>
@@ -41,23 +41,23 @@ export function UserMenu({ user, canAccessAdmin, onSignOut, isScrolled, isDark, 
         <span className="hidden text-sm font-medium sm:inline">{firstName}</span>
       </summary>
 
-      <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-panel border border-border-subtle bg-surface-panel p-3 text-text-primary shadow-float">
-        <div className="border-b border-border-subtle pb-3">
+      <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-panel border border-border bg-card p-3 text-foreground shadow-float">
+        <div className="border-b border-border pb-3">
           <p className="truncate text-sm font-semibold">{user.displayName}</p>
-          {user.email ? <p className="truncate text-xs text-text-muted">{user.email}</p> : null}
+          {user.email ? <p className="truncate text-xs text-muted-foreground">{user.email}</p> : null}
         </div>
 
         <div className="flex flex-col gap-1 py-2">
           <ColorModeToggle
             isDark={isDark}
             onToggleColorMode={onToggleColorMode}
-            className="w-full rounded-control px-2 py-1.5 text-left text-sm text-text-secondary ui-motion-base outline-none hover:bg-accent-soft hover:text-text-primary active:bg-accent-soft active:text-text-primary focus-visible:ring-2 focus-visible:ring-ring"
+            className="w-full rounded-xl px-2 py-1.5 text-left text-sm text-muted-foreground ui-motion-base outline-none hover:bg-accent/14 hover:text-foreground active:bg-accent/14 active:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           />
 
           {canAccessAdmin ? (
             <Link
               href="/admin"
-              className="rounded-control px-2 py-1.5 text-sm text-text-secondary ui-motion-base outline-none hover:bg-accent-soft hover:text-text-primary active:bg-accent-soft active:text-text-primary focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-xl px-2 py-1.5 text-sm text-muted-foreground ui-motion-base outline-none hover:bg-accent/14 hover:text-foreground active:bg-accent/14 active:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
             >
               Administração
             </Link>
@@ -66,10 +66,10 @@ export function UserMenu({ user, canAccessAdmin, onSignOut, isScrolled, isDark, 
           {/* TODO: link para /account quando a rota existir */}
         </div>
 
-        <form action={onSignOut} className="border-t border-border-subtle pt-2">
+        <form action={onSignOut} className="border-t border-border pt-2">
           <button
             type="submit"
-            className="w-full rounded-control px-2 py-1.5 text-left text-sm font-medium text-text-secondary ui-motion-base outline-none hover:bg-accent-soft hover:text-text-primary active:bg-accent-soft active:text-text-primary focus-visible:ring-2 focus-visible:ring-ring"
+            className="w-full rounded-xl px-2 py-1.5 text-left text-sm font-medium text-muted-foreground ui-motion-base outline-none hover:bg-accent/14 hover:text-foreground active:bg-accent/14 active:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             Sair
           </button>

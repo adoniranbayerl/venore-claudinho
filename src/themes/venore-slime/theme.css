@@ -1,0 +1,67 @@
+/* Venore Slime — variáveis de identidade do tema (docs/venore-docks.md — "Sobre temas").
+   Importado por src/app/globals.css (ver comentário lá sobre o porquê desse ponto de import).
+   Só o que é IDENTIDADE deste tema mora aqui: gradiente de fundo do app e a família de tokens
+   do header. O vocabulário shadcn (--background, --primary, etc.) continua em globals.css,
+   compartilhado por qualquer tema — só há um tema instalado hoje, mas o :root de globals.css
+   não pode virar "os valores do Venore Slime" escondidos atrás de um nome genérico.
+
+   [data-theme="venore-slime"] no <html> ativa este bloco; .dark também vive no <html> (nunca
+   aninhado), por isso a variante escura é o seletor composto abaixo, não um descendente. */
+
+[data-theme="venore-slime"] {
+  --app-bg-start: oklch(0.982 0.012 146);
+  --app-bg-mid: oklch(0.954 0.024 156);
+  --app-bg-end: oklch(0.962 0.024 166);
+  --app-background: radial-gradient(
+      140% 88% at 12% 8%,
+      color-mix(in oklch, var(--accent) 12%, transparent) 0%,
+      transparent 52%
+    ),
+    radial-gradient(
+      120% 92% at 82% 18%,
+      color-mix(in oklch, var(--primary) 10%, var(--surface-overlay)) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      130% 110% at 50% 100%,
+      color-mix(in oklch, var(--surface-overlay) 68%, var(--app-bg-end)) 0%,
+      transparent 62%
+    ),
+    linear-gradient(180deg, var(--app-bg-start) 0%, var(--app-bg-mid) 46%, var(--app-bg-end) 100%);
+
+  --header-bg: oklch(0.982 0.008 152);
+  --header-chip-bg: color-mix(in oklch, var(--header-bg) 74%, var(--surface-panel));
+  --header-avatar-bg: color-mix(in oklch, var(--accent) 18%, var(--header-bg));
+  --header-avatar-fg: var(--text-primary);
+  --header-border-subtle: color-mix(in oklch, var(--header-bg) 28%, var(--border-subtle));
+  --header-border-strong: color-mix(in oklch, var(--accent) 36%, var(--border-strong));
+}
+
+[data-theme="venore-slime"].dark {
+  --app-bg-start: oklch(0.136 0.018 170);
+  --app-bg-mid: oklch(0.136 0.018 170);
+  --app-bg-end: oklch(0.124 0.023 164);
+  --app-background: radial-gradient(
+      140% 88% at 12% 8%,
+      color-mix(in oklch, var(--accent) 16%, transparent) 0%,
+      transparent 52%
+    ),
+    radial-gradient(
+      120% 92% at 82% 18%,
+      color-mix(in oklch, var(--primary) 12%, var(--surface-overlay)) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      130% 110% at 50% 100%,
+      color-mix(in oklch, var(--surface-overlay) 68%, var(--app-bg-end)) 0%,
+      transparent 62%
+    ),
+    linear-gradient(180deg, var(--app-bg-start) 0%, var(--app-bg-mid) 46%, var(--app-bg-end) 100%);
+
+  --header-bg: oklch(0.136 0.018 170);
+  --header-chip-bg: color-mix(in oklch, var(--header-bg) 74%, var(--surface-panel));
+  --header-avatar-bg: color-mix(in oklch, var(--accent) 18%, var(--header-bg));
+  --header-avatar-fg: var(--text-primary);
+  --header-border-subtle: color-mix(in oklch, var(--header-bg) 28%, var(--border-subtle));
+  --header-border-strong: color-mix(in oklch, var(--accent) 36%, var(--border-strong));
+}

@@ -27,7 +27,7 @@ export function HeaderSlot({
         "sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b px-4 ui-motion-emphasis sm:px-6 " +
         (isScrolled
           ? "border-primary bg-primary text-primary-foreground shadow-header"
-          : "border-header-border-subtle bg-surface-panel text-text-primary md:h-24 lg:h-28")
+          : "border-header-border-subtle bg-card text-foreground md:h-24 lg:h-28")
       }
     >
       <div className="flex items-center gap-2">
@@ -35,7 +35,7 @@ export function HeaderSlot({
         <span
           className={
             "flex h-9 w-9 items-center justify-center rounded-panel text-sm font-semibold " +
-            (isScrolled ? "bg-primary-foreground/15 text-primary-foreground" : "bg-header-avatar-bg text-text-accent")
+            (isScrolled ? "bg-primary-foreground/15 text-primary-foreground" : "bg-header-avatar-bg text-primary")
           }
         >
           {brand.name.charAt(0)}
@@ -50,10 +50,10 @@ export function HeaderSlot({
               key={item.key}
               href={item.href}
               className={
-                "rounded-control px-3 py-1.5 text-xs font-medium uppercase tracking-caps ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                "rounded-xl px-3 py-1.5 text-xs font-medium uppercase tracking-caps ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                 (isScrolled
                   ? "hover:bg-primary-foreground/10 active:bg-primary-foreground/10"
-                  : "text-text-secondary hover:bg-accent-soft hover:text-text-primary active:bg-accent-soft active:text-text-primary")
+                  : "text-muted-foreground hover:bg-accent/14 hover:text-foreground active:bg-accent/14 active:text-foreground")
               }
             >
               {item.label}
@@ -76,10 +76,10 @@ export function HeaderSlot({
           <Link
             href="/login"
             className={
-              "rounded-control px-3 py-1.5 text-xs font-medium uppercase tracking-caps ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+              "rounded-xl px-3 py-1.5 text-xs font-medium uppercase tracking-caps ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring " +
               (isScrolled
                 ? "hover:bg-primary-foreground/10 active:bg-primary-foreground/10"
-                : "text-text-secondary hover:bg-accent-soft hover:text-text-primary active:bg-accent-soft active:text-text-primary")
+                : "text-muted-foreground hover:bg-accent/14 hover:text-foreground active:bg-accent/14 active:text-foreground")
             }
           >
             Entrar

@@ -8,9 +8,9 @@ function Progress({ value, className }: { value: number; className?: string }) {
       aria-valuenow={clamped}
       aria-valuemin={0}
       aria-valuemax={100}
-      className={cn("h-1.5 w-full overflow-hidden rounded-control bg-surface-elevated", className)}
+      className={cn("h-1.5 w-full overflow-hidden rounded-xl bg-popover", className)}
     >
-      <div className="h-full rounded-control bg-primary transition-[width]" style={{ width: `${clamped}%` }} />
+      <div className="h-full rounded-xl bg-primary transition-[width]" style={{ width: `${clamped}%` }} />
     </div>
   );
 }

@@ -49,7 +49,7 @@ export function MobileNavDrawer({ children, asideClassName }: { children: ReactN
           type="button"
           aria-label="Fechar navegação"
           onClick={closeMobileNav}
-          className="fixed inset-0 z-40 bg-surface-overlay/80 lg:hidden"
+          className="fixed inset-0 z-40 bg-popover/80 lg:hidden"
         />
       )}
       <div
