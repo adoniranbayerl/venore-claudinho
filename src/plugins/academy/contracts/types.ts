@@ -23,6 +23,17 @@ export type LessonRecord = {
   updatedAt: Date;
 };
 
+export type LessonSectionRecord = {
+  id: string;
+  lessonId: string;
+  position: number;
+  title: string;
+  cmsEntryId: string | null;
+  videoUrl: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type LessonRequirementsRecord = {
   lessonId: string;
   readTextEnabled: boolean;

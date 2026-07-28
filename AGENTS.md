@@ -24,8 +24,13 @@ type OperationResult<T> = { success: true; data: T } | { success: false; error: 
 - Toda regra de boundary acima precisa virar `eslint-plugin-boundaries` ou hook — não confiar só em instrução.
 
 ## Testes: unitário vs integração
-- Arquivos `*.test.ts` são unitários e não podem depender de banco real; `npm test` roda só esses (e é o que o CI executa).
-- Arquivos `*.integration.test.ts` (ex: `client.integration.test.ts`) exigem Postgres via `DATABASE_URL` e rodam com `npm run test:integration`, fora do CI.
+- Arquivos `*.test.ts` são unitários e não podem depender de banco real; `npm test` roda só esses (e é o que o job `check` do CI executa).
+- Arquivos `*.integration.test.ts` (ex: `client.integration.test.ts`, os do academy) exigem um Postgres descartável via `TEST_DATABASE_URL` e rodam com `npm run test:integration` — **nunca reaproveitam `DATABASE_URL`**; sem `TEST_DATABASE_URL` definida a suíte falha cedo com mensagem clara em vez de rodar contra o banco de desenvolvimento. Rodam também no CI, num job `integration` separado (service container Postgres), que não substitui o `check`.
+- `vitest.integration.config.ts` aplica as duas árvores de migration (`drizzle/` e `src/plugins/academy/migrations/`) uma vez por suíte via `globalSetup` (`src/test-support/integration/global-setup.ts`), e troca `DATABASE_URL` para `TEST_DATABASE_URL` dentro do processo de teste via `setupFiles` (`setup-env.ts`) — `infrastructure/database/client.ts` continua exatamente igual, só o valor da env var muda, e só para esse processo.
+- **Isolamento entre testes é por `TRUNCATE ... CASCADE`, não transação com rollback.** Vários `store.ts` (ex: `reorder-lessons`, `delete-lesson`) já abrem sua própria `db.transaction()`, pegando uma conexão nova do pool de app — envolver o teste inteiro numa transação externa não commitada não seria visível pra essas conexões internas sem introduzir injeção de dependência só para teste. TRUNCATE evita esse problema e não exige tocar `client.ts`.
+- **Por causa do TRUNCATE, `test.fileParallelism: false`.** Todos os arquivos de teste apontam pro mesmo banco descartável; com arquivos rodando em paralelo (padrão do Vitest), o `beforeEach` de um arquivo trunca tabela que outro arquivo tem em uso no meio de um teste — sintoma observado: `insert or update ... violates foreign key constraint` e asserções de slug/status alternando entre passar e falhar sem mudança de código. `fileParallelism: false` serializa a suíte inteira e resolve, sem precisar de um banco por worker.
+- Helpers de seed ficam em `src/test-support/integration/academy-seed.ts`, fora de `src/contexts/*` e `src/plugins/*` de propósito: `eslint-plugin-boundaries` só classifica elementos por esses dois padrões de pasta, e o seed precisa montar fixtures cross-domínio (ex: uma `cms.entries` publicada, com `author_id` apontando pra um `auth.users` real) — algo que um `plugin` não pode fazer via boundary normal. Como não existe API pública para criar usuário (só nasce via evento do `DrizzleAdapter`, exceção já documentada acima), o insert em `auth.users` é o único acesso cru necessário; todo o resto do seed passa pelas funções `service.ts` reais dos use cases.
+- **`next-auth` é stubado em `vitest.integration.config.ts`** (alias por regex exato, só o especificador `next-auth`, não `next-auth/providers/*`). Motivo: `create-lesson`/`update-lesson`/`publish-course` chamam `getEntry` importado do barrel `@/contexts/cms` — e esse barrel reexporta *todos* os handlers do context num arquivo só, incluindo os que importam `authorizeActor` (`@/contexts/rbac` → `@/contexts/auth` → `auth.config.ts`, que chama `NextAuth({...})` no top-level do módulo). `next-auth` importa `next/server` internamente, um subpath que o `package.json#exports` do Next não declara — só resolve dentro do bundler do próprio Next.js, nunca num processo Node/Vitest puro. O stub (`src/test-support/integration/stubs/next-auth.ts`) só existe pra esse módulo terminar de avaliar; nenhum teste chama `handlers`/`signIn`/`signOut`/`auth` de verdade.
 
 ## Vocabulário de cor — migração pra shadcn (concluída)
 `globals.css` declarava dois vocabulários de cor em paralelo: o shadcn (`--color-background`,
@@ -59,4 +64,9 @@ Zero ocorrência do vocabulário antigo em `src/`; `eslint.config.mjs` reprova s
 `--warning-*` (`text-warning`/`bg-warning-soft`/`border-warning-border`) **não faz parte desta
 eliminação** — é um token semântico próprio legítimo (aviso/bloqueio, usado em `src/app/(platform)/academy/**`),
 sem equivalente no vocabulário shadcn, e continua declarado em `globals.css`.
+
+## Preferências de UI: nav-mode (cookie) vs color-mode (localStorage) — assimetria intencional
+`nav-mode` (`src/platform/nav-mode`) continua em cookie porque o servidor precisa saber qual
+sidebar montar (main-nav vs admin-nav) no primeiro render; `color-mode` vive em `localStorage`
+via `next-themes` porque só a classe `dark` no client depende dele. Não unificar os dois mecanismos.
 <!-- END:venore-docks-rules -->

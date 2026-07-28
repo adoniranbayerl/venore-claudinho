@@ -29,6 +29,24 @@ export {
 export {
   listQuizQuestionsForStudentHandler as listQuizQuestionsForStudent,
 } from "./features/lessons/list-quiz-questions-for-student/handler";
+export {
+  createLessonSectionHandler as createLessonSection,
+} from "./features/lessons/sections/create-lesson-section/handler";
+export {
+  updateLessonSectionHandler as updateLessonSection,
+} from "./features/lessons/sections/update-lesson-section/handler";
+export {
+  deleteLessonSectionHandler as deleteLessonSection,
+} from "./features/lessons/sections/delete-lesson-section/handler";
+export {
+  reorderLessonSectionsHandler as reorderLessonSections,
+} from "./features/lessons/sections/reorder-lesson-sections/handler";
+export {
+  listLessonSectionsByLessonHandler as listLessonSectionsByLesson,
+} from "./features/lessons/sections/list-lesson-sections-by-lesson/handler";
+export {
+  getLessonSectionHandler as getLessonSection,
+} from "./features/lessons/sections/get-lesson-section/handler";
 export { markTextReadHandler as markTextRead } from "./features/progress/mark-text-read/handler";
 export { markVideoWatchedHandler as markVideoWatched } from "./features/progress/mark-video-watched/handler";
 export { submitQuizAttemptHandler as submitQuizAttempt } from "./features/progress/submit-quiz-attempt/handler";
@@ -71,6 +89,7 @@ export type {
   CourseRecord,
   CourseStatus,
   LessonRecord,
+  LessonSectionRecord,
   LessonRequirementsRecord,
   QuizAnswer,
   QuizQuestionRecord,
@@ -131,6 +150,30 @@ export type {
   ListQuizQuestionsForStudentQuery,
   ListQuizQuestionsForStudentResult,
 } from "./features/lessons/list-quiz-questions-for-student/types";
+export type {
+  CreateLessonSectionInput,
+  CreateLessonSectionResult,
+} from "./features/lessons/sections/create-lesson-section/types";
+export type {
+  UpdateLessonSectionInput,
+  UpdateLessonSectionResult,
+} from "./features/lessons/sections/update-lesson-section/types";
+export type {
+  DeleteLessonSectionInput,
+  DeleteLessonSectionResult,
+} from "./features/lessons/sections/delete-lesson-section/types";
+export type {
+  ReorderLessonSectionsInput,
+  ReorderLessonSectionsResult,
+} from "./features/lessons/sections/reorder-lesson-sections/types";
+export type {
+  ListLessonSectionsByLessonQuery,
+  ListLessonSectionsByLessonResult,
+} from "./features/lessons/sections/list-lesson-sections-by-lesson/types";
+export type {
+  GetLessonSectionQuery,
+  GetLessonSectionResult,
+} from "./features/lessons/sections/get-lesson-section/types";
 export type { MarkTextReadInput, MarkTextReadResult } from "./features/progress/mark-text-read/types";
 export type { MarkVideoWatchedInput, MarkVideoWatchedResult } from "./features/progress/mark-video-watched/types";
 export type { SubmitQuizAttemptInput, SubmitQuizAttemptResult } from "./features/progress/submit-quiz-attempt/types";

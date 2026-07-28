@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, integer, jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, check, integer, jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const academySchema = pgSchema("academy");
 
@@ -42,6 +42,11 @@ export const lessons = academySchema.table(
       .references(() => courses.id, { onDelete: "cascade" }),
     // Sem FK pra cms.entries pelo mesmo motivo de createdBy acima — validado via
     // contexts/cms.getEntry() na aplicação (regra 7).
+    // DEPRECATED (modelo de seções, sessão T1 — ver docs/venore-docks.md): a aula passa a ser uma
+    // sequência de lessonSections, cada uma com seu próprio cmsEntryId/videoUrl. Estas duas
+    // colunas continuam aqui só porque todo consumidor atual (progress, blocks, telas) ainda lê
+    // delas; a migração desses consumidores é T2/T3. Nenhum código NOVO deve ler cmsEntryId ou
+    // videoUrl daqui — leia de lessonSections.
     cmsEntryId: text("cms_entry_id").notNull(),
     videoUrl: text("video_url"),
     position: integer("position").notNull(),
@@ -49,6 +54,33 @@ export const lessons = academySchema.table(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (lesson) => [uniqueIndex("lessons_course_position_idx").on(lesson.courseId, lesson.position)],
+);
+
+// Aba da aula: texto (cms entry), vídeo, ou os dois — nunca os dois nulos (check abaixo). Sem
+// enum de "tipo" de propósito: nullable + check já exclui o estado inválido sem precisar de um
+// terceiro campo redundante com os outros dois.
+export const lessonSections = academySchema.table(
+  "lesson_sections",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    lessonId: text("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    title: text("title").notNull(),
+    // Sem FK pra cms.entries pelo mesmo motivo de lessons.cmsEntryId acima — validado via
+    // contexts/cms.getEntry() na aplicação.
+    cmsEntryId: text("cms_entry_id"),
+    videoUrl: text("video_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (section) => [
+    uniqueIndex("lesson_sections_lesson_position_idx").on(section.lessonId, section.position),
+    check("lesson_sections_content_check", sql`${section.cmsEntryId} is not null or ${section.videoUrl} is not null`),
+  ],
 );
 
 // 1:1 com lessons — lessonId é a própria PK, upsert em configure-lesson-requirements.
