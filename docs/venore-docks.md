@@ -88,6 +88,8 @@ Regras do contrato de slot:
 - Nenhum componente do tema usa valor hardcoded — só as variáveis do contrato de design tokens acima.
 - O arranjo espacial entre Content e SidebarLeft (lado a lado, sidebar à esquerda do conteúdo) é responsabilidade da composição da shell (`platform/`), não do tema; o tema só estiliza dentro da área que recebe.
 
+**Exceção deliberada — dark/light toggle**: desde `themeContractVersion` `3.0.0`, o color mode não é mais resolvido pelo core e passado como prop (`isDark`/`onToggleColorMode` foram removidos de `HeaderSlotProps`). O tema lê e altera o tema via `useTheme()` do `next-themes` diretamente (`src/components/color-mode-toggle.tsx`). Isso é a única exceção conhecida a "o tema nunca busca dado sozinho" — decisão explícita do usuário (2026-07-28), ao reinstalar os primitivos shadcn stock: o `sonner` stock exige `next-themes`, e sincronizar esse hook com o cookie anterior (`platform/ui-preferences`, já removido) criaria dois mecanismos de tema concorrentes. Trade-off deliberado, não um desvio silencioso — ver o comentário completo em `src/contexts/themes/contracts/contract-version.ts`.
+
 
 
 ## Stack inicial

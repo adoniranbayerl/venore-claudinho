@@ -1,19 +1,29 @@
-// Mesmo padrão do toggle de nav-mode (SidebarLeftSlot): form com Server Action, sem estado
-// client nem localStorage — isDark já vem resolvido do cookie via platform/ui-preferences.
-export function ColorModeToggle({
-  isDark,
-  onToggleColorMode,
-  className,
-}: {
-  isDark: boolean;
-  onToggleColorMode: () => Promise<void>;
-  className?: string;
-}) {
+"use client";
+
+import { useSyncExternalStore } from "react";
+import { useTheme } from "next-themes";
+
+const subscribeNever = () => () => {};
+
+// Autocontido via next-themes — o próprio next-themes é a fonte de estado do color mode agora
+// (docs/venore-docks.md — "Contrato de slot": exceção deliberada ao princípio "tema nunca lê
+// estado sozinho", decisão do usuário registrada em contexts/themes/contracts/contract-version.ts).
+// useSyncExternalStore (não useState+useEffect) pra saber se já montou no client: servidor não
+// sabe o tema resolvido, e a regra react-hooks/set-state-in-effect proíbe setState síncrono
+// dentro de effect.
+export function ColorModeToggle({ className }: { className?: string }) {
+  const { resolvedTheme, setTheme } = useTheme();
+  const mounted = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
+
+  const isDark = mounted && resolvedTheme === "dark";
+
   return (
-    <form action={onToggleColorMode}>
-      <button type="submit" className={className}>
-        {isDark ? "Modo claro" : "Modo escuro"}
-      </button>
-    </form>
+    <button type="button" className={className} onClick={() => setTheme(isDark ? "light" : "dark")}>
+      {isDark ? "Modo claro" : "Modo escuro"}
+    </button>
   );
 }

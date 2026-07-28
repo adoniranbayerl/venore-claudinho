@@ -41,10 +41,6 @@ export type HeaderSlotProps = {
   user: HeaderUserInfo | null;
   canAccessAdmin: boolean;
   onSignOut: () => Promise<void>;
-  // Preferência de color mode (platform/ui-preferences), lida do cookie no servidor e repassada
-  // pro slot — mesmo princípio de user/canAccessAdmin/onSignOut: o tema nunca lê cookie sozinho.
-  isDark: boolean;
-  onToggleColorMode: () => Promise<void>;
 };
 
 export type FooterSlotProps = {

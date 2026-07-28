@@ -15,8 +15,6 @@ export function HeaderSlot({
   user,
   canAccessAdmin,
   onSignOut,
-  isDark,
-  onToggleColorMode,
 }: HeaderSlotProps) {
   const { isScrolled } = scrollState;
 
@@ -69,8 +67,6 @@ export function HeaderSlot({
             canAccessAdmin={canAccessAdmin}
             onSignOut={onSignOut}
             isScrolled={isScrolled}
-            isDark={isDark}
-            onToggleColorMode={onToggleColorMode}
           />
         ) : (
           <Link

@@ -1,28 +1,49 @@
-"use client";
+"use client"
 
-import { Toaster as SonnerToaster, type ToasterProps } from "sonner";
+import { useTheme } from "next-themes"
+import { Toaster as Sonner, type ToasterProps } from "sonner"
+import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
-function Toaster(props: ToasterProps) {
+const Toaster = ({ ...props }: ToasterProps) => {
+  const { theme = "system" } = useTheme()
+
   return (
-    <SonnerToaster
+    <Sonner
+      theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      icons={{
+        success: (
+          <CircleCheckIcon className="size-4" />
+        ),
+        info: (
+          <InfoIcon className="size-4" />
+        ),
+        warning: (
+          <TriangleAlertIcon className="size-4" />
+        ),
+        error: (
+          <OctagonXIcon className="size-4" />
+        ),
+        loading: (
+          <Loader2Icon className="size-4 animate-spin" />
+        ),
+      }}
+      style={
+        {
+          "--normal-bg": "var(--popover)",
+          "--normal-text": "var(--popover-foreground)",
+          "--normal-border": "var(--border)",
+          "--border-radius": "var(--radius)",
+        } as React.CSSProperties
+      }
       toastOptions={{
-        unstyled: true,
         classNames: {
-          toast:
-            "flex w-full items-center gap-3 rounded-panel border border-border bg-card px-4 py-3 text-sm text-foreground shadow-float",
-          title: "font-medium",
-          description: "text-muted-foreground",
-          actionButton: "rounded-xl bg-primary px-2 py-1 text-xs font-medium text-primary-foreground",
-          cancelButton: "rounded-xl bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground",
-          closeButton: "border-border bg-muted text-muted-foreground",
-          success: "!border-primary !bg-primary !text-primary-foreground",
-          error: "!border-destructive !bg-destructive !text-destructive-foreground",
+          toast: "cn-toast",
         },
       }}
       {...props}
     />
-  );
+  )
 }
 
-export { Toaster };
+export { Toaster }

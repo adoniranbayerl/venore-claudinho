@@ -1,18 +1,31 @@
-import { cn } from "@/lib/utils";
+"use client"
 
-function Progress({ value, className }: { value: number; className?: string }) {
-  const clamped = Math.min(100, Math.max(0, value));
+import * as React from "react"
+import { Progress as ProgressPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+function Progress({
+  className,
+  value,
+  ...props
+}: React.ComponentProps<typeof ProgressPrimitive.Root>) {
   return (
-    <div
-      role="progressbar"
-      aria-valuenow={clamped}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      className={cn("h-1.5 w-full overflow-hidden rounded-xl bg-popover", className)}
+    <ProgressPrimitive.Root
+      data-slot="progress"
+      className={cn(
+        "relative flex h-1 w-full items-center overflow-x-hidden rounded-full bg-muted",
+        className
+      )}
+      {...props}
     >
-      <div className="h-full rounded-xl bg-primary transition-[width]" style={{ width: `${clamped}%` }} />
-    </div>
-  );
+      <ProgressPrimitive.Indicator
+        data-slot="progress-indicator"
+        className="size-full flex-1 bg-primary transition-all"
+        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+      />
+    </ProgressPrimitive.Root>
+  )
 }
 
-export { Progress };
+export { Progress }

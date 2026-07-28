@@ -12,6 +12,12 @@
    uma linha nova aqui, no mesmo espírito do registro estático em src/themes/registry.ts. */
 @import "../themes/venore-slime/theme.css";
 
+/* tw-animate-css: os primitivos stock (dialog, select) usam animate-in/fade-in-0/zoom-in-95/
+   slide-in-from-* — sem esse import essas classes não geram CSS nenhum (ficam inertes) e os
+   overlays abrem/fecham sem transição. Não é token/valor nosso, é infraestrutura que a classe
+   exige pra existir; não modifica cor nem forma de nada. */
+@import "tw-animate-css";
+
 @custom-variant dark (&:is(.dark *));
 
 /* Venore Slime — tema único embutido no código: padrão e fallback ao mesmo tempo
@@ -174,6 +180,13 @@
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) * 2);
   --radius-xl: calc(var(--radius) * 3);
+  /* 2xl/3xl/4xl — continuação da progressão acima (sm=0.5x, md=1x, lg=2x, xl=3x), não os
+     multiplicadores que o registry stock shadcn (preset Nova) propõe: aqueles foram calculados
+     em cima do --radius default dele (0.625rem) e, aplicados ao nosso --radius (0.2rem), ficam
+     menores que o nosso próprio xl — quebra a escala. badge.tsx stock usa rounded-4xl. */
+  --radius-2xl: calc(var(--radius) * 4);
+  --radius-3xl: calc(var(--radius) * 5);
+  --radius-4xl: calc(var(--radius) * 6);
   --radius-shell: var(--radius-shell);
   --radius-panel: var(--radius-panel);
 
@@ -286,11 +299,42 @@
   padding: var(--ui-panel-padding-y) var(--ui-panel-padding-x);
 }
 
+/* Tailwind v4 não tem mais cor de borda default (bare `border`/`border-t`/`border-b` caem em
+   currentColor) — reset padrão do próprio shadcn, aqui usando só o nosso --border, sem valor
+   novo. Sem isso, table.tsx/dialog.tsx (bordas sem sufixo de cor) herdam a cor do texto. */
+* {
+  border-color: var(--color-border);
+}
+
 body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Charm dos primitivos shadcn stock, via seletor de atributo sobre data-slot — não editamos
+   ui/ diretamente, então isto sobrevive a uma reinstalação (docs — reinstalação de primitivos
+   shadcn). Só troca a curva/duração da transição pelo vocabulário --ui-motion-* e --ui-ease-*
+   já usado no resto da interface; não inventa efeito novo. Botão já tem feedback físico de
+   pressionar embutido no stock (active:not-aria-[haspopup]:translate-y-px, respeita :disabled
+   via disabled:pointer-events-none) — não duplicado aqui.
+
+   @layer utilities, não components: os próprios primitivos stock usam transition-all/
+   transition-colors (que já fixam transition-duration/transition-timing-function), e essas
+   classes vivem na layer utilities do Tailwind v4 — utilities tem prioridade maior que
+   components na cascata (@layer theme, base, components, utilities), então uma regra em
+   components perderia a queda de braço nessas propriedades independente de especificidade.
+   Confirmado com build real (.next) antes de fechar isto. */
+@layer utilities {
+  [data-slot="button"],
+  [data-slot="input"],
+  [data-slot="textarea"],
+  [data-slot="select-trigger"],
+  [data-slot="tabs-trigger"] {
+    transition-duration: var(--ui-motion-base);
+    transition-timing-function: var(--ui-ease-standard);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
