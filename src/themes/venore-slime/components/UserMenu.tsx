@@ -28,8 +28,10 @@ export function UserMenu({ user, canAccessAdmin, onSignOut, isScrolled, isDark, 
     <details className="group relative">
       <summary
         className={
-          "flex cursor-pointer list-none items-center gap-2 rounded-control px-1.5 py-1 [&::-webkit-details-marker]:hidden " +
-          (isScrolled ? "hover:bg-primary-foreground/10" : "hover:bg-accent-soft")
+          "flex cursor-pointer list-none items-center gap-2 rounded-control px-1.5 py-1 ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden " +
+          (isScrolled
+            ? "hover:bg-primary-foreground/10 active:bg-primary-foreground/10"
+            : "hover:bg-accent-soft active:bg-accent-soft")
         }
       >
         <Avatar>
@@ -49,13 +51,13 @@ export function UserMenu({ user, canAccessAdmin, onSignOut, isScrolled, isDark, 
           <ColorModeToggle
             isDark={isDark}
             onToggleColorMode={onToggleColorMode}
-            className="w-full rounded-control px-2 py-1.5 text-left text-sm text-text-secondary transition-colors hover:bg-accent-soft hover:text-text-primary"
+            className="w-full rounded-control px-2 py-1.5 text-left text-sm text-text-secondary ui-motion-base outline-none hover:bg-accent-soft hover:text-text-primary active:bg-accent-soft active:text-text-primary focus-visible:ring-2 focus-visible:ring-ring"
           />
 
           {canAccessAdmin ? (
             <Link
               href="/admin"
-              className="rounded-control px-2 py-1.5 text-sm text-text-secondary transition-colors hover:bg-accent-soft hover:text-text-primary"
+              className="rounded-control px-2 py-1.5 text-sm text-text-secondary ui-motion-base outline-none hover:bg-accent-soft hover:text-text-primary active:bg-accent-soft active:text-text-primary focus-visible:ring-2 focus-visible:ring-ring"
             >
               Administração
             </Link>
@@ -67,7 +69,7 @@ export function UserMenu({ user, canAccessAdmin, onSignOut, isScrolled, isDark, 
         <form action={onSignOut} className="border-t border-border-subtle pt-2">
           <button
             type="submit"
-            className="w-full rounded-control px-2 py-1.5 text-left text-sm font-medium text-text-secondary transition-colors hover:bg-accent-soft hover:text-text-primary"
+            className="w-full rounded-control px-2 py-1.5 text-left text-sm font-medium text-text-secondary ui-motion-base outline-none hover:bg-accent-soft hover:text-text-primary active:bg-accent-soft active:text-text-primary focus-visible:ring-2 focus-visible:ring-ring"
           >
             Sair
           </button>

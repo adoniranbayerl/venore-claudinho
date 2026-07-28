@@ -14,6 +14,34 @@
   --ui-radius-control: 0.5rem;
   --ui-tracking-caps: 0.22em;
 
+  /* motion — vocabulário único de transição, consumido via ui-motion-base / ui-motion-emphasis */
+  --ui-motion-fast: 120ms;
+  --ui-motion-base: 200ms;
+  --ui-motion-slow: 300ms;
+  --ui-ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --ui-ease-emphasis: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* tipografia */
+  --ui-font-weight-body: 400;
+  --ui-font-weight-medium: 500;
+  --ui-font-weight-semibold: 600;
+  --ui-font-weight-display: 700;
+  --ui-leading-copy: 1.5;
+  --ui-leading-display: 1.15;
+  --ui-tracking-copy: 0em;
+  --ui-tracking-display: -0.01em;
+
+  /* controles — altura única pra button/input/select/tabs, resolve desalinhamento de formulário */
+  --ui-control-height-xs: 1.75rem;
+  --ui-control-height-sm: 2.25rem;
+  --ui-control-height-md: 2.5rem;
+  --ui-control-height-lg: 2.75rem;
+  --ui-control-padding-x: 1rem;
+
+  /* painéis */
+  --ui-panel-padding-x: 1.5rem;
+  --ui-panel-padding-y: 1.5rem;
+
   /* base shadcn */
   --background: oklch(0.972 0.011 154);
   --foreground: oklch(0.235 0.026 176);
@@ -278,6 +306,13 @@
   --radius-control: var(--ui-radius-control);
 
   --tracking-caps: var(--ui-tracking-caps);
+  --tracking-copy: var(--ui-tracking-copy);
+  --tracking-display: var(--ui-tracking-display);
+
+  --font-weight-normal: var(--ui-font-weight-body);
+  --font-weight-medium: var(--ui-font-weight-medium);
+  --font-weight-semibold: var(--ui-font-weight-semibold);
+  --font-weight-bold: var(--ui-font-weight-display);
 
   --shadow-panel: var(--shadow-panel);
   --shadow-float: var(--shadow-float);
@@ -287,8 +322,112 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* ui-button-* / ui-icon-button-* — escala única de altura/padding pra button, input, select e
+   tabs (docs/venore-docks.md — Parte 2 da tarefa de movimento/escala). Motion e foco continuam
+   como classes Tailwind soltas ao lado, não embutidas aqui. */
+@utility ui-button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  border-radius: var(--radius-control);
+  font-weight: var(--ui-font-weight-medium);
+}
+
+@utility ui-button-xs {
+  height: var(--ui-control-height-xs);
+  padding-inline: calc(var(--ui-control-padding-x) * 0.5);
+}
+
+@utility ui-button-sm {
+  height: var(--ui-control-height-sm);
+  padding-inline: calc(var(--ui-control-padding-x) * 0.75);
+}
+
+@utility ui-button-md {
+  height: var(--ui-control-height-md);
+  padding-inline: var(--ui-control-padding-x);
+}
+
+@utility ui-button-lg {
+  height: var(--ui-control-height-lg);
+  padding-inline: calc(var(--ui-control-padding-x) * 2);
+}
+
+@utility ui-icon-button-xs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--ui-control-height-xs);
+  height: var(--ui-control-height-xs);
+  border-radius: var(--radius-control);
+}
+
+@utility ui-icon-button-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--ui-control-height-sm);
+  height: var(--ui-control-height-sm);
+  border-radius: var(--radius-control);
+}
+
+@utility ui-icon-button-md {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--ui-control-height-md);
+  height: var(--ui-control-height-md);
+  border-radius: var(--radius-control);
+}
+
+@utility ui-icon-button-lg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--ui-control-height-lg);
+  height: var(--ui-control-height-lg);
+  border-radius: var(--radius-control);
+}
+
+/* ui-motion-base / ui-motion-emphasis — vocabulário único de transição (Parte 3.2). base cobre
+   feedback simples de hover/estado; emphasis cobre entradas/saídas de overlay e o encolhimento
+   do header, que também animam transform/height. */
+@utility ui-motion-base {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: var(--ui-motion-base);
+  transition-timing-function: var(--ui-ease-standard);
+}
+
+@utility ui-motion-emphasis {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform, height;
+  transition-duration: var(--ui-motion-slow);
+  transition-timing-function: var(--ui-ease-emphasis);
+}
+
+@utility ui-panel-padding-roomy {
+  padding: var(--ui-panel-padding-y) var(--ui-panel-padding-x);
+}
+
 body {
   background: var(--color-surface-base);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }

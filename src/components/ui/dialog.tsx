@@ -43,13 +43,13 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-panel border border-border-subtle bg-surface-panel p-6 text-text-primary shadow-float duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-panel border border-border-subtle bg-surface-panel ui-panel-padding-roomy text-text-primary shadow-float duration-(--ui-motion-slow) data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
           className,
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute top-4 right-4 rounded-control text-text-secondary opacity-70 outline-none transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none">
+        <DialogPrimitive.Close className="absolute top-4 right-4 rounded-control text-text-secondary opacity-70 outline-none ui-motion-base hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none">
           <XIcon className="size-4" />
           <span className="sr-only">Fechar</span>
         </DialogPrimitive.Close>

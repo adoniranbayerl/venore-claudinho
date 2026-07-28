@@ -28,10 +28,10 @@ export function SidebarLeftSlot({ enabled, navMode, navItems, canToggleAdminNav,
             key={item.key}
             href={item.href}
             className={
-              "group flex min-h-11 items-center gap-3 border-l-2 border-transparent px-3 py-2 text-sm font-medium text-text-secondary transition-colors " +
+              "group flex min-h-11 items-center gap-3 border-l-2 border-transparent px-3 py-2 text-sm font-medium text-text-secondary ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring " +
               (isAdmin
-                ? "hover:border-border-strong hover:bg-surface-elevated hover:text-text-primary"
-                : "hover:border-border-subtle hover:bg-accent-soft hover:text-text-accent")
+                ? "hover:border-border-strong hover:bg-surface-elevated hover:text-text-primary active:border-border-strong active:bg-surface-elevated active:text-text-primary"
+                : "hover:border-border-subtle hover:bg-accent-soft hover:text-text-accent active:border-border-subtle active:bg-accent-soft active:text-text-accent")
             }
           >
             {item.label}
@@ -44,7 +44,7 @@ export function SidebarLeftSlot({ enabled, navMode, navItems, canToggleAdminNav,
         <form action={onToggleNavMode} className="mt-auto">
           <button
             type="submit"
-            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-border-subtle bg-surface-elevated px-3 py-2 text-xs font-semibold uppercase tracking-caps text-text-primary shadow-float transition-colors hover:border-border-strong"
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-border-subtle bg-surface-elevated px-3 py-2 text-xs font-semibold uppercase tracking-caps text-text-primary shadow-float ui-motion-base outline-none hover:border-border-strong active:border-border-strong focus-visible:ring-2 focus-visible:ring-ring"
           >
             {isAdmin ? "Sair do admin" : "Área administrativa"}
           </button>

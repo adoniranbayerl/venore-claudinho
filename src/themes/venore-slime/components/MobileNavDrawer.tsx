@@ -21,6 +21,27 @@ export function MobileNavDrawer({ children, asideClassName }: { children: ReactN
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [isOpen]);
 
+  // Trava o scroll do body enquanto o drawer está aberto, sem salto de posição: em vez de só
+  // overflow:hidden (que ainda permite rubber-band scroll no iOS Safari), fixa o body na
+  // posição atual e restaura o scroll exato ao fechar.
+  useEffect(() => {
+    if (!isOpen) return;
+    const scrollY = window.scrollY;
+    const { body } = document;
+    const previousPosition = body.style.position;
+    const previousTop = body.style.top;
+    const previousWidth = body.style.width;
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.width = "100%";
+    return () => {
+      body.style.position = previousPosition;
+      body.style.top = previousTop;
+      body.style.width = previousWidth;
+      window.scrollTo(0, scrollY);
+    };
+  }, [isOpen]);
+
   return (
     <>
       {isOpen && (
@@ -33,12 +54,12 @@ export function MobileNavDrawer({ children, asideClassName }: { children: ReactN
       )}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 max-w-[85vw] transition-transform duration-200 ease-out",
+          "fixed inset-y-0 left-0 z-50 w-64 max-w-[85vw] ui-motion-emphasis",
           "lg:static lg:z-auto lg:w-auto lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:transition-none",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <aside className={asideClassName}>{children}</aside>
+        <aside className={cn(asideClassName, "overscroll-contain")}>{children}</aside>
       </div>
     </>
   );

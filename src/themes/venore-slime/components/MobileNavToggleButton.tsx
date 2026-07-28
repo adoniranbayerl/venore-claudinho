@@ -16,8 +16,10 @@ export function MobileNavToggleButton({ isScrolled }: { isScrolled: boolean }) {
       aria-label={isOpen ? "Fechar navegação" : "Abrir navegação"}
       aria-expanded={isOpen}
       className={cn(
-        "flex h-11 w-11 shrink-0 items-center justify-center rounded-control transition-colors lg:hidden",
-        isScrolled ? "hover:bg-primary-foreground/10" : "hover:bg-accent-soft",
+        "ui-icon-button-lg ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden",
+        isScrolled
+          ? "hover:bg-primary-foreground/10 active:bg-primary-foreground/10"
+          : "hover:bg-accent-soft active:bg-accent-soft",
       )}
     >
       {isOpen ? <X className="size-5" /> : <Menu className="size-5" />}

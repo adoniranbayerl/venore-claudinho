@@ -24,7 +24,7 @@ export function HeaderSlot({
     <header
       data-scrolled={isScrolled}
       className={
-        "sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b px-4 transition-[height,background-color,color,border-color,box-shadow] duration-300 sm:px-6 " +
+        "sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b px-4 ui-motion-emphasis sm:px-6 " +
         (isScrolled
           ? "border-primary bg-primary text-primary-foreground shadow-header"
           : "border-header-border-subtle bg-surface-panel text-text-primary md:h-24 lg:h-28")
@@ -50,8 +50,10 @@ export function HeaderSlot({
               key={item.key}
               href={item.href}
               className={
-                "rounded-control px-3 py-1.5 text-xs font-medium uppercase tracking-caps transition-colors " +
-                (isScrolled ? "hover:bg-primary-foreground/10" : "text-text-secondary hover:bg-accent-soft hover:text-text-primary")
+                "rounded-control px-3 py-1.5 text-xs font-medium uppercase tracking-caps ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                (isScrolled
+                  ? "hover:bg-primary-foreground/10 active:bg-primary-foreground/10"
+                  : "text-text-secondary hover:bg-accent-soft hover:text-text-primary active:bg-accent-soft active:text-text-primary")
               }
             >
               {item.label}
@@ -74,8 +76,10 @@ export function HeaderSlot({
           <Link
             href="/login"
             className={
-              "rounded-control px-3 py-1.5 text-xs font-medium uppercase tracking-caps transition-colors " +
-              (isScrolled ? "hover:bg-primary-foreground/10" : "text-text-secondary hover:bg-accent-soft hover:text-text-primary")
+              "rounded-control px-3 py-1.5 text-xs font-medium uppercase tracking-caps ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+              (isScrolled
+                ? "hover:bg-primary-foreground/10 active:bg-primary-foreground/10"
+                : "text-text-secondary hover:bg-accent-soft hover:text-text-primary active:bg-accent-soft active:text-text-primary")
             }
           >
             Entrar

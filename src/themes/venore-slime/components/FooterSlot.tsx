@@ -15,7 +15,11 @@ export function FooterSlot({ brand, sitemapItems, creditsEnabled }: FooterSlotPr
           <p className="text-[11px] font-semibold uppercase tracking-caps text-text-muted">Sitemap</p>
           <nav className="mt-3 grid gap-x-10 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {sitemapItems.map((item) => (
-              <a key={item.key} href={item.href} className="block text-sm text-text-secondary transition-colors hover:text-text-accent">
+              <a
+                key={item.key}
+                href={item.href}
+                className="block rounded-control text-sm text-text-secondary ui-motion-base outline-none hover:text-text-accent active:text-text-accent focus-visible:ring-2 focus-visible:ring-ring"
+              >
                 {item.label}
               </a>
             ))}
