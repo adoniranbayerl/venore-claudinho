@@ -208,7 +208,14 @@ export default async function AcademyLessonPage({
         <section>
           <h2 className="text-sm font-semibold">Quiz</h2>
           {lesson.requirements.quizPassed ? (
-            <p className="mt-2 text-sm text-text-secondary">Você já passou neste quiz.</p>
+            <div className="mt-2 space-y-0.5">
+              <p className="text-sm text-text-secondary">Você já passou neste quiz.</p>
+              {lesson.requirements.quizBestGrade !== null && (
+                <p className="text-xs text-text-tertiary">
+                  Nota: {lesson.requirements.quizBestGrade.toFixed(1)} ({lesson.requirements.quizBestScore}% de acerto)
+                </p>
+              )}
+            </div>
           ) : !quizResult.success ? (
             <p className="mt-2 text-sm text-destructive">Erro ao carregar o quiz: {quizResult.error.message}</p>
           ) : (

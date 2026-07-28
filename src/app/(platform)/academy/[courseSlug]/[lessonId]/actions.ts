@@ -41,7 +41,7 @@ export async function markVideoWatchedAction(
 
 export type QuizActionState = {
   error: string | null;
-  result: { attemptNumber: number; score: number; passed: boolean; attemptsRemaining: number } | null;
+  result: { attemptNumber: number; score: number; grade: number; passed: boolean; attemptsRemaining: number } | null;
 };
 
 export async function submitQuizAction(_prevState: QuizActionState, formData: FormData): Promise<QuizActionState> {

@@ -20,6 +20,8 @@ export type LessonProgressView = {
     quizAttemptsUsed: number;
     quizMaxAttempts: number | null;
     quizBestScore: number | null;
+    // Nota de 0 a 10 derivada de quizBestScore (deriveQuizGrade), só para exibição no histórico do aluno.
+    quizBestGrade: number | null;
   };
 };
 

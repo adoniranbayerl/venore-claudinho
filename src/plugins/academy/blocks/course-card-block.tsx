@@ -3,6 +3,7 @@ import type { Block } from "@/contexts/cms";
 import { getCourseForStudentHandler as getCourseForStudent } from "../features/courses/get-course-for-student/handler";
 import { getCourseProgressHandler as getCourseProgress } from "../features/progress/get-course-progress/handler";
 import { isEnrolledHandler as isEnrolled } from "../features/enrollments/is-enrolled/handler";
+import { calculateProgressPercent } from "../shared/progress-percent";
 import { Progress } from "@/components/ui/progress";
 import type { BlockRendererProps } from "@/platform/page-builder/block-renderers";
 
@@ -30,7 +31,7 @@ export async function AcademyCourseCardBlock({ block }: BlockRendererProps) {
   if (enrolled) {
     const progress = await getCourseProgress({ courseId: course.id });
     if (progress.success && progress.data.totalLessons > 0) {
-      percent = Math.round((progress.data.completedLessons / progress.data.totalLessons) * 100);
+      percent = calculateProgressPercent(progress.data.completedLessons, progress.data.totalLessons);
     }
   }
 

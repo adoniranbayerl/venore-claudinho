@@ -155,6 +155,7 @@ describe("getCourseProgress", () => {
       quizPassed: true,
       quizAttemptsUsed: 1,
       quizBestScore: 80,
+      quizBestGrade: 8,
     });
   });
 });

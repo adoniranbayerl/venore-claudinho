@@ -61,6 +61,12 @@ export { StudentCourseCard } from "./components/student-course-card";
 export { CourseCover } from "./components/course-cover";
 export { LessonTrail, type LessonTrailItem } from "./components/lesson-trail";
 
+// Funções puras de exibição — única fonte de arredondamento pra percentual de progresso e nota
+// de quiz, usadas tanto por páginas de app (via este barrel) quanto pelos blocks do plugin (via
+// import relativo, já que blocks/ não pode importar deste index.ts sem criar ciclo).
+export { calculateProgressPercent } from "./shared/progress-percent";
+export { deriveQuizGrade } from "./shared/quiz-grade";
+
 export type {
   CourseRecord,
   CourseStatus,

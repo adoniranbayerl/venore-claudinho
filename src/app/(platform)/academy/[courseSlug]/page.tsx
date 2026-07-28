@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Lock } from "lucide-react";
 import { getEntry } from "@/contexts/cms";
-import { getCourseProgress, listLessonsByCourse } from "@/plugins/academy";
+import { calculateProgressPercent, getCourseProgress, listLessonsByCourse } from "@/plugins/academy";
 import { getAcademyCourseAccess } from "@/platform/academy-student/get-academy-course-access";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
+import { Progress } from "@/components/ui/progress";
 import { EnrollSelfButton } from "./_components/enroll-self-button";
 
 export const dynamic = "force-dynamic";
@@ -128,6 +129,8 @@ export default async function AcademyCoursePage({
     }),
   );
 
+  const progressPercent = calculateProgressPercent(progress.completedLessons, progress.totalLessons);
+
   return (
     <div className="space-y-6">
       {blocked && (
@@ -136,6 +139,22 @@ export default async function AcademyCoursePage({
         </p>
       )}
       {header}
+
+      {progress.totalLessons > 0 && (
+        <div className="space-y-1.5 rounded-panel border border-border-subtle bg-surface-panel p-4">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-text-secondary">
+              {progress.completedLessons} de {progress.totalLessons}{" "}
+              {progress.totalLessons === 1 ? "aula concluída" : "aulas concluídas"}
+            </span>
+            <span className="text-text-tertiary">{progressPercent}%</span>
+          </div>
+          <Progress value={progressPercent} />
+          {progress.completedLessons === 0 && (
+            <p className="text-xs text-text-tertiary">Você ainda não começou este curso.</p>
+          )}
+        </div>
+      )}
 
       <section>
         <h2 className="text-[11px] font-semibold tracking-caps text-text-tertiary uppercase">Aulas</h2>

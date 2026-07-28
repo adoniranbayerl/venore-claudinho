@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCourseProgressHandler as getCourseProgress } from "../features/progress/get-course-progress/handler";
 import { listCoursesForStudentHandler as listCoursesForStudent } from "../features/courses/list-courses-for-student/handler";
 import type { CourseForStudentView } from "../features/courses/list-courses-for-student/types";
+import { calculateProgressPercent } from "../shared/progress-percent";
 import { Progress } from "@/components/ui/progress";
 import type { BlockRendererProps } from "@/platform/page-builder/block-renderers";
 
@@ -16,7 +17,7 @@ async function withProgress(course: CourseForStudentView): Promise<{ course: Cou
   if (!progress.success || progress.data.totalLessons === 0) {
     return { course, percent: null };
   }
-  return { course, percent: Math.round((progress.data.completedLessons / progress.data.totalLessons) * 100) };
+  return { course, percent: calculateProgressPercent(progress.data.completedLessons, progress.data.totalLessons) };
 }
 
 export async function AcademyCourseListBlock({ block }: BlockRendererProps) {

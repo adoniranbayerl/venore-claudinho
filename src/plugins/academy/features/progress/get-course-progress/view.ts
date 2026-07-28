@@ -1,4 +1,5 @@
 import type { LessonRecord, LessonRequirementsRecord, QuizAttemptRecord } from "../../../contracts/types";
+import { deriveQuizGrade } from "../../../shared/quiz-grade";
 import type { LessonProgressView } from "./types";
 
 export function toLessonProgressView(input: {
@@ -12,6 +13,7 @@ export function toLessonProgressView(input: {
 }): LessonProgressView {
   const { lesson, locked, completed, requirements, textRead, videoWatched, quizAttempts } = input;
   const bestScore = quizAttempts.length > 0 ? Math.max(...quizAttempts.map((a) => a.score)) : null;
+  const bestGrade = bestScore !== null ? deriveQuizGrade(bestScore) : null;
 
   return {
     lessonId: lesson.id,
@@ -30,6 +32,7 @@ export function toLessonProgressView(input: {
       quizAttemptsUsed: quizAttempts.length,
       quizMaxAttempts: requirements?.quizMaxAttempts ?? null,
       quizBestScore: bestScore,
+      quizBestGrade: bestGrade,
     },
   };
 }

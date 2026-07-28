@@ -2,6 +2,7 @@ import { beginOperation, endOperation } from "@/observability";
 import { isEnrolled } from "../../../shared/enrollment";
 import { findLessonRequirements, isLessonAccessible } from "../../../shared/lesson-progress";
 import { countActiveAttempts } from "../../../shared/quiz-attempts";
+import { deriveQuizGrade } from "../../../shared/quiz-grade";
 import { findLessonById, findQuestionsByLesson, insertAttempt } from "./store";
 import type { SubmitQuizAttemptCommand, SubmitQuizAttemptResult } from "./types";
 
@@ -88,6 +89,6 @@ export async function submitQuizAttempt(command: SubmitQuizAttemptCommand): Prom
   endOperation(handle, { success: true });
   return {
     success: true,
-    data: { attemptNumber, score, passed, attemptsRemaining: quizMaxAttempts - attemptNumber },
+    data: { attemptNumber, score, grade: deriveQuizGrade(score), passed, attemptsRemaining: quizMaxAttempts - attemptNumber },
   };
 }

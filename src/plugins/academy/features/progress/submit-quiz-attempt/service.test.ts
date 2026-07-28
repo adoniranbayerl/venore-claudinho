@@ -115,7 +115,10 @@ describe("submitQuizAttempt", () => {
       actorId: "actor-1",
     });
 
-    expect(result).toEqual({ success: true, data: { attemptNumber: 1, score: 50, passed: false, attemptsRemaining: 1 } });
+    expect(result).toEqual({
+      success: true,
+      data: { attemptNumber: 1, score: 50, grade: 5, passed: false, attemptsRemaining: 1 },
+    });
   });
 
   it("passes exactly at the configured threshold", async () => {
@@ -129,7 +132,10 @@ describe("submitQuizAttempt", () => {
       actorId: "actor-1",
     });
 
-    expect(result).toEqual({ success: true, data: { attemptNumber: 1, score: 100, passed: true, attemptsRemaining: 1 } });
+    expect(result).toEqual({
+      success: true,
+      data: { attemptNumber: 1, score: 100, grade: 10, passed: true, attemptsRemaining: 1 },
+    });
   });
 
   it("blocks a new attempt once quizMaxAttempts is exhausted, without inserting", async () => {
@@ -184,7 +190,10 @@ describe("submitQuizAttempt", () => {
       ],
       actorId: "actor-1",
     });
-    expect(retried).toEqual({ success: true, data: { attemptNumber: 1, score: 100, passed: true, attemptsRemaining: 1 } });
+    expect(retried).toEqual({
+      success: true,
+      data: { attemptNumber: 1, score: 100, grade: 10, passed: true, attemptsRemaining: 1 },
+    });
     expect(insertAttempt).toHaveBeenCalledTimes(1);
   });
 

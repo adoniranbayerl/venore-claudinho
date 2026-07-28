@@ -59,11 +59,15 @@ export function QuizForm({
       </Button>
 
       {state.result && (
-        <p className="text-sm">
-          {state.result.passed
-            ? `Você passou! Nota: ${state.result.score}.`
-            : `Você não passou. Nota: ${state.result.score}. Tentativas restantes: ${state.result.attemptsRemaining}.`}
-        </p>
+        <div className="space-y-0.5">
+          <p className="text-base font-semibold">Nota: {state.result.grade.toFixed(1)}</p>
+          <p className="text-xs text-text-tertiary">{state.result.score}% de acerto</p>
+          <p className="text-sm">
+            {state.result.passed
+              ? "Você passou!"
+              : `Você não passou. Tentativas restantes: ${state.result.attemptsRemaining}.`}
+          </p>
+        </div>
       )}
     </form>
   );

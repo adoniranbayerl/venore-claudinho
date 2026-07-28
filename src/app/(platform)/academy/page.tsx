@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { BookOpen } from "lucide-react";
 import {
   StudentCourseCard,
+  calculateProgressPercent,
   getCourseProgress,
   listCoursesForStudent,
   listLessonsByCourse,
@@ -63,7 +64,7 @@ async function CourseGrid({ courses }: { courses: CourseForStudentView[] }) {
         const progressResult = progresses[index];
         const progressPercent =
           progressResult && progressResult.success && progressResult.data.totalLessons > 0
-            ? Math.round((progressResult.data.completedLessons / progressResult.data.totalLessons) * 100)
+            ? calculateProgressPercent(progressResult.data.completedLessons, progressResult.data.totalLessons)
             : null;
 
         return (
