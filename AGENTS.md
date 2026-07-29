@@ -5,65 +5,276 @@ This version has breaking changes — APIs, conventions, and file structure may 
 <!-- END:nextjs-agent-rules -->
 
 <!-- BEGIN:venore-docks-rules -->
-# Venore Docks — regras de arquitetura
+# AGENTS.md — o que eu, agente, posso e não posso fazer hoje
 
-Documento completo em `docs/venore-docks.md`. Leia antes de decisões estruturais.
+`docs/venore-docks.md` é o documento de arquitetura: responde *por que* o sistema tem essa forma.
+Esta seção é o contraponto operacional: responde *o que fazer* ao escrever código aqui, hoje. Onde
+os dois divergirem, o código real é a fonte da verdade — e a divergência vira uma entrada em
+"Known Gaps" (seção 7), não uma correção silenciosa deste arquivo.
 
-## Camadas por use case
-handler.ts (orquestra, valida, autoriza — chama 1 service) → service.ts (regra de negócio) → store.ts (acesso a dado, sem regra) → view.ts (DTO de saída) → types.ts (tipos e OperationResult)
+## 1. Fluxo de camadas obrigatório
 
-`handler` e `service` sempre retornam:
+Todo use case segue esta cadeia, em arquivos separados mesmo quando pequenos
+(`src/contexts/<nome>/features/<feature>/<use-case>/`):
+
+```
+handler.ts → service.ts → store.ts → view.ts / types.ts
+```
+
+| Camada | Pode | NÃO pode |
+| --- | --- | --- |
+| `handler.ts` | Validar input, chamar `authorizeActor(...)`, chamar **exatamente um** `service` | Acessar banco, conter regra de negócio, chamar `store` diretamente |
+| `service.ts` | Toda a regra de negócio, orquestrar `store`, chamar `service` público (via barrel `index.ts`) de **outro** context | Acessar banco diretamente, importar `store`/`service` interno de outro context, depender de UI/framework |
+| `store.ts` | Único ponto de acesso a dado do use case | Conter regra de negócio, validar, autorizar |
+| `view.ts` | Formatar DTO/presenter de saída | Regra de negócio |
+| `types.ts` | Tipos, comandos, resultados, erros | Lógica |
+
+`handler` e `service` sempre retornam este formato — nunca lançam exception para erro de negócio
+esperado (email duplicado, sem permissão etc.); exception fica reservada a falha de infra/bug:
+
 ```ts
 type OperationResult<T> = { success: true; data: T } | { success: false; error: { code: string; message: string } };
 ```
 
-## Boundary — nunca violar
-- `use case` não importa `use case` de outro `context` diretamente.
-- `plugin` só importa `contexts/<nome>/contracts` e `contexts/<nome>/index.ts` (barrel público). Nunca `store`, `schema`, `database/client`, nem `service` fora do barrel — nem para leitura.
-- `service` pode chamar `service` público de outro `context` via barrel, para compor dado (ex: CMS + RBAC). Sem ciclo entre contexts.
-- Toda regra de boundary acima precisa virar `eslint-plugin-boundaries` ou hook — não confiar só em instrução.
+Exemplo real (`src/contexts/rbac/features/role-assignment/assign-role-to-user/handler.ts`):
+valida input → `authorizeActor("rbac.roles.assign")` → chama o `service` (único) → retorna o
+`OperationResult` dele direto, sem tocar em `store`.
 
-## Testes: unitário vs integração
-- Arquivos `*.test.ts` são unitários e não podem depender de banco real; `npm test` roda só esses (e é o que o job `check` do CI executa).
-- Arquivos `*.integration.test.ts` (ex: `client.integration.test.ts`, os do academy) exigem um Postgres descartável via `TEST_DATABASE_URL` e rodam com `npm run test:integration` — **nunca reaproveitam `DATABASE_URL`**; sem `TEST_DATABASE_URL` definida a suíte falha cedo com mensagem clara em vez de rodar contra o banco de desenvolvimento. Rodam também no CI, num job `integration` separado (service container Postgres), que não substitui o `check`.
-- `vitest.integration.config.ts` aplica as duas árvores de migration (`drizzle/` e `src/plugins/academy/migrations/`) uma vez por suíte via `globalSetup` (`src/test-support/integration/global-setup.ts`), e troca `DATABASE_URL` para `TEST_DATABASE_URL` dentro do processo de teste via `setupFiles` (`setup-env.ts`) — `infrastructure/database/client.ts` continua exatamente igual, só o valor da env var muda, e só para esse processo.
-- **Isolamento entre testes é por `TRUNCATE ... CASCADE`, não transação com rollback.** Vários `store.ts` (ex: `reorder-lessons`, `delete-lesson`) já abrem sua própria `db.transaction()`, pegando uma conexão nova do pool de app — envolver o teste inteiro numa transação externa não commitada não seria visível pra essas conexões internas sem introduzir injeção de dependência só para teste. TRUNCATE evita esse problema e não exige tocar `client.ts`.
-- **Por causa do TRUNCATE, `test.fileParallelism: false`.** Todos os arquivos de teste apontam pro mesmo banco descartável; com arquivos rodando em paralelo (padrão do Vitest), o `beforeEach` de um arquivo trunca tabela que outro arquivo tem em uso no meio de um teste — sintoma observado: `insert or update ... violates foreign key constraint` e asserções de slug/status alternando entre passar e falhar sem mudança de código. `fileParallelism: false` serializa a suíte inteira e resolve, sem precisar de um banco por worker.
-- Helpers de seed ficam em `src/test-support/integration/academy-seed.ts`, fora de `src/contexts/*` e `src/plugins/*` de propósito: `eslint-plugin-boundaries` só classifica elementos por esses dois padrões de pasta, e o seed precisa montar fixtures cross-domínio (ex: uma `cms.entries` publicada, com `author_id` apontando pra um `auth.users` real) — algo que um `plugin` não pode fazer via boundary normal. Como não existe API pública para criar usuário (só nasce via evento do `DrizzleAdapter`, exceção já documentada acima), o insert em `auth.users` é o único acesso cru necessário; todo o resto do seed passa pelas funções `service.ts` reais dos use cases.
-- **`next-auth` é stubado em `vitest.integration.config.ts`** (alias por regex exato, só o especificador `next-auth`, não `next-auth/providers/*`). Motivo: `create-lesson`/`update-lesson`/`publish-course` chamam `getEntry` importado do barrel `@/contexts/cms` — e esse barrel reexporta *todos* os handlers do context num arquivo só, incluindo os que importam `authorizeActor` (`@/contexts/rbac` → `@/contexts/auth` → `auth.config.ts`, que chama `NextAuth({...})` no top-level do módulo). `next-auth` importa `next/server` internamente, um subpath que o `package.json#exports` do Next não declara — só resolve dentro do bundler do próprio Next.js, nunca num processo Node/Vitest puro. O stub (`src/test-support/integration/stubs/next-auth.ts`) só existe pra esse módulo terminar de avaliar; nenhum teste chama `handlers`/`signIn`/`signOut`/`auth` de verdade.
+**Exceções já documentadas e aceitas** (não copiar como padrão para código novo):
+- `DrizzleAdapter` do Auth.js escreve direto em `users`/`accounts`/`sessions` sem passar por
+  `store.ts` — é como o adapter funciona, não deve ser "corrigido".
+- `useTheme()` do `next-themes` é a única exceção a "o tema nunca busca dado sozinho": o
+  color-mode toggle (`src/components/color-mode-toggle.tsx`) lê/altera tema direto no client.
 
-## Vocabulário de cor — migração pra shadcn (concluída)
-`globals.css` declarava dois vocabulários de cor em paralelo: o shadcn (`--color-background`,
-`--color-primary` etc.) e um próprio (`surface-*`, `text-*`, `border-subtle/default/strong`,
-`accent-soft`, `info-*`). O shadcn é o único vocabulário do projeto agora — o próprio foi eliminado
-em duas sessões (sessão 1: `src/themes/**` e `src/components/**`; sessão 2: `src/app/**`,
-`src/plugins/**`, `src/platform/**`, apagar os tokens próprios de `globals.css` e estender o lint).
-Zero ocorrência do vocabulário antigo em `src/`; `eslint.config.mjs` reprova se reintroduzido
-(regra estendida pra `src/plugins/**` e `src/platform/**` além dos três diretórios já cobertos).
+## 2. Padrões proibidos
+
+**`use case` importando `use case` de outro context:**
+```ts
+// ERRADO
+import { publishEntry } from "@/contexts/cms/features/publishing/publish-entry/service";
+```
+```ts
+// CERTO — via barrel público do context
+import { publishEntry } from "@/contexts/cms";
+```
+
+**Plugin/tema/`platform` acessando internals de um context (mesmo só leitura):**
+```ts
+// ERRADO
+import { rolesStore } from "@/contexts/rbac/features/role-management/store";
+import { rbacSchema } from "@/contexts/rbac/database/schema";
+```
+```ts
+// CERTO — só barrel (index.ts) e contracts/
+import { getUserRoles } from "@/contexts/rbac";
+import type { Role } from "@/contexts/rbac/contracts";
+```
+Enforcement: `boundaries/dependencies` em `eslint.config.mjs`, rodando em `npm run lint` (job
+`check` do CI). Cobre `plugin`/`theme`/`platform` → `context-internal`, e também
+`component` (`src/components`) → `plugin`.
+
+**`store.ts` novo abrindo conexão própria:**
+```ts
+// ERRADO
+import { Pool } from "pg";
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+```
+```ts
+// CERTO — client único, escopo de módulo
+import { db } from "@/infrastructure/database/client";
+```
+
+**Cor Tailwind crua ou vocabulário próprio já eliminado:**
+```tsx
+// ERRADO — bloqueado por eslint no-restricted-syntax
+<div className="bg-white text-gray-700 border-red-500" />
+<div className="bg-surface-panel text-text-primary" />
+```
+```tsx
+// CERTO
+<div className="bg-card text-muted-foreground border-destructive" />
+```
+
+**Tema buscando dado sozinho em vez de receber props do slot:**
+```tsx
+// ERRADO
+export function HeaderSlot() {
+  const nav = useContext(NavContext);
+  ...
+}
+```
+```tsx
+// CERTO — só recebe e renderiza (exceção única: useTheme() do color-mode, seção 1)
+export function HeaderSlot({ brand, navItems, canToggleAdminNav }: HeaderSlotProps) { ... }
+```
+
+**Log síncrono por chamada** (era a causa do problema de desempenho do protótipo):
+```ts
+// ERRADO — um INSERT por log
+await db.insert(logsTable).values({ message, level });
+```
+```ts
+// CERTO — acumula em buffer, flush periódico em lote via observability/
+logBuffer.push({ message, level });
+```
+
+## 3. Convenções de CSS / tokens
+
+- Vocabulário de cor único do projeto é o do **shadcn** (`bg-card`, `bg-muted`, `text-foreground`,
+  `text-muted-foreground`, `text-muted-foreground/56`, `border-border`, `border-ring`,
+  `bg-accent/14`, `text-destructive`, `text-warning`, `bg-primary`/`text-primary-foreground`).
+  Cores são declaradas em `oklch(...)` em `src/app/globals.css` (`:root` / `.dark`), nunca
+  hex/rgb novo.
+- O vocabulário próprio anterior (`surface-*`, `text-text-*`, `border-subtle/default/strong`,
+  `accent-soft`, `info-*`) foi eliminado de `src/` e não deve reaparecer — ver a tabela de
+  mapeamento completa logo abaixo se precisar reconstituir um valor antigo.
+- `--warning-*` (`text-warning`/`bg-warning-soft`/`border-warning-border`) é o único token
+  semântico próprio que sobrevive à migração — sem equivalente shadcn, usado em
+  `src/app/(platform)/academy/**`.
+- **Nada de valor hardcoded** de cor/espaçamento/raio em componente de página, tema ou plugin —
+  regra do documento de arquitetura. Só a parte de **cor** tem enforcement mecânico hoje
+  (`no-restricted-syntax` em `eslint.config.mjs`, cobrindo `src/app`, `src/themes`,
+  `src/components`, `src/plugins`, `src/platform`). Raio (`rounded-*`) e espaçamento (`p-*`,
+  `gap-*`) **não têm lint bloqueando valor cru** hoje — tratar como regra manual até existir
+  enforcement (ver Known Gaps).
+- Radius: escala derivada de uma única variável (`--radius: 0.2rem`) via `calc()` em
+  `@theme inline` (`--radius-sm` a `--radius-4xl`), não valores soltos por componente.
+- **`src/components/ui/**` (primitivos shadcn stock) não é editado diretamente.** Customização
+  visual sobre um primitivo vive fora dele (ex: seletor `[data-slot="button"]` em `globals.css`),
+  para sobreviver a uma reinstalação via `shadcn` CLI. Exceção: `border-input` continua correto
+  *dentro* dos primitivos de formulário — é convenção de scaffold do shadcn, não uma tradução
+  pendente de `border-strong`.
+
+### Tabela de migração (referência para valores antigos)
 
 | token próprio | shadcn | observação |
 |---|---|---|
-| `surface-base` / `surface-canvas` | `background` | `surface-canvas` não tinha nenhum uso em `.tsx`. |
+| `surface-base` / `surface-canvas` | `background` | |
 | `surface-panel` | `card` | |
-| `surface-elevated` | `muted` | |
-| `surface-subtle` | `muted` | |
-| `surface-overlay` | `popover` (+ opacidade `/80` quando é scrim de overlay: `Dialog`, `MobileNavDrawer`) | Sem papel "overlay" no shadcn; `--popover` ≠ `--surface-overlay` numericamente — mudança de tom pequena, mas real, decidida com o usuário na sessão 1. Também usado sem `/80` em `src/themes/venore-slime/theme.css` (gradiente de fundo do app, `--header-chip-bg`), onde a sessão 1 tinha deixado a variável CSS antiga em uso direto — corrigido na sessão 2. |
+| `surface-elevated` / `surface-subtle` | `muted` | |
+| `surface-overlay` | `popover` (+ `/80` quando é scrim: `Dialog`, `MobileNavDrawer`) | |
 | `text-primary` | `foreground` | |
-| `text-secondary` | `muted-foreground` | |
-| `text-muted` | `muted-foreground` | mapeamento direto (sem opacidade), aceitando a diferença de fórmula (`text-muted` original misturava com `surface-panel`, não com transparente). |
-| `text-tertiary` | `muted-foreground` + opacidade fixa **`/56`** | Shadcn só tem 2 níveis de texto (`foreground`/`muted-foreground`); este projeto usa 3. `56` replica exatamente a fórmula antiga (`color-mix(text-secondary 56%, transparent)` = `text-muted-foreground/56`, pixel-idêntico). Usar sempre esse valor, nunca outro. |
-| `text-accent` | `primary` | Mudança de tom (não é opacidade de algo, é troca de papel) — decisão explícita do pedido original. Cobre também o link solto de `text-info` em `lesson-video-embed.tsx` (não seguia o padrão de banner dos outros 2 usos de `info-*`; tratado como link comum). |
+| `text-secondary` / `text-muted` | `muted-foreground` | |
+| `text-tertiary` | `muted-foreground` + `/56` fixo | replica `color-mix` antigo, pixel-idêntico |
+| `text-accent` | `primary` | troca de papel, não de opacidade |
 | `border-subtle` | `border` | |
-| `border-default` | `ring` | Alias de `border-strong` — mesmo valor. |
-| `border-strong` | `ring` | **Não `input`.** `--border-strong` é numericamente idêntico a `--ring` (`--input` é idêntico a `--border`, um valor mais claro). A sessão 1 tinha usado `border-input` em 4 lugares (`media-picker-field.tsx`, `SidebarLeftSlot.tsx`) — corrigido na sessão 2 pro valor pixel-idêntico. `border-input` continua correto nos primitivos de formulário (`button.tsx`, `input.tsx`, `select.tsx`) — ali é convenção shadcn de scaffold, não uma tradução de `border-strong`. |
-| `accent-soft` | `accent` + opacidade fixa **`/14`** | `--accent-soft` era `color-mix(accent 14%, transparent)`. `bg-accent/14` é a mesma conta, pixel-idêntico. Nunca usar `bg-accent` sólido no lugar — é bem mais saturado. |
-| `info-*` (`border-info-border`/`bg-info-soft`/`text-info`) | `border-border bg-secondary text-secondary-foreground` | Não existe papel "info" no shadcn. Decidido com o usuário: colapsar em `secondary`/`border` (muda de azulado pra verde-neutro — aceito). |
-| `rounded-control` | `rounded-xl` | `--radius-xl` (`calc(var(--radius) * 3)` = 0.6rem) é o mais próximo dos 4 passos derivados de `--radius` ao antigo `0.5rem` fixo. |
-| `header-*`, `app-bg-*`/`app-background` | (não migram — são identidade do Venore Slime) | Vivem em `src/themes/venore-slime/theme.css` sob `[data-theme="venore-slime"]`. `src/components/ui/avatar.tsx` usa `bg-muted text-foreground` (default do `AvatarFallback` do shadcn/ui). |
+| `border-default` / `border-strong` | `ring` (não `input`) | `--border-strong` == `--ring` numericamente |
+| `accent-soft` | `accent` + `/14` fixo | nunca `bg-accent` sólido no lugar |
+| `info-*` | `border-border bg-secondary text-secondary-foreground` | sem papel "info" no shadcn |
+| `rounded-control` | `rounded-xl` | |
+| `header-*`, `app-bg-*`/`app-background` | não migram — identidade do Venore Slime | `src/themes/venore-slime/theme.css` |
 
-`--warning-*` (`text-warning`/`bg-warning-soft`/`border-warning-border`) **não faz parte desta
-eliminação** — é um token semântico próprio legítimo (aviso/bloqueio, usado em `src/app/(platform)/academy/**`),
-sem equivalente no vocabulário shadcn, e continua declarado em `globals.css`.
+## 4. Mobile First
+
+- Toda classe de layout responsivo escreve o estado **mobile sem prefixo primeiro**, depois os
+  breakpoints em ordem crescente: `sm:` → `md:` → `lg:` → `xl:` → `2xl:`, na mesma ordem em que
+  aparecem na string de `className`. Exemplo real (`src/app/(platform)/admin/media/page.tsx`):
+  ```tsx
+  <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+  ```
+  Base (`grid-cols-2`) é o layout mobile; cada breakpoint adiciona/sobrescreve, nunca vem antes
+  do que substitui.
+- Breakpoints são os defaults do Tailwind v4 (`sm` 640px / `md` 768px / `lg` 1024px / `xl` 1280px
+  / `2xl` 1536px) — não há `--breakpoint-*` customizado em `src/`.
+- `lg:` é o breakpoint mais usado para alternar entre navegação mobile (drawer) e desktop
+  (`MobileNavDrawer.tsx`: `lg:hidden` no overlay) e para layouts de duas colunas
+  (`ContentSlot.tsx`: `lg:w-72` na sidebar contextual).
+
+## 5. Comandos
+
+| Comando | O que faz |
+| --- | --- |
+| `npm run dev` | Servidor de desenvolvimento |
+| `npm run lint` | ESLint — inclui `eslint-plugin-boundaries` (seção 2) e `no-restricted-syntax` de cor (seção 3) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run test` | Vitest — só `*.test.ts` (unitário, sem banco real) |
+| `npm run test:integration` | Vitest com `vitest.integration.config.ts` — só `*.integration.test.ts` |
+| `npm run db:generate` / `npm run db:migrate` | Drizzle Kit — schema de core/contexts/plugins (exceto academy) |
+| `npm run db:generate:academy` / `npm run db:migrate:academy` | Mesmo, para migrations do plugin `academy` |
+| `npm run db:seed:admin-access` / `db:seed:media-manage` / `db:seed:cms-menus-manage` | Seeds de permission pontuais (`scripts/*.mjs`) |
+| `npm run db:bootstrap-superadmin` | Promove usuário existente a `superadmin` fora do fluxo automático |
+
+O job `check` do CI (`.github/workflows/ci.yml`) roda `lint` → `typecheck` → `test`, sem banco. O
+job `integration` é separado, sobe um container Postgres e roda só `test:integration` — não
+substitui o `check`. `drizzle-kit push` é reservado para desenvolvimento local, nunca produção.
+
+### Testes: unitário vs integração
+- `*.test.ts` são unitários e não podem depender de banco real.
+- `*.integration.test.ts` (ex: `client.integration.test.ts`, os do academy) exigem
+  `TEST_DATABASE_URL` — **nunca reaproveitam `DATABASE_URL`**; sem a env var a suíte falha cedo
+  com mensagem clara em vez de rodar contra o banco de desenvolvimento.
+- `vitest.integration.config.ts` aplica as duas árvores de migration (`drizzle/` e
+  `src/plugins/academy/migrations/`) via `globalSetup` (`src/test-support/integration/global-
+  setup.ts`), e troca `DATABASE_URL` para `TEST_DATABASE_URL` só dentro do processo de teste
+  (`setup-env.ts`) — `infrastructure/database/client.ts` não muda.
+- **Isolamento entre testes é por `TRUNCATE ... CASCADE`, não transação com rollback** — vários
+  `store.ts` abrem sua própria `db.transaction()`, que uma transação externa não commitada não
+  cobriria sem DI só para teste.
+- **`test.fileParallelism: false`** — arquivos em paralelo trunc(ariam) tabela que outro arquivo
+  tem em uso no meio de um teste (sintoma observado: FK violation e asserções alternando).
+- Helpers de seed ficam em `src/test-support/integration/academy-seed.ts`, fora de
+  `src/contexts/*`/`src/plugins/*` de propósito (boundary não classifica esse caminho); insert
+  cru em `auth.users` é o único acesso direto (não existe API pública para criar usuário), resto
+  passa por `service.ts` real.
+- **`next-auth` é stubado em `vitest.integration.config.ts`** (só o especificador `next-auth`,
+  não `next-auth/providers/*`) porque o barrel `@/contexts/cms` reexporta handlers que sobem até
+  `auth.config.ts` (`NextAuth({...})` no top-level), e `next-auth` importa `next/server`, subpath
+  que só resolve dentro do bundler do Next — nunca em processo Node/Vitest puro. O stub só existe
+  pra esse módulo terminar de avaliar; nenhum teste chama `handlers`/`signIn`/`signOut`/`auth` de
+  verdade.
+
+## 6. Definition of Done de uma feature
+
+1. Segue o fluxo de camadas da seção 1, com `OperationResult<T>` em `handler`/`service`.
+2. `npm run lint` passa (boundary + regra de cor).
+3. `npm run typecheck` passa.
+4. Tem teste unitário cobrindo `service`, e `handler` quando a feature mexe em
+   autorização/validação de borda; `npm run test` passa.
+5. Se toca schema: migration via `drizzle-kit generate` (nunca editar
+   `__drizzle_migrations`/`_journal.json` manualmente), e o número de migrations rastreadas bate
+   com o número de arquivos em `drizzle/migrations` (ou `src/plugins/academy/migrations`).
+6. Se cruza mais de um domínio de dado: tem teste de integração além do unitário, e
+   `npm run test:integration` passa com `TEST_DATABASE_URL`.
+7. Nenhum valor de cor hardcoded — só token semântico shadcn; `src/components/ui/**` não editado
+   diretamente.
+8. UI nova ou com mudança de layout é responsiva mobile-first (seção 4), testada visualmente em
+   ao menos um breakpoint mobile e um desktop.
+9. Se a função exportada por um `context` só é segura chamar via um ponto de composição em
+   `platform/` (regra 14 do documento de arquitetura), o barrel tem comentário apontando pra esse
+   arquivo.
+10. Página administrativa nova passa pelo loader compartilhado de gate
+    (`src/platform/admin-shell/get-*-page-data.ts` e equivalentes), não reimplementa a checagem
+    de acesso por conta própria.
+
+## 7. Known Gaps
+
+`docs/issues.md` não existe neste repositório — esta lista vem só da leitura do código:
+
+- **Radius/espaçamento sem enforcement mecânico.** O contrato de tokens proíbe `rounded-lg`/`p-3`
+  hardcoded, mas `eslint.config.mjs` só tem `no-restricted-syntax` para cor. Nada bloqueia
+  raio/espaçamento cru hoje.
+- **TODO explícito em `assign-default-role/service.ts:7`** — "migrar para settings de plugin
+  quando o manifesto existir": depende do sistema de plugins (`permissions`/`settings` no
+  manifesto) ainda não estar totalmente cablado.
+- **TODO explícito em `src/platform/theme-rendering/resolve-theme-slot-props.ts:7`** —
+  footer/header-nav/sitemap ainda não vêm de composição real de `contexts/cms` + `contexts/rbac`.
+  [NÃO VERIFICADO] o estado exato do que está mockado vs. resolvido.
+- **TODO explícito em `src/themes/venore-slime/components/UserMenu.tsx:60`** — link para
+  `/account` pendente porque a rota ainda não existe.
+- **`scripts/seed-observability-logs-permission.mjs` existe mas não tem entrada em
+  `package.json#scripts`** — os outros seeds de permission (`admin-access`, `media-manage`,
+  `cms-menus-manage`) têm `db:seed:*` correspondente; este não.
+- **`src/platform/ui-preferences/` existe como diretório vazio.** O cookie que vivia lá já é
+  tratado como removido (substituído por `useTheme()`/`next-themes`, seção 1), mas a pasta em si
+  não foi apagada.
+- **Permission com escopo dentro de um recurso** (RBAC granular por seção/instância do CMS) —
+  documentado como em aberto no documento de arquitetura, não implementado.
+- **Rate limiting, auditoria de ações sensíveis e controle de acesso a arquivos de mídia** —
+  listados como não cobertos no documento de arquitetura; nenhuma implementação encontrada em
+  `src/infrastructure/` ou `src/observability/`. [NÃO VERIFICADO] se algo disso existe fora de
+  `src/`.
+- **Estratégia de teste por camada não documentada** além do que a seção 5/6 deste arquivo já
+  descreve — o documento de arquitetura lista isso como não coberto.
 
 ## Preferências de UI: nav-mode (cookie) vs color-mode (localStorage) — assimetria intencional
 `nav-mode` (`src/platform/nav-mode`) continua em cookie porque o servidor precisa saber qual

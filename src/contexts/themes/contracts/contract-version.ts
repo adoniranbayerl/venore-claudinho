@@ -16,5 +16,15 @@
 // slot"). Trade-off deliberado e explícito do usuário, não um desvio silencioso. Diferente do
 // histórico aditivo acima, isto é remoção de campo — quebra de shape, daí o bump (mesma lógica
 // de "revisitar no dia em que houver mudança que não seja puramente aditiva").
-export const CURRENT_THEME_CONTRACT_VERSION = "3.0.0";
-export const SUPPORTED_THEME_CONTRACT_RANGE = "^3.0.0";
+//
+// Bump para "4.0.0": `scrollState` foi REMOVIDO de HeaderSlotProps (docs/ui/shell-spec.md §2,
+// implementação do header reativo ao scroll). Mesmo raciocínio do bump para "3.0.0": scroll é
+// estado de runtime só do client, não algo resolvível em request/render do servidor — o valor que
+// vinha por prop estava hardcoded em `false` (mock-data.ts) porque não havia outra fonte possível.
+// Detecção passa a viver inteiramente em HeaderScrollSentinel (IntersectionObserver, único client
+// component novo), que escreve `data-scrolled` direto no <header> via DOM; o resto do header reage
+// via seletor CSS (`data-[scrolled=true]` / `group-data-[scrolled=true]/header`), sem prop nem
+// re-render React — abrindo mão, só para o scroll do header, do mesmo princípio "o tema nunca lê
+// estado sozinho" que a remoção de isDark/onToggleColorMode já abriu mão para o color mode.
+export const CURRENT_THEME_CONTRACT_VERSION = "4.0.0";
+export const SUPPORTED_THEME_CONTRACT_RANGE = "^4.0.0";

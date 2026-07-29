@@ -16,7 +16,6 @@ export type ActiveThemeState = {
 
 export type NavItem = { key: string; label: string; href: string };
 export type SitemapItem = { key: string; label: string; href: string };
-export type ScrollState = { isScrolled: boolean };
 
 export type NavMode = "main" | "admin";
 
@@ -49,7 +48,6 @@ export type HeaderSlotProps = {
   // header-nav: navegação própria do Header, distinta de main-nav/admin-nav (que vivem no
   // SidebarLeft) — opcional, lista vazia = tema não renderiza nada aqui.
   headerNavItems: NavItem[];
-  scrollState: ScrollState;
   // user null = ninguém logado. Extensão aditiva do contrato (nenhum campo existente mudou) —
   // mantida em themeContractVersion "2.0.0" por não haver ainda segundo tema publicado
   // (docs/venore-docks.md — decisão registrada junto ao CURRENT_THEME_CONTRACT_VERSION).

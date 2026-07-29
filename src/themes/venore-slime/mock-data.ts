@@ -7,7 +7,8 @@ import type { HeaderSlotProps, FooterSlotProps, SidebarLeftSlotProps, NavItem } 
 // composição em platform/theme-rendering/resolve-theme-slot-props.ts pode importá-lo e passar
 // os valores como props — um tema nunca busca dado sozinho (Contrato de slot).
 //
-// header aqui cobre brand/userbar/header-nav/scrollState (sem fonte real ainda). user/
+// header aqui cobre brand/userbar/header-nav (sem fonte real ainda). scroll não é mais um campo —
+// é detectado inteiramente no client (HeaderScrollSentinel), fora do contrato de slot. user/
 // canAccessAdmin/onSignOut vêm de @/contexts/auth via resolve-theme-slot-props.ts, nunca do
 // mock. sidebarLeft só cobre enabled + a lista main-nav (usada quando navMode === "main") —
 // navMode/canToggleAdminNav/onToggleNavMode/admin-nav são resolvidos de verdade pelo layout e
@@ -33,7 +34,6 @@ export const venoreSlimeMockProps: {
     },
     userbarEnabled: true,
     headerNavItems: [],
-    scrollState: { isScrolled: false },
   },
   footer: {
     brand: { name: "Venore Docks" },

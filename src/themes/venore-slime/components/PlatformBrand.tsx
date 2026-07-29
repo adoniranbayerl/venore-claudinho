@@ -8,6 +8,15 @@ import type { HeaderBrand } from "@/contexts/themes";
 // a largura é derivada por aspect-ratio — não há dois números independentes pra manter em sync.
 const BRAND_ASPECT_RATIO = "100 / 68";
 
+// `isScrolled` continua um boolean prop de verdade (não lê nenhum estado de scroll sozinho) porque
+// este componente também é renderizado fora de qualquer header reativo, no preview estático de
+// admin/settings/appearance/_components/brand-settings-form.tsx (dois painéis lado a lado, um
+// forçado em cada estado, sem scroll real). Dentro do HeaderSlot de verdade, porém, o valor do
+// prop é só o baseline SSR (sempre `false`) — a reatividade de verdade vem das classes
+// `group-data-[scrolled=.../header:` abaixo, que têm especificidade maior (classe + seletor de
+// atributo) que as classes derivadas do prop e por isso sempre vencem quando existe um ancestral
+// `group/header` com `data-scrolled` (docs/ui/shell-spec.md §2.5). Sem esse ancestral (o caso do
+// preview), as classes group-data simplesmente não casam com nada e o prop volta a mandar.
 export function PlatformBrand({
   name,
   mode,
@@ -19,13 +28,14 @@ export function PlatformBrand({
   scrolledLogoUrl,
 }: HeaderBrand & { isScrolled: boolean }) {
   const originClass = position === "center" ? "origin-center" : "origin-left";
-  const scale = isScrolled ? scrolledSize / size : 1;
+  // `transform`, não a propriedade `scale` dedicada do Tailwind v4: ui-motion-emphasis já lista
+  // `transform` em transition-property (theme.css/globals.css), então a troca anima de graça sem
+  // precisar duplicar o vocabulário de motion só pra essa propriedade.
+  const baseTransform = isScrolled ? "transform-[scale(var(--brand-scale-scrolled))]" : "transform-[scale(var(--brand-scale-top))]";
 
   if (mode === "text") {
     return <span className="font-medium">{name}</span>;
   }
-
-  const resolvedUrl = mode === "png" && isScrolled ? scrolledLogoUrl : logoUrl;
 
   return (
     <span
@@ -33,22 +43,24 @@ export function PlatformBrand({
         "block h-[calc(var(--ui-control-height-lg)*(var(--brand-size-pct)/100))] " +
         "md:h-[calc(var(--ui-control-height-lg)*1.6*(var(--brand-size-pct)/100))] " +
         originClass +
-        " ui-motion-emphasis"
+        ` ${baseTransform} group-data-[scrolled=true]/header:transform-[scale(var(--brand-scale-scrolled))] group-data-[scrolled=false]/header:transform-[scale(var(--brand-scale-top))] ` +
+        "ui-motion-emphasis"
       }
       style={{
         aspectRatio: BRAND_ASPECT_RATIO,
-        transform: `scale(${scale})`,
         ["--brand-size-pct" as string]: size,
+        ["--brand-scale-top" as string]: 1,
+        ["--brand-scale-scrolled" as string]: scrolledSize / size,
       }}
     >
       {mode === "svg" ? (
         <span
           aria-label={name}
           role="img"
-          className="block h-full w-full bg-current"
+          className="block h-full w-full bg-current ui-motion-base"
           style={{
-            maskImage: `url('${resolvedUrl}')`,
-            WebkitMaskImage: `url('${resolvedUrl}')`,
+            maskImage: `url('${logoUrl}')`,
+            WebkitMaskImage: `url('${logoUrl}')`,
             maskRepeat: "no-repeat",
             WebkitMaskRepeat: "no-repeat",
             maskPosition: "center",
@@ -58,8 +70,32 @@ export function PlatformBrand({
           }}
         />
       ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={resolvedUrl} alt={name} className="h-full w-full object-contain" />
+        // Duas variantes empilhadas ocupando o mesmo espaço (mesma célula via `absolute inset-0`
+        // sobre o wrapper `relative`), crossfade só de opacity — nunca troca de `src`, que faria a
+        // imagem pipocar em vez de suavizar (docs/ui/shell-spec.md §2.5, "crossfade sem reflow").
+        <span className="relative block h-full w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logoUrl}
+            alt={name}
+            className={
+              "absolute inset-0 h-full w-full object-contain ui-motion-base " +
+              (isScrolled ? "opacity-0" : "opacity-100") +
+              " group-data-[scrolled=true]/header:opacity-0 group-data-[scrolled=false]/header:opacity-100"
+            }
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={scrolledLogoUrl}
+            alt=""
+            aria-hidden
+            className={
+              "absolute inset-0 h-full w-full object-contain ui-motion-base " +
+              (isScrolled ? "opacity-100" : "opacity-0") +
+              " group-data-[scrolled=true]/header:opacity-100 group-data-[scrolled=false]/header:opacity-0"
+            }
+          />
+        </span>
       )}
     </span>
   );

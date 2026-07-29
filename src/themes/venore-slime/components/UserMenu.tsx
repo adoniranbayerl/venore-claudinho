@@ -14,24 +14,19 @@ type UserMenuProps = {
   user: HeaderUserInfo;
   canAccessAdmin: boolean;
   onSignOut: () => Promise<void>;
-  isScrolled: boolean;
 };
 
 // Dropdown sem JS extra (<details>/<summary>), mesmo padrão já usado em
-// src/app/(auth)/login/page.tsx para as credenciais de desenvolvimento.
-export function UserMenu({ user, canAccessAdmin, onSignOut, isScrolled }: UserMenuProps) {
+// src/app/(auth)/login/page.tsx para as credenciais de desenvolvimento. `group` aqui é o próprio
+// <details> (abre/fecha o dropdown, sem relação com scroll); o estado de scroll do header vem de
+// `group-data-[scrolled=true]/header:`, o group nomeado `header` declarado em HeaderSlot.tsx — os
+// dois "group" coexistem porque têm nomes/escopos diferentes.
+export function UserMenu({ user, canAccessAdmin, onSignOut }: UserMenuProps) {
   const firstName = user.displayName.split(/\s+/)[0];
 
   return (
     <details className="group relative">
-      <summary
-        className={
-          "flex cursor-pointer list-none items-center gap-2 rounded-xl px-1.5 py-1 ui-motion-base outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden " +
-          (isScrolled
-            ? "hover:bg-primary-foreground/10 active:bg-primary-foreground/10"
-            : "hover:bg-accent/14 active:bg-accent/14")
-        }
-      >
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-1.5 py-1 ui-motion-base outline-none hover:bg-accent/14 active:bg-accent/14 focus-visible:ring-2 focus-visible:ring-ring group-data-[scrolled=true]/header:hover:bg-primary-foreground/10 group-data-[scrolled=true]/header:active:bg-primary-foreground/10 [&::-webkit-details-marker]:hidden">
         <Avatar>
           {user.imageUrl ? <AvatarImage src={user.imageUrl} alt={user.displayName} /> : null}
           <AvatarFallback>{initials(user.displayName)}</AvatarFallback>
