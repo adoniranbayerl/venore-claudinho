@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
+import { getBrandConfig } from "@/platform/brand/get-brand-config";
 import { resolveActiveTheme } from "@/platform/theme-rendering/resolve-active-theme";
 import "./globals.css";
 
@@ -15,10 +16,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Venore Docks",
-  description: "Painel administrativo e área do aluno da Venore Docks.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { faviconUrl } = await getBrandConfig();
+
+  return {
+    title: "Venore Docks",
+    description: "Painel administrativo e área do aluno da Venore Docks.",
+    icons: {
+      icon: faviconUrl,
+      shortcut: faviconUrl,
+      apple: faviconUrl,
+    },
+  };
+}
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1 };
 

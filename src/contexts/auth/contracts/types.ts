@@ -12,4 +12,5 @@ export type AuthProviderDescriptor = {
   label: string;
   kind: "oauth" | "development";
   enabled: boolean;
+  iconUrl?: string;
 };

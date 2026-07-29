@@ -28,8 +28,23 @@ export type HeaderUserInfo = {
   imageUrl: string | null;
 };
 
+export type HeaderBrandMode = "text" | "svg" | "png";
+export type HeaderBrandPosition = "left" | "center";
+
+export type HeaderBrand = {
+  name: string;
+  mode: HeaderBrandMode;
+  size: number;
+  scrolledSize: number;
+  position: HeaderBrandPosition;
+  logoUrl: string;
+  scrolledLogoUrl: string;
+};
+
 export type HeaderSlotProps = {
-  brand: { name: string; logoUrl?: string };
+  // brand vem de contexts/settings (composição em resolveThemeSlotProps, não do tema) —
+  // sobrevive a troca de tema, ao contrário de FooterSlotProps.brand que segue só com `name`.
+  brand: HeaderBrand;
   userbarEnabled: boolean;
   // header-nav: navegação própria do Header, distinta de main-nav/admin-nav (que vivem no
   // SidebarLeft) — opcional, lista vazia = tema não renderiza nada aqui.

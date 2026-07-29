@@ -41,7 +41,11 @@ export default async function LoginPage({
           {oauthProviders.map((provider) => (
             <form key={provider.key} action={signInWithProviderAction}>
               <input type="hidden" name="provider" value={provider.key} />
-              <Button type="submit" variant="outline" className="w-full">
+              <Button type="submit" variant="outline" className="w-full gap-2">
+                {provider.iconUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={provider.iconUrl} alt="" aria-hidden="true" className="h-4 w-4" />
+                ) : null}
                 Entrar com {provider.label}
               </Button>
             </form>

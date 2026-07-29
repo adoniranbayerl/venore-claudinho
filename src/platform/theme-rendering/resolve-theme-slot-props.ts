@@ -1,17 +1,19 @@
 import { getCurrentUser } from "@/contexts/auth";
 import { getMenuByLocation } from "@/contexts/cms";
+import { getBrandConfig } from "@/platform/brand/get-brand-config";
 import { venoreSlimeMockProps } from "@/themes/venore-slime/mock-data";
 import type { HeaderSlotProps, HeaderUserInfo, FooterSlotProps, SidebarLeftSlotProps, NavMode, NavItem } from "@/contexts/themes";
 
-// TODO: substituir brand/footer/header-nav/sitemap por composição real de contexts/cms +
-// contexts/rbac quando esses contexts existirem. Até lá, este é o ÚNICO lugar do sistema onde
-// dado mockado vira prop de slot — nunca dentro do próprio tema. navMode/navItems/
-// canToggleAdminNav já são resolvidos de verdade (platform/nav-mode + platform/admin-shell),
-// passados pelo layout e mesclados no SidebarLeft (main-nav/admin-nav não vivem no Header). O
-// dado de usuário do Header (user/canAccessAdmin/onSignOut) segue o mesmo princípio: resolvido
-// aqui a partir de @/contexts/auth, nunca dentro do próprio tema. main-nav agora vem de
-// contexts/cms (menu "main-nav") em vez do mock; se a leitura falhar, caímos de volta no mock
-// fixo em venoreSlimeMockProps.sidebarLeft.navItems para nunca deixar a sidebar vazia.
+// TODO: substituir footer/header-nav/sitemap por composição real de contexts/cms + contexts/rbac
+// quando esses contexts existirem. Até lá, este é o ÚNICO lugar do sistema onde dado mockado vira
+// prop de slot — nunca dentro do próprio tema. navMode/navItems/canToggleAdminNav já são
+// resolvidos de verdade (platform/nav-mode + platform/admin-shell), passados pelo layout e
+// mesclados no SidebarLeft (main-nav/admin-nav não vivem no Header). O dado de usuário do Header
+// (user/canAccessAdmin/onSignOut) segue o mesmo princípio: resolvido aqui a partir de
+// @/contexts/auth, nunca dentro do próprio tema. main-nav agora vem de contexts/cms (menu
+// "main-nav") em vez do mock; se a leitura falhar, caímos de volta no mock fixo em
+// venoreSlimeMockProps.sidebarLeft.navItems para nunca deixar a sidebar vazia. header.brand vem
+// de contexts/settings (getBrandConfig) — não é mais mock, sobrevive a troca de tema.
 export async function resolveThemeSlotProps(sidebarNav: {
   navMode: NavMode;
   adminNavItems: NavItem[];
@@ -39,10 +41,21 @@ export async function resolveThemeSlotProps(sidebarNav: {
     ? mainMenu.data.items.map((item) => ({ key: item.id, label: item.label, href: item.href }))
     : venoreSlimeMockProps.sidebarLeft.navItems;
 
+  const brandConfig = await getBrandConfig();
+
   return {
     ...venoreSlimeMockProps,
     header: {
       ...venoreSlimeMockProps.header,
+      brand: {
+        name: brandConfig.siteName,
+        mode: brandConfig.mode,
+        size: brandConfig.size,
+        scrolledSize: brandConfig.scrolledSize,
+        position: brandConfig.position,
+        logoUrl: brandConfig.logoUrl,
+        scrolledLogoUrl: brandConfig.scrolledLogoUrl,
+      },
       user,
       canAccessAdmin: sidebarNav.canAccessAdmin,
       onSignOut: sidebarNav.onSignOut,

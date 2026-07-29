@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const isMediaReferenced = vi.fn();
 const deleteMedia = vi.fn();
+const getSetting = vi.fn();
 
 vi.mock("@/contexts/cms", () => ({
   isMediaReferenced: (...args: unknown[]) => isMediaReferenced(...args),
@@ -11,10 +12,20 @@ vi.mock("@/contexts/media", () => ({
   deleteMedia: (...args: unknown[]) => deleteMedia(...args),
 }));
 
+// isMediaReferencedByBrand (checado depois de isMediaReferenced) lê contexts/settings — mockado
+// aqui pra não carregar o barrel de verdade (que reexporta setSetting, que puxa
+// contexts/rbac -> contexts/auth -> auth.config.ts e o NextAuth() top-level, indisponível fora
+// do bundler do Next, mesmo gotcha documentado em AGENTS.md pro barrel de contexts/cms).
+vi.mock("@/contexts/settings", () => ({
+  getSetting: (...args: unknown[]) => getSetting(...args),
+}));
+
 describe("deleteMediaSafely", () => {
   beforeEach(() => {
     isMediaReferenced.mockReset();
     deleteMedia.mockReset();
+    getSetting.mockReset();
+    getSetting.mockResolvedValue({ success: true, data: null });
   });
 
   it("blocks deletion when the media file is referenced by a cms entry", async () => {

@@ -173,8 +173,14 @@ describe("listAvailableAuthProviders", () => {
 
     expect(listAvailableAuthProviders()).toEqual([
       { key: "github", label: "GitHub", kind: "oauth", enabled: false },
-      { key: "google", label: "Google", kind: "oauth", enabled: false },
-      { key: "microsoft-entra-id", label: "Microsoft", kind: "oauth", enabled: false },
+      { key: "google", label: "Google", kind: "oauth", enabled: false, iconUrl: "/providers/google.svg" },
+      {
+        key: "microsoft-entra-id",
+        label: "Microsoft",
+        kind: "oauth",
+        enabled: false,
+        iconUrl: "/providers/microsoft.svg",
+      },
       { key: "credentials", label: "Dev credentials", kind: "development", enabled: false },
     ]);
   });

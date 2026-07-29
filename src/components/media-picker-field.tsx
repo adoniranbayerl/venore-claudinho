@@ -7,10 +7,12 @@ export function MediaPickerField({
   name,
   label = "Mídia (opcional)",
   initialMedia = null,
+  onSelect,
 }: {
   name: string;
   label?: string;
   initialMedia?: PickableMedia | null;
+  onSelect?: (media: PickableMedia | null) => void;
 }) {
   const [selected, setSelected] = useState<PickableMedia | null>(initialMedia);
   const [items, setItems] = useState<PickableMedia[]>([]);
@@ -27,6 +29,7 @@ export function MediaPickerField({
 
   function selectMedia(media: PickableMedia) {
     setSelected(media);
+    onSelect?.(media);
     dialogRef.current?.close();
   }
 
@@ -45,7 +48,10 @@ export function MediaPickerField({
             <span className="max-w-[12rem] truncate text-xs text-muted-foreground">{selected.filename}</span>
             <button
               type="button"
-              onClick={() => setSelected(null)}
+              onClick={() => {
+                setSelected(null);
+                onSelect?.(null);
+              }}
               className="text-xs font-medium text-destructive"
             >
               Remover

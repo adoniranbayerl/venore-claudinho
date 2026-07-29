@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { HeaderSlotProps } from "@/contexts/themes";
 import { UserMenu } from "./UserMenu";
 import { MobileNavToggleButton } from "./MobileNavToggleButton";
+import { PlatformBrand } from "./PlatformBrand";
 
 // Header encolhe e inverte pra bg-primary/text-primary-foreground ao rolar — mesma técnica de
 // "header-surface" / "header-surface-scrolled" do repositório de referência (Venore Pulse),
@@ -25,20 +26,22 @@ export function HeaderSlot({
         "sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b px-4 ui-motion-emphasis sm:px-6 " +
         (isScrolled
           ? "border-primary bg-primary text-primary-foreground shadow-header"
-          : "border-header-border-subtle bg-card text-foreground md:h-24 lg:h-28")
+          : "border-header-border-subtle bg-card text-foreground md:h-24 lg:h-28") +
+        (brand.position === "center" ? " relative" : "")
       }
     >
       <div className="flex items-center gap-2">
         <MobileNavToggleButton isScrolled={isScrolled} />
-        <span
+        <Link
+          href="/"
+          aria-label={brand.name}
           className={
-            "flex h-9 w-9 items-center justify-center rounded-panel text-sm font-semibold " +
-            (isScrolled ? "bg-primary-foreground/15 text-primary-foreground" : "bg-header-avatar-bg text-primary")
+            "inline-flex items-center " +
+            (brand.position === "center" ? "absolute left-1/2 -translate-x-1/2" : "")
           }
         >
-          {brand.name.charAt(0)}
-        </span>
-        <span className="font-medium">{brand.name}</span>
+          <PlatformBrand {...brand} isScrolled={isScrolled} />
+        </Link>
       </div>
 
       {headerNavItems.length > 0 && (

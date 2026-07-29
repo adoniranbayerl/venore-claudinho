@@ -43,6 +43,7 @@ const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: "Configurações",
     items: [
       { key: "settings", label: "Configurações do site", href: "/admin/settings", requiredPermission: "settings.manage" },
+      { key: "appearance", label: "Aparência", href: "/admin/settings/appearance", requiredPermission: "settings.manage" },
       { key: "themes", label: "Temas", href: "/admin/themes", requiredPermission: "settings.manage" },
       {
         key: "diagnostics",

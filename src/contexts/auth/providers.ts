@@ -108,8 +108,20 @@ export function buildAuthProviders() {
 export function listAvailableAuthProviders(): AuthProviderDescriptor[] {
   return [
     { key: "github", label: "GitHub", kind: "oauth", enabled: readGithubCredentials() !== null },
-    { key: "google", label: "Google", kind: "oauth", enabled: readGoogleCredentials() !== null },
-    { key: "microsoft-entra-id", label: "Microsoft", kind: "oauth", enabled: readMicrosoftCredentials() !== null },
+    {
+      key: "google",
+      label: "Google",
+      kind: "oauth",
+      enabled: readGoogleCredentials() !== null,
+      iconUrl: "/providers/google.svg",
+    },
+    {
+      key: "microsoft-entra-id",
+      label: "Microsoft",
+      kind: "oauth",
+      enabled: readMicrosoftCredentials() !== null,
+      iconUrl: "/providers/microsoft.svg",
+    },
     { key: "credentials", label: "Dev credentials", kind: "development", enabled: isDevelopmentCredentialsEnabled() },
   ];
 }
