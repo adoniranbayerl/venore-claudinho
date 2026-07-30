@@ -4,7 +4,12 @@ import Link from "next/link";
 import { ImageOff } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { listMediaForPickerAction, type PickableMedia } from "./media-picker-field.actions";
+import {
+  listCategoriesForPickerAction,
+  listMediaForPickerAction,
+  type PickableCategory,
+  type PickableMedia,
+} from "./media-picker-field.actions";
 
 export function MediaPickerField({
   name,
@@ -19,15 +24,29 @@ export function MediaPickerField({
 }) {
   const [selected, setSelected] = useState<PickableMedia | null>(initialMedia);
   const [items, setItems] = useState<PickableMedia[]>([]);
+  const [categories, setCategories] = useState<PickableCategory[]>([]);
+  const [categoryId, setCategoryId] = useState("");
   const [isPending, startTransition] = useTransition();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  function openPicker() {
-    dialogRef.current?.showModal();
+  function loadItems(nextCategoryId: string) {
     startTransition(async () => {
-      const media = await listMediaForPickerAction();
+      const media = await listMediaForPickerAction(nextCategoryId || undefined);
       setItems(media);
     });
+  }
+
+  function openPicker() {
+    dialogRef.current?.showModal();
+    loadItems(categoryId);
+    if (categories.length === 0) {
+      listCategoriesForPickerAction().then(setCategories);
+    }
+  }
+
+  function handleCategoryChange(nextCategoryId: string) {
+    setCategoryId(nextCategoryId);
+    loadItems(nextCategoryId);
   }
 
   function selectMedia(media: PickableMedia) {
@@ -84,6 +103,24 @@ export function MediaPickerField({
             Fechar
           </button>
         </div>
+
+        {categories.length > 0 && (
+          <label className="mt-3 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            Categoria
+            <select
+              value={categoryId}
+              onChange={(event) => handleCategoryChange(event.target.value)}
+              className="rounded-lg border border-border bg-card px-2 py-1 text-xs text-foreground outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">Todas</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {isPending

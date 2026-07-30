@@ -134,6 +134,13 @@
       "when": 1785436922297,
       "tag": "0018_useful_shadowcat",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1785454759192,
+      "tag": "0019_chilly_lester",
+      "breakpoints": true
     }
   ]
 }

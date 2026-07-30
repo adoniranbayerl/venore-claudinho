@@ -9,6 +9,17 @@ export type MediaRecord = {
   url: string;
   uploadedBy: string;
   visibility: MediaVisibility;
+  categoryId: string | null;
+  createdAt: Date;
+};
+
+// Categoria de organização de um asset — classificação escolhida pelo admin (ex: "Marketing",
+// "Editorial"), não a classificação técnica de mimeType (MediaAssetCategory, abaixo). Um asset tem
+// no máximo uma (ver database/schema/index.ts, comentário em files.categoryId).
+export type MediaCategory = {
+  id: string;
+  key: string;
+  name: string;
   createdAt: Date;
 };
 

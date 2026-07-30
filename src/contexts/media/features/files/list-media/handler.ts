@@ -1,12 +1,12 @@
 import { resolveMediaActorScope } from "../../../resolve-media-actor-scope";
 import { listMedia } from "./service";
-import type { ListMediaResult } from "./types";
+import type { ListMediaQuery, ListMediaResult } from "./types";
 
-export async function listMediaHandler(): Promise<ListMediaResult> {
+export async function listMediaHandler(query: ListMediaQuery = {}): Promise<ListMediaResult> {
   const scope = await resolveMediaActorScope();
   if (!scope) {
     return { success: true, data: [] };
   }
 
-  return listMedia(scope);
+  return listMedia(scope, query);
 }

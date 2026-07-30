@@ -3,6 +3,20 @@ import { users } from "@/contexts/auth/database/schema";
 
 export const mediaSchema = pgSchema("media");
 
+// Categoria é classificação organizacional de um asset (uma por asset, não tag — ver
+// contracts/types.ts MediaCategory), não a classificação técnica de mimeType (MediaAssetCategory,
+// que já existia). Vive no mesmo schema `media` que `files`: FK real entre elas é seguro porque
+// as duas são donas do mesmo domínio (diferente de mediaId em cms.entries/academy.courses, que
+// cruza schema e por isso não tem FK — ver comentários lá).
+export const categories = mediaSchema.table("categories", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  key: text("key").notNull().unique(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const files = mediaSchema.table("files", {
   id: text("id")
     .primaryKey()
@@ -19,6 +33,14 @@ export const files = mediaSchema.table("files", {
   // ator autenticado). Default "private" de propósito — nenhum upload nasce público por
   // omissão (docs/media/visibility.md, decisão de correção do vazamento de avatar).
   visibility: text("visibility").notNull().default("private"),
+  // Nullable: nem todo asset precisa de categoria. Um asset tem no máximo UMA categoria — decisão
+  // de produto (não N:N): categoria aqui é classificação organizacional ("que tipo de conteúdo é
+  // isto"), não tag descritiva, então valor único mantém o filtro (biblioteca/seletor) e a regra
+  // "categoria em uso não apaga sem tratar os assets" simples (contagem direta por categoryId, sem
+  // ambiguidade de "apaga o vínculo ou some com o asset"). onDelete "restrict": mesma regra
+  // reforçada no banco, não só na aplicação — apagar uma categoria com arquivos vinculados falha
+  // mesmo se algum caminho novo esquecer de checar antes.
+  categoryId: text("category_id").references(() => categories.id, { onDelete: "restrict" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

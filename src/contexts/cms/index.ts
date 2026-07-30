@@ -18,9 +18,9 @@ export { getEntryHandler as getEntry } from "./features/entries/get-entry/handle
 export {
   getPublishedEntryBySlugHandler as getPublishedEntryBySlug,
 } from "./features/entries/get-published-entry-by-slug/handler";
-// Consumida por platform/media-lifecycle/delete-media-safely.ts (regra 12/14 — composição fora
-// de cms e media, pra evitar ciclo com a validação de mediaId em create-entry/update-entry).
-export { isMediaReferencedHandler as isMediaReferenced } from "./features/entries/is-media-referenced/handler";
+// Consumida por platform/media-usage/media-usage-registry.ts (regra 12/14 — composição fora de
+// cms e media, pra evitar ciclo com a validação de mediaId em create-entry/update-entry).
+export { findMediaUsageHandler as findCmsMediaUsage } from "./features/entries/find-media-usage/handler";
 
 export { createMenuHandler as createMenu } from "./features/menus/create-menu/handler";
 export { updateMenuHandler as updateMenu } from "./features/menus/update-menu/handler";
@@ -97,7 +97,7 @@ export type {
   GetPublishedEntryBySlugQuery,
   GetPublishedEntryBySlugResult,
 } from "./features/entries/get-published-entry-by-slug/types";
-export type { IsMediaReferencedQuery, IsMediaReferencedResult } from "./features/entries/is-media-referenced/types";
+export type { FindMediaUsageQuery, FindMediaUsageResult } from "./features/entries/find-media-usage/types";
 export type { CreateMenuInput, CreateMenuResult } from "./features/menus/create-menu/types";
 export type { UpdateMenuInput, UpdateMenuResult } from "./features/menus/update-menu/types";
 export type { DeleteMenuInput, DeleteMenuResult } from "./features/menus/delete-menu/types";

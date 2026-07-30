@@ -1,11 +1,17 @@
 import { ImageOff } from "lucide-react";
-import { listMedia } from "@/contexts/media";
+import { listCategories, listMedia } from "@/contexts/media";
 import { getMediaPageData } from "@/platform/admin-shell/get-media-page-data";
 import { EmptyState } from "@/components/empty-state";
 import { MediaItem } from "./_components/media-item";
 import { UploadMediaForm } from "./_components/upload-media-form";
+import { CategoryFilter } from "./_components/category-filter";
+import { ManageCategories } from "./_components/manage-categories";
 
-export default async function MediaAdminPage() {
+export default async function MediaAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>;
+}) {
   const gate = await getMediaPageData();
 
   if (!gate.granted) {
@@ -17,11 +23,19 @@ export default async function MediaAdminPage() {
     );
   }
 
-  const mediaResult = await listMedia();
+  const { category: categoryId } = await searchParams;
+
+  const [mediaResult, categoriesResult] = await Promise.all([
+    listMedia(categoryId ? { categoryId } : {}),
+    listCategories(),
+  ]);
+
   if (!mediaResult.success) {
     return <p className="text-sm text-destructive">Não foi possível carregar a mídia agora. Tente recarregar a página.</p>;
   }
 
+  const categories = categoriesResult.success ? categoriesResult.data : [];
+  const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
   const files = mediaResult.data;
 
   return (
@@ -37,6 +51,12 @@ export default async function MediaAdminPage() {
           <UploadMediaForm />
         </div>
       </section>
+
+      <ManageCategories categories={categories} />
+
+      <div className="flex items-center justify-between">
+        <CategoryFilter categories={categories} />
+      </div>
 
       {files.length === 0 ? (
         <EmptyState
@@ -56,6 +76,7 @@ export default async function MediaAdminPage() {
               size={file.size}
               createdAt={file.createdAt.toISOString()}
               visibility={file.visibility}
+              categoryName={file.categoryId ? (categoryNameById.get(file.categoryId) ?? null) : null}
             />
           ))}
         </section>

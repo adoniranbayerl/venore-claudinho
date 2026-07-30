@@ -1,0 +1,67 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const findCmsMediaUsage = vi.fn();
+const findBrandMediaUsage = vi.fn();
+const findAcademyMediaUsage = vi.fn();
+const registerPlugins = vi.fn();
+
+vi.mock("@/contexts/cms", () => ({
+  findCmsMediaUsage: (...args: unknown[]) => findCmsMediaUsage(...args),
+}));
+
+vi.mock("../brand/find-brand-media-usage", () => ({
+  findBrandMediaUsage: (...args: unknown[]) => findBrandMediaUsage(...args),
+}));
+
+vi.mock("@/plugins/academy", () => ({
+  findAcademyMediaUsage: (...args: unknown[]) => findAcademyMediaUsage(...args),
+}));
+
+vi.mock("../plugin-engine/register-plugins", () => ({
+  registerPlugins: (...args: unknown[]) => registerPlugins(...args),
+}));
+
+describe("collectMediaUsage", () => {
+  beforeEach(() => {
+    findCmsMediaUsage.mockReset().mockResolvedValue([]);
+    findBrandMediaUsage.mockReset().mockResolvedValue([]);
+    findAcademyMediaUsage.mockReset().mockResolvedValue([]);
+    registerPlugins.mockReset();
+  });
+
+  it("aggregates references from every core provider plus active plugin providers", async () => {
+    registerPlugins.mockResolvedValue({ entries: [{ key: "academy", status: "active", errors: [] }] });
+    findCmsMediaUsage.mockResolvedValue([{ consumerKey: "cms", consumerLabel: "CMS", label: "Entry: Home", href: "/x" }]);
+    findAcademyMediaUsage.mockResolvedValue([
+      { consumerKey: "academy", consumerLabel: "Academy", label: "Curso: X", href: "/y" },
+    ]);
+
+    const { collectMediaUsage } = await import("./media-usage-registry");
+    const result = await collectMediaUsage("media-1");
+
+    expect(result).toHaveLength(2);
+    expect(result.map((reference) => reference.consumerKey).sort()).toEqual(["academy", "cms"]);
+  });
+
+  it("excludes a plugin's provider when the plugin is disabled — no phantom usage from a consumer that disappeared", async () => {
+    registerPlugins.mockResolvedValue({ entries: [{ key: "academy", status: "disabled", errors: [] }] });
+    findAcademyMediaUsage.mockResolvedValue([
+      { consumerKey: "academy", consumerLabel: "Academy", label: "Curso: X", href: "/y" },
+    ]);
+
+    const { collectMediaUsage } = await import("./media-usage-registry");
+    const result = await collectMediaUsage("media-1");
+
+    expect(result).toEqual([]);
+    expect(findAcademyMediaUsage).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty list when nothing references the media", async () => {
+    registerPlugins.mockResolvedValue({ entries: [] });
+
+    const { collectMediaUsage } = await import("./media-usage-registry");
+    const result = await collectMediaUsage("media-1");
+
+    expect(result).toEqual([]);
+  });
+});

@@ -64,6 +64,13 @@ export {
 } from "./features/enrollments/list-enrollments-for-course/handler";
 export { isEnrolledHandler as isEnrolled } from "./features/enrollments/is-enrolled/handler";
 
+// Provider de uso de mídia (docs/venore-docks.md — regra 12/14, "Sistema de plugins"): consumido
+// só por platform/media-usage/media-usage-registry.ts, e só quando o plugin está ativo (a checagem
+// de enabled/disabled é feita lá, via registerPlugins() — academy nunca sabe se está sendo
+// consultado ou não). Sem handler/RBAC próprio: quem autoriza chegar até aqui é quem tem
+// media.manage, checado antes de coletar uso (mesmo raciocínio de findCmsMediaUsage).
+export { findAcademyMediaUsage } from "./features/media-usage/find-academy-media-usage/service";
+
 // Ponto de extensão "blocks" do plugin engine (docs/venore-docks.md — "Sistema de plugins"): o
 // registry de page-builder (platform/page-builder/block-registry.ts) importa blockDefinitions
 // (dado, serializável) e block-renderers.tsx importa blockRenderers (componente) — dois
