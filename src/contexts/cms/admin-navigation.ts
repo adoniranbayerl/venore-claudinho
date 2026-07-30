@@ -1,0 +1,53 @@
+import type { AdminNavItemDefinition } from "@/platform/admin-shell/admin-navigation.contracts";
+
+export const cmsAdminNavigationItems: AdminNavItemDefinition[] = [
+  {
+    key: "cms.overview",
+    label: "Visão geral",
+    icon: "file-text",
+    href: "/admin/cms",
+    groupKey: "content",
+    groupLabel: "Conteúdo",
+    groupOrder: 20,
+    order: 10,
+    requiredPermission: [
+      "cms.entries.manage",
+      "cms.content-types.manage",
+      "cms.categories.manage",
+      "cms.menus.manage",
+    ],
+  },
+  {
+    key: "cms.content-types",
+    label: "Tipos de conteúdo",
+    icon: "layout-list",
+    href: "/admin/cms/content-types",
+    groupKey: "content",
+    groupLabel: "Conteúdo",
+    groupOrder: 20,
+    order: 20,
+    requiredPermission: "cms.content-types.manage",
+  },
+  {
+    key: "cms.categories",
+    label: "Categorias",
+    icon: "folder-tree",
+    href: "/admin/cms/categories",
+    groupKey: "content",
+    groupLabel: "Conteúdo",
+    groupOrder: 20,
+    order: 30,
+    requiredPermission: "cms.categories.manage",
+  },
+  {
+    key: "cms.entries",
+    label: "Conteúdos",
+    icon: "files",
+    href: "/admin/cms/entries",
+    groupKey: "content",
+    groupLabel: "Conteúdo",
+    groupOrder: 20,
+    order: 40,
+    requiredPermission: "cms.entries.manage",
+  },
+];

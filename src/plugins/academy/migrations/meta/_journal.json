@@ -43,6 +43,13 @@
       "when": 1785261468776,
       "tag": "0005_little_wraith",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785356204713,
+      "tag": "0006_plain_lilandra",
+      "breakpoints": true
     }
   ]
 }

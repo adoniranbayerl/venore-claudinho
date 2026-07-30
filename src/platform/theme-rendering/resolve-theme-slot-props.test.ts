@@ -15,15 +15,19 @@ function sidebarNavInput(
   overrides: Partial<{
     canAccessAdmin: boolean;
     onSignOut: () => Promise<void>;
+    collapsed: boolean;
+    onToggleCollapsed: () => Promise<void>;
   }> = {},
 ) {
   return {
     navMode: "main" as const,
-    adminNavItems: [],
+    adminNavGroups: [],
     canToggleAdminNav: false,
     onToggleNavMode: vi.fn(),
     canAccessAdmin: false,
     onSignOut: vi.fn(),
+    collapsed: false,
+    onToggleCollapsed: vi.fn(),
     ...overrides,
   };
 }
@@ -112,16 +116,28 @@ describe("resolveThemeSlotProps", () => {
     const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput());
 
-    expect(props.sidebarLeft.navItems).toEqual([{ key: "home", label: "Home", href: "/" }]);
+    expect(props.sidebarLeft.navItems).toEqual([{ key: "home", label: "Home", href: "/", icon: "home" }]);
   });
 
-  it("uses adminNavItems, not the main-nav menu, when navMode is admin", async () => {
+  it("passes collapsed and onToggleCollapsed through to sidebarLeft props", async () => {
     getCurrentUser.mockResolvedValue({ success: true, data: null });
-    const adminNavItems = [{ key: "admin.roles", label: "Papéis", href: "/admin/rbac" }];
+    const onToggleCollapsed = vi.fn();
 
     const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
-    const props = await resolveThemeSlotProps({ ...sidebarNavInput(), navMode: "admin", adminNavItems });
+    const props = await resolveThemeSlotProps(sidebarNavInput({ collapsed: true, onToggleCollapsed }));
 
-    expect(props.sidebarLeft.navItems).toBe(adminNavItems);
+    expect(props.sidebarLeft.collapsed).toBe(true);
+    expect(props.sidebarLeft.onToggleCollapsed).toBe(onToggleCollapsed);
+  });
+
+  it("uses adminNavGroups, not the main-nav menu, when navMode is admin", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: null });
+    const adminNavGroups = [{ key: "rbac", label: "RBAC", items: [{ key: "admin.roles", label: "Papéis", href: "/admin/rbac" }] }];
+
+    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
+    const props = await resolveThemeSlotProps({ ...sidebarNavInput(), navMode: "admin", adminNavGroups });
+
+    expect(props.sidebarLeft.navGroups).toBe(adminNavGroups);
+    expect(props.sidebarLeft.navItems).toEqual([]);
   });
 });

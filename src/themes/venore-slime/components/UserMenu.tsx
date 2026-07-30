@@ -52,7 +52,12 @@ export function UserMenu({ user, canAccessAdmin, onSignOut }: UserMenuProps) {
             </Link>
           ) : null}
 
-          {/* TODO: link para /account quando a rota existir */}
+          <Link
+            href="/account"
+            className="rounded-xl px-2 py-1.5 text-sm text-muted-foreground ui-motion-base outline-none hover:bg-accent/14 hover:text-foreground active:bg-accent/14 active:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Minha conta
+          </Link>
         </div>
 
         <form action={onSignOut} className="border-t border-border pt-2">

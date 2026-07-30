@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BookOpen, Users } from "lucide-react";
 import { listEntries } from "@/contexts/cms";
+import { getMedia } from "@/contexts/media";
 import { getCourse, listEnrollmentsForCourse, listLessonsByCourse, listQuizProgressForCourse } from "@/plugins/academy";
 import { getAcademyPageData } from "@/platform/admin-shell/get-academy-page-data";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +21,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
 
   if (!gate.granted) {
     return (
-      <div className="rounded border p-8 text-center">
+      <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy text-center">
         <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
         <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar a Academy.</p>
       </div>
@@ -56,6 +57,17 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     notFound();
   }
 
+  const coverMediaResult = course.coverMediaId ? await getMedia({ id: course.coverMediaId }) : null;
+  const coverMedia =
+    coverMediaResult?.success && coverMediaResult.data
+      ? {
+          id: coverMediaResult.data.id,
+          filename: coverMediaResult.data.filename,
+          url: coverMediaResult.data.url,
+          mimeType: coverMediaResult.data.mimeType,
+        }
+      : null;
+
   const lessons = lessonsResult.data;
   const entries = entriesResult.data;
   const entryById = new Map(entries.map((entry) => [entry.id, entry]));
@@ -72,7 +84,10 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/admin/academy" className="text-xs font-medium text-muted-foreground hover:underline">
+        <Link
+          href="/admin/academy"
+          className="rounded-sm text-xs font-medium text-muted-foreground outline-none ui-motion-base hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+        >
           ← Academy
         </Link>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">{course.title}</h1>
@@ -101,7 +116,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             <EmptyState
               icon={<BookOpen className="size-8" strokeWidth={1.5} />}
               title="Nenhuma aula cadastrada"
-              description="Escolha uma entry do CMS abaixo para criar a primeira aula."
+              description="Escolha um conteúdo do CMS abaixo para criar a primeira aula."
             />
           ) : (
             <ul className="space-y-1">
@@ -112,8 +127,11 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                     key={lesson.id}
                     className="flex items-center justify-between gap-2 rounded-control px-2 py-1.5 text-sm hover:bg-muted"
                   >
-                    <Link href={`/admin/academy/lessons/${lesson.id}`} className="font-medium text-foreground hover:underline">
-                      {lesson.position}. {entry ? entry.title : lesson.cmsEntryId}
+                    <Link
+                      href={`/admin/academy/lessons/${lesson.id}`}
+                      className="rounded-sm font-medium text-foreground outline-none ui-motion-base hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {lesson.position}. {entry ? entry.title : "Conteúdo não encontrado"}
                     </Link>
                     {lesson.videoUrl && (
                       <Badge variant="outline" className="shrink-0">
@@ -142,6 +160,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             slug={course.slug}
             selfEnrollmentEnabled={course.selfEnrollmentEnabled}
             publiclyListed={course.publiclyListed}
+            coverMedia={coverMedia}
           />
 
           <div>

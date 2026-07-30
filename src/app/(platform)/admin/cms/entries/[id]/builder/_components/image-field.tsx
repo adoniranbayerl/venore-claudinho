@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
+import { ImageOff } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { listMediaForPickerAction, type PickableMedia } from "@/components/media-picker-field.actions";
 
 // Variante controlada (value/onChange) de components/media-picker-field.tsx: aquele componente
@@ -34,10 +37,10 @@ export function ImageField({
   }, [value]);
 
   function openPicker() {
+    dialogRef.current?.showModal();
     startTransition(async () => {
       const media = await listMediaForPickerAction();
       setItems(media);
-      dialogRef.current?.showModal();
     });
   }
 
@@ -53,7 +56,7 @@ export function ImageField({
 
       <div className="mt-1 flex items-center gap-3">
         {selected && (
-          <div className="flex items-center gap-2 rounded border border-border px-2 py-1">
+          <div className="flex items-center gap-2 rounded-lg border border-border px-2 py-1">
             {selected.mimeType.startsWith("image/") ? (
               // eslint-disable-next-line @next/next/no-img-element -- mesmo padrão de media-picker-field.tsx
               <img src={selected.url} alt={selected.filename} className="h-8 w-8 rounded object-cover" />
@@ -65,7 +68,7 @@ export function ImageField({
                 setSelected(null);
                 onChange(null);
               }}
-              className="text-xs font-medium text-destructive"
+              className="rounded-sm text-xs font-medium text-destructive outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
             >
               Remover
             </button>
@@ -75,7 +78,7 @@ export function ImageField({
           type="button"
           onClick={openPicker}
           disabled={isPending}
-          className="rounded border border-ring px-2 py-1 text-xs font-medium text-foreground disabled:opacity-50"
+          className="rounded-lg border border-border px-2 py-1 text-xs font-medium text-foreground outline-none ui-motion-base hover:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
         >
           {selected ? "Trocar" : "Selecionar mídia"}
         </button>
@@ -83,37 +86,55 @@ export function ImageField({
 
       <dialog
         ref={dialogRef}
-        className="w-full max-w-2xl rounded border border-border bg-card p-4 text-foreground backdrop:bg-black/40"
+        className="w-full max-w-2xl rounded-panel border border-border bg-card ui-panel-padding-roomy text-foreground backdrop:bg-foreground/40"
       >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Selecionar mídia</h2>
-          <button type="button" onClick={() => dialogRef.current?.close()} className="text-sm text-muted-foreground/56">
+          <button
+            type="button"
+            onClick={() => dialogRef.current?.close()}
+            className="rounded-sm text-sm text-muted-foreground/56 outline-none ui-motion-base hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          >
             Fechar
           </button>
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {items.map((item) => (
-            <button
-              type="button"
-              key={item.id}
-              onClick={() => selectMedia(item)}
-              className="flex flex-col gap-1 rounded border border-border p-2 text-left hover:border-ring"
-            >
-              <div className="flex h-16 items-center justify-center overflow-hidden rounded bg-muted">
-                {item.mimeType.startsWith("image/") ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.url} alt={item.filename} className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-[10px] text-muted-foreground/56">{item.mimeType || "arquivo"}</span>
-                )}
-              </div>
-              <span className="truncate text-[11px] text-muted-foreground" title={item.filename}>
-                {item.filename}
-              </span>
-            </button>
-          ))}
-          {items.length === 0 && <p className="col-span-full text-sm text-muted-foreground/56">Nenhum arquivo enviado ainda.</p>}
+          {isPending
+            ? Array.from({ length: 8 }).map((_, index) => <Skeleton key={index} className="aspect-square rounded-lg" />)
+            : items.map((item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  onClick={() => selectMedia(item)}
+                  className="flex flex-col gap-1 rounded-lg border border-border p-2 text-left outline-none ui-motion-base hover:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <div className="flex h-16 items-center justify-center overflow-hidden rounded-md bg-muted">
+                    {item.mimeType.startsWith("image/") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.url} alt={item.filename} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground/56">{item.mimeType || "arquivo"}</span>
+                    )}
+                  </div>
+                  <span className="truncate text-[11px] text-muted-foreground" title={item.filename}>
+                    {item.filename}
+                  </span>
+                </button>
+              ))}
+          {!isPending && items.length === 0 && (
+            <div className="col-span-full flex flex-col items-center gap-2 py-6 text-center">
+              <ImageOff className="size-6 text-muted-foreground/56" strokeWidth={1.5} />
+              <p className="text-sm text-foreground">Nenhum arquivo enviado ainda</p>
+              <p className="text-xs text-muted-foreground">Envie imagens na página de Mídia para poder selecioná-las aqui.</p>
+              <Link
+                href="/admin/media"
+                className="rounded-sm text-xs font-medium text-foreground outline-none ui-motion-base hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Ir para Mídia
+              </Link>
+            </div>
+          )}
         </div>
       </dialog>
     </div>

@@ -9,6 +9,7 @@ export type CourseRecord = {
   createdBy: string;
   selfEnrollmentEnabled: boolean;
   publiclyListed: boolean;
+  coverMediaId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -19,6 +20,7 @@ export type LessonRecord = {
   cmsEntryId: string;
   videoUrl: string | null;
   position: number;
+  coverMediaId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

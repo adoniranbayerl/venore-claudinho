@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { MediaPickerField } from "@/components/media-picker-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -25,6 +26,7 @@ export function CreateCourseForm({ onSuccess }: { onSuccess?: () => void }) {
         <input type="checkbox" name="publiclyListed" defaultChecked />
         Listar publicamente
       </label>
+      <MediaPickerField name="coverMediaId" label="Capa do curso (opcional)" />
       <Button type="submit" disabled={pending} className="w-full">
         Criar curso
       </Button>

@@ -1,0 +1,1 @@
+ALTER TABLE "auth"."users" ADD COLUMN "avatar_media_id" text;

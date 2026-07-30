@@ -3,6 +3,9 @@
 import { useActionState, useState } from "react";
 import { MediaPickerField } from "@/components/media-picker-field";
 import { PlatformBrand } from "@/themes/venore-slime/components/PlatformBrand";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useActionToast } from "@/hooks/use-action-toast";
 import type { HeaderBrandMode, HeaderBrandPosition } from "@/contexts/themes";
 import type { BrandConfig } from "@/platform/brand/get-brand-config";
 import type { BrandMediaSelections } from "@/platform/brand/get-brand-media-selections";
@@ -10,8 +13,15 @@ import { updateBrandSettingsAction, type BrandSettingsActionState } from "../act
 
 const initialState: BrandSettingsActionState = { error: null };
 
+const BRAND_MODE_LABEL: Record<HeaderBrandMode, string> = {
+  text: "Somente texto",
+  svg: "Imagem vetorial (SVG)",
+  png: "Imagem (PNG)",
+};
+
 export function BrandSettingsForm({ brand, media }: { brand: BrandConfig; media: BrandMediaSelections }) {
   const [state, formAction, pending] = useActionState(updateBrandSettingsAction, initialState);
+  useActionToast({ pending, error: state.error, successMessage: "Aparência salva." });
 
   // Estado local só pra alimentar o preview ao vivo — o valor de verdade que é salvo continua
   // vindo do FormData no submit (inputs não controlados, exceto pelo espelho abaixo).
@@ -25,19 +35,19 @@ export function BrandSettingsForm({ brand, media }: { brand: BrandConfig; media:
 
   return (
     <form action={formAction} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
-      <div className="space-y-4 rounded border border-border bg-card p-4">
+      <div className="space-y-4 rounded-panel border border-border bg-card ui-panel-padding-roomy">
         <div>
           <label className="block text-xs font-medium text-muted-foreground">Nome do site</label>
-          <input
+          <Input
             name="siteName"
             defaultValue={brand.siteName}
             onChange={(event) => setSiteName(event.target.value)}
-            className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
+            className="mt-1"
           />
         </div>
 
         <div>
-          <span className="block text-xs font-medium text-muted-foreground">Modo do brand</span>
+          <span className="block text-xs font-medium text-muted-foreground">Como exibir a marca</span>
           <div className="mt-1 flex gap-4">
             {(["text", "svg", "png"] as const).map((option) => (
               <label key={option} className="flex items-center gap-1.5 text-sm text-foreground">
@@ -47,8 +57,9 @@ export function BrandSettingsForm({ brand, media }: { brand: BrandConfig; media:
                   value={option}
                   defaultChecked={brand.mode === option}
                   onChange={() => setMode(option)}
+                  className="outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
                 />
-                {option.toUpperCase()}
+                {BRAND_MODE_LABEL[option]}
               </label>
             ))}
           </div>
@@ -65,6 +76,7 @@ export function BrandSettingsForm({ brand, media }: { brand: BrandConfig; media:
                   value={option}
                   defaultChecked={brand.position === option}
                   onChange={() => setPosition(option)}
+                  className="outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
                 />
                 {option === "left" ? "Esquerda" : "Centro"}
               </label>
@@ -75,7 +87,7 @@ export function BrandSettingsForm({ brand, media }: { brand: BrandConfig; media:
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-muted-foreground">Tamanho (%)</label>
-            <input
+            <Input
               type="number"
               name="size"
               min={50}
@@ -83,12 +95,12 @@ export function BrandSettingsForm({ brand, media }: { brand: BrandConfig; media:
               step={5}
               defaultValue={brand.size}
               onChange={(event) => setSize(Number(event.target.value))}
-              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className="mt-1"
             />
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground">Tamanho ao rolar (%)</label>
-            <input
+            <Input
               type="number"
               name="scrolledSize"
               min={50}
@@ -96,7 +108,7 @@ export function BrandSettingsForm({ brand, media }: { brand: BrandConfig; media:
               step={5}
               defaultValue={brand.scrolledSize}
               onChange={(event) => setScrolledSize(Number(event.target.value))}
-              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className="mt-1"
             />
           </div>
         </div>
@@ -109,26 +121,21 @@ export function BrandSettingsForm({ brand, media }: { brand: BrandConfig; media:
         />
         <MediaPickerField
           name="logoScrolledMediaId"
-          label="Logo (estado scrolled)"
+          label="Logo (quando a página está rolada)"
           initialMedia={media.logoScrolled}
           onSelect={(selected) => setScrolledLogoUrl(selected?.url ?? brand.scrolledLogoUrl)}
         />
         <MediaPickerField name="faviconMediaId" label="Favicon" initialMedia={media.favicon} />
 
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-        >
+        <Button type="submit" disabled={pending}>
           Salvar
-        </button>
-        {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
+        </Button>
       </div>
 
-      <div className="space-y-4 rounded border border-border bg-card p-4">
-        <p className="text-xs font-medium uppercase tracking-caps text-muted-foreground">Preview do header</p>
+      <div className="space-y-4 rounded-panel border border-border bg-card ui-panel-padding-roomy">
+        <p className="text-xs font-medium uppercase tracking-caps text-muted-foreground">Pré-visualização do cabeçalho</p>
         <div className="space-y-3">
-          <div className="rounded border border-border bg-background p-4">
+          <div className="rounded-lg border border-border bg-background p-4">
             <p className="mb-2 text-[11px] text-muted-foreground">Normal</p>
             <PlatformBrand
               name={siteName}
@@ -141,8 +148,8 @@ export function BrandSettingsForm({ brand, media }: { brand: BrandConfig; media:
               scrolledLogoUrl={scrolledLogoUrl}
             />
           </div>
-          <div className="rounded border border-border bg-primary p-4 text-primary-foreground">
-            <p className="mb-2 text-[11px] text-primary-foreground/80">Ao rolar</p>
+          <div className="rounded-lg border border-border bg-primary p-4 text-primary-foreground">
+            <p className="mb-2 text-[11px] text-primary-foreground/80">Ao rolar a página</p>
             <PlatformBrand
               name={siteName}
               mode={mode}

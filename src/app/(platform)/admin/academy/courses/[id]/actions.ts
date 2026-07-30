@@ -19,10 +19,13 @@ export async function createLessonAction(_prevState: CourseActionState, formData
   const courseId = String(formData.get("courseId") ?? "");
   const videoUrl = String(formData.get("videoUrl") ?? "").trim();
 
+  const coverMediaId = String(formData.get("coverMediaId") ?? "").trim();
+
   const result = await createLesson({
     courseId,
     cmsEntryId: String(formData.get("cmsEntryId") ?? ""),
     videoUrl: videoUrl || undefined,
+    coverMediaId: coverMediaId || undefined,
   });
 
   if (!result.success) {
@@ -81,12 +84,14 @@ export async function updateCourseSettingsAction(
   formData: FormData,
 ): Promise<CourseActionState> {
   const id = String(formData.get("id") ?? "");
+  const coverMediaId = String(formData.get("coverMediaId") ?? "").trim();
 
   const result = await updateCourseSettings({
     id,
     slug: String(formData.get("slug") ?? "") || undefined,
     selfEnrollmentEnabled: formData.get("selfEnrollmentEnabled") === "on",
     publiclyListed: formData.get("publiclyListed") === "on",
+    coverMediaId: coverMediaId || null,
   });
 
   if (!result.success) {

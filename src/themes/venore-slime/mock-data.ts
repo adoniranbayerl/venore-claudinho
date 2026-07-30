@@ -16,7 +16,10 @@ import type { HeaderSlotProps, FooterSlotProps, SidebarLeftSlotProps, NavItem } 
 export const venoreSlimeMockProps: {
   header: Omit<HeaderSlotProps, "user" | "canAccessAdmin" | "onSignOut">;
   footer: FooterSlotProps;
-  sidebarLeft: Omit<SidebarLeftSlotProps, "navMode" | "canToggleAdminNav" | "onToggleNavMode"> & {
+  sidebarLeft: Omit<
+    SidebarLeftSlotProps,
+    "navMode" | "navGroups" | "canToggleAdminNav" | "onToggleNavMode" | "collapsed" | "onToggleCollapsed"
+  > & {
     navItems: NavItem[];
   };
 } = {
@@ -40,5 +43,5 @@ export const venoreSlimeMockProps: {
     sitemapItems: [],
     creditsEnabled: true,
   },
-  sidebarLeft: { enabled: true, navItems: [{ key: "home", label: "Home", href: "/" }] },
+  sidebarLeft: { enabled: true, navItems: [{ key: "home", label: "Home", href: "/", icon: "home" }] },
 };

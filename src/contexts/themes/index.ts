@@ -1,5 +1,6 @@
 export { getActiveThemeHandler as getActiveTheme } from "./features/active-theme/get-active-theme/handler";
 export { activateThemeHandler as activateTheme } from "./features/active-theme/activate-theme/handler";
+export { themesAdminNavigationItems } from "./admin-navigation";
 
 export type { GetActiveThemeResult } from "./features/active-theme/get-active-theme/types";
 export type { ActivateThemeInput, ActivateThemeResult } from "./features/active-theme/activate-theme/types";
@@ -16,6 +17,7 @@ export type {
   ContentSlotProps,
   SidebarLeftSlotProps,
   NavItem,
+  NavGroup,
   NavMode,
   SitemapItem,
 } from "./contracts/types";

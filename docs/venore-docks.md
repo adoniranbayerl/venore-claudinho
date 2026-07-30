@@ -267,7 +267,21 @@ type PluginManifest = {
 
   permissions?: { key: string; label: string }[];   // namespace: "<plugin>.<recurso>.<acao>"
   settings?: { key: string; defaultValue: unknown }[];
-  navigation?: { key: string; label: string; href: string }[];
+  // icon/groupKey/groupLabel/groupOrder/order/requiredPermission espelham AdminNavItemDefinition
+  // (platform/admin-shell/admin-navigation.contracts.ts) — o registro de navegação admin agrega
+  // o item de um plugin exatamente como agrega o de um context, sem lista central enumerando
+  // telas à mão.
+  navigation?: {
+    key: string;
+    label: string;
+    href: string;
+    icon: string;
+    groupKey: string;
+    groupLabel: string;
+    groupOrder: number;
+    order: number;
+    requiredPermission?: string | string[];
+  }[];
   routes?: { path: string; label: string }[];
   contentTypes?: { key: string; label: string }[];
   blocks?: { key: string; label: string }[];

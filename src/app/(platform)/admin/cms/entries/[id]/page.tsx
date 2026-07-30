@@ -12,9 +12,9 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
 
   if (!gate.granted) {
     return (
-      <div className="rounded border border-border bg-card p-8 text-center">
+      <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy text-center">
         <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar o CMS.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar o conteúdo do site.</p>
       </div>
     );
   }
@@ -22,9 +22,9 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
   const canManageEntries = gate.actor.isSuperadmin || gate.actor.permissions.includes("cms.entries.manage");
   if (!canManageEntries) {
     return (
-      <div className="rounded border border-border bg-card p-8 text-center">
+      <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy text-center">
         <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar entries do CMS.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar o conteúdo do site.</p>
       </div>
     );
   }
@@ -32,10 +32,10 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
   const [entryResult, categoriesResult] = await Promise.all([getEntry({ id }), listCategories()]);
 
   if (!entryResult.success) {
-    return <p className="text-sm text-destructive">Erro ao carregar entry: {entryResult.error.message}</p>;
+    return <p className="text-sm text-destructive">Não foi possível carregar este conteúdo agora. Tente recarregar a página.</p>;
   }
   if (!categoriesResult.success) {
-    return <p className="text-sm text-destructive">Erro ao carregar categorias: {categoriesResult.error.message}</p>;
+    return <p className="text-sm text-destructive">Não foi possível carregar as categorias agora. Tente recarregar a página.</p>;
   }
 
   const entry = entryResult.data;
@@ -49,16 +49,19 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-foreground">Editar entry</h1>
+        <h1 className="text-xl font-semibold text-foreground">Editar conteúdo</h1>
         <div className="flex items-center gap-3">
-          <Link href={`/admin/cms/entries/${entry.id}/builder`} className="text-sm text-primary hover:underline">
+          <Link
+            href={`/admin/cms/entries/${entry.id}/builder`}
+            className="rounded-sm text-sm text-primary outline-none ui-motion-base hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+          >
             Editor visual
           </Link>
-          <span className="text-sm text-muted-foreground/56">{entry.status === "published" ? "publicada" : "rascunho"}</span>
+          <span className="text-sm text-muted-foreground/56">{entry.status === "published" ? "Publicado" : "Rascunho"}</span>
         </div>
       </div>
 
-      <div className="rounded border border-border bg-card p-4">
+      <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy">
         <EditEntryForm
           entryId={entry.id}
           title={entry.title}
@@ -71,7 +74,10 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
       </div>
 
       {entry.status === "draft" && (
-        <div className="rounded border border-border bg-card p-4">
+        <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy">
+          <p className="mb-3 text-sm text-muted-foreground">
+            Este conteúdo ainda é um rascunho — só fica visível no site depois de publicado.
+          </p>
           <PublishButton entryId={entry.id} />
         </div>
       )}

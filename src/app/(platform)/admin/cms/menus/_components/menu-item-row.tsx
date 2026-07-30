@@ -1,6 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
+import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useActionToast } from "@/hooks/use-action-toast";
 import {
   moveMenuItemDownAction,
   moveMenuItemUpAction,
@@ -27,47 +30,42 @@ export function MenuItemRow({
   const [downState, downAction, downPending] = useActionState(moveMenuItemDownAction, initialState);
   const [removeState, removeAction, removePending] = useActionState(removeMenuItemAction, initialState);
 
-  const error = upState.error ?? downState.error ?? removeState.error;
+  useActionToast({ pending: upPending, error: upState.error });
+  useActionToast({ pending: downPending, error: downState.error });
+  useActionToast({ pending: removePending, error: removeState.error, successMessage: "Item removido." });
 
   return (
     <li className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
       <div>
         <span className="font-medium text-foreground">{label}</span>{" "}
-        <span className="text-muted-foreground/56">({href})</span>
+        <span className="text-muted-foreground/56">→ {href}</span>
       </div>
       <div className="flex items-center gap-1">
         <form action={upAction}>
           <input type="hidden" name="menuItemId" value={menuItemId} />
-          <button
-            type="submit"
-            disabled={isFirst || upPending}
-            className="rounded border border-border px-2 py-1 text-xs font-medium text-foreground disabled:opacity-50"
-          >
-            Subir
-          </button>
+          <Button type="submit" variant="outline" size="icon-sm" disabled={isFirst || upPending} aria-label="Mover para cima">
+            <ArrowUp />
+          </Button>
         </form>
         <form action={downAction}>
           <input type="hidden" name="menuItemId" value={menuItemId} />
-          <button
-            type="submit"
-            disabled={isLast || downPending}
-            className="rounded border border-border px-2 py-1 text-xs font-medium text-foreground disabled:opacity-50"
-          >
-            Descer
-          </button>
+          <Button type="submit" variant="outline" size="icon-sm" disabled={isLast || downPending} aria-label="Mover para baixo">
+            <ArrowDown />
+          </Button>
         </form>
         <form action={removeAction}>
           <input type="hidden" name="menuItemId" value={menuItemId} />
-          <button
+          <Button
             type="submit"
+            variant="destructive"
+            size="icon-sm"
             disabled={removePending}
-            className="rounded border border-border px-2 py-1 text-xs font-medium text-destructive disabled:opacity-50"
+            aria-label="Remover item do menu"
           >
-            Remover
-          </button>
+            <Trash2 />
+          </Button>
         </form>
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
     </li>
   );
 }

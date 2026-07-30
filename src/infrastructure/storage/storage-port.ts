@@ -1,0 +1,54 @@
+export type StoredObject = {
+  key: string;
+  url: string;
+  size: number;
+};
+
+export type StoragePutInput = {
+  key: string;
+  data: Buffer;
+  contentType: string;
+};
+
+export type UploadTicketInput = {
+  key: string;
+  contentType: string;
+  maxSizeBytes: number;
+};
+
+// Credencial de upload direto do client até o storage, sem o arquivo passar pelo servidor Next.
+export type UploadTicket = {
+  key: string;
+  uploadUrl: string;
+  token: string;
+  expiresAt: Date;
+};
+
+export type RemoteObjectSummary = {
+  key: string;
+  size: number;
+  uploadedAt: Date;
+};
+
+export interface StoragePort {
+  /** Upload server-buffered — o servidor já tem os bytes em memória (arquivos pequenos). */
+  store(input: StoragePutInput): Promise<StoredObject>;
+
+  /** Remove definitivamente o objeto. Idempotente: remover uma key inexistente não é erro. */
+  remove(key: string): Promise<void>;
+
+  /** Resolve a URL pública/servível de uma key já armazenada, sem round-trip à rede. */
+  resolveUrl(key: string): string;
+
+  /**
+   * Emite uma credencial de upload direto do browser até o storage (blob-spec seção 7/9) —
+   * necessária para arquivos que excedem o limite de body de uma function.
+   */
+  createUploadTicket(input: UploadTicketInput): Promise<UploadTicket>;
+
+  /**
+   * Lista objetos existentes no storage, para reconciliação (blob-spec seção 8) — nunca usado
+   * no caminho síncrono de upload/delete, só por `reconcileOrphanUploads`.
+   */
+  listObjects(prefix?: string): Promise<RemoteObjectSummary[]>;
+}

@@ -11,6 +11,19 @@ export const academyManifest: PluginManifest = {
   description: "Cursos com aulas sequenciais, requisitos configuráveis e progresso do aluno.",
   compatibility: { coreVersion: ">=2.0.0 <3.0.0" },
   permissions: [{ key: "academy.courses.manage", label: "Gerenciar cursos, aulas e perguntas da Academy" }],
+  navigation: [
+    {
+      key: "academy.courses",
+      label: "Academy",
+      href: "/admin/academy",
+      icon: "graduation-cap",
+      groupKey: "plugins",
+      groupLabel: "Plugins",
+      groupOrder: 30,
+      order: 10,
+      requiredPermission: "academy.courses.manage",
+    },
+  ],
   blocks: [
     { key: "academy.course.list", label: "Academy — Lista de cursos" },
     { key: "academy.course.card", label: "Academy — Curso" },

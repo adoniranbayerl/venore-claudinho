@@ -7,6 +7,7 @@ export type CreateCourseCommand = {
   slug?: string;
   selfEnrollmentEnabled?: boolean;
   publiclyListed?: boolean;
+  coverMediaId?: string;
   actorId: string;
 };
 export type CreateCourseInput = Omit<CreateCourseCommand, "actorId">;

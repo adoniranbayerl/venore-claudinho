@@ -1,11 +1,13 @@
 import { resolveActiveTheme } from "@/platform/theme-rendering/resolve-active-theme";
 import { resolveThemeSlotProps } from "@/platform/theme-rendering/resolve-theme-slot-props";
 import { getAdminPageData } from "@/platform/admin-shell/get-admin-page-data";
-import { getVisibleAdminNavItems } from "@/platform/admin-shell/admin-nav-groups";
+import { getVisibleAdminNavGroupsForSidebar } from "@/platform/admin-shell/admin-navigation-registry";
 import { getNavMode } from "@/platform/nav-mode/get-nav-mode";
 import { toggleNavModeAction } from "@/platform/nav-mode/toggle-nav-mode-action";
+import { getSidebarCollapsed } from "@/platform/sidebar-collapse/get-sidebar-collapsed";
+import { toggleSidebarCollapsedAction } from "@/platform/sidebar-collapse/toggle-sidebar-collapsed-action";
 import { signOutAction } from "@/app/(auth)/actions";
-import type { NavItem } from "@/contexts/themes";
+import type { NavGroup } from "@/contexts/themes";
 
 // Shell única (docs/venore-docks.md — "Shell única — sem área admin separada"): Header/Content/
 // SidebarLeft/Footer do tema ativo montados uma única vez aqui, pra toda página pública,
@@ -28,15 +30,18 @@ export default async function PlatformLayout({
   const adminGate = await getAdminPageData();
   const canToggleAdminNav = adminGate.granted;
   const navMode = await getNavMode(canToggleAdminNav);
-  const adminNavItems: NavItem[] = adminGate.granted ? getVisibleAdminNavItems(adminGate.actor) : [];
+  const adminNavGroups: NavGroup[] = adminGate.granted ? await getVisibleAdminNavGroupsForSidebar(adminGate.actor) : [];
+  const collapsed = await getSidebarCollapsed();
 
   const props = await resolveThemeSlotProps({
     navMode,
-    adminNavItems,
+    adminNavGroups,
     canToggleAdminNav,
     onToggleNavMode: toggleNavModeAction,
     canAccessAdmin: adminGate.granted,
     onSignOut: signOutAction,
+    collapsed,
+    onToggleCollapsed: toggleSidebarCollapsedAction,
   });
 
   return (

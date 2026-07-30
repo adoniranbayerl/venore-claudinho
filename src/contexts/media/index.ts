@@ -7,9 +7,28 @@ export { getMediaHandler as getMedia } from "./features/files/get-media/handler"
 // export direto (regra 14 — segunda ocorrência do padrão, primeira foi o registro de usuário).
 export { deleteMediaHandler as deleteMedia } from "./features/files/delete-media/handler";
 
-export type { MediaRecord } from "./contracts/types";
+// Fluxo novo de client-upload direto ao Blob (docs/media/blob-spec.md). `confirmMediaUpload` é
+// a entrada pública para a confirmação feita pelo browser depois que upload() resolve — o
+// handler de baixo nível usado pelo webhook onUploadCompleted (que confia num actorId já
+// resolvido via tokenPayload) não é exportado aqui de propósito, só a rota o importa direto.
+export { requestMediaUploadTicketHandler as requestMediaUploadTicket } from "./features/assets/request-media-upload-ticket/handler";
+// Exposta pro route handler revalidar allowlist/limite dentro de onBeforeGenerateToken sem
+// duplicar a regra (blob-spec seção 5, "checado duas vezes").
+export { validateMediaUploadCandidate } from "./features/assets/request-media-upload-ticket/service";
+export { confirmMediaUploadHandler as confirmMediaUpload } from "./features/assets/register-uploaded-media/handler";
+export { deleteMediaAssetHandler as deleteMediaAsset } from "./features/assets/delete-media-asset/handler";
+
+export { mediaAdminNavigationItems } from "./admin-navigation";
+
+export type { MediaAsset, MediaAssetCategory, MediaAllowedTypeRule, MediaRecord } from "./contracts/types";
+export { MEDIA_ALLOWED_TYPES } from "./contracts/types";
 
 export type { UploadMediaInput, UploadMediaResult } from "./features/files/upload-media/types";
 export type { ListMediaResult } from "./features/files/list-media/types";
 export type { GetMediaQuery, GetMediaResult } from "./features/files/get-media/types";
 export type { DeleteMediaInput, DeleteMediaResult } from "./features/files/delete-media/types";
+
+export type { RequestMediaUploadTicketInput, RequestMediaUploadTicketResult, MediaUploadTicket } from "./features/assets/request-media-upload-ticket/types";
+export type { RegisterUploadedMediaResult } from "./features/assets/register-uploaded-media/types";
+export type { ConfirmMediaUploadInput } from "./features/assets/register-uploaded-media/handler";
+export type { DeleteMediaAssetInput, DeleteMediaAssetResult } from "./features/assets/delete-media-asset/types";

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import type { BlockDefinition, Composition } from "@/contexts/cms";
+import { Button } from "@/components/ui/button";
 import {
   addChild,
   appendToRoot,
@@ -126,17 +127,15 @@ export function CompositionBuilder({
           <p className="text-xs text-muted-foreground/56">/{entrySlug}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href={`/admin/cms/entries/${entryId}`} className="text-sm text-muted-foreground hover:text-foreground">
+          <Link
+            href={`/admin/cms/entries/${entryId}`}
+            className="rounded-sm text-sm text-muted-foreground outline-none ui-motion-base hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          >
             Voltar
           </Link>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isPending}
-            className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
-          >
+          <Button type="button" onClick={handleSave} disabled={isPending}>
             {isPending ? "Salvando..." : "Salvar"}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -144,16 +143,12 @@ export function CompositionBuilder({
       {saveError && !saveError.blockId && <p className="text-sm text-destructive">{saveError.message}</p>}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[380px_1fr]">
-        <div className="rounded border border-border bg-card p-3">
+        <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy">
           <div className="mb-2 flex items-center justify-between">
             <p className="text-xs font-medium text-muted-foreground/56 uppercase">Composição</p>
-            <button
-              type="button"
-              onClick={() => setPaletteRequest({ mode: "root" })}
-              className="rounded border border-ring px-2 py-1 text-xs font-medium text-foreground"
-            >
+            <Button type="button" variant="outline" size="xs" onClick={() => setPaletteRequest({ mode: "root" })}>
               + Adicionar bloco
-            </button>
+            </Button>
           </div>
 
           <BlockTree
@@ -179,7 +174,7 @@ export function CompositionBuilder({
           />
         </div>
 
-        <div className="rounded border border-border bg-card p-4">
+        <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy">
           {selectedBlock && selectedDefinition ? (
             <BlockFieldsPanel
               block={selectedBlock}
@@ -193,7 +188,7 @@ export function CompositionBuilder({
         </div>
       </div>
 
-      <div className="rounded border border-border bg-card p-4">
+      <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy">
         <div className="mb-2 flex items-center justify-between">
           <p className="text-xs font-medium text-muted-foreground/56 uppercase">Pré-visualização</p>
           <p className="text-xs text-muted-foreground/56">Reflete a última versão salva</p>

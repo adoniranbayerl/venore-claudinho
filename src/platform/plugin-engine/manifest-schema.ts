@@ -16,7 +16,20 @@ const pluginCompatibilitySchema = z.object({
 
 const pluginPermissionSchema = z.object({ key: z.string().min(1), label: z.string().min(1) });
 const pluginSettingSchema = z.object({ key: z.string().min(1), defaultValue: z.unknown() });
-const pluginNavigationSchema = z.object({ key: z.string().min(1), label: z.string().min(1), href: z.string().min(1) });
+const pluginNavigationSchema = z.object({
+  key: z.string().min(1),
+  label: z.string().min(1),
+  href: z.string().min(1),
+  // Campos que espelham AdminNavItemDefinition (platform/admin-shell/admin-navigation.contracts.ts)
+  // — permitem que a navegação admin agregue o item de um plugin igual agrega o de um context,
+  // sem lista central enumerando telas à mão (docs/venore-docks.md — "Sistema de plugins").
+  icon: z.string().min(1),
+  groupKey: z.string().min(1),
+  groupLabel: z.string().min(1),
+  groupOrder: z.number(),
+  order: z.number(),
+  requiredPermission: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
+});
 const pluginRouteSchema = z.object({ path: z.string().min(1), label: z.string().min(1) });
 const pluginContentTypeSchema = z.object({ key: z.string().min(1), label: z.string().min(1) });
 const pluginBlockSchema = z.object({ key: z.string().min(1), label: z.string().min(1) });

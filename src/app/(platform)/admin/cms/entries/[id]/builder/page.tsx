@@ -11,7 +11,7 @@ export default async function EntryBuilderPage({ params }: { params: Promise<{ i
 
   if (!gate.granted) {
     return (
-      <div className="rounded border border-border bg-card p-8 text-center">
+      <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy text-center">
         <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
         <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar o CMS.</p>
       </div>
@@ -21,7 +21,7 @@ export default async function EntryBuilderPage({ params }: { params: Promise<{ i
   const canManageEntries = gate.actor.isSuperadmin || gate.actor.permissions.includes("cms.entries.manage");
   if (!canManageEntries) {
     return (
-      <div className="rounded border border-border bg-card p-8 text-center">
+      <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy text-center">
         <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
         <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar entries do CMS.</p>
       </div>

@@ -1,0 +1,69 @@
+import { listCategories } from "@/contexts/cms";
+import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
+import { EmptyState } from "@/components/empty-state";
+import { CreateCategoryForm } from "../_components/create-category-form";
+import { FolderTree } from "lucide-react";
+
+export default async function CmsCategoriesAdminPage() {
+  const gate = await getCmsPageData();
+
+  if (!gate.granted) {
+    return (
+      <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy text-center">
+        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar o conteúdo do site.</p>
+      </div>
+    );
+  }
+
+  const canManageCategories = gate.actor.isSuperadmin || gate.actor.permissions.includes("cms.categories.manage");
+  if (!canManageCategories) {
+    return (
+      <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy text-center">
+        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar categorias.</p>
+      </div>
+    );
+  }
+
+  const categoriesResult = await listCategories();
+
+  if (!categoriesResult.success) {
+    return <p className="text-sm text-destructive">Não foi possível carregar as categorias agora. Tente recarregar a página.</p>;
+  }
+
+  const categories = categoriesResult.data;
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-xl font-semibold text-foreground">Categorias</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Agrupam conteúdos relacionados sob um mesmo endereço de página.</p>
+      </div>
+
+      <section className="rounded-panel border border-border bg-card ui-panel-padding-roomy">
+        {categories.length === 0 ? (
+          <EmptyState
+            icon={<FolderTree className="size-8" strokeWidth={1.5} />}
+            title="Nenhuma categoria ainda"
+            description="Crie a primeira categoria (ex: Eventos, Notícias) para organizar o conteúdo."
+            action={<CreateCategoryForm />}
+          />
+        ) : (
+          <>
+            <ul className="space-y-1">
+              {categories.map((category) => (
+                <li key={category.id} className="text-sm text-muted-foreground">
+                  <span className="text-foreground">{category.name}</span>{" "}
+                  <span className="text-muted-foreground/56">(/{category.slug})</span>
+                  {category.description && <span className="text-muted-foreground/56"> — {category.description}</span>}
+                </li>
+              ))}
+            </ul>
+            <CreateCategoryForm />
+          </>
+        )}
+      </section>
+    </div>
+  );
+}

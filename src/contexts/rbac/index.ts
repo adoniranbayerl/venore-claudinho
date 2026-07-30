@@ -21,6 +21,8 @@ export { grantSuperadminHandler as grantSuperadmin } from "./features/role-assig
 export { approveRegistrationHandler as approveRegistration } from "./features/registration-approval/approve-registration/handler";
 export { listPendingRegistrationsHandler as listPendingRegistrations } from "./features/registration-approval/list-pending-registrations/handler";
 
+export { rbacAdminNavigationItems } from "./admin-navigation";
+
 export type { RoleRef, PermissionDefinition, UserRbacContext } from "./contracts/types";
 export { SYSTEM_ROLE_KEYS } from "./contracts/roles";
 export type { SystemRoleKey } from "./contracts/roles";

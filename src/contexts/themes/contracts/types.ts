@@ -14,7 +14,13 @@ export type ActiveThemeState = {
 
 // --- Contrato de slot (docs/venore-docks.md — "Sobre temas" / Contrato de slot), verbatim ---
 
-export type NavItem = { key: string; label: string; href: string };
+// icon: chave lógica resolvida pra um lucide-react dentro do tema (SidebarNavLink.tsx), nunca o
+// componente em si — Server → Client Component não serializa função/componente como prop. Vem só
+// de fonte que o repo controla direto (platform/admin-shell/admin-navigation-registry.ts, que
+// agrega o item declarado por cada context/plugin); CMS ainda não tem coluna de ícone
+// (Known Gap), então main-nav opcionalmente fica sem `icon` e cai no fallback genérico do tema.
+export type NavItem = { key: string; label: string; href: string; icon?: string };
+export type NavGroup = { key: string; label: string; items: NavItem[] };
 export type SitemapItem = { key: string; label: string; href: string };
 
 export type NavMode = "main" | "admin";
@@ -78,7 +84,17 @@ export type ContentSlotProps = {
 export type SidebarLeftSlotProps = {
   enabled: boolean;
   navMode: NavMode;
+  // main-nav é uma lista plana (sem títulos de seção, protótipo confirma). admin-nav agrupa por
+  // seção com título (docs/ui/shell-spec.md §3.4 + protótipo platform-sidebar.tsx `adminGroups`)
+  // — por isso os dois vivem em campos separados em vez de um só `navItems` genérico; `navGroups`
+  // fica `[]` quando navMode é "main".
   navItems: NavItem[];
+  navGroups: NavGroup[];
   canToggleAdminNav: boolean;
   onToggleNavMode: () => Promise<void>;
+  // Colapso é exclusivo do desktop (off-canvas mobile ignora, docs/ui/shell-spec.md §3.1-3.2) —
+  // persistido em cookie e resolvido no servidor (get-sidebar-collapsed.ts), nunca client-only
+  // (§3.3 do spec registra isso como o que NÃO portar do protótipo).
+  collapsed: boolean;
+  onToggleCollapsed: () => Promise<void>;
 };

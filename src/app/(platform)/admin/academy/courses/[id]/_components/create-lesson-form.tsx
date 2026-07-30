@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { MediaPickerField } from "@/components/media-picker-field";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -31,7 +33,7 @@ export function CreateLessonForm({
       <input type="hidden" name="courseId" value={courseId} />
 
       <div>
-        <label className="block text-xs font-medium text-muted-foreground">Entry do CMS</label>
+        <label className="block text-xs font-medium text-muted-foreground">Conteúdo do CMS</label>
         <Select name="cmsEntryId" required>
           <SelectTrigger className="mt-1 w-full">
             <SelectValue placeholder="selecione..." />
@@ -39,36 +41,42 @@ export function CreateLessonForm({
           <SelectContent>
             {entries.map((entry) => (
               <SelectItem key={entry.id} value={entry.id}>
-                {entry.title} ({entry.slug})
+                {entry.title}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         {entries.length === 0 && (
-          <p className="mt-1 text-xs text-muted-foreground/56">Nenhuma entry publicada no CMS ainda.</p>
+          <p className="mt-1 text-xs text-muted-foreground/56">Nenhum conteúdo publicado no CMS ainda.</p>
         )}
       </div>
 
       <div>
         <label className="block text-xs font-medium text-muted-foreground">URL do vídeo (opcional)</label>
-        <input
-          name="videoUrl"
-          value={videoUrl}
-          onChange={(event) => setVideoUrl(event.target.value)}
-          className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
-        />
+        <Input name="videoUrl" value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} className="mt-1" />
       </div>
+
+      <MediaPickerField name="coverMediaId" label="Capa da aula (opcional)" />
 
       <div className="space-y-2 border-t border-border pt-3">
         <p className="text-xs font-medium text-muted-foreground">Requisitos de conclusão (opcional, dá pra ajustar depois)</p>
 
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <input type="checkbox" name="readTextEnabled" />
+          <input
+            type="checkbox"
+            name="readTextEnabled"
+            className="rounded-sm outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
+          />
           Exigir leitura do texto
         </label>
 
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <input type="checkbox" name="watchVideoEnabled" disabled={videoUrl.trim().length === 0} />
+          <input
+            type="checkbox"
+            name="watchVideoEnabled"
+            disabled={videoUrl.trim().length === 0}
+            className="rounded-sm outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
+          />
           Exigir assistir o vídeo
           {videoUrl.trim().length === 0 && <span className="text-xs text-muted-foreground/56">(preencha a URL do vídeo)</span>}
         </label>
@@ -79,6 +87,7 @@ export function CreateLessonForm({
             name="quizEnabled"
             checked={quizEnabled}
             onChange={(event) => setQuizEnabled(event.target.checked)}
+            className="rounded-sm outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
           />
           Exigir quiz
         </label>
@@ -87,24 +96,11 @@ export function CreateLessonForm({
           <div className="ml-6 space-y-3 border-l border-border pl-4">
             <div>
               <label className="block text-xs font-medium text-muted-foreground">Nota mínima para aprovação (%)</label>
-              <input
-                type="number"
-                name="quizPassThresholdPercent"
-                min={1}
-                max={100}
-                defaultValue={70}
-                className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
-              />
+              <Input type="number" name="quizPassThresholdPercent" min={1} max={100} defaultValue={70} className="mt-1" />
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground">Tentativas máximas</label>
-              <input
-                type="number"
-                name="quizMaxAttempts"
-                min={1}
-                defaultValue={3}
-                className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
-              />
+              <Input type="number" name="quizMaxAttempts" min={1} defaultValue={3} className="mt-1" />
             </div>
             <p className="text-xs text-muted-foreground/56">
               As perguntas do quiz são cadastradas na página da aula depois de criá-la.

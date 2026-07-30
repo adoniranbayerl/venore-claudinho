@@ -26,7 +26,7 @@ export function StudentCourseCard({
   return (
     <Link href={`/academy/${course.slug}`} className="group block">
       <Card className="h-full gap-0 overflow-hidden py-0 transition-shadow group-hover:shadow-float">
-        <CourseCover className="rounded-b-none" />
+        <CourseCover coverMediaId={course.coverMediaId} className="rounded-b-none" />
         <CardHeader className="gap-2 pt-4">
           <Badge variant={badge.variant} className="w-fit">
             {badge.label}

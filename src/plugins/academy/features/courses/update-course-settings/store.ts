@@ -18,6 +18,7 @@ export async function applyCourseSettings(input: {
   slug?: string;
   selfEnrollmentEnabled: boolean;
   publiclyListed: boolean;
+  coverMediaId?: string | null;
 }): Promise<CourseRecord> {
   const [row] = await db
     .update(courses)
@@ -25,6 +26,7 @@ export async function applyCourseSettings(input: {
       selfEnrollmentEnabled: input.selfEnrollmentEnabled,
       publiclyListed: input.publiclyListed,
       ...(input.slug !== undefined && { slug: input.slug }),
+      ...(input.coverMediaId !== undefined && { coverMediaId: input.coverMediaId }),
       updatedAt: sql`now()`,
     })
     .where(eq(courses.id, input.id))

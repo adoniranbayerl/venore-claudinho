@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { closeMobileNav, useMobileNavOpen } from "./mobile-nav-store";
+import { closeMobileNav, getMobileNavTrigger, useMobileNavOpen } from "./mobile-nav-store";
+
+const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// 1024px == breakpoint `lg` (default do Tailwind, AGENTS.md §4 — sem token JS equivalente
+// declarado no projeto). Só abaixo disso o painel é de fato off-canvas; a partir daí ele é a
+// coluna estática sempre visível, e prender o foco nela seria errado.
+const OFF_CANVAS_MEDIA_QUERY = "(min-width: 1024px)";
 
 // Envolve o conteúdo (nav + toggle admin) já montado pelo SidebarLeftSlot (server component) —
 // só a casca que decide overlay/posição/Escape é client. Abaixo de lg vira off-canvas fechado
@@ -11,6 +18,7 @@ import { closeMobileNav, useMobileNavOpen } from "./mobile-nav-store";
 // fixa (classes lg: do próprio SidebarLeftSlot cuidam disso).
 export function MobileNavDrawer({ children, asideClassName }: { children: ReactNode; asideClassName: string }) {
   const isOpen = useMobileNavOpen();
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -19,6 +27,39 @@ export function MobileNavDrawer({ children, asideClassName }: { children: ReactN
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isOpen]);
+
+  // Foco preso dentro do painel enquanto aberto e devolvido ao gatilho ao fechar — só faz
+  // sentido abaixo de `lg`, onde o painel é de fato off-canvas (ver OFF_CANVAS_MEDIA_QUERY).
+  useEffect(() => {
+    if (!isOpen) return;
+    if (window.matchMedia(OFF_CANVAS_MEDIA_QUERY).matches) return;
+
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const getFocusable = () => Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+    getFocusable()[0]?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Tab") return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      getMobileNavTrigger()?.focus();
+    };
   }, [isOpen]);
 
   // Trava o scroll do body enquanto o drawer está aberto, sem salto de posição: em vez de só
@@ -53,6 +94,7 @@ export function MobileNavDrawer({ children, asideClassName }: { children: ReactN
         />
       )}
       <div
+        ref={panelRef}
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-64 max-w-[85vw] ui-motion-emphasis",
           "lg:static lg:z-auto lg:w-auto lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:transition-none",

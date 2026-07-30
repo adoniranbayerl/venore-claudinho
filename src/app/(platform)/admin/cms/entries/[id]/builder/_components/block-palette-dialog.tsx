@@ -47,7 +47,7 @@ export function BlockPaletteDialog({
                       onSelect(definition);
                       onOpenChange(false);
                     }}
-                    className="rounded border border-border p-2 text-left text-sm text-foreground hover:border-ring hover:bg-accent"
+                    className="rounded-lg border border-border p-2 text-left text-sm text-foreground outline-none ui-motion-base hover:border-ring hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {definition.label}
                   </button>

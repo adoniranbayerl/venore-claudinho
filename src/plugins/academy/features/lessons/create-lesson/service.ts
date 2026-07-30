@@ -1,4 +1,5 @@
 import { getEntry } from "@/contexts/cms";
+import { getMedia } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
 import { findNextPosition, insertLesson } from "./store";
 import type { CreateLessonCommand, CreateLessonResult } from "./types";
@@ -22,11 +23,24 @@ export async function createLesson(command: CreateLessonCommand): Promise<Create
     return { success: false, error };
   }
 
+  if (command.coverMediaId) {
+    const media = await getMedia({ id: command.coverMediaId });
+    if (!media.success || !media.data) {
+      const error = {
+        code: "academy.lessons.invalid_cover_media",
+        message: `Nenhum arquivo de mídia encontrado com id "${command.coverMediaId}".`,
+      };
+      endOperation(handle, { success: false, error });
+      return { success: false, error };
+    }
+  }
+
   const position = await findNextPosition(command.courseId);
   const lesson = await insertLesson({
     courseId: command.courseId,
     cmsEntryId: command.cmsEntryId,
     videoUrl: command.videoUrl,
+    coverMediaId: command.coverMediaId,
     position,
   });
 

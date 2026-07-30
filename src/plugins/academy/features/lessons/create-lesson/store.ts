@@ -18,6 +18,7 @@ export async function insertLesson(input: {
   courseId: string;
   cmsEntryId: string;
   videoUrl?: string;
+  coverMediaId?: string;
   position: number;
 }): Promise<LessonRecord> {
   const [row] = await db
@@ -27,6 +28,7 @@ export async function insertLesson(input: {
       cmsEntryId: input.cmsEntryId,
       videoUrl: input.videoUrl ?? null,
       position: input.position,
+      ...(input.coverMediaId !== undefined && { coverMediaId: input.coverMediaId }),
     })
     .returning();
 

@@ -10,11 +10,16 @@ export async function findLessonById(id: string): Promise<LessonRecord | null> {
 
 export async function updateLesson(
   id: string,
-  input: { cmsEntryId?: string; videoUrl?: string },
+  input: { cmsEntryId?: string; videoUrl?: string; coverMediaId?: string | null },
 ): Promise<LessonRecord> {
+  const { coverMediaId, ...rest } = input;
   const [row] = await db
     .update(lessons)
-    .set({ ...input, updatedAt: sql`now()` })
+    .set({
+      ...rest,
+      ...(coverMediaId !== undefined && { coverMediaId }),
+      updatedAt: sql`now()`,
+    })
     .where(eq(lessons.id, id))
     .returning();
 

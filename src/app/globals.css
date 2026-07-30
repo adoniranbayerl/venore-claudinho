@@ -89,7 +89,13 @@
   --shadow-float: 0 18px 44px -28px var(--shadow-color-strong-soft);
   --shadow-header: 0 12px 30px -24px var(--shadow-color-strong-soft);
 
-  /* sidebar */
+  /* sidebar — largura das duas colunas de grid (expandida/colapsada). Valores idênticos aos do
+     protótipo de referência (docs/ui/shell-spec.md §3.1: 280px/88px) — pedido explícito de paridade
+     visual exata nesta sessão, não estimativa nossa. Mesmo valor em light/dark (não é token de
+     cor), por isso declarado só uma vez em :root. */
+  --sidebar-width-expanded: 17.5rem;
+  --sidebar-width-collapsed: 5.5rem;
+
   --sidebar-bg-start: oklch(0.963 0.018 158);
   --sidebar-bg-end: oklch(0.938 0.03 164);
   --sidebar-bg: linear-gradient(180deg, var(--sidebar-bg-start) 0%, var(--sidebar-bg-end) 100%);
@@ -290,7 +296,7 @@
 }
 
 @utility ui-motion-emphasis {
-  transition-property: color, background-color, border-color, box-shadow, opacity, transform, height;
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform, height, width;
   transition-duration: var(--ui-motion-slow);
   transition-timing-function: var(--ui-ease-emphasis);
 }

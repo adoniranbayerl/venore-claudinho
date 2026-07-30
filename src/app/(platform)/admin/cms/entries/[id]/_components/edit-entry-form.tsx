@@ -1,8 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { MediaPickerField } from "@/components/media-picker-field";
 import type { PickableMedia } from "@/components/media-picker-field.actions";
+import { AutoSlugField } from "@/components/auto-slug-field";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -10,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionToast } from "@/hooks/use-action-toast";
 import { updateEntryAction, type EditEntryActionState } from "../actions";
 
 const initialState: EditEntryActionState = { error: null };
@@ -32,6 +37,8 @@ export function EditEntryForm({
   categories: { id: string; name: string }[];
 }) {
   const [state, formAction, pending] = useActionState(updateEntryAction, initialState);
+  const [titleValue, setTitleValue] = useState(title);
+  useActionToast({ pending, error: state.error, successMessage: "Alterações salvas." });
 
   return (
     <form action={formAction} className="space-y-3">
@@ -39,23 +46,16 @@ export function EditEntryForm({
 
       <div>
         <label className="block text-xs font-medium text-muted-foreground">Título</label>
-        <input
+        <Input
           name="title"
-          defaultValue={title}
+          value={titleValue}
+          onChange={(event) => setTitleValue(event.target.value)}
           required
-          className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
+          className="mt-1"
         />
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-muted-foreground">Slug</label>
-        <input
-          name="slug"
-          defaultValue={slug}
-          required
-          className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
-        />
-      </div>
+      <AutoSlugField name="slug" sourceValue={titleValue} defaultValue={slug} label="Endereço da página" />
 
       <div>
         <label className="block text-xs font-medium text-muted-foreground">Categoria (opcional)</label>
@@ -75,24 +75,14 @@ export function EditEntryForm({
 
       <div>
         <label className="block text-xs font-medium text-muted-foreground">Corpo</label>
-        <textarea
-          name="body"
-          rows={8}
-          defaultValue={body}
-          className="mt-1 w-full rounded border border-border px-2 py-1 text-sm"
-        />
+        <Textarea name="body" rows={8} defaultValue={body} className="mt-1" />
       </div>
 
       <MediaPickerField name="mediaId" initialMedia={media} />
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
-      >
+      <Button type="submit" disabled={pending}>
         Salvar
-      </button>
-      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+      </Button>
     </form>
   );
 }

@@ -11,6 +11,11 @@ export type { GetCurrentUserRegistrationStatusResult } from "./features/session/
 export { provisionUserHandler as provisionUser } from "./features/identity/provision-user/handler";
 export type { ProvisionUserCommand, ProvisionUserResult } from "./features/identity/provision-user/types";
 
+// Self-service: atualiza o avatarMediaId do próprio usuário logado — actorId resolvido da sessão
+// dentro do handler, sem RBAC (não há "permission" pra editar o próprio perfil).
+export { updateOwnAvatarHandler as updateOwnAvatar } from "./features/identity/update-own-avatar/handler";
+export type { UpdateOwnAvatarInput, UpdateOwnAvatarResult } from "./features/identity/update-own-avatar/types";
+
 // Lookup por email, sem verificação de autorização própria — destinado a ferramentas
 // administrativas/scripts (ex: scripts/bootstrap-superadmin.mjs), não para uso geral por
 // plugin/tema (docs/venore-docks.md — regra 14: expõe usuário por email sem checagem de ator).

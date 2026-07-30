@@ -1,4 +1,5 @@
 export { beginOperation, endOperation } from "./operation-log";
+export { observabilityAdminNavigationItems } from "./admin-navigation";
 export { listLogEntriesHandler as listLogEntries } from "./features/list-log-entries/handler";
 export type {
   ActorRef,

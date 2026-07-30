@@ -1,4 +1,4 @@
-import { integer, pgSchema, text, timestamp } from "drizzle-orm/pg-core";
+import { index, integer, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "@/contexts/auth/database/schema";
 
 export const mediaSchema = pgSchema("media");
@@ -17,3 +17,35 @@ export const files = mediaSchema.table("files", {
     .references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Tabela nova do fluxo de client-upload direto ao Blob (docs/media/blob-spec.md, seção 3).
+// Convive com `files` (fluxo server-buffered legado) de propósito — a migração de dados de
+// `files` para `assets` é decisão de implementação futura, fora desta sessão (spec, seção 0.1).
+export const assets = mediaSchema.table(
+  "assets",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    pathname: text("pathname").notNull(),
+    url: text("url").notNull(),
+    contentType: text("content_type").notNull(),
+    size: integer("size").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    alt: text("alt"),
+    checksum: text("checksum").notNull(),
+    uploadedBy: text("uploaded_by")
+      .notNull()
+      .references(() => users.id),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("media_assets_pathname_idx").on(table.pathname),
+    index("media_assets_checksum_idx").on(table.checksum),
+    index("media_assets_uploaded_by_idx").on(table.uploadedBy),
+    index("media_assets_deleted_at_idx").on(table.deletedAt),
+  ],
+);

@@ -49,7 +49,11 @@ export function BlockTree({
   rowNumbers?: Map<string, number>;
 }) {
   if (blocks.length === 0) {
-    return <p className="pl-2 text-xs text-muted-foreground/56">Vazio.</p>;
+    return (
+      <p className="pl-2 text-xs text-muted-foreground/56">
+        Nenhum bloco aqui ainda. Use &quot;Adicionar bloco&quot; para começar esta área.
+      </p>
+    );
   }
 
   // rowNumbers ausente = chamada raiz (único call site: composition-builder.tsx) — computa a
@@ -116,13 +120,13 @@ function BlockNode({
   const hiddenBlockCount = hiddenAreas.reduce((sum, area) => sum + area.blocks.length, 0);
   const nextColumns = Math.min(ROW_MAX_COLUMNS, columns + 1);
   const rowNumber = isRow ? rowNumbers.get(block.id) : undefined;
-  const nodeLabel = definition?.label ?? `? ${block.key}`;
+  const nodeLabel = definition?.label ?? "Bloco desconhecido";
 
   return (
     <div>
       <div
         className={cn(
-          "group flex items-center gap-1 rounded border px-2 py-1.5",
+          "group flex items-center gap-1 rounded-md border px-2 py-1.5",
           isSelected ? "border-primary bg-accent" : "border-transparent hover:border-border",
           hasError && "border-destructive",
         )}
@@ -131,7 +135,7 @@ function BlockNode({
           <button
             type="button"
             onClick={() => actions.onToggleCollapse(block.id)}
-            className="text-muted-foreground/56"
+            className="rounded-sm text-muted-foreground/56 outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={isCollapsed ? "Expandir" : "Recolher"}
           >
             {isCollapsed ? <ChevronRightIcon className="size-3.5" /> : <ChevronDownIcon className="size-3.5" />}
@@ -140,7 +144,11 @@ function BlockNode({
           <span className="w-3.5" />
         )}
 
-        <button type="button" onClick={() => actions.onSelect(block.id)} className="flex-1 truncate text-left text-sm text-foreground">
+        <button
+          type="button"
+          onClick={() => actions.onSelect(block.id)}
+          className="flex-1 truncate rounded-sm text-left text-sm text-foreground outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
+        >
           {rowNumber !== undefined ? `${nodeLabel} ${rowNumber}` : nodeLabel}
         </button>
 
@@ -150,7 +158,7 @@ function BlockNode({
             title="Mover para cima"
             disabled={isFirst}
             onClick={() => actions.onMove(block.id, "up")}
-            className="rounded px-1 text-xs text-muted-foreground disabled:opacity-30"
+            className="rounded-md px-1 text-xs text-muted-foreground outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-30"
           >
             ↑
           </button>
@@ -159,31 +167,46 @@ function BlockNode({
             title="Mover para baixo"
             disabled={isLast}
             onClick={() => actions.onMove(block.id, "down")}
-            className="rounded px-1 text-xs text-muted-foreground disabled:opacity-30"
+            className="rounded-md px-1 text-xs text-muted-foreground outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-30"
           >
             ↓
           </button>
-          <button type="button" title="Adicionar irmão" onClick={() => actions.onAddSibling(block.id)} className="rounded px-1 text-muted-foreground">
+          <button
+            type="button"
+            title="Adicionar irmão"
+            onClick={() => actions.onAddSibling(block.id)}
+            className="rounded-md px-1 text-muted-foreground outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <PlusIcon className="size-3.5" />
           </button>
-          <button type="button" title="Duplicar" onClick={() => actions.onDuplicate(block.id)} className="rounded px-1 text-muted-foreground">
+          <button
+            type="button"
+            title="Duplicar"
+            onClick={() => actions.onDuplicate(block.id)}
+            className="rounded-md px-1 text-muted-foreground outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <CopyIcon className="size-3.5" />
           </button>
-          <button type="button" title="Remover" onClick={() => actions.onRemove(block.id)} className="rounded px-1 text-destructive">
+          <button
+            type="button"
+            title="Remover"
+            onClick={() => actions.onRemove(block.id)}
+            className="rounded-md px-1 text-destructive outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <TrashIcon className="size-3.5" />
           </button>
         </div>
       </div>
 
       {hiddenBlockCount > 0 && (
-        <div className="mt-1 ml-4 flex items-center justify-between gap-2 rounded border border-warning-border bg-warning-soft px-2 py-1 text-xs text-warning">
+        <div className="mt-1 ml-4 flex items-center justify-between gap-2 rounded-md border border-warning-border bg-warning-soft px-2 py-1 text-xs text-warning">
           <span>
             {hiddenBlockCount} bloco(s) em colunas ocultas.
           </span>
           <button
             type="button"
             onClick={() => actions.onSetColumns(block.id, nextColumns)}
-            className="shrink-0 underline"
+            className="shrink-0 rounded-sm underline outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
           >
             Mostrar coluna {nextColumns}
           </button>
@@ -202,7 +225,7 @@ function BlockNode({
                   type="button"
                   title="Adicionar bloco nesta area"
                   onClick={() => actions.onAddChild(block.id, area.key)}
-                  className="text-muted-foreground/56 hover:text-foreground"
+                  className="rounded-sm text-muted-foreground/56 outline-none ui-motion-base hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <PlusIcon className="size-3.5" />
                 </button>

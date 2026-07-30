@@ -1,7 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { MediaPickerField } from "@/components/media-picker-field";
+import { AutoSlugField } from "@/components/auto-slug-field";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -9,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActionToast } from "@/hooks/use-action-toast";
 import { createEntryAction, type CreateEntryActionState } from "../actions";
 
 const initialState: CreateEntryActionState = { error: null };
@@ -21,21 +26,20 @@ export function CreateEntryForm({
   categories: { id: string; name: string }[];
 }) {
   const [state, formAction, pending] = useActionState(createEntryAction, initialState);
+  const [title, setTitle] = useState("");
+  useActionToast({ pending, error: state.error });
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form action={formAction} className="space-y-4">
       <div>
         <label className="block text-xs font-medium text-muted-foreground">Título</label>
-        <input name="title" required className="mt-1 w-full rounded border border-border px-2 py-1 text-sm" />
+        <Input name="title" required value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1" />
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-muted-foreground">Slug</label>
-        <input name="slug" required className="mt-1 w-full rounded border border-border px-2 py-1 text-sm" />
-      </div>
+      <AutoSlugField name="slug" sourceValue={title} label="Endereço da página" />
 
       <div>
-        <label className="block text-xs font-medium text-muted-foreground">Content type</label>
+        <label className="block text-xs font-medium text-muted-foreground">Tipo de conteúdo</label>
         <Select name="contentTypeId" required>
           <SelectTrigger className="mt-1 w-full">
             <SelectValue placeholder="selecione..." />
@@ -48,6 +52,7 @@ export function CreateEntryForm({
             ))}
           </SelectContent>
         </Select>
+        <p className="mt-1 text-xs text-muted-foreground/56">Define quais campos esse conteúdo vai ter.</p>
       </div>
 
       <div>
@@ -68,19 +73,14 @@ export function CreateEntryForm({
 
       <div>
         <label className="block text-xs font-medium text-muted-foreground">Corpo</label>
-        <textarea name="body" rows={8} className="mt-1 w-full rounded border border-border px-2 py-1 text-sm" />
+        <Textarea name="body" rows={8} className="mt-1" />
       </div>
 
       <MediaPickerField name="mediaId" />
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
-      >
-        Criar entry
-      </button>
-      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+      <Button type="submit" disabled={pending}>
+        Criar conteúdo
+      </Button>
     </form>
   );
 }

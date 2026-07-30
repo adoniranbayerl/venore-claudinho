@@ -29,6 +29,8 @@ export { reorderMenuItemsHandler as reorderMenuItems } from "./features/menus/re
 // main-nav a partir de dado real do CMS.
 export { getMenuByLocationHandler as getMenuByLocation } from "./features/menus/get-menu-by-location/handler";
 
+export { cmsAdminNavigationItems } from "./admin-navigation";
+
 export type { ContentTypeRecord, CategoryRecord, EntryRecord, EntryStatus, MenuRecord, MenuItemRecord } from "./contracts/types";
 export { getEntryBody } from "./contracts/entry-body";
 export type { Block, Area, Composition } from "./contracts/block";

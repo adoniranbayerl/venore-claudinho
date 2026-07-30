@@ -8,6 +8,12 @@
 import { useSyncExternalStore } from "react";
 
 let isOpen = false;
+// Elemento com foco no momento em que o drawer abriu (o gatilho, tipicamente
+// MobileNavToggleButton) — MobileNavDrawer devolve o foco pra ele ao fechar (docs/ui/
+// shell-spec.md, requisito de acessibilidade "foco devolvido ao gatilho"). Guardado aqui, não no
+// próprio botão, pelo mesmo motivo do isOpen: Header e SidebarLeft são slots irmãos sem ancestral
+// client comum.
+let lastTrigger: HTMLElement | null = null;
 const listeners = new Set<() => void>();
 
 function emitChange() {
@@ -27,7 +33,14 @@ function getServerSnapshot() {
   return false;
 }
 
+function captureTrigger() {
+  if (typeof document !== "undefined") {
+    lastTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }
+}
+
 export function openMobileNav() {
+  captureTrigger();
   isOpen = true;
   emitChange();
 }
@@ -38,10 +51,15 @@ export function closeMobileNav() {
 }
 
 export function toggleMobileNav() {
+  if (!isOpen) captureTrigger();
   isOpen = !isOpen;
   emitChange();
 }
 
 export function useMobileNavOpen() {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+
+export function getMobileNavTrigger(): HTMLElement | null {
+  return lastTrigger;
 }

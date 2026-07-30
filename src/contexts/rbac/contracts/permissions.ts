@@ -17,6 +17,9 @@ export const RBAC_PERMISSIONS: PermissionDefinition[] = [
   { key: "platform.admin.access", label: "Acessar área administrativa" },
   // Pertence conceitualmente a contexts/media — mesmo stopgap de settings.manage acima.
   { key: "media.manage", label: "Gerenciar arquivos de mídia" },
+  // Restrita a superadmin (docs/media/blob-spec.md seção 6) — diferente de media.manage (soft
+  // delete reversível), esta cobre o hard delete que perde o blob de verdade.
+  { key: "media.purge", label: "Apagar mídia definitivamente" },
   // Pertence conceitualmente a observability/ (infraestrutura técnica, não um context de
   // domínio) — mesmo stopgap das entradas acima.
   { key: "observability.logs.view", label: "Ver logs de observabilidade" },

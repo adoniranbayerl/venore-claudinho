@@ -8,7 +8,7 @@ export default async function AppearanceSettingsPage() {
 
   if (!gate.granted) {
     return (
-      <div className="rounded border border-border bg-card p-8 text-center">
+      <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy text-center">
         <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
         <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar a aparência do site.</p>
       </div>

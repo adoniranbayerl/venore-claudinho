@@ -14,6 +14,7 @@ export async function createCourseAction(_prevState: AcademyActionState, formDat
     slug: String(formData.get("slug") ?? "") || undefined,
     selfEnrollmentEnabled: formData.get("selfEnrollmentEnabled") === "on",
     publiclyListed: formData.get("publiclyListed") === "on",
+    coverMediaId: String(formData.get("coverMediaId") ?? "").trim() || undefined,
   });
 
   if (!result.success) {

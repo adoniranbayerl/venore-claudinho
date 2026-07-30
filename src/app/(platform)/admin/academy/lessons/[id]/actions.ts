@@ -1,9 +1,25 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { addQuizQuestion, configureLessonRequirements } from "@/plugins/academy";
+import { addQuizQuestion, configureLessonRequirements, updateLesson } from "@/plugins/academy";
 
 export type LessonActionState = { error: string | null };
+
+// Mesmo padrão de /admin/cms/actions.ts: erro do handler devolvido de verdade via
+// useActionState, nunca descartado silenciosamente (docs/venore-docks.md).
+export async function updateLessonCoverAction(_prevState: LessonActionState, formData: FormData): Promise<LessonActionState> {
+  const lessonId = String(formData.get("lessonId") ?? "");
+  const coverMediaId = String(formData.get("coverMediaId") ?? "").trim();
+
+  const result = await updateLesson({ id: lessonId, coverMediaId: coverMediaId || null });
+
+  if (!result.success) {
+    return { error: result.error.message };
+  }
+
+  revalidatePath(`/admin/academy/lessons/${lessonId}`);
+  return { error: null };
+}
 
 // Mesmo padrão de /admin/cms/actions.ts: erro do handler devolvido de verdade via
 // useActionState, nunca descartado silenciosamente (docs/venore-docks.md).

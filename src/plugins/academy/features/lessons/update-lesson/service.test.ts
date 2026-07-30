@@ -11,6 +11,12 @@ vi.mock("@/contexts/cms", () => ({
   getEntry: (...args: unknown[]) => getEntry(...args),
 }));
 
+const getMedia = vi.fn();
+
+vi.mock("@/contexts/media", () => ({
+  getMedia: (...args: unknown[]) => getMedia(...args),
+}));
+
 const findLessonById = vi.fn();
 const updateLesson = vi.fn();
 

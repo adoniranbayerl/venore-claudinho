@@ -14,6 +14,7 @@ export async function insertCourse(input: {
   slug: string;
   selfEnrollmentEnabled?: boolean;
   publiclyListed?: boolean;
+  coverMediaId?: string;
   createdBy: string;
 }): Promise<CourseRecord> {
   const [row] = await db
@@ -25,6 +26,7 @@ export async function insertCourse(input: {
       createdBy: input.createdBy,
       ...(input.selfEnrollmentEnabled !== undefined && { selfEnrollmentEnabled: input.selfEnrollmentEnabled }),
       ...(input.publiclyListed !== undefined && { publiclyListed: input.publiclyListed }),
+      ...(input.coverMediaId !== undefined && { coverMediaId: input.coverMediaId }),
     })
     .returning();
 

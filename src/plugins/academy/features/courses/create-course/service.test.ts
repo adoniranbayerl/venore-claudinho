@@ -5,6 +5,12 @@ vi.mock("@/observability", () => ({
   endOperation: vi.fn(),
 }));
 
+const getMedia = vi.fn();
+
+vi.mock("@/contexts/media", () => ({
+  getMedia: (...args: unknown[]) => getMedia(...args),
+}));
+
 const insertCourse = vi.fn();
 const findCourseBySlug = vi.fn();
 

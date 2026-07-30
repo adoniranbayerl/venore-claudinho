@@ -191,6 +191,7 @@ logBuffer.push({ message, level });
 | `npm run test:integration` | Vitest com `vitest.integration.config.ts` — só `*.integration.test.ts` |
 | `npm run db:generate` / `npm run db:migrate` | Drizzle Kit — schema de core/contexts/plugins (exceto academy) |
 | `npm run db:generate:academy` / `npm run db:migrate:academy` | Mesmo, para migrations do plugin `academy` |
+| `npm run db:generate:birthdays` / `npm run db:migrate:birthdays` | Mesmo, para migrations do plugin `birthdays` |
 | `npm run db:seed:admin-access` / `db:seed:media-manage` / `db:seed:cms-menus-manage` | Seeds de permission pontuais (`scripts/*.mjs`) |
 | `npm run db:bootstrap-superadmin` | Promove usuário existente a `superadmin` fora do fluxo automático |
 
@@ -232,7 +233,8 @@ substitui o `check`. `drizzle-kit push` é reservado para desenvolvimento local,
    autorização/validação de borda; `npm run test` passa.
 5. Se toca schema: migration via `drizzle-kit generate` (nunca editar
    `__drizzle_migrations`/`_journal.json` manualmente), e o número de migrations rastreadas bate
-   com o número de arquivos em `drizzle/migrations` (ou `src/plugins/academy/migrations`).
+   com o número de arquivos em `drizzle/migrations` (ou `src/plugins/academy/migrations` /
+   `src/plugins/birthdays/migrations`).
 6. Se cruza mais de um domínio de dado: tem teste de integração além do unitário, e
    `npm run test:integration` passa com `TEST_DATABASE_URL`.
 7. Nenhum valor de cor hardcoded — só token semântico shadcn; `src/components/ui/**` não editado
@@ -248,7 +250,9 @@ substitui o `check`. `drizzle-kit push` é reservado para desenvolvimento local,
 
 ## 7. Known Gaps
 
-`docs/issues.md` não existe neste repositório — esta lista vem só da leitura do código:
+`docs/issues.md` reúne pedidos/lacunas registrados durante sessões específicas (ex: plugin
+`birthdays`), com o contexto de por que ficaram de fora e do que dependem para retomar. Esta seção
+continua sendo a lista geral, derivada da leitura do código:
 
 - **Radius/espaçamento sem enforcement mecânico.** O contrato de tokens proíbe `rounded-lg`/`p-3`
   hardcoded, mas `eslint.config.mjs` só tem `no-restricted-syntax` para cor. Nada bloqueia
@@ -275,6 +279,9 @@ substitui o `check`. `drizzle-kit push` é reservado para desenvolvimento local,
   `src/`.
 - **Estratégia de teste por camada não documentada** além do que a seção 5/6 deste arquivo já
   descreve — o documento de arquitetura lista isso como não coberto.
+- **Plugin `birthdays` — ativação/desativação, escopo de `settings.manage`, block
+  `birthdays-month-list`, impressão/identidade visual e importação CSV** ficaram fora da sessão
+  que criou o plugin. Detalhado com contexto e dependências em `docs/issues.md`.
 
 ## Preferências de UI: nav-mode (cookie) vs color-mode (localStorage) — assimetria intencional
 `nav-mode` (`src/platform/nav-mode`) continua em cookie porque o servidor precisa saber qual

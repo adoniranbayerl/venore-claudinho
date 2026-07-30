@@ -22,6 +22,7 @@ const INTEGRATION_TEST_TABLES = [
   "academy.enrollments",
   "academy.lessons",
   "academy.courses",
+  "birthdays.birthdays",
   "cms.entries",
   "cms.content_types",
   "auth.users",

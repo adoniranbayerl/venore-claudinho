@@ -6,8 +6,26 @@ vi.mock("./lesson-chain-store", () => ({
   loadLessonChainRawData: (...args: unknown[]) => loadLessonChainRawData(...args),
 }));
 
-const lesson1 = { id: "lesson-1", courseId: "course-1", cmsEntryId: "e1", videoUrl: null, position: 1, createdAt: new Date(), updatedAt: new Date() };
-const lesson2 = { id: "lesson-2", courseId: "course-1", cmsEntryId: "e2", videoUrl: null, position: 2, createdAt: new Date(), updatedAt: new Date() };
+const lesson1 = {
+  id: "lesson-1",
+  courseId: "course-1",
+  cmsEntryId: "e1",
+  videoUrl: null,
+  coverMediaId: null,
+  position: 1,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+const lesson2 = {
+  id: "lesson-2",
+  courseId: "course-1",
+  cmsEntryId: "e2",
+  videoUrl: null,
+  coverMediaId: null,
+  position: 2,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
 
 describe("loadLessonChain", () => {
   beforeEach(() => {

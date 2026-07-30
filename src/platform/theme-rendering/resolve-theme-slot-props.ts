@@ -1,8 +1,9 @@
 import { getCurrentUser } from "@/contexts/auth";
 import { getMenuByLocation } from "@/contexts/cms";
+import { getMedia } from "@/contexts/media";
 import { getBrandConfig } from "@/platform/brand/get-brand-config";
 import { venoreSlimeMockProps } from "@/themes/venore-slime/mock-data";
-import type { HeaderSlotProps, HeaderUserInfo, FooterSlotProps, SidebarLeftSlotProps, NavMode, NavItem } from "@/contexts/themes";
+import type { HeaderSlotProps, HeaderUserInfo, FooterSlotProps, SidebarLeftSlotProps, NavMode, NavItem, NavGroup } from "@/contexts/themes";
 
 // TODO: substituir footer/header-nav/sitemap por composição real de contexts/cms + contexts/rbac
 // quando esses contexts existirem. Até lá, este é o ÚNICO lugar do sistema onde dado mockado vira
@@ -16,23 +17,33 @@ import type { HeaderSlotProps, HeaderUserInfo, FooterSlotProps, SidebarLeftSlotP
 // de contexts/settings (getBrandConfig) — não é mais mock, sobrevive a troca de tema.
 export async function resolveThemeSlotProps(sidebarNav: {
   navMode: NavMode;
-  adminNavItems: NavItem[];
+  adminNavGroups: NavGroup[];
   canToggleAdminNav: boolean;
   onToggleNavMode: () => Promise<void>;
   canAccessAdmin: boolean;
   onSignOut: () => Promise<void>;
+  collapsed: boolean;
+  onToggleCollapsed: () => Promise<void>;
 }): Promise<{
   header: HeaderSlotProps;
   footer: FooterSlotProps;
   sidebarLeft: SidebarLeftSlotProps;
 }> {
   const currentUser = await getCurrentUser();
+  let avatarUrl: string | null = null;
+  if (currentUser.success && currentUser.data) {
+    // avatarMediaId (escolhido via seletor de mídia) tem prioridade sobre `image` (populado pelo
+    // provider OAuth) — mesmo princípio de "tema nunca busca dado sozinho": a resolução mediaId→url
+    // acontece aqui, na composição, não dentro do tema.
+    const avatarMedia = currentUser.data.avatarMediaId ? await getMedia({ id: currentUser.data.avatarMediaId }) : null;
+    avatarUrl = avatarMedia?.success ? (avatarMedia.data?.url ?? currentUser.data.image) : currentUser.data.image;
+  }
   const user: HeaderUserInfo | null =
     currentUser.success && currentUser.data
       ? {
           displayName: currentUser.data.name ?? currentUser.data.email ?? "Usuário",
           email: currentUser.data.email,
-          imageUrl: currentUser.data.image,
+          imageUrl: avatarUrl,
         }
       : null;
 
@@ -63,9 +74,12 @@ export async function resolveThemeSlotProps(sidebarNav: {
     sidebarLeft: {
       enabled: venoreSlimeMockProps.sidebarLeft.enabled,
       navMode: sidebarNav.navMode,
-      navItems: sidebarNav.navMode === "admin" ? sidebarNav.adminNavItems : mainNavItems,
+      navItems: sidebarNav.navMode === "admin" ? [] : mainNavItems,
+      navGroups: sidebarNav.navMode === "admin" ? sidebarNav.adminNavGroups : [],
       canToggleAdminNav: sidebarNav.canToggleAdminNav,
       onToggleNavMode: sidebarNav.onToggleNavMode,
+      collapsed: sidebarNav.collapsed,
+      onToggleCollapsed: sidebarNav.onToggleCollapsed,
     },
   };
 }

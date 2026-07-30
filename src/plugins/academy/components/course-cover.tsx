@@ -1,10 +1,22 @@
 import { BookOpen } from "lucide-react";
+import { getMedia } from "@/contexts/media";
 import { cn } from "@/lib/utils";
 
-// Curso ainda não tem campo de capa no domínio (CourseRecord não expõe mediaId — sem migration
-// nesta sessão, que é só apresentação). Placeholder visual só com tokens semânticos até essa
-// mudança de domínio existir.
-export function CourseCover({ className }: { className?: string }) {
+export async function CourseCover({ coverMediaId, className }: { coverMediaId?: string | null; className?: string }) {
+  const media = coverMediaId ? await getMedia({ id: coverMediaId }) : null;
+  const url = media?.success ? (media.data?.url ?? null) : null;
+
+  if (url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={url}
+        alt=""
+        className={cn("aspect-[16/9] w-full rounded-panel object-cover", className)}
+      />
+    );
+  }
+
   return (
     <div
       className={cn(

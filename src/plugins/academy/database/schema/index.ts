@@ -25,6 +25,10 @@ export const courses = academySchema.table(
     // (list-courses-for-student) — acesso direto por URL não depende de publiclyListed.
     selfEnrollmentEnabled: boolean("self_enrollment_enabled").notNull().default(true),
     publiclyListed: boolean("publicly_listed").notNull().default(true),
+    // Aponta pro id de media.files (contexts/media) — nunca uma URL gravada aqui, sem FK
+    // cross-schema pelo mesmo motivo de createdBy (comentário acima): validado via
+    // contexts/media.getMedia() na aplicação, não no banco.
+    coverMediaId: text("cover_media_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -50,6 +54,9 @@ export const lessons = academySchema.table(
     cmsEntryId: text("cms_entry_id").notNull(),
     videoUrl: text("video_url"),
     position: integer("position").notNull(),
+    // Mesma regra de courses.coverMediaId acima: id de media.files, validado via getMedia() na
+    // aplicação, sem FK cross-schema.
+    coverMediaId: text("cover_media_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

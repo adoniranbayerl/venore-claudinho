@@ -26,7 +26,18 @@ const goodManifest = {
   version: "1.0.0",
   permissions: [{ key: "birthdays.entries.manage", label: "Manage birthdays" }],
   settings: [{ key: "birthdays.reminder_days", defaultValue: 7 }],
-  navigation: [{ key: "birthdays", label: "Birthdays", href: "/admin/birthdays" }],
+  navigation: [
+    {
+      key: "birthdays",
+      label: "Birthdays",
+      href: "/admin/birthdays",
+      icon: "cake",
+      groupKey: "content",
+      groupLabel: "Conteúdo",
+      groupOrder: 20,
+      order: 50,
+    },
+  ],
 };
 
 const malformedManifest = { name: "No key, no version" };
@@ -70,7 +81,18 @@ describe("registerPlugins", () => {
     const { registerPlugins } = await import("./register-plugins");
     const report = await registerPlugins([goodManifest]);
 
-    expect(report.navigation).toEqual([{ key: "birthdays", label: "Birthdays", href: "/admin/birthdays" }]);
+    expect(report.navigation).toEqual([
+      {
+        key: "birthdays",
+        label: "Birthdays",
+        href: "/admin/birthdays",
+        icon: "cake",
+        groupKey: "content",
+        groupLabel: "Conteúdo",
+        groupOrder: 20,
+        order: 50,
+      },
+    ]);
   });
 
   it("does not register settings for a plugin that fails validation", async () => {

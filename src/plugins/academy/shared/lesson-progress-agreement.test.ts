@@ -27,7 +27,16 @@ vi.mock("../features/progress/get-course-progress/store", () => ({
 const course = { id: "course-1", title: "Course", description: null, createdBy: "prof-1", createdAt: new Date(), updatedAt: new Date() };
 
 function lesson(id: string, position: number) {
-  return { id, courseId: "course-1", cmsEntryId: `entry-${position}`, videoUrl: null, position, createdAt: new Date(), updatedAt: new Date() };
+  return {
+    id,
+    courseId: "course-1",
+    cmsEntryId: `entry-${position}`,
+    videoUrl: null,
+    coverMediaId: null,
+    position,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 }
 
 const lesson1 = lesson("lesson-1", 1);

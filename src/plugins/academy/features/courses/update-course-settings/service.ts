@@ -1,3 +1,4 @@
+import { getMedia } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
 import { isValidSlug, slugify } from "../../../shared/slug";
 import { applyCourseSettings, findCourseById, findCourseBySlug } from "./store";
@@ -35,11 +36,24 @@ export async function updateCourseSettings(command: UpdateCourseSettingsCommand)
     }
   }
 
+  if (command.coverMediaId) {
+    const media = await getMedia({ id: command.coverMediaId });
+    if (!media.success || !media.data) {
+      const error = {
+        code: "academy.courses.invalid_cover_media",
+        message: `Nenhum arquivo de mídia encontrado com id "${command.coverMediaId}".`,
+      };
+      endOperation(handle, { success: false, error });
+      return { success: false, error };
+    }
+  }
+
   const course = await applyCourseSettings({
     id: command.id,
     slug,
     selfEnrollmentEnabled: command.selfEnrollmentEnabled,
     publiclyListed: command.publiclyListed,
+    coverMediaId: command.coverMediaId,
   });
 
   endOperation(handle, { success: true });

@@ -1,4 +1,5 @@
 import { getEntry } from "@/contexts/cms";
+import { getMedia } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
 import { findLessonById, updateLesson } from "./store";
 import type { UpdateLessonCommand, UpdateLessonResult } from "./types";
@@ -29,9 +30,22 @@ export async function updateLessonService(command: UpdateLessonCommand): Promise
     }
   }
 
+  if (command.coverMediaId) {
+    const media = await getMedia({ id: command.coverMediaId });
+    if (!media.success || !media.data) {
+      const error = {
+        code: "academy.lessons.invalid_cover_media",
+        message: `Nenhum arquivo de mídia encontrado com id "${command.coverMediaId}".`,
+      };
+      endOperation(handle, { success: false, error });
+      return { success: false, error };
+    }
+  }
+
   const lesson = await updateLesson(command.id, {
     cmsEntryId: command.cmsEntryId,
     videoUrl: command.videoUrl,
+    coverMediaId: command.coverMediaId,
   });
 
   endOperation(handle, { success: true });

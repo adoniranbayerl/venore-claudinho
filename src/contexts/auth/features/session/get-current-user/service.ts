@@ -1,4 +1,4 @@
-import { getSession } from "./store";
+import { findAvatarMediaId, getSession } from "./store";
 import { toAuthenticatedUser } from "./view";
 import type { GetCurrentUserResult } from "./types";
 
@@ -9,5 +9,6 @@ export async function getCurrentUserService(): Promise<GetCurrentUserResult> {
     return { success: true, data: null };
   }
 
-  return { success: true, data: toAuthenticatedUser(session.user) };
+  const avatarMediaId = await findAvatarMediaId(session.user.id);
+  return { success: true, data: toAuthenticatedUser(session.user, avatarMediaId) };
 }
