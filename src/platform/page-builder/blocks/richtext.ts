@@ -2,7 +2,7 @@ import type { BlockDefinition } from "@/contexts/cms";
 
 export const richtextBlockDefinition: BlockDefinition = {
   key: "core.content.richtext",
-  label: "Texto rico",
+  label: "Rich Text",
   category: "conteúdo",
   structure: "leaf",
   allowedInRoot: false,
