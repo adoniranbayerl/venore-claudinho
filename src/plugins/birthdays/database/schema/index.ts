@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, integer, pgSchema, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, check, integer, pgSchema, text, timestamp } from "drizzle-orm/pg-core";
 
 export const birthdaysSchema = pgSchema("birthdays");
 
@@ -31,3 +31,20 @@ export const birthdays = birthdaysSchema.table(
     check("birthdays_day_check", sql`${table.day} between 1 and 31`),
   ],
 );
+
+// Uma linha por importação de CSV confirmada (não por linha do arquivo) — histórico de quem
+// importou e quantas linhas entraram/foram ignoradas. O beginOperation/endOperation genérico
+// (@/observability) não carrega contagens por domínio, só sucesso/falha + duração, então essa
+// tabela é o registro de auditoria específico do plugin pra esse requisito.
+export const birthdayImports = birthdaysSchema.table("birthday_imports", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  importedByUserId: text("imported_by_user_id"),
+  totalRows: integer("total_rows").notNull(),
+  insertedRows: integer("inserted_rows").notNull(),
+  skippedErrorRows: integer("skipped_error_rows").notNull(),
+  skippedDuplicateRows: integer("skipped_duplicate_rows").notNull(),
+  includedDuplicates: boolean("included_duplicates").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
