@@ -1,12 +1,26 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import Link from "next/link";
 import { Cake } from "lucide-react";
-import { listBirthdays, MONTH_LABELS, type BirthdayAdminView } from "@/plugins/birthdays";
+import { getBirthdayAppearance, listBirthdays, MONTH_LABELS, type BirthdayAdminView } from "@/plugins/birthdays";
 import { getBirthdaysPageData } from "@/platform/admin-shell/get-birthdays-page-data";
+import { getBrandConfig } from "@/platform/brand/get-brand-config";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { CreateBirthdayDialog } from "./_components/create-birthday-dialog";
+import { ImportBirthdaysCsvDialog } from "./_components/import-birthdays-csv-dialog";
+import { PrintBirthdaysDialog } from "./_components/print-birthdays-dialog";
 import { BirthdayTable } from "./_components/birthday-table";
 import { daysUntilNextOccurrence } from "./_components/next-occurrence";
+
+async function readGiftSvgMarkup() {
+  try {
+    const giftSvgPath = path.join(process.cwd(), "src", "plugins", "birthdays", "assets", "gift.svg");
+    return await readFile(giftSvgPath, "utf-8");
+  } catch {
+    return null;
+  }
+}
 
 export default async function BirthdaysAdminPage() {
   const gate = await getBirthdaysPageData();
@@ -20,9 +34,19 @@ export default async function BirthdaysAdminPage() {
     );
   }
 
-  const result = await listBirthdays();
+  const [result, appearanceResult, brandConfig, giftSvgMarkup] = await Promise.all([
+    listBirthdays(),
+    getBirthdayAppearance(),
+    getBrandConfig(),
+    readGiftSvgMarkup(),
+  ]);
+
   if (!result.success) {
     return <p className="text-sm text-destructive">Erro ao carregar aniversariantes: {result.error.message}</p>;
+  }
+
+  if (!appearanceResult.success) {
+    return <p className="text-sm text-destructive">Erro ao carregar aparência: {appearanceResult.error.message}</p>;
   }
 
   const birthdays = result.data;
@@ -55,6 +79,18 @@ export default async function BirthdaysAdminPage() {
           <Button variant="outline" asChild>
             <Link href="/admin/birthdays/appearance">Aparência</Link>
           </Button>
+          <PrintBirthdaysDialog
+            birthdays={birthdays}
+            appearance={appearanceResult.data}
+            brand={{
+              mode: brandConfig.mode,
+              logoUrl: brandConfig.logoUrl,
+              name: brandConfig.siteName,
+              color: brandConfig.color,
+            }}
+            giftSvgMarkup={giftSvgMarkup}
+          />
+          <ImportBirthdaysCsvDialog />
           {birthdays.length > 0 && <CreateBirthdayDialog />}
         </div>
       </div>

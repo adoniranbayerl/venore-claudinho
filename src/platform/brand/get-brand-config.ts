@@ -13,6 +13,7 @@ export type BrandConfig = {
   logoUrl: string;
   scrolledLogoUrl: string;
   faviconUrl: string;
+  color: string;
 };
 
 const KEYS = {
@@ -24,6 +25,9 @@ const KEYS = {
   size: "brand.size",
   scrolledSize: "brand.scrolledSize",
   position: "brand.position",
+  // Cor usada quando a marca é renderizada como máscara SVG (mode "svg") — hoje só consumida
+  // pela impressão de PDF do plugin birthdays; o Header do tema ainda não pinta a marca por cor.
+  color: "brand.color",
 } as const;
 
 const DEFAULTS = {
@@ -35,6 +39,7 @@ const DEFAULTS = {
   size: 100,
   scrolledSize: 80,
   position: "left" as BrandPosition,
+  color: "#143b52",
 };
 
 const FALLBACK_LOGO_SVG = "/brand/brand-logo.svg";
@@ -85,17 +90,27 @@ async function resolveMediaUrl(mediaId: string, fallback: string): Promise<strin
 }
 
 export async function getBrandConfig(): Promise<BrandConfig> {
-  const [rawMode, rawPosition, rawSize, rawScrolledSize, siteName, logoMediaId, logoScrolledMediaId, faviconMediaId] =
-    await Promise.all([
-      readStringSetting(KEYS.headerMode, DEFAULTS.headerMode),
-      readStringSetting(KEYS.position, DEFAULTS.position),
-      readNumberSetting(KEYS.size, DEFAULTS.size),
-      readNumberSetting(KEYS.scrolledSize, DEFAULTS.scrolledSize),
-      readStringSetting(KEYS.siteName, DEFAULTS.siteName),
-      readStringSetting(KEYS.logoMediaId, DEFAULTS.logoMediaId),
-      readStringSetting(KEYS.logoScrolledMediaId, DEFAULTS.logoScrolledMediaId),
-      readStringSetting(KEYS.faviconMediaId, DEFAULTS.faviconMediaId),
-    ]);
+  const [
+    rawMode,
+    rawPosition,
+    rawSize,
+    rawScrolledSize,
+    siteName,
+    logoMediaId,
+    logoScrolledMediaId,
+    faviconMediaId,
+    color,
+  ] = await Promise.all([
+    readStringSetting(KEYS.headerMode, DEFAULTS.headerMode),
+    readStringSetting(KEYS.position, DEFAULTS.position),
+    readNumberSetting(KEYS.size, DEFAULTS.size),
+    readNumberSetting(KEYS.scrolledSize, DEFAULTS.scrolledSize),
+    readStringSetting(KEYS.siteName, DEFAULTS.siteName),
+    readStringSetting(KEYS.logoMediaId, DEFAULTS.logoMediaId),
+    readStringSetting(KEYS.logoScrolledMediaId, DEFAULTS.logoScrolledMediaId),
+    readStringSetting(KEYS.faviconMediaId, DEFAULTS.faviconMediaId),
+    readStringSetting(KEYS.color, DEFAULTS.color),
+  ]);
 
   const mode = resolveMode(rawMode);
   const fallbackLogo = mode === "png" ? FALLBACK_LOGO_PNG : FALLBACK_LOGO_SVG;
@@ -115,6 +130,7 @@ export async function getBrandConfig(): Promise<BrandConfig> {
     logoUrl,
     scrolledLogoUrl,
     faviconUrl,
+    color: color.trim() || DEFAULTS.color,
   };
 }
 
