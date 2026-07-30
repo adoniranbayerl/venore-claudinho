@@ -99,6 +99,27 @@
       "when": 1785356197005,
       "tag": "0013_parched_lizard",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1785416754975,
+      "tag": "0014_drop_legacy_menus",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1785416774259,
+      "tag": "0015_cms_navigation_menus",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1785421218885,
+      "tag": "0016_sweet_the_stranger",
+      "breakpoints": true
     }
   ]
 }

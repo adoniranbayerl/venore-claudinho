@@ -1,20 +1,40 @@
 import { getCurrentUser } from "@/contexts/auth";
 import { getMenuByLocation } from "@/contexts/cms";
+import type { ResolvedMenuItem } from "@/contexts/cms";
 import { getMedia } from "@/contexts/media";
 import { getBrandConfig } from "@/platform/brand/get-brand-config";
+import { toSitemapItems } from "./to-sitemap-items";
 import { venoreSlimeMockProps } from "@/themes/venore-slime/mock-data";
-import type { HeaderSlotProps, HeaderUserInfo, FooterSlotProps, SidebarLeftSlotProps, NavMode, NavItem, NavGroup } from "@/contexts/themes";
+import type { HeaderSlotProps, HeaderUserInfo, FooterSlotProps, SidebarLeftSlotProps, NavMode, MainNavItem, NavGroup } from "@/contexts/themes";
 
-// TODO: substituir footer/header-nav/sitemap por composição real de contexts/cms + contexts/rbac
-// quando esses contexts existirem. Até lá, este é o ÚNICO lugar do sistema onde dado mockado vira
-// prop de slot — nunca dentro do próprio tema. navMode/navItems/canToggleAdminNav já são
-// resolvidos de verdade (platform/nav-mode + platform/admin-shell), passados pelo layout e
-// mesclados no SidebarLeft (main-nav/admin-nav não vivem no Header). O dado de usuário do Header
-// (user/canAccessAdmin/onSignOut) segue o mesmo princípio: resolvido aqui a partir de
-// @/contexts/auth, nunca dentro do próprio tema. main-nav agora vem de contexts/cms (menu
-// "main-nav") em vez do mock; se a leitura falhar, caímos de volta no mock fixo em
-// venoreSlimeMockProps.sidebarLeft.navItems para nunca deixar a sidebar vazia. header.brand vem
-// de contexts/settings (getBrandConfig) — não é mais mock, sobrevive a troca de tema.
+// item "label" (href null, contexts/cms/contracts/types.ts — MenuItemTarget) é o agregador: só
+// vira MainNavItem (e some da árvore) se sobrar ao menos um filho depois da permissão/visibilidade
+// já filtradas em contexts/cms (menu-resolution.ts) — grupo vazio não vai pro payload (mesmo
+// invariante de "ator não vê o que não pode ver", só que aplicado à ausência do agrupador em si,
+// não só dos itens dentro dele). Item com href sempre sobrevive, mesmo sem children — vira folha.
+function toMainNavItems(items: ResolvedMenuItem[]): MainNavItem[] {
+  return items.flatMap((item): MainNavItem[] => {
+    const children = toMainNavItems(item.children);
+    const icon = item.icon ?? undefined;
+    if (item.href === null) {
+      return children.length > 0 ? [{ key: item.id, label: item.label, href: null, icon, children }] : [];
+    }
+    return [{ key: item.id, label: item.label, href: item.href, icon }];
+  });
+}
+
+// TODO: substituir header-nav por composição real de contexts/rbac quando esse escopo existir.
+// Até lá, este é o ÚNICO lugar do sistema onde dado mockado vira prop de slot — nunca dentro do
+// próprio tema. navMode/navItems/canToggleAdminNav já são resolvidos de verdade (platform/nav-mode
+// + platform/admin-shell), passados pelo layout e mesclados no SidebarLeft (main-nav/admin-nav não
+// vivem no Header). O dado de usuário do Header (user/canAccessAdmin/onSignOut) segue o mesmo
+// princípio: resolvido aqui a partir de @/contexts/auth, nunca dentro do próprio tema. main-nav
+// agora vem de contexts/cms (menu "main") em vez do mock; se a leitura falhar, caímos de volta no
+// mock fixo em venoreSlimeMockProps.sidebarLeft.navItems para nunca deixar a sidebar vazia.
+// header.brand e footer.brand vêm de contexts/settings (getBrandConfig) — não é mais mock,
+// sobrevive a troca de tema. footer.sitemapItems vem de contexts/cms (menu de location "sitemap",
+// via to-sitemap-items.ts) — sem menu configurado, fica [] (nunca cai pra mock nem deriva de
+// conteúdo publicado).
 export async function resolveThemeSlotProps(sidebarNav: {
   navMode: NavMode;
   adminNavGroups: NavGroup[];
@@ -47,12 +67,23 @@ export async function resolveThemeSlotProps(sidebarNav: {
         }
       : null;
 
-  const mainMenu = await getMenuByLocation({ location: "main-nav" });
-  const mainNavItems: NavItem[] = mainMenu.success
-    ? mainMenu.data.items.map((item) => ({ key: item.id, label: item.label, href: item.href }))
-    : venoreSlimeMockProps.sidebarLeft.navItems;
-
-  const brandConfig = await getBrandConfig();
+  // location "main" (não "main-nav") desde a reescrita do subsistema de navegação — modelo de
+  // menu/localização documentado em contexts/cms/contracts/types.ts. Árvore inteira é usada agora
+  // (MainNavItem suporta aninhamento — toMainNavItems acima): item "label" (href null) vira
+  // agregador/accordion na sidebar em vez de ser descartado. header-nav e contextual continuam
+  // fora desta sessão (Known Gap, AGENTS.md §7).
+  // location "sitemap": menu dedicado (contexts/cms/contracts/types.ts — MenuLocation), distinto
+  // do "main" acima. Sem menu configurado, getMenuByLocation devolve data: [] (nunca falha, nunca
+  // cai pro mock) — footer.sitemapItems fica [] e o componente Sitemap não renderiza a seção. Não
+  // existe fallback pra "todo conteúdo publicado" aqui de propósito: isso violaria o invariante de
+  // contexts/cms de que o sitemap é o que o menu escolheu mostrar, não uma derivação de conteúdo.
+  const [mainMenu, sitemapMenu, brandConfig] = await Promise.all([
+    getMenuByLocation({ location: "main" }),
+    getMenuByLocation({ location: "sitemap" }),
+    getBrandConfig(),
+  ]);
+  const mainNavItems: MainNavItem[] = mainMenu.success ? toMainNavItems(mainMenu.data) : venoreSlimeMockProps.sidebarLeft.navItems;
+  const sitemapItems = sitemapMenu.success ? toSitemapItems(sitemapMenu.data) : [];
 
   return {
     ...venoreSlimeMockProps,
@@ -70,6 +101,20 @@ export async function resolveThemeSlotProps(sidebarNav: {
       user,
       canAccessAdmin: sidebarNav.canAccessAdmin,
       onSignOut: sidebarNav.onSignOut,
+    },
+    footer: {
+      ...venoreSlimeMockProps.footer,
+      brand: {
+        name: brandConfig.siteName,
+        mode: brandConfig.mode,
+        size: brandConfig.size,
+        scrolledSize: brandConfig.scrolledSize,
+        position: brandConfig.position,
+        logoUrl: brandConfig.logoUrl,
+        scrolledLogoUrl: brandConfig.scrolledLogoUrl,
+        color: brandConfig.color,
+      },
+      sitemapItems,
     },
     sidebarLeft: {
       enabled: venoreSlimeMockProps.sidebarLeft.enabled,

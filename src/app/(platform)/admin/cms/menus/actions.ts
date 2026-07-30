@@ -1,22 +1,55 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createMenuItem, getMenuByLocation, removeMenuItem, reorderMenuItems } from "@/contexts/cms";
-
-const MAIN_NAV_LOCATION = "main-nav";
+import {
+  createMenu,
+  createMenuItem,
+  deleteMenu,
+  listEntriesForAdmin,
+  moveMenuItem,
+  removeMenuItem,
+  updateMenuItem,
+} from "@/contexts/cms";
+import type { MenuItemTarget, MenuLocation } from "@/contexts/cms";
 
 export type MenuActionState = { error: string | null };
 
-// Mesmo padrão de removeRoleAction (/admin/rbac/actions.ts): erro do handler é devolvido de
-// verdade via useActionState, nunca descartado silenciosamente (docs/venore-docks.md).
-export async function addMenuItemAction(
-  _prevState: MenuActionState,
-  formData: FormData,
-): Promise<MenuActionState> {
-  const result = await createMenuItem({
-    location: MAIN_NAV_LOCATION,
-    label: String(formData.get("label") ?? ""),
-    href: String(formData.get("href") ?? ""),
+function targetFromFormData(formData: FormData): MenuItemTarget | null {
+  const targetType = String(formData.get("targetType") ?? "");
+
+  if (targetType === "content") {
+    const contentId = String(formData.get("contentId") ?? "").trim();
+    return contentId ? { targetType: "content", contentId } : null;
+  }
+
+  if (targetType === "route") {
+    const routePath = String(formData.get("routePath") ?? "").trim();
+    if (!routePath) return null;
+    const requiredPermissionKey = String(formData.get("requiredPermissionKey") ?? "").trim();
+    return { targetType: "route", routePath, requiredPermissionKey: requiredPermissionKey || null };
+  }
+
+  if (targetType === "external") {
+    const externalUrl = String(formData.get("externalUrl") ?? "").trim();
+    return externalUrl ? { targetType: "external", externalUrl } : null;
+  }
+
+  if (targetType === "label") {
+    return { targetType: "label" };
+  }
+
+  return null;
+}
+
+export async function createMenuAction(_prevState: MenuActionState, formData: FormData): Promise<MenuActionState> {
+  const location = String(formData.get("location") ?? "") as MenuLocation;
+  const scopePath = String(formData.get("scopePath") ?? "").trim();
+
+  const result = await createMenu({
+    key: String(formData.get("key") ?? ""),
+    name: String(formData.get("name") ?? ""),
+    location,
+    scopePath: location === "contextual" ? scopePath : undefined,
   });
 
   if (!result.success) {
@@ -27,13 +60,8 @@ export async function addMenuItemAction(
   return { error: null };
 }
 
-export async function removeMenuItemAction(
-  _prevState: MenuActionState,
-  formData: FormData,
-): Promise<MenuActionState> {
-  const menuItemId = String(formData.get("menuItemId") ?? "");
-  const result = await removeMenuItem({ menuItemId });
-
+export async function deleteMenuAction(_prevState: MenuActionState, formData: FormData): Promise<MenuActionState> {
+  const result = await deleteMenu({ id: String(formData.get("menuId") ?? "") });
   if (!result.success) {
     return { error: result.error.message };
   }
@@ -42,41 +70,105 @@ export async function removeMenuItemAction(
   return { error: null };
 }
 
-async function moveMenuItem(menuItemId: string, direction: "up" | "down"): Promise<MenuActionState> {
-  const menu = await getMenuByLocation({ location: MAIN_NAV_LOCATION });
-  if (!menu.success) {
-    return { error: menu.error.message };
+export async function createMenuItemAction(_prevState: MenuActionState, formData: FormData): Promise<MenuActionState> {
+  const menuId = String(formData.get("menuId") ?? "");
+  const label = String(formData.get("label") ?? "");
+  const parentId = String(formData.get("parentId") ?? "").trim();
+  const icon = String(formData.get("icon") ?? "").trim();
+  const target = targetFromFormData(formData);
+
+  if (!target) {
+    return { error: "Selecione um destino válido para o item." };
   }
 
-  const items = menu.data.items;
-  const index = items.findIndex((item) => item.id === menuItemId);
-  const swapWith = direction === "up" ? index - 1 : index + 1;
-  if (index === -1 || swapWith < 0 || swapWith >= items.length) {
-    return { error: null };
-  }
-
-  const orderedIds = items.map((item) => item.id);
-  [orderedIds[index], orderedIds[swapWith]] = [orderedIds[swapWith], orderedIds[index]];
-
-  const result = await reorderMenuItems({ menuId: items[0].menuId, menuItemIds: orderedIds });
+  const result = await createMenuItem({ menuId, label, parentId: parentId || null, target, icon: icon || null });
   if (!result.success) {
     return { error: result.error.message };
   }
 
-  revalidatePath("/admin/cms/menus");
+  revalidatePath(`/admin/cms/menus/${menuId}`);
   return { error: null };
 }
 
-export async function moveMenuItemUpAction(
-  _prevState: MenuActionState,
-  formData: FormData,
-): Promise<MenuActionState> {
-  return moveMenuItem(String(formData.get("menuItemId") ?? ""), "up");
+export async function updateMenuItemAction(_prevState: MenuActionState, formData: FormData): Promise<MenuActionState> {
+  const menuId = String(formData.get("menuId") ?? "");
+  const id = String(formData.get("menuItemId") ?? "");
+  const label = String(formData.get("label") ?? "");
+  const icon = String(formData.get("icon") ?? "").trim();
+  const target = targetFromFormData(formData);
+
+  if (!target) {
+    return { error: "Selecione um destino válido para o item." };
+  }
+
+  const result = await updateMenuItem({ id, label, icon: icon || null, target });
+  if (!result.success) {
+    return { error: result.error.message };
+  }
+
+  revalidatePath(`/admin/cms/menus/${menuId}`);
+  return { error: null };
 }
 
-export async function moveMenuItemDownAction(
+export async function toggleMenuItemVisibilityAction(
   _prevState: MenuActionState,
   formData: FormData,
 ): Promise<MenuActionState> {
-  return moveMenuItem(String(formData.get("menuItemId") ?? ""), "down");
+  const menuId = String(formData.get("menuId") ?? "");
+  const result = await updateMenuItem({
+    id: String(formData.get("menuItemId") ?? ""),
+    isVisible: formData.get("isVisible") === "true",
+  });
+
+  if (!result.success) {
+    return { error: result.error.message };
+  }
+
+  revalidatePath(`/admin/cms/menus/${menuId}`);
+  return { error: null };
+}
+
+export async function removeMenuItemAction(_prevState: MenuActionState, formData: FormData): Promise<MenuActionState> {
+  const menuId = String(formData.get("menuId") ?? "");
+  const result = await removeMenuItem({ id: String(formData.get("menuItemId") ?? "") });
+
+  if (!result.success) {
+    return { error: result.error.message };
+  }
+
+  revalidatePath(`/admin/cms/menus/${menuId}`);
+  return { error: null };
+}
+
+// Chamada direta (sem <form>) pelo drag-and-drop do construtor em árvore — não passa por
+// useActionState porque não nasce de um submit.
+export async function moveMenuItemAction(input: {
+  id: string;
+  parentId: string | null;
+  order: number;
+  menuId: string;
+}): Promise<MenuActionState> {
+  const result = await moveMenuItem({ id: input.id, parentId: input.parentId, order: input.order });
+  if (!result.success) {
+    return { error: result.error.message };
+  }
+
+  revalidatePath(`/admin/cms/menus/${input.menuId}`);
+  return { error: null };
+}
+
+export type ContentSearchResult = { id: string; title: string; slug: string; status: "draft" | "published" };
+
+// Seletor de conteúdo por busca (nunca id/URL crus) — filtra no servidor pra não vazar entries
+// além do que o admin de CMS já pode ver.
+export async function searchContentAction(query: string): Promise<ContentSearchResult[]> {
+  const result = await listEntriesForAdmin({});
+  if (!result.success) return [];
+
+  const needle = query.trim().toLowerCase();
+
+  return result.data
+    .filter((entry) => needle.length === 0 || entry.title.toLowerCase().includes(needle))
+    .slice(0, 30)
+    .map((entry) => ({ id: entry.id, title: entry.title, slug: entry.slug, status: entry.status }));
 }

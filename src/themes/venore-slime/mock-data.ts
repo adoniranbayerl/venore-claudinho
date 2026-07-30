@@ -39,7 +39,18 @@ export const venoreSlimeMockProps: {
     headerNavItems: [],
   },
   footer: {
-    brand: { name: "Venore Docks" },
+    // Sobrescrito de verdade por getBrandConfig() em resolve-theme-slot-props.ts, mesmo princípio
+    // do header acima — valor aqui só existe pra este objeto tipar como FooterSlotProps completo.
+    brand: {
+      name: "Venore Docks",
+      mode: "svg",
+      size: 100,
+      scrolledSize: 80,
+      position: "left",
+      logoUrl: "/brand/brand-logo.svg",
+      scrolledLogoUrl: "/brand/brand-logo-scrolled.png",
+      color: "#143b52",
+    },
     sitemapItems: [],
     creditsEnabled: true,
   },

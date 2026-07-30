@@ -1,11 +1,19 @@
+import Link from "next/link";
 import { Menu as MenuIcon } from "lucide-react";
-import { getMenuByLocation } from "@/contexts/cms";
+import { listMenus } from "@/contexts/cms";
+import type { MenuLocation } from "@/contexts/cms";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { EmptyState } from "@/components/empty-state";
-import { AddMenuItemForm } from "./_components/add-menu-item-form";
-import { MenuItemRow } from "./_components/menu-item-row";
+import { Badge } from "@/components/ui/badge";
+import { CreateMenuDialog } from "./_components/create-menu-dialog";
+import { DeleteMenuButton } from "./_components/delete-menu-button";
 
-const MAIN_NAV_LOCATION = "main-nav";
+const LOCATION_LABELS: Record<MenuLocation, string> = {
+  main: "Principal",
+  header: "Cabeçalho",
+  contextual: "Contextual",
+  sitemap: "Mapa do site",
+};
 
 export default async function MenusAdminPage() {
   const gate = await getCmsPageData();
@@ -29,48 +37,55 @@ export default async function MenusAdminPage() {
     );
   }
 
-  const menuResult = await getMenuByLocation({ location: MAIN_NAV_LOCATION });
-  if (!menuResult.success) {
-    return <p className="text-sm text-destructive">Não foi possível carregar o menu agora. Tente recarregar a página.</p>;
+  const menusResult = await listMenus();
+  if (!menusResult.success) {
+    return <p className="text-sm text-destructive">Não foi possível carregar os menus agora. Tente recarregar a página.</p>;
   }
 
-  const items = menuResult.data.items;
+  const menus = menusResult.data;
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Menus</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Gerencie os links exibidos na navegação principal do site.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Navegação</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Menus definem o que aparece na navegação do site — independente do que já existe publicado.
+          </p>
+        </div>
+        <CreateMenuDialog />
       </div>
 
       <section className="rounded-panel border border-border bg-card ui-panel-padding-roomy">
-        <h2 className="text-sm font-semibold text-foreground">Menu principal</h2>
-        {items.length === 0 ? (
+        {menus.length === 0 ? (
           <EmptyState
-            className="mt-3"
             icon={<MenuIcon className="size-8" strokeWidth={1.5} />}
-            title="Nenhum item no menu ainda"
-            description="Adicione o primeiro link para que a navegação do site apareça no menu principal."
-            action={<AddMenuItemForm />}
+            title="Nenhum menu criado ainda"
+            description="Conteúdo publicado não aparece em lugar nenhum sozinho — crie um menu e adicione os itens que devem navegar até ele. Um menu pode existir vazio, antes de qualquer conteúdo."
+            action={<CreateMenuDialog />}
           />
         ) : (
-          <>
-            <ul className="mt-3 space-y-2">
-              {items.map((item, index) => (
-                <MenuItemRow
-                  key={item.id}
-                  menuItemId={item.id}
-                  label={item.label}
-                  href={item.href}
-                  isFirst={index === 0}
-                  isLast={index === items.length - 1}
-                />
-              ))}
-            </ul>
-            <div className="mt-4 border-t border-border pt-4">
-              <AddMenuItemForm />
-            </div>
-          </>
+          <ul className="divide-y divide-border">
+            {menus.map((menu) => (
+              <li key={menu.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Link href={`/admin/cms/menus/${menu.id}`} className="text-sm font-medium text-foreground hover:underline">
+                      {menu.name}
+                    </Link>
+                    <Badge variant="outline">{LOCATION_LABELS[menu.location]}</Badge>
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {menu.key}
+                    {menu.scopePath && <> — escopo <code>{menu.scopePath}</code></>}
+                    {" — "}
+                    {menu.itemCount} {menu.itemCount === 1 ? "item" : "itens"}
+                  </p>
+                </div>
+                <DeleteMenuButton menuId={menu.id} />
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </div>

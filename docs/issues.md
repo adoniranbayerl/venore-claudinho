@@ -45,6 +45,18 @@ de fora, e (quando aplicável) de que depende para ser retomado.
   explícita: não criar subsistema de brand paralelo nem helper local no plugin — quando um
   subsistema real existe (como já era o caso pra logo/nome), ele absorve a leitura.
 
+## Footer + componente de Sitemap
+
+- **`sitemap.xml` (SEO) — não existe.** Não há rota `app/sitemap.ts`/`app/sitemap.xml` nem
+  equivalente hoje (`find src/app -iname sitemap*` não retorna nada). É trabalho diferente do
+  componente de sitemap implementado nesta sessão (`src/components/sitemap.tsx`), e a distinção
+  importa o suficiente pra registrar aqui em vez de reaproveitar: o componente mostra o que foi
+  **escolhido pra aparecer** (deriva do menu de location `sitemap`, `contexts/cms`); o `sitemap.xml`
+  listaria o que **existe publicado** (derivaria de `entries` via `contexts/cms`, provavelmente
+  `listEntries`/`getPublishedEntryBySlug` — não investigado a fundo). Não implementar o XML
+  reaproveitando a leitura do menu, nem o componente derivando de conteúdo publicado — são fontes
+  de dado propositalmente separadas. Fica como sessão própria.
+
 - **Importação CSV.** Fora do escopo desta sessão. No módulo original
   (`fem-colaborador/src/modules/birthdays/views/admin/client.tsx`, função
   `parseAndValidateCsv`), o parser é client-side, faz split por vírgula fixo, funciona mas quebra

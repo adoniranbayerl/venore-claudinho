@@ -5,8 +5,9 @@ vi.mock("@/observability", () => ({
   endOperation: vi.fn(),
 }));
 
+const invalidateCacheByPrefix = vi.fn();
 vi.mock("../../../../../infrastructure/cache/memory-cache", () => ({
-  invalidateCacheByPrefix: vi.fn(),
+  invalidateCacheByPrefix: (...args: unknown[]) => invalidateCacheByPrefix(...args),
 }));
 
 const getMedia = vi.fn();
@@ -47,6 +48,27 @@ describe("updateEntry", () => {
     findOtherEntryByCategoryAndSlug.mockResolvedValue(null);
     updateEntryFields.mockReset();
     getMedia.mockReset();
+    invalidateCacheByPrefix.mockReset();
+  });
+
+  it("invalidates the navigation cache when a published entry's address (slug) changes", async () => {
+    findEntryById.mockResolvedValue({ ...existingEntry, status: "published" });
+    updateEntryFields.mockResolvedValue({ ...existingEntry, status: "published", slug: "novo-slug" });
+
+    const { updateEntry } = await import("./service");
+    await updateEntry({ id: "entry-1", slug: "novo-slug", actorId: "actor-1" });
+
+    expect(invalidateCacheByPrefix).toHaveBeenCalledWith("cms:navigation");
+  });
+
+  it("does not touch the navigation cache when a draft entry changes (nothing was navigable yet)", async () => {
+    findEntryById.mockResolvedValue({ ...existingEntry, status: "draft" });
+    updateEntryFields.mockResolvedValue({ ...existingEntry, status: "draft", slug: "novo-slug" });
+
+    const { updateEntry } = await import("./service");
+    await updateEntry({ id: "entry-1", slug: "novo-slug", actorId: "actor-1" });
+
+    expect(invalidateCacheByPrefix).not.toHaveBeenCalledWith("cms:navigation");
   });
 
   it("fails when the entry does not exist", async () => {

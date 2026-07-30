@@ -1,33 +1,35 @@
-import { eq, max } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
-import { menuItems, menus } from "../../../database/schema";
-import type { MenuItemRecord } from "../../../contracts/types";
+import { entries, menuItems, menus } from "../../../database/schema";
+import type { MenuItemRecord, MenuRecord } from "../../../contracts/types";
 
-export async function findOrCreateMenuByLocation(location: string): Promise<{ id: string }> {
-  const [existing] = await db.select({ id: menus.id }).from(menus).where(eq(menus.location, location)).limit(1);
-  if (existing) {
-    return existing;
-  }
-
-  const [created] = await db.insert(menus).values({ location }).returning({ id: menus.id });
-  return created;
+export async function findMenuById(id: string): Promise<MenuRecord | null> {
+  const [row] = await db.select().from(menus).where(eq(menus.id, id)).limit(1);
+  return (row as MenuRecord) ?? null;
 }
 
-export async function findNextMenuItemOrder(menuId: string): Promise<number> {
-  const [row] = await db.select({ maxOrder: max(menuItems.order) }).from(menuItems).where(eq(menuItems.menuId, menuId));
-  return (row?.maxOrder ?? -1) + 1;
+export async function findMenuItemsByMenuId(menuId: string): Promise<MenuItemRecord[]> {
+  const rows = await db.select().from(menuItems).where(eq(menuItems.menuId, menuId));
+  return rows as MenuItemRecord[];
+}
+
+export async function findEntryExists(id: string): Promise<boolean> {
+  const [row] = await db.select({ id: entries.id }).from(entries).where(eq(entries.id, id)).limit(1);
+  return Boolean(row);
 }
 
 export async function insertMenuItem(input: {
   menuId: string;
+  parentId: string | null;
   label: string;
-  href: string;
   order: number;
+  targetType: string;
+  contentId: string | null;
+  routePath: string | null;
+  requiredPermissionKey: string | null;
+  externalUrl: string | null;
+  icon: string | null;
 }): Promise<MenuItemRecord> {
-  const [row] = await db
-    .insert(menuItems)
-    .values({ menuId: input.menuId, label: input.label, href: input.href, order: input.order })
-    .returning();
-
+  const [row] = await db.insert(menuItems).values(input).returning();
   return row as MenuItemRecord;
 }

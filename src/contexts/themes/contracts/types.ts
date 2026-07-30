@@ -14,14 +14,36 @@ export type ActiveThemeState = {
 
 // --- Contrato de slot (docs/venore-docks.md — "Sobre temas" / Contrato de slot), verbatim ---
 
-// icon: chave lógica resolvida pra um lucide-react dentro do tema (SidebarNavLink.tsx), nunca o
-// componente em si — Server → Client Component não serializa função/componente como prop. Vem só
-// de fonte que o repo controla direto (platform/admin-shell/admin-navigation-registry.ts, que
-// agrega o item declarado por cada context/plugin); CMS ainda não tem coluna de ícone
-// (Known Gap), então main-nav opcionalmente fica sem `icon` e cai no fallback genérico do tema.
+// icon: chave lógica resolvida pra um lucide-react dentro do tema (platform/nav-icons/NavIcon.tsx),
+// nunca o componente em si — Server → Client Component não serializa função/componente como prop.
+// Pra admin-nav vem do registro agregado em platform/admin-shell/admin-navigation-registry.ts (cada
+// context/plugin declara a própria); pra main-nav vem do menu_items.icon escolhido no editor
+// (contexts/cms). Em qualquer um dos dois, `icon` ausente ou com chave não reconhecida cai no
+// fallback genérico do tema (platform/nav-icons/registry.ts — NAV_ICON_FALLBACK), nunca quebra.
 export type NavItem = { key: string; label: string; href: string; icon?: string };
 export type NavGroup = { key: string; label: string; items: NavItem[] };
-export type SitemapItem = { key: string; label: string; href: string };
+
+// main-nav é a única navegação com o conceito de agregador (menu_items.targetType "label" —
+// contexts/cms/contracts/types.ts): item sem link próprio que só existe pra agrupar filhos
+// (renderizado como accordion em SidebarNavLink.tsx, nunca como link). header-nav e admin-nav
+// (NavGroup acima) continuam lista plana de propósito — só o menu "main" do CMS produz árvore
+// hoje. União discriminada por href: variante "href: null" carrega children (não-vazio — grupo
+// vazio é filtrado na composição, platform/theme-rendering/resolve-theme-slot-props.ts, nunca
+// chega aqui), variante "href: string" é folha e não tem children.
+export type MainNavItem =
+  | { key: string; label: string; href: string; icon?: string }
+  | { key: string; label: string; href: null; icon?: string; children: MainNavItem[] };
+// Árvore, não lista plana: item de primeiro nível é cabeçalho de coluna no footer, filhos são os
+// links daquela coluna. href null é o caso "label" do menu (contexts/cms/contracts/types.ts —
+// MenuItemTarget) — rótulo sem link, cabeçalho de grupo não clicável. isExternal replica o campo
+// homônimo de ResolvedMenuItem (contexts/cms) pra decidir rel/target no componente de sitemap.
+export type SitemapItem = {
+  key: string;
+  label: string;
+  href: string | null;
+  isExternal: boolean;
+  children: SitemapItem[];
+};
 
 export type NavMode = "main" | "admin";
 
@@ -62,8 +84,15 @@ export type HeaderSlotProps = {
   onSignOut: () => Promise<void>;
 };
 
+// Mesma forma de HeaderBrand (permite renderizar a marca no footer com o PlatformBrand real, não
+// uma versão só-texto) + color, que HeaderBrand não tem: brand.color vem de contexts/settings
+// (getBrandConfig) mas hoje só era consumido pela impressão de PDF do plugin birthdays (Header do
+// tema ainda não pinta a marca por cor, AGENTS.md). O footer usa como sublinhado de acento sob a
+// marca — mesma costura de leitura, sem inventar um novo consumo de cor pro Header.
+export type FooterBrand = HeaderBrand & { color: string };
+
 export type FooterSlotProps = {
-  brand: { name: string; logoUrl?: string };
+  brand: FooterBrand;
   sitemapItems: SitemapItem[];
   creditsEnabled: boolean;
 };
@@ -84,11 +113,11 @@ export type ContentSlotProps = {
 export type SidebarLeftSlotProps = {
   enabled: boolean;
   navMode: NavMode;
-  // main-nav é uma lista plana (sem títulos de seção, protótipo confirma). admin-nav agrupa por
-  // seção com título (docs/ui/shell-spec.md §3.4 + protótipo platform-sidebar.tsx `adminGroups`)
-  // — por isso os dois vivem em campos separados em vez de um só `navItems` genérico; `navGroups`
-  // fica `[]` quando navMode é "main".
-  navItems: NavItem[];
+  // main-nav é uma árvore (não mais lista plana — ver MainNavItem acima): item raiz pode ser um
+  // agregador (accordion) com filhos. admin-nav agrupa por seção com título (docs/ui/shell-spec.md
+  // §3.4 + protótipo platform-sidebar.tsx `adminGroups`) — por isso os dois vivem em campos
+  // separados em vez de um só `navItems` genérico; `navGroups` fica `[]` quando navMode é "main".
+  navItems: MainNavItem[];
   navGroups: NavGroup[];
   canToggleAdminNav: boolean;
   onToggleNavMode: () => Promise<void>;

@@ -1,12 +1,17 @@
-// Leitura pública: resolução do main-nav (e outros locations futuros) pela camada de composição
-// de tema, sem authorizeActor (docs/venore-docks.md — CMS). Mesmo padrão de
-// get-published-entry-by-slug/handler.ts.
 import { getMenuByLocation } from "./service";
 import type { GetMenuByLocationQuery, GetMenuByLocationResult } from "./types";
 
+const PUBLIC_LOCATIONS = ["main", "header", "sitemap"] as const;
+
+// Leitura pública, sem authorizeActor — o próprio resultado já é filtrado (conteúdo publicado,
+// visibilidade, permission de item "route") em service.ts.
 export async function getMenuByLocationHandler(query: GetMenuByLocationQuery): Promise<GetMenuByLocationResult> {
-  if (query.location.trim().length === 0) {
-    return { success: false, error: { code: "cms.menus.invalid_location", message: "location não pode ser vazio." } };
+  if (!PUBLIC_LOCATIONS.includes(query.location)) {
+    return {
+      success: false,
+      error: { code: "cms.menus.invalid_location", message: `Location "${query.location}" não é resolvível por location.` },
+    };
   }
+
   return getMenuByLocation(query);
 }

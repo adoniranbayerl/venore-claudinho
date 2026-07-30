@@ -36,7 +36,7 @@ describe("resolveThemeSlotProps", () => {
   beforeEach(() => {
     getCurrentUser.mockReset();
     getMenuByLocation.mockReset();
-    getMenuByLocation.mockResolvedValue({ success: true, data: { location: "main-nav", items: [] } });
+    getMenuByLocation.mockResolvedValue({ success: true, data: [] });
   });
 
   it("resolves header.user as null when there is no authenticated user", async () => {
@@ -99,14 +99,88 @@ describe("resolveThemeSlotProps", () => {
     getCurrentUser.mockResolvedValue({ success: true, data: null });
     getMenuByLocation.mockResolvedValue({
       success: true,
-      data: { location: "main-nav", items: [{ id: "item-1", menuId: "menu-1", label: "Home", href: "/", order: 0, createdAt: new Date() }] },
+      data: [{ id: "item-1", label: "Home", href: "/", isExternal: false, children: [] }],
     });
 
     const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput());
 
     expect(props.sidebarLeft.navItems).toEqual([{ key: "item-1", label: "Home", href: "/" }]);
-    expect(getMenuByLocation).toHaveBeenCalledWith({ location: "main-nav" });
+    expect(getMenuByLocation).toHaveBeenCalledWith({ location: "main" });
+  });
+
+  it("keeps a 'label' grouper item (href null) with its children as a nested main-nav tree, instead of dropping it", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: null });
+    getMenuByLocation.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          id: "group-1",
+          label: "Recursos Humanos",
+          href: null,
+          isExternal: false,
+          children: [
+            { id: "item-1", label: "Item 1", href: "/rh/item-1", isExternal: false, children: [] },
+            { id: "item-2", label: "Item 2", href: "/rh/item-2", isExternal: false, children: [] },
+          ],
+        },
+        { id: "item-3", label: "Teologia", href: "/teologia/teste", isExternal: false, children: [] },
+      ],
+    });
+
+    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
+    const props = await resolveThemeSlotProps(sidebarNavInput());
+
+    expect(props.sidebarLeft.navItems).toEqual([
+      {
+        key: "group-1",
+        label: "Recursos Humanos",
+        href: null,
+        children: [
+          { key: "item-1", label: "Item 1", href: "/rh/item-1" },
+          { key: "item-2", label: "Item 2", href: "/rh/item-2" },
+        ],
+      },
+      { key: "item-3", label: "Teologia", href: "/teologia/teste" },
+    ]);
+  });
+
+  it("drops a 'label' grouper item entirely when it ends up with no visible children (e.g. all filtered by permission)", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: null });
+    getMenuByLocation.mockResolvedValue({
+      success: true,
+      data: [{ id: "group-1", label: "Recursos Humanos", href: null, isExternal: false, children: [] }],
+    });
+
+    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
+    const props = await resolveThemeSlotProps(sidebarNavInput());
+
+    expect(props.sidebarLeft.navItems).toEqual([]);
+  });
+
+  it("carries the icon chosen in the CMS editor through to main-nav items, omitting it when absent", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: null });
+    getMenuByLocation.mockResolvedValue({
+      success: true,
+      data: [
+        { id: "item-1", label: "Recursos Humanos", href: null, isExternal: false, icon: "users", children: [{ id: "item-2", label: "Item 1", href: "/rh/item-1", isExternal: false, icon: null, children: [] }] },
+        { id: "item-3", label: "Teologia", href: "/teologia", isExternal: false, icon: null, children: [] },
+      ],
+    });
+
+    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
+    const props = await resolveThemeSlotProps(sidebarNavInput());
+
+    expect(props.sidebarLeft.navItems).toEqual([
+      {
+        key: "item-1",
+        label: "Recursos Humanos",
+        href: null,
+        icon: "users",
+        children: [{ key: "item-2", label: "Item 1", href: "/rh/item-1", icon: undefined }],
+      },
+      { key: "item-3", label: "Teologia", href: "/teologia", icon: undefined },
+    ]);
   });
 
   it("falls back to the mock nav items when the main-nav menu lookup fails", async () => {
@@ -139,5 +213,65 @@ describe("resolveThemeSlotProps", () => {
 
     expect(props.sidebarLeft.navGroups).toBe(adminNavGroups);
     expect(props.sidebarLeft.navItems).toEqual([]);
+  });
+
+  it("resolves footer.sitemapItems from the sitemap-location menu, reshaped as a tree", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: null });
+    getMenuByLocation.mockImplementation(async ({ location }: { location: string }) => {
+      if (location === "sitemap") {
+        return {
+          success: true,
+          data: [
+            {
+              id: "col-1",
+              label: "Institucional",
+              href: null,
+              isExternal: false,
+              children: [{ id: "item-1", label: "Sobre", href: "/sobre", isExternal: false, children: [] }],
+            },
+          ],
+        };
+      }
+      return { success: true, data: [] };
+    });
+
+    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
+    const props = await resolveThemeSlotProps(sidebarNavInput());
+
+    expect(props.footer.sitemapItems).toEqual([
+      {
+        key: "col-1",
+        label: "Institucional",
+        href: null,
+        isExternal: false,
+        children: [{ key: "item-1", label: "Sobre", href: "/sobre", isExternal: false, children: [] }],
+      },
+    ]);
+    expect(getMenuByLocation).toHaveBeenCalledWith({ location: "sitemap" });
+  });
+
+  it("resolves footer.sitemapItems to an empty list when there is no menu configured for the sitemap location, without falling back to any mock", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: null });
+    getMenuByLocation.mockResolvedValue({ success: true, data: [] });
+
+    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
+    const props = await resolveThemeSlotProps(sidebarNavInput());
+
+    expect(props.footer.sitemapItems).toEqual([]);
+  });
+
+  it("resolves footer.sitemapItems to an empty list when the sitemap-location lookup fails", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: null });
+    getMenuByLocation.mockImplementation(async ({ location }: { location: string }) => {
+      if (location === "sitemap") {
+        return { success: false, error: { code: "err", message: "boom" } };
+      }
+      return { success: true, data: [] };
+    });
+
+    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
+    const props = await resolveThemeSlotProps(sidebarNavInput());
+
+    expect(props.footer.sitemapItems).toEqual([]);
   });
 });

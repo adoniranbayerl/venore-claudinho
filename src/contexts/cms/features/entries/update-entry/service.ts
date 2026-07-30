@@ -54,9 +54,12 @@ export async function updateEntry(command: UpdateEntryCommand): Promise<UpdateEn
   });
 
   // Só entry publicada afeta a lista pública — invalidação é responsabilidade de quem escreve
-  // (docs/venore-docks.md — Cache).
+  // (docs/venore-docks.md — Cache). slug/categoryId mudam o href resolvido de qualquer item de
+  // menu "content" que aponte pra esta entry — gatilho de invalidação da navegação (regra:
+  // alteração de endereço de conteúdo referenciado invalida cache de menu).
   if (existing.status === "published") {
     invalidateCacheByPrefix("cms:entries:published");
+    invalidateCacheByPrefix("cms:navigation");
   }
 
   endOperation(handle, { success: true });

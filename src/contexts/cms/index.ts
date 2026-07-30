@@ -22,16 +22,36 @@ export {
 // de cms e media, pra evitar ciclo com a validação de mediaId em create-entry/update-entry).
 export { isMediaReferencedHandler as isMediaReferenced } from "./features/entries/is-media-referenced/handler";
 
+export { createMenuHandler as createMenu } from "./features/menus/create-menu/handler";
+export { updateMenuHandler as updateMenu } from "./features/menus/update-menu/handler";
+export { deleteMenuHandler as deleteMenu } from "./features/menus/delete-menu/handler";
+export { listMenusHandler as listMenus } from "./features/menus/list-menus/handler";
+export { getMenuTreeHandler as getMenuTree } from "./features/menus/get-menu-tree/handler";
 export { createMenuItemHandler as createMenuItem } from "./features/menus/create-menu-item/handler";
+export { updateMenuItemHandler as updateMenuItem } from "./features/menus/update-menu-item/handler";
+export { moveMenuItemHandler as moveMenuItem } from "./features/menus/move-menu-item/handler";
 export { removeMenuItemHandler as removeMenuItem } from "./features/menus/remove-menu-item/handler";
-export { reorderMenuItemsHandler as reorderMenuItems } from "./features/menus/reorder-menu-items/handler";
-// Leitura pública, sem authorizeActor — consumida por platform/theme-rendering para resolver o
-// main-nav a partir de dado real do CMS.
+// Leitura pública, sem authorizeActor — consumida por platform/theme-rendering pra resolver
+// main-nav/header-nav/sitemap a partir de dado real do CMS (não integrado ao shell nesta sessão).
 export { getMenuByLocationHandler as getMenuByLocation } from "./features/menus/get-menu-by-location/handler";
+// Leitura pública, sem authorizeActor — resolve o menu contextual pela rota atual (scopePath de
+// correspondência mais longa). Sem correspondência, devolve lista vazia — nunca cai pro main-nav.
+export { getContextualMenuHandler as getContextualMenu } from "./features/menus/get-contextual-menu/handler";
 
 export { cmsAdminNavigationItems } from "./admin-navigation";
 
-export type { ContentTypeRecord, CategoryRecord, EntryRecord, EntryStatus, MenuRecord, MenuItemRecord } from "./contracts/types";
+export type {
+  ContentTypeRecord,
+  CategoryRecord,
+  EntryRecord,
+  EntryStatus,
+  MenuRecord,
+  MenuItemRecord,
+  MenuLocation,
+  MenuItemTarget,
+} from "./contracts/types";
+export type { ResolvedMenuItem, AdminResolvedMenuItem, AdminMenuItemStatus } from "./menu-resolution";
+export { MAX_MENU_ITEM_DEPTH } from "./menu-tree";
 export { getEntryBody } from "./contracts/entry-body";
 export type { Block, Area, Composition } from "./contracts/block";
 export { blockSchema, areaSchema, compositionSchema } from "./contracts/block";
@@ -77,7 +97,14 @@ export type {
   GetPublishedEntryBySlugResult,
 } from "./features/entries/get-published-entry-by-slug/types";
 export type { IsMediaReferencedQuery, IsMediaReferencedResult } from "./features/entries/is-media-referenced/types";
+export type { CreateMenuInput, CreateMenuResult } from "./features/menus/create-menu/types";
+export type { UpdateMenuInput, UpdateMenuResult } from "./features/menus/update-menu/types";
+export type { DeleteMenuInput, DeleteMenuResult } from "./features/menus/delete-menu/types";
+export type { ListMenusResult } from "./features/menus/list-menus/types";
+export type { GetMenuTreeQuery, GetMenuTreeResult } from "./features/menus/get-menu-tree/types";
 export type { CreateMenuItemInput, CreateMenuItemResult } from "./features/menus/create-menu-item/types";
+export type { UpdateMenuItemInput, UpdateMenuItemResult } from "./features/menus/update-menu-item/types";
+export type { MoveMenuItemInput, MoveMenuItemResult } from "./features/menus/move-menu-item/types";
 export type { RemoveMenuItemInput, RemoveMenuItemResult } from "./features/menus/remove-menu-item/types";
-export type { ReorderMenuItemsInput, ReorderMenuItemsResult } from "./features/menus/reorder-menu-items/types";
 export type { GetMenuByLocationQuery, GetMenuByLocationResult } from "./features/menus/get-menu-by-location/types";
+export type { GetContextualMenuQuery, GetContextualMenuResult } from "./features/menus/get-contextual-menu/types";

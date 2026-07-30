@@ -1,3 +1,4 @@
+import { invalidateCacheByPrefix } from "@/infrastructure/cache/memory-cache";
 import { beginOperation, endOperation } from "@/observability";
 import { deleteMenuItemById, findMenuItemById } from "./store";
 import type { RemoveMenuItemCommand, RemoveMenuItemResult } from "./types";
@@ -9,18 +10,17 @@ export async function removeMenuItem(command: RemoveMenuItemCommand): Promise<Re
     kind: "write",
   });
 
-  const item = await findMenuItemById(command.menuItemId);
-  if (!item) {
-    const error = {
-      code: "cms.menus.item_not_found",
-      message: `Nenhum item de menu encontrado com id "${command.menuItemId}".`,
-    };
+  const existing = await findMenuItemById(command.id);
+  if (!existing) {
+    const error = { code: "cms.menus.item_not_found", message: `Item de menu "${command.id}" não encontrado.` };
     endOperation(handle, { success: false, error });
     return { success: false, error };
   }
 
-  await deleteMenuItemById(command.menuItemId);
+  await deleteMenuItemById(command.id);
+
+  invalidateCacheByPrefix("cms:navigation");
 
   endOperation(handle, { success: true });
-  return { success: true, data: { id: command.menuItemId } };
+  return { success: true, data: { id: command.id } };
 }

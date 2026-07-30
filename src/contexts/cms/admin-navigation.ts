@@ -50,4 +50,15 @@ export const cmsAdminNavigationItems: AdminNavItemDefinition[] = [
     order: 40,
     requiredPermission: "cms.entries.manage",
   },
+  {
+    key: "cms.menus",
+    label: "Navegação",
+    icon: "menu",
+    href: "/admin/cms/menus",
+    groupKey: "content",
+    groupLabel: "Conteúdo",
+    groupOrder: 20,
+    order: 50,
+    requiredPermission: "cms.menus.manage",
+  },
 ];

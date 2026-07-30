@@ -49,6 +49,17 @@ describe("publishEntry", () => {
     expect(getCache("cms:entries:published:*:*")).toBeNull();
   });
 
+  it("also invalidates the navigation cache — publicação é um dos 4 gatilhos de invalidação de menu", async () => {
+    findEntryById.mockResolvedValue({ id: "entry-1", status: "draft" });
+    markEntryPublished.mockResolvedValue({ id: "entry-1", status: "published" });
+    setCache("cms:navigation:by-location:main", [{ id: "stale-item" }], 60);
+
+    const { publishEntry } = await import("./service");
+    await publishEntry({ id: "entry-1", resolveDefinition, actorId: "actor-1" });
+
+    expect(getCache("cms:navigation:by-location:main")).toBeNull();
+  });
+
   it("fails when the entry does not exist", async () => {
     findEntryById.mockResolvedValue(null);
 

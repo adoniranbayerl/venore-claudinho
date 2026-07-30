@@ -1,14 +1,33 @@
-import { asc, eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
-import { menuItems, menus } from "../../../database/schema";
-import type { MenuItemRecord } from "../../../contracts/types";
+import { categories, entries, menuItems, menus } from "../../../database/schema";
+import type { MenuItemRecord, MenuLocation, MenuRecord } from "../../../contracts/types";
+import type { EntryRouteInfo } from "../../../menu-resolution";
 
-export async function findMenuByLocation(location: string): Promise<{ id: string } | null> {
-  const [row] = await db.select({ id: menus.id }).from(menus).where(eq(menus.location, location)).limit(1);
-  return row ?? null;
+export async function findMenuByLocation(location: MenuLocation): Promise<MenuRecord | null> {
+  const [row] = await db.select().from(menus).where(eq(menus.location, location)).limit(1);
+  return (row as MenuRecord) ?? null;
 }
 
 export async function findMenuItemsByMenuId(menuId: string): Promise<MenuItemRecord[]> {
-  const rows = await db.select().from(menuItems).where(eq(menuItems.menuId, menuId)).orderBy(asc(menuItems.order));
+  const rows = await db.select().from(menuItems).where(eq(menuItems.menuId, menuId));
   return rows as MenuItemRecord[];
+}
+
+export async function findEntryRouteInfoByIds(ids: string[]): Promise<Map<string, EntryRouteInfo>> {
+  if (ids.length === 0) return new Map();
+
+  const rows = await db
+    .select({
+      id: entries.id,
+      title: entries.title,
+      slug: entries.slug,
+      status: entries.status,
+      categorySlug: categories.slug,
+    })
+    .from(entries)
+    .leftJoin(categories, eq(categories.id, entries.categoryId))
+    .where(inArray(entries.id, ids));
+
+  return new Map(rows.map((row) => [row.id, { ...row, categorySlug: row.categorySlug ?? null } as EntryRouteInfo]));
 }

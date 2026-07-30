@@ -3,11 +3,8 @@ import { removeMenuItem } from "./service";
 import type { RemoveMenuItemInput, RemoveMenuItemResult } from "./types";
 
 export async function removeMenuItemHandler(input: RemoveMenuItemInput): Promise<RemoveMenuItemResult> {
-  if (input.menuItemId.trim().length === 0) {
-    return {
-      success: false,
-      error: { code: "cms.menus.invalid_menu_item_id", message: "menuItemId não pode ser vazio." },
-    };
+  if (input.id.trim().length === 0) {
+    return { success: false, error: { code: "cms.menus.invalid_id", message: "id do item não pode ser vazio." } };
   }
 
   const authz = await authorizeActor("cms.menus.manage");

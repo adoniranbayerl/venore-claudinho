@@ -26,5 +26,12 @@
 // via seletor CSS (`data-[scrolled=true]` / `group-data-[scrolled=true]/header`), sem prop nem
 // re-render React — abrindo mão, só para o scroll do header, do mesmo princípio "o tema nunca lê
 // estado sozinho" que a remoção de isDark/onToggleColorMode já abriu mão para o color mode.
-export const CURRENT_THEME_CONTRACT_VERSION = "4.0.0";
-export const SUPPORTED_THEME_CONTRACT_RANGE = "^4.0.0";
+// Bump para "5.0.0": `SitemapItem` deixou de ser `{ key, label, href }` (lista plana) e virou uma
+// árvore (`children: SitemapItem[]`, `href: string | null`, `isExternal`) — mudança de shape, não
+// extensão aditiva, porque o consumo mudou de "lista de links" para "coluna com cabeçalho +
+// filhos" (footer real a partir do menu de location "sitemap" de contexts/cms, que já resolve
+// nessa forma). `FooterSlotProps.brand` também passou de `{ name, logoUrl? }` pra `HeaderBrand &
+// { color }`, mesma composição já usada no Header e na impressão de PDF do birthdays — sem isso o
+// footer não conseguia renderizar a marca de verdade (só o nome em texto).
+export const CURRENT_THEME_CONTRACT_VERSION = "5.0.0";
+export const SUPPORTED_THEME_CONTRACT_RANGE = "^5.0.0";

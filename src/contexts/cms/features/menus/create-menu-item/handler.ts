@@ -3,8 +3,8 @@ import { createMenuItem } from "./service";
 import type { CreateMenuItemInput, CreateMenuItemResult } from "./types";
 
 export async function createMenuItemHandler(input: CreateMenuItemInput): Promise<CreateMenuItemResult> {
-  if (input.location.trim().length === 0) {
-    return { success: false, error: { code: "cms.menus.invalid_location", message: "location não pode ser vazio." } };
+  if (input.menuId.trim().length === 0) {
+    return { success: false, error: { code: "cms.menus.invalid_menu_id", message: "menuId não pode ser vazio." } };
   }
 
   if (input.label.trim().length === 0) {
@@ -14,11 +14,16 @@ export async function createMenuItemHandler(input: CreateMenuItemInput): Promise
     };
   }
 
-  if (input.href.trim().length === 0) {
-    return {
-      success: false,
-      error: { code: "cms.menus.invalid_href", message: "O href do item de menu não pode ser vazio." },
-    };
+  if (input.target.targetType === "content" && input.target.contentId.trim().length === 0) {
+    return { success: false, error: { code: "cms.menus.invalid_target", message: "contentId não pode ser vazio." } };
+  }
+
+  if (input.target.targetType === "route" && input.target.routePath.trim().length === 0) {
+    return { success: false, error: { code: "cms.menus.invalid_target", message: "routePath não pode ser vazio." } };
+  }
+
+  if (input.target.targetType === "external" && input.target.externalUrl.trim().length === 0) {
+    return { success: false, error: { code: "cms.menus.invalid_target", message: "externalUrl não pode ser vazio." } };
   }
 
   const authz = await authorizeActor("cms.menus.manage");

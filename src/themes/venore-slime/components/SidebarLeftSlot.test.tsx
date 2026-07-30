@@ -1,14 +1,26 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SidebarLeftSlot } from "./SidebarLeftSlot";
 import type { SidebarLeftSlotProps } from "@/contexts/themes";
+
+// Mock de usePathname pra testar aria-current e o estado inicial (expandido/fechado) do accordion
+// de agregador, que dependem da rota atual. Default null replica o comportamento fora do App
+// Router (Next não lança, só retorna null) — cada teste que precisa de uma rota específica ajusta
+// mockPathname antes de renderizar.
+let mockPathname: string | null = null;
+vi.mock("next/navigation", () => ({
+  usePathname: () => mockPathname,
+}));
 
 // SidebarLeftSlot continua um server component (docs/ui/shell-spec.md §3): o único estado que
 // importa pro markup SSR é `collapsed`, já resolvido do cookie ANTES deste componente rodar (não
 // há hidratação/segundo render que troque a largura — é por isso que não existe o bug de flash
 // registrado no spec). SidebarNavLink usa usePathname() internamente; fora do App Router esse
-// hook retorna null (Next não lança), então aria-current fica ausente aqui — comportamento
+// hook retorna null (Next não lança), então aria-current fica ausente por padrão — comportamento
 // aceitável pra este teste, que cobre layout/largura/permissão, não roteamento.
+beforeEach(() => {
+  mockPathname = null;
+});
 const baseProps: SidebarLeftSlotProps = {
   enabled: true,
   navMode: "main",
@@ -83,10 +95,60 @@ describe("SidebarLeftSlot — estados de colapso", () => {
     expect(html).toContain("Papéis e permissões");
   });
 
-  it("o item de nav não tem borda de destaque fixa (isActive) — só via hover/active", () => {
+  it("agregador (item.href null) renderiza como botão accordion com aria-expanded/aria-controls, não como link", () => {
+    const html = renderToStaticMarkup(
+      <SidebarLeftSlot
+        {...baseProps}
+        navItems={[
+          {
+            key: "rh",
+            label: "Recursos Humanos",
+            href: null,
+            children: [
+              { key: "rh.item-1", label: "Item 1", href: "/rh/item-1" },
+              { key: "rh.item-2", label: "Item 2", href: "/rh/item-2" },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(html).toContain("Recursos Humanos");
+    expect(html).toMatch(/<button[^>]*aria-expanded="false"[^>]*aria-controls="sidebar-nav-group-rh"/);
+    // Fechado por padrão (nenhuma rota ativa entre os filhos fora do App Router) — filhos não vão pro markup.
+    expect(html).not.toContain("Item 1");
+  });
+
+  it("agregador com um filho na rota atual abre por padrão (ancestral ativo) e marca aria-current no filho", () => {
+    mockPathname = "/rh/item-1";
+
+    const html = renderToStaticMarkup(
+      <SidebarLeftSlot
+        {...baseProps}
+        navItems={[
+          {
+            key: "rh",
+            label: "Recursos Humanos",
+            href: null,
+            children: [
+              { key: "rh.item-1", label: "Item 1", href: "/rh/item-1" },
+              { key: "rh.item-2", label: "Item 2", href: "/rh/item-2" },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(html).toMatch(/<button[^>]*aria-expanded="true"[^>]*data-active-ancestor="true"/);
+    expect(html).toContain("Item 1");
+    expect(html).toContain("Item 2");
+    expect(html).toMatch(/aria-current="page"[^>]*>\s*<span/);
+  });
+
+  it("o item de nav não tem barra de destaque (border-l) nem em repouso, nem em hover/active, nem fixa (isActive)", () => {
     const html = renderToStaticMarkup(<SidebarLeftSlot {...baseProps} />);
 
-    expect(html).toContain("border-transparent");
+    expect(html).not.toContain("border-l-2");
     expect(html).not.toMatch(/border-l-2[^"]*border-primary/);
   });
 });

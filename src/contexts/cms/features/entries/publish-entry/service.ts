@@ -81,8 +81,11 @@ export async function publishEntry(command: PublishEntryCommand): Promise<Publis
 
   const entry = await markEntryPublished(command.id);
 
-  // Invalidação é responsabilidade de quem escreve (docs/venore-docks.md — Cache).
+  // Invalidação é responsabilidade de quem escreve (docs/venore-docks.md — Cache). Publicar
+  // afeta a resolução de qualquer item de menu "content" que aponte pra esta entry — gatilho de
+  // invalidação da navegação (regra: publicação/despublicação invalida cache de menu).
   invalidateCacheByPrefix("cms:entries:published");
+  invalidateCacheByPrefix("cms:navigation");
 
   endOperation(handle, { success: true });
   return { success: true, data: entry };
