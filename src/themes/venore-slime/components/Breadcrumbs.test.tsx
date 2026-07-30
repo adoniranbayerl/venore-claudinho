@@ -31,8 +31,9 @@ describe("Breadcrumbs — semântica e navegação", () => {
     expect(html).toMatch(/aria-current="page"[^>]*>Aula 1</);
     // O rótulo do item atual não pode estar dentro de um <a>.
     expect(html).not.toMatch(/<a[^>]*>Aula 1<\/a>/);
-    // Um item anterior clicável vira link de verdade.
-    expect(html).toMatch(/<a href="\/admin\/academy\/courses"[^>]*>Cursos<\/a>/);
+    // Um item anterior clicável vira link de verdade (next/link renderiza `class` antes de
+    // `href` no SSR, por isso o regex não fixa a ordem dos atributos).
+    expect(html).toMatch(/<a[^>]*href="\/admin\/academy\/courses"[^>]*>Cursos<\/a>/);
   });
 
   it("item sem página correspondente (href null) não é link, mesmo não sendo o último", () => {
