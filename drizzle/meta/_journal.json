@@ -120,6 +120,20 @@
       "when": 1785421218885,
       "tag": "0016_sweet_the_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1785429700847,
+      "tag": "0017_thick_joseph",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1785436922297,
+      "tag": "0018_useful_shadowcat",
+      "breakpoints": true
     }
   ]
 }

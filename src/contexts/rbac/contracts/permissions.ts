@@ -15,6 +15,9 @@ export const RBAC_PERMISSIONS: PermissionDefinition[] = [
   // Pertence conceitualmente ao admin shell (platform/), não a um único context de domínio —
   // mesmo stopgap das entradas acima, até existir agregação de permissions entre contexts.
   { key: "platform.admin.access", label: "Acessar área administrativa" },
+  // Habilitar/desabilitar plugin ou tema (contexts/extensions) — ação distinta de
+  // platform.admin.access (que só permite ver a tela de diagnóstico dos plugins).
+  { key: "platform.extensions.manage", label: "Habilitar ou desabilitar plugins e temas" },
   // Pertence conceitualmente a contexts/media — mesmo stopgap de settings.manage acima.
   { key: "media.manage", label: "Gerenciar arquivos de mídia" },
   // Restrita a superadmin (docs/media/blob-spec.md seção 6) — diferente de media.manage (soft

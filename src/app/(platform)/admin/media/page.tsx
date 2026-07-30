@@ -55,6 +55,7 @@ export default async function MediaAdminPage() {
               mimeType={file.mimeType}
               size={file.size}
               createdAt={file.createdAt.toISOString()}
+              visibility={file.visibility}
             />
           ))}
         </section>

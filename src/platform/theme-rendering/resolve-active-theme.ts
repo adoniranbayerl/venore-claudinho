@@ -15,5 +15,25 @@ export const resolveActiveTheme = cache(async (): Promise<ThemeRegistryEntry> =>
   const active = await getActiveTheme();
   const themeKey = active.success ? active.data.themeKey : "venore-slime";
 
-  return THEME_REGISTRY[themeKey] ?? THEME_REGISTRY["venore-slime"];
+  const entry = THEME_REGISTRY[themeKey] ?? THEME_REGISTRY["venore-slime"];
+  assertThemeEntryHasShell(entry, themeKey);
+  return entry;
 });
+
+// Duas falhas diferentes, dois tratamentos diferentes (docs/themes/shell-contract.md — Fase 2,
+// "erro explícito na carga"). "Configuração de tema ativo ausente/quebrada" (getActiveTheme sem
+// sucesso, ou themeKey apontando pra uma chave que não existe no THEME_REGISTRY) já cai no
+// fallback pro Venore Slime acima — comportamento correto e documentado
+// (docs/venore-docks.md — "Venore Slime é ao mesmo tempo o tema padrão e o fallback"). O que esta
+// checagem cobre é diferente: o tema resolvido (seja venore-slime ou qualquer outro) está
+// registrado mas não exporta um `Shell` chamável — isso é tema estruturalmente incompleto, não
+// ausência de configuração, e não pode virar uma shell de fallback silenciosa da aplicação por
+// baixo do tema quebrado. Lança erro explícito, propositalmente sem try/catch nem shell
+// alternativa aqui — a aplicação não tem shell própria de reserva (esse é o ponto).
+function assertThemeEntryHasShell(entry: ThemeRegistryEntry | undefined, themeKey: string): asserts entry is ThemeRegistryEntry {
+  if (!entry || typeof entry.Shell !== "function") {
+    throw new Error(
+      `Tema "${themeKey}" está registrado em THEME_REGISTRY sem um Shell válido. Um tema sem Shell é erro de carga, não degradação silenciosa (docs/themes/shell-contract.md).`,
+    );
+  }
+}

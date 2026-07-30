@@ -1,3 +1,5 @@
+export type MediaVisibility = "private" | "public";
+
 export type MediaRecord = {
   id: string;
   filename: string;
@@ -6,6 +8,7 @@ export type MediaRecord = {
   size: number;
   url: string;
   uploadedBy: string;
+  visibility: MediaVisibility;
   createdAt: Date;
 };
 
@@ -21,6 +24,7 @@ export type MediaAsset = {
   alt: string | null;
   checksum: string;
   uploadedBy: string;
+  visibility: MediaVisibility;
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -44,3 +48,7 @@ export const MEDIA_ALLOWED_TYPES: Record<string, MediaAllowedTypeRule> = {
   "video/mp4": { category: "video", maxSizeBytes: 200 * 1024 * 1024 },
   "video/webm": { category: "video", maxSizeBytes: 200 * 1024 * 1024 },
 };
+
+// Limite próprio do upload de avatar (upload-avatar-media) — bem mais restrito que o teto geral
+// de imagem em MEDIA_ALLOWED_TYPES (8 MiB), porque avatar é servido em toda a UI a cada render.
+export const AVATAR_MAX_SIZE_BYTES = 500 * 1024;

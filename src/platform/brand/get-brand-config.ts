@@ -14,6 +14,9 @@ export type BrandConfig = {
   scrolledLogoUrl: string;
   faviconUrl: string;
   color: string;
+  // Só consumido pelo footer (protótipo venore-docks — PlatformFooter, footerDescription): um
+  // parágrafo curto sob a marca, distinto de siteName (título) — o header nunca mostra isso.
+  footerDescription: string;
 };
 
 const KEYS = {
@@ -28,6 +31,7 @@ const KEYS = {
   // Cor usada quando a marca é renderizada como máscara SVG (mode "svg") — hoje só consumida
   // pela impressão de PDF do plugin birthdays; o Header do tema ainda não pinta a marca por cor.
   color: "brand.color",
+  footerDescription: "brand.footerDescription",
 } as const;
 
 const DEFAULTS = {
@@ -40,6 +44,7 @@ const DEFAULTS = {
   scrolledSize: 80,
   position: "left" as BrandPosition,
   color: "#143b52",
+  footerDescription: "Plataforma modular para conteúdo, comunidade e operação.",
 };
 
 const FALLBACK_LOGO_SVG = "/brand/brand-logo.svg";
@@ -100,6 +105,7 @@ export async function getBrandConfig(): Promise<BrandConfig> {
     logoScrolledMediaId,
     faviconMediaId,
     color,
+    footerDescription,
   ] = await Promise.all([
     readStringSetting(KEYS.headerMode, DEFAULTS.headerMode),
     readStringSetting(KEYS.position, DEFAULTS.position),
@@ -110,6 +116,7 @@ export async function getBrandConfig(): Promise<BrandConfig> {
     readStringSetting(KEYS.logoScrolledMediaId, DEFAULTS.logoScrolledMediaId),
     readStringSetting(KEYS.faviconMediaId, DEFAULTS.faviconMediaId),
     readStringSetting(KEYS.color, DEFAULTS.color),
+    readStringSetting(KEYS.footerDescription, DEFAULTS.footerDescription),
   ]);
 
   const mode = resolveMode(rawMode);
@@ -131,6 +138,7 @@ export async function getBrandConfig(): Promise<BrandConfig> {
     scrolledLogoUrl,
     faviconUrl,
     color: color.trim() || DEFAULTS.color,
+    footerDescription: footerDescription.trim() || DEFAULTS.footerDescription,
   };
 }
 

@@ -15,6 +15,10 @@ export const files = mediaSchema.table("files", {
   uploadedBy: text("uploaded_by")
     .notNull()
     .references(() => users.id),
+  // "private" (só dono e quem tem media.manage) ou "public" (biblioteca, visível a qualquer
+  // ator autenticado). Default "private" de propósito — nenhum upload nasce público por
+  // omissão (docs/media/visibility.md, decisão de correção do vazamento de avatar).
+  visibility: text("visibility").notNull().default("private"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -38,6 +42,8 @@ export const assets = mediaSchema.table(
     uploadedBy: text("uploaded_by")
       .notNull()
       .references(() => users.id),
+    // Mesma semântica de `files.visibility` acima — mantida para as duas tabelas convivendo.
+    visibility: text("visibility").notNull().default("private"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

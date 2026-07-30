@@ -70,6 +70,12 @@ export { isEnrolledHandler as isEnrolled } from "./features/enrollments/is-enrol
 // registries paralelos, nunca misturados. Os renderers consomem só os handlers públicos
 // abaixo — nenhuma query nova.
 export { blockDefinitions, blockRenderers } from "./blocks";
+export {
+  academyBreadcrumbSegments,
+  getCachedCourseForStudent,
+  getCachedCourse,
+  getCachedLesson,
+} from "./breadcrumbs";
 
 // Componentes de apresentação academy-specific (cards de curso, trilha de aulas) — moram no
 // plugin porque consomem tipos do plugin (CourseRecord, CourseForStudentView); src/components

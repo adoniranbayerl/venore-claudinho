@@ -19,6 +19,12 @@ vi.mock("@/plugins/registry", () => ({
   PLUGIN_REGISTRY: [],
 }));
 
+const listExtensionStates = vi.fn();
+
+vi.mock("@/contexts/extensions", () => ({
+  listExtensionStates: (...args: unknown[]) => listExtensionStates(...args),
+}));
+
 const goodManifest = {
   manifestVersion: "1.0.0",
   key: "birthdays",
@@ -46,6 +52,8 @@ describe("registerPlugins", () => {
   beforeEach(() => {
     registerDefaultSetting.mockReset();
     registerDefaultSetting.mockResolvedValue({ success: true, data: { key: "x", registered: true } });
+    listExtensionStates.mockReset();
+    listExtensionStates.mockResolvedValue({ success: true, data: {} });
   });
 
   it("processes a good plugin next to a malformed one without either blocking the other", async () => {
@@ -124,5 +132,36 @@ describe("registerPlugins", () => {
 
     const entry = report.entries.find((e) => e.key === "party");
     expect(entry?.status).toBe("dependency_missing");
+  });
+
+  it("marks a plugin disabled instead of validating compatibility/dependencies, and skips its settings", async () => {
+    listExtensionStates.mockResolvedValue({ success: true, data: { birthdays: false } });
+
+    const { registerPlugins } = await import("./register-plugins");
+    const report = await registerPlugins([{ ...goodManifest, compatibility: { coreVersion: ">=3.0.0" } }]);
+
+    const entry = report.entries.find((e) => e.key === "birthdays");
+    expect(entry).toMatchObject({ status: "disabled", manifest: expect.objectContaining({ key: "birthdays" }) });
+    expect(registerDefaultSetting).not.toHaveBeenCalled();
+    expect(report.permissions).not.toContainEqual({ key: "birthdays.entries.manage", label: "Manage birthdays" });
+    expect(report.navigation).toEqual([]);
+  });
+
+  it("treats a disabled required dependency as missing for a dependent plugin", async () => {
+    listExtensionStates.mockResolvedValue({ success: true, data: { birthdays: false } });
+
+    const dependent = {
+      manifestVersion: "1.0.0",
+      key: "party",
+      name: "Party",
+      version: "1.0.0",
+      dependencies: [{ pluginKey: "birthdays", type: "required" }],
+    };
+
+    const { registerPlugins } = await import("./register-plugins");
+    const report = await registerPlugins([goodManifest, dependent]);
+
+    expect(report.entries.find((e) => e.key === "birthdays")?.status).toBe("disabled");
+    expect(report.entries.find((e) => e.key === "party")?.status).toBe("dependency_missing");
   });
 });

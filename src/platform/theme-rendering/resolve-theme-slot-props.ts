@@ -113,6 +113,7 @@ export async function resolveThemeSlotProps(sidebarNav: {
         logoUrl: brandConfig.logoUrl,
         scrolledLogoUrl: brandConfig.scrolledLogoUrl,
         color: brandConfig.color,
+        description: brandConfig.footerDescription,
       },
       sitemapItems,
     },

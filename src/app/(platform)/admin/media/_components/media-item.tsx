@@ -20,6 +20,7 @@ export function MediaItem({
   mimeType,
   size,
   createdAt,
+  visibility,
 }: {
   id: string;
   filename: string;
@@ -27,6 +28,7 @@ export function MediaItem({
   mimeType: string;
   size: number;
   createdAt: string;
+  visibility: "private" | "public";
 }) {
   const [state, formAction, pending] = useActionState(deleteMediaAction, initialState);
   useActionToast({ pending, error: state.error, successMessage: "Arquivo excluído." });
@@ -48,6 +50,9 @@ export function MediaItem({
       <p className="text-xs text-muted-foreground/56">
         {formatSize(size)} · {new Date(createdAt).toLocaleDateString("pt-BR")}
       </p>
+      <span className="w-fit rounded-sm border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+        {visibility === "public" ? "Público" : "Privado"}
+      </span>
       <form action={formAction}>
         <input type="hidden" name="id" value={id} />
         <Button type="submit" variant="outline" size="sm" disabled={pending} className="w-full text-destructive">

@@ -33,5 +33,13 @@
 // nessa forma). `FooterSlotProps.brand` também passou de `{ name, logoUrl? }` pra `HeaderBrand &
 // { color }`, mesma composição já usada no Header e na impressão de PDF do birthdays — sem isso o
 // footer não conseguia renderizar a marca de verdade (só o nome em texto).
-export const CURRENT_THEME_CONTRACT_VERSION = "5.0.0";
-export const SUPPORTED_THEME_CONTRACT_RANGE = "^5.0.0";
+// Bump para "6.0.0": tema passa a exportar um `Shell` único (`ThemeShellProps`), dono da árvore/
+// arranjo entre Header/Footer/SidebarLeft/Content, em vez de `platform/` montar essa árvore por
+// fora (docs/themes/shell-contract.md — Abordagem A, aprovada nesta sessão). `ThemeRegistryEntry`
+// muda de shape: não é mais `{ manifest, components: { Header, Footer, Content, SidebarLeft } }`,
+// é `{ manifest, Shell }`. Mudança de shape do contrato de registro do tema, não extensão aditiva
+// — mesmo critério dos bumps anteriores. `docs/venore-docks.md` ("Contrato de slot") foi
+// atualizado junto: a frase "o arranjo espacial... é responsabilidade da composição da shell
+// (platform/), não do tema" foi revertida — arranjo agora é sempre do tema.
+export const CURRENT_THEME_CONTRACT_VERSION = "6.0.0";
+export const SUPPORTED_THEME_CONTRACT_RANGE = "^6.0.0";

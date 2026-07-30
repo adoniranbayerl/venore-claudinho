@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getEntry, getEntryComposition } from "@/contexts/cms";
+import { getCachedEntry, getEntryComposition } from "@/contexts/cms";
 import { listBlockDefinitions } from "@/platform/page-builder/block-registry";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { BlockRenderer } from "@/components/page-builder/block-renderer";
@@ -28,7 +28,7 @@ export default async function EntryBuilderPage({ params }: { params: Promise<{ i
     );
   }
 
-  const [entryResult, compositionResult] = await Promise.all([getEntry({ id }), getEntryComposition({ id })]);
+  const [entryResult, compositionResult] = await Promise.all([getCachedEntry(id), getEntryComposition({ id })]);
 
   if (!entryResult.success) {
     return <p className="text-sm text-destructive">Erro ao carregar entry: {entryResult.error.message}</p>;

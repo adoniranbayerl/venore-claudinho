@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getMenuTree } from "@/contexts/cms";
+import { getCachedMenuTree } from "@/contexts/cms";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { Button } from "@/components/ui/button";
 import { AddMenuItemDialog } from "../_components/add-menu-item-dialog";
@@ -29,7 +29,7 @@ export default async function MenuBuilderPage({ params }: { params: Promise<{ me
     );
   }
 
-  const treeResult = await getMenuTree({ menuId });
+  const treeResult = await getCachedMenuTree(menuId);
   if (!treeResult.success) {
     return <p className="text-sm text-destructive">Menu não encontrado.</p>;
   }

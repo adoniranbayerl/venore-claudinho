@@ -50,9 +50,10 @@ export const venoreSlimeMockProps: {
       logoUrl: "/brand/brand-logo.svg",
       scrolledLogoUrl: "/brand/brand-logo-scrolled.png",
       color: "#143b52",
+      description: "Plataforma modular para conteúdo, comunidade e operação.",
     },
     sitemapItems: [],
-    creditsEnabled: true,
+    creditsEnabled: false,
   },
   sidebarLeft: { enabled: true, navItems: [{ key: "home", label: "Home", href: "/", icon: "home" }] },
 };

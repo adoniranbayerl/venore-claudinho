@@ -1,6 +1,7 @@
+import { cache } from "react";
 import { getCurrentUser } from "@/contexts/auth";
 import { getUserContext } from "@/contexts/rbac";
-import { getCourseForStudent, isEnrolled } from "@/plugins/academy";
+import { getCourseForStudent, getCachedCourseForStudent, isEnrolled } from "@/plugins/academy";
 import type { AcademyCourseAccess } from "./types";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -10,14 +11,22 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 // (que só checa autenticação, regra 13). Preview de professor exige academy.courses.manage E
 // ser o criador do curso (ou isSuperadmin) — RBAC nesta v1 é só permission global, sem escopo por
 // recurso, então comparamos createdBy diretamente em vez de introduzir RBAC por recurso.
-export async function getAcademyCourseAccess({ courseSlug }: { courseSlug: string }): Promise<AcademyCourseAccess> {
+//
+// cache() + argumento primitivo (courseSlug direto, não `{ courseSlug }`) — react/cache() só
+// dedupe argumento objeto por REFERÊNCIA (WeakMap), então um objeto novo por call site nunca
+// deduplicava nada; com string, chamadas com o mesmo slug no mesmo request colapsam numa só. Isso
+// resolve a query duplicada que já existia entre a página de aula e o slot @sidebarContextual
+// (ambos chamavam isto de forma independente) e é reaproveitado por
+// plugins/academy/breadcrumbs.ts:academyBreadcrumbSegments (nível "/academy/:courseSlug") — três
+// consumidores, uma chamada por request quando o slug bate.
+export const getAcademyCourseAccess = cache(async (courseSlug: string): Promise<AcademyCourseAccess> => {
   const currentUser = await getCurrentUser();
   if (!currentUser.success || !currentUser.data) {
     return { mode: "unauthenticated" };
   }
   const actor = { id: currentUser.data.id, name: currentUser.data.name, email: currentUser.data.email };
 
-  const courseResult = await getCourseForStudent({ slug: courseSlug });
+  const courseResult = await getCachedCourseForStudent(courseSlug);
   // Rotas antigas usavam o id (UUID) do curso na URL — se não achar por slug e a string parecer
   // um UUID, tenta resolver pelo id legado só pra decidir o redirect (item 2 do pedido da sessão:
   // "/academy/<uuid antigo> redireciona").
@@ -58,4 +67,4 @@ export async function getAcademyCourseAccess({ courseSlug }: { courseSlug: strin
   }
 
   return { mode: "restricted", course };
-}
+});

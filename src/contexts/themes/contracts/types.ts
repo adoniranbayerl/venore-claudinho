@@ -47,6 +47,18 @@ export type SitemapItem = {
 
 export type NavMode = "main" | "admin";
 
+// Trilha já resolvida no servidor (platform/breadcrumbs/resolve-breadcrumbs.ts) — o tema só
+// recebe e renderiza, nunca resolve rota/entidade sozinho (mesmo Contrato de slot que vale pra
+// `user`/`sidebarContextual`). `current` é o último item da lista (a página atual): não é link
+// (`href` já vem null pra ele) e é quem recebe aria-current="page" na UI. Itens sem página
+// correspondente também chegam com `href: null`, sem precisar ser o último.
+export type BreadcrumbItem = {
+  key: string;
+  label: string;
+  href: string | null;
+  current: boolean;
+};
+
 // Dado de usuário já resolvido para o Header — o tema nunca busca isso sozinho (Contrato de
 // slot). displayName já vem com fallback (name -> email -> "Usuário") resolvido pela composição.
 export type HeaderUserInfo = {
@@ -85,11 +97,15 @@ export type HeaderSlotProps = {
 };
 
 // Mesma forma de HeaderBrand (permite renderizar a marca no footer com o PlatformBrand real, não
-// uma versão só-texto) + color, que HeaderBrand não tem: brand.color vem de contexts/settings
-// (getBrandConfig) mas hoje só era consumido pela impressão de PDF do plugin birthdays (Header do
-// tema ainda não pinta a marca por cor, AGENTS.md). O footer usa como sublinhado de acento sob a
-// marca — mesma costura de leitura, sem inventar um novo consumo de cor pro Header.
-export type FooterBrand = HeaderBrand & { color: string };
+// uma versão só-texto) + color/description, que HeaderBrand não tem. brand.color vem de
+// contexts/settings (getBrandConfig) mas hoje só era consumido pela impressão de PDF do plugin
+// birthdays (Header do tema ainda não pinta a marca por cor, AGENTS.md); o footer usa como
+// sublinhado de acento sob a marca — mesma costura de leitura, sem inventar um novo consumo de
+// cor pro Header. brand.description é o mesmo campo que o protótipo venore-docks chama de
+// footerDescription (PlatformFooter) — um parágrafo curto sob a marca no footer; extensão
+// aditiva do contrato (nenhum campo existente mudou), mesmo critério já usado pra `user` em
+// HeaderSlotProps, sem bump de themeContractVersion.
+export type FooterBrand = HeaderBrand & { color: string; description: string };
 
 export type FooterSlotProps = {
   brand: FooterBrand;
@@ -106,6 +122,14 @@ export type ContentSlotProps = {
   // mesmo princípio do campo `user` em HeaderSlotProps — mantida em themeContractVersion "2.0.0"
   // por não haver ainda segundo tema publicado (docs/venore-docks.md).
   sidebarContextual: ReactNode | null;
+  // Trilha da rota atual, já resolvida no servidor — extensão aditiva do contrato, mesmo critério
+  // de `sidebarContextual` acima. Lista vazia = tema não renderiza a área de breadcrumb (nenhuma
+  // rota registrada casou, ex: rota fora do app router público/admin).
+  breadcrumbs: BreadcrumbItem[];
+  // Objeto BreadcrumbList (schema.org) já pronto pra serializar — o tema só faz
+  // JSON.stringify(breadcrumbsJsonLd) dentro de um <script type="application/ld+json">, nunca
+  // monta o objeto sozinho (mesmo Contrato de slot). null quando breadcrumbs está vazio.
+  breadcrumbsJsonLd: Record<string, unknown> | null;
 };
 
 // SidebarLeft é exclusivo de navegação (main-nav ou admin-nav, conforme navMode) — não é área
@@ -126,4 +150,25 @@ export type SidebarLeftSlotProps = {
   // (§3.3 do spec registra isso como o que NÃO portar do protótipo).
   collapsed: boolean;
   onToggleCollapsed: () => Promise<void>;
+};
+
+// Shell é o único componente que um tema é obrigado a exportar (docs/themes/shell-contract.md —
+// Abordagem A). Recebe exatamente os mesmos dados que antes eram repassados individualmente a
+// Header/Footer/SidebarLeft/Content pela composição em `platform/` — nenhum campo novo, só
+// reagrupados sob um objeto só. Quem decide a árvore/arranjo entre essas regiões (ordem, lado da
+// sidebar, se alguma região existe) é o próprio tema, dentro do seu `Shell` — `platform/` para de
+// montar essa árvore. children/sidebarContextual* vêm de `ContentSlotProps` original; um tema não
+// é obrigado a ter um componente `ContentSlot` separado — pode compor `children` como quiser
+// dentro do próprio `Shell`.
+export type ThemeShellProps = {
+  header: HeaderSlotProps;
+  footer: FooterSlotProps;
+  sidebarLeft: SidebarLeftSlotProps;
+  children: ReactNode;
+  sidebarContextualEnabled: boolean;
+  sidebarContextual: ReactNode | null;
+  // Repassado direto pro ContentSlot (ou equivalente) do tema — ver comentário em
+  // ContentSlotProps.breadcrumbs/breadcrumbsJsonLd acima.
+  breadcrumbs: BreadcrumbItem[];
+  breadcrumbsJsonLd: Record<string, unknown> | null;
 };

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getEntry, getEntryBody, getEntryComposition } from "@/contexts/cms";
-import { getCourseProgress, getLesson, listQuizQuestionsByLesson, listQuizQuestionsForStudent } from "@/plugins/academy";
+import { getCachedEntry, getEntryBody, getEntryComposition } from "@/contexts/cms";
+import { getCachedLesson, getCourseProgress, listQuizQuestionsByLesson, listQuizQuestionsForStudent } from "@/plugins/academy";
 import { getAcademyCourseAccess } from "@/platform/academy-student/get-academy-course-access";
 import { BlockRenderer } from "@/components/page-builder/block-renderer";
 import { LessonVideoEmbed } from "./_components/lesson-video-embed";
@@ -19,7 +19,7 @@ export default async function AcademyLessonPage({
 }) {
   const { courseSlug, lessonId } = await params;
   const { blocked } = await searchParams;
-  const access = await getAcademyCourseAccess({ courseSlug });
+  const access = await getAcademyCourseAccess(courseSlug);
 
   if (access.mode === "unauthenticated") {
     redirect("/api/auth/signin");
@@ -42,7 +42,7 @@ export default async function AcademyLessonPage({
   const { course } = access;
 
   if (access.mode === "preview") {
-    const lessonResult = await getLesson({ id: lessonId });
+    const lessonResult = await getCachedLesson(lessonId);
     if (!lessonResult.success) {
       return <p className="text-sm text-destructive">Erro ao carregar aula: {lessonResult.error.message}</p>;
     }
@@ -52,7 +52,7 @@ export default async function AcademyLessonPage({
     }
 
     const [entryResult, quizResult] = await Promise.all([
-      getEntry({ id: lesson.cmsEntryId }),
+      getCachedEntry(lesson.cmsEntryId),
       listQuizQuestionsByLesson({ lessonId }),
     ]);
 
@@ -133,7 +133,7 @@ export default async function AcademyLessonPage({
   }
 
   const [entryResult, quizResult] = await Promise.all([
-    getEntry({ id: lesson.cmsEntryId }),
+    getCachedEntry(lesson.cmsEntryId),
     lesson.requirements.quizEnabled
       ? listQuizQuestionsForStudent({ lessonId })
       : Promise.resolve({ success: true as const, data: [] }),

@@ -5,9 +5,12 @@ export { themesAdminNavigationItems } from "./admin-navigation";
 export type { GetActiveThemeResult } from "./features/active-theme/get-active-theme/types";
 export type { ActivateThemeInput, ActivateThemeResult } from "./features/active-theme/activate-theme/types";
 
+export { themesBreadcrumbSegments } from "./breadcrumbs";
+
 export type {
   ThemeManifest,
   ActiveThemeState,
+  BreadcrumbItem,
   HeaderSlotProps,
   HeaderBrand,
   HeaderBrandMode,
@@ -17,6 +20,7 @@ export type {
   FooterBrand,
   ContentSlotProps,
   SidebarLeftSlotProps,
+  ThemeShellProps,
   NavItem,
   MainNavItem,
   NavGroup,

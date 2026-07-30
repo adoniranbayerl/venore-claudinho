@@ -5,10 +5,10 @@ vi.mock("@/observability", () => ({
   endOperation: vi.fn(),
 }));
 
-const invalidateCache = vi.fn();
+const invalidateCacheByPrefix = vi.fn();
 
 vi.mock("@/infrastructure/cache/memory-cache", () => ({
-  invalidateCache: (...args: unknown[]) => invalidateCache(...args),
+  invalidateCacheByPrefix: (...args: unknown[]) => invalidateCacheByPrefix(...args),
 }));
 
 const del = vi.fn();
@@ -27,7 +27,7 @@ vi.mock("./store", () => ({
 
 describe("deleteMedia", () => {
   beforeEach(() => {
-    invalidateCache.mockReset();
+    invalidateCacheByPrefix.mockReset();
     del.mockReset();
     findMediaById.mockReset();
     deleteMediaById.mockReset();
@@ -56,6 +56,7 @@ describe("deleteMedia", () => {
       size: 1024,
       url: "/uploads/media/key-1-photo.png",
       uploadedBy: "actor-1",
+      visibility: "private",
       createdAt: new Date(),
     });
 
@@ -65,6 +66,6 @@ describe("deleteMedia", () => {
     expect(result).toEqual({ success: true, data: { id: "media-1" } });
     expect(del).toHaveBeenCalledWith("key-1-photo.png");
     expect(deleteMediaById).toHaveBeenCalledWith("media-1");
-    expect(invalidateCache).toHaveBeenCalledWith("media:files");
+    expect(invalidateCacheByPrefix).toHaveBeenCalledWith("media:files:");
   });
 });

@@ -20,7 +20,7 @@ export default async function AcademyCoursePage({
 }) {
   const { courseSlug } = await params;
   const { blocked } = await searchParams;
-  const access = await getAcademyCourseAccess({ courseSlug });
+  const access = await getAcademyCourseAccess(courseSlug);
 
   if (access.mode === "unauthenticated") {
     redirect("/api/auth/signin");

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { activateTheme, CURRENT_THEME_CONTRACT_VERSION } from "@/contexts/themes";
+import { toggleThemeEnabled } from "@/platform/theme-engine/toggle-theme-enabled";
 
 export type ThemesActionState = { error: string | null };
 
@@ -15,6 +16,22 @@ export async function activateThemeAction(
 
   const result = await activateTheme({ themeKey, themeContractVersion: CURRENT_THEME_CONTRACT_VERSION });
 
+  if (!result.success) {
+    return { error: result.error.message };
+  }
+
+  revalidatePath("/admin/themes");
+  return { error: null };
+}
+
+export async function toggleThemeEnabledAction(
+  _prevState: ThemesActionState,
+  formData: FormData,
+): Promise<ThemesActionState> {
+  const themeKey = String(formData.get("themeKey") ?? "");
+  const enabled = formData.get("enabled") === "true";
+
+  const result = await toggleThemeEnabled({ themeKey, enabled });
   if (!result.success) {
     return { error: result.error.message };
   }

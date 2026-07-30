@@ -1,7 +1,9 @@
 import { getAdminPageData } from "@/platform/admin-shell/get-admin-page-data";
+import { previewPluginDisable } from "@/platform/plugin-engine/preview-plugin-disable";
 import { registerPlugins } from "@/platform/plugin-engine/register-plugins";
 import { EmptyState } from "@/components/empty-state";
 import { Blocks } from "lucide-react";
+import { TogglePluginControl } from "./_components/toggle-plugin-control";
 
 const STATUS_LABEL: Record<string, string> = {
   active: "Ativo",
@@ -9,6 +11,7 @@ const STATUS_LABEL: Record<string, string> = {
   incompatible: "Incompatível com o core",
   dependency_missing: "Dependência ausente",
   cycle: "Dependência cíclica",
+  disabled: "Desabilitado pelo admin",
 };
 
 const STATUS_CLASSNAME: Record<string, string> = {
@@ -17,6 +20,7 @@ const STATUS_CLASSNAME: Record<string, string> = {
   incompatible: "bg-destructive/14 text-destructive",
   dependency_missing: "bg-warning-soft text-warning",
   cycle: "bg-warning-soft text-warning",
+  disabled: "bg-muted text-muted-foreground",
 };
 
 export default async function PluginsAdminPage() {
@@ -32,6 +36,17 @@ export default async function PluginsAdminPage() {
   }
 
   const report = await registerPlugins();
+
+  // Preview de consequência só faz sentido pra quem tem manifesto válido (invalid_manifest não
+  // tem key/permissions/navigation confiáveis pra prever nada) — computado pra todos de uma vez,
+  // não sob demanda no dialog, porque a tela já é pequena o bastante (poucos plugins instalados).
+  const previewsByKey = new Map(
+    await Promise.all(
+      report.entries
+        .filter((entry) => entry.manifest)
+        .map(async (entry) => [entry.key, await previewPluginDisable(entry.key)] as const),
+    ),
+  );
 
   return (
     <div className="space-y-6">
@@ -64,11 +79,28 @@ export default async function PluginsAdminPage() {
                     <p className="mt-1 text-xs text-muted-foreground">{entry.manifest.description}</p>
                   )}
                 </div>
-                <span
-                  className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_CLASSNAME[entry.status] ?? "bg-muted text-muted-foreground"}`}
-                >
-                  {STATUS_LABEL[entry.status] ?? entry.status}
-                </span>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_CLASSNAME[entry.status] ?? "bg-muted text-muted-foreground"}`}
+                  >
+                    {STATUS_LABEL[entry.status] ?? entry.status}
+                  </span>
+                  {entry.manifest && (
+                    <TogglePluginControl
+                      pluginKey={entry.key}
+                      pluginName={entry.manifest.name}
+                      enabled={entry.status !== "disabled"}
+                      consequences={
+                        previewsByKey.get(entry.key) ?? {
+                          navigationLabels: [],
+                          permissionLabels: [],
+                          affectedUserCount: 0,
+                          blockedByDependents: [],
+                        }
+                      }
+                    />
+                  )}
+                </div>
               </div>
               {entry.errors.length > 0 && (
                 <ul className="mt-3 space-y-1 border-t border-border pt-3">

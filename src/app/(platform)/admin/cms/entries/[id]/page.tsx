@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getEntry, getEntryBody, listCategories } from "@/contexts/cms";
+import { getCachedEntry, getEntryBody, listCategories } from "@/contexts/cms";
 import { getMedia } from "@/contexts/media";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { EditEntryForm } from "./_components/edit-entry-form";
@@ -29,7 +29,7 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
     );
   }
 
-  const [entryResult, categoriesResult] = await Promise.all([getEntry({ id }), listCategories()]);
+  const [entryResult, categoriesResult] = await Promise.all([getCachedEntry(id), listCategories()]);
 
   if (!entryResult.success) {
     return <p className="text-sm text-destructive">Não foi possível carregar este conteúdo agora. Tente recarregar a página.</p>;

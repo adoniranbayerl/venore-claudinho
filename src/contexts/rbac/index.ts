@@ -11,6 +11,7 @@ export { assignRoleToUserHandler as assignRoleToUser } from "./features/role-ass
 export { removeRoleFromUserHandler as removeRoleFromUser } from "./features/role-assignment/remove-role-from-user/handler";
 export { getUserContextHandler as getUserContext } from "./features/role-assignment/get-user-context/handler";
 export { listUsersByRoleHandler as listUsersByRole } from "./features/role-assignment/list-users-by-role/handler";
+export { countUsersWithPermissionsHandler as countUsersWithPermissions } from "./features/role-assignment/count-users-with-permissions/handler";
 // Concessão automática do fluxo de registro (docs/venore-docks.md — Autenticação / Fluxo de
 // registro) — sem authorizeActor de propósito, ver nota em assign-default-role/handler.ts.
 export { grantDefaultRoleOnRegistrationHandler as grantDefaultRoleOnRegistration } from "./features/role-assignment/assign-default-role/handler";
@@ -22,6 +23,7 @@ export { approveRegistrationHandler as approveRegistration } from "./features/re
 export { listPendingRegistrationsHandler as listPendingRegistrations } from "./features/registration-approval/list-pending-registrations/handler";
 
 export { rbacAdminNavigationItems } from "./admin-navigation";
+export { rbacBreadcrumbSegments } from "./breadcrumbs";
 
 export type { RoleRef, PermissionDefinition, UserRbacContext } from "./contracts/types";
 export { SYSTEM_ROLE_KEYS } from "./contracts/roles";
@@ -35,6 +37,10 @@ export type { AssignRoleToUserInput, AssignRoleToUserResult } from "./features/r
 export type { RemoveRoleFromUserInput, RemoveRoleFromUserResult } from "./features/role-assignment/remove-role-from-user/types";
 export type { GetUserContextQuery, GetUserContextResult } from "./features/role-assignment/get-user-context/types";
 export type { ListUsersByRoleInput, ListUsersByRoleResult, RoleUserRef } from "./features/role-assignment/list-users-by-role/types";
+export type {
+  CountUsersWithPermissionsQuery,
+  CountUsersWithPermissionsResult,
+} from "./features/role-assignment/count-users-with-permissions/types";
 export type { GrantDefaultRoleInput, GrantDefaultRoleResult } from "./features/role-assignment/assign-default-role/types";
 export type { CheckSuperadminExistsResult } from "./features/role-assignment/check-superadmin-exists/types";
 export type { GrantSuperadminInput, GrantSuperadminResult } from "./features/role-assignment/grant-superadmin/types";

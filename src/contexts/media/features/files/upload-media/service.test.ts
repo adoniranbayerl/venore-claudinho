@@ -5,10 +5,10 @@ vi.mock("@/observability", () => ({
   endOperation: vi.fn(),
 }));
 
-const invalidateCache = vi.fn();
+const invalidateCacheByPrefix = vi.fn();
 
 vi.mock("@/infrastructure/cache/memory-cache", () => ({
-  invalidateCache: (...args: unknown[]) => invalidateCache(...args),
+  invalidateCacheByPrefix: (...args: unknown[]) => invalidateCacheByPrefix(...args),
 }));
 
 const put = vi.fn();
@@ -25,7 +25,7 @@ vi.mock("./store", () => ({
 
 describe("uploadMedia", () => {
   beforeEach(() => {
-    invalidateCache.mockReset();
+    invalidateCacheByPrefix.mockReset();
     put.mockReset();
     insertMediaFile.mockReset();
   });
@@ -40,6 +40,7 @@ describe("uploadMedia", () => {
       size: 1024,
       url: "/uploads/media/key-1-photo.png",
       uploadedBy: "actor-1",
+      visibility: "private",
       createdAt: new Date(),
     });
 
@@ -50,6 +51,7 @@ describe("uploadMedia", () => {
       size: 1024,
       data: Buffer.from("fake-bytes"),
       actorId: "actor-1",
+      visibility: "private",
     });
 
     expect(result.success).toBe(true);
@@ -61,8 +63,36 @@ describe("uploadMedia", () => {
         size: 1024,
         url: "/uploads/media/key-1-photo.png",
         uploadedBy: "actor-1",
+        visibility: "private",
       }),
     );
-    expect(invalidateCache).toHaveBeenCalledWith("media:files");
+    expect(invalidateCacheByPrefix).toHaveBeenCalledWith("media:files:");
+  });
+
+  it("persists the file as public when visibility is explicitly set to public", async () => {
+    put.mockResolvedValue({ url: "/uploads/media/key-2-logo.png" });
+    insertMediaFile.mockResolvedValue({
+      id: "media-2",
+      filename: "logo.png",
+      storageKey: "key-2-logo.png",
+      mimeType: "image/png",
+      size: 512,
+      url: "/uploads/media/key-2-logo.png",
+      uploadedBy: "actor-1",
+      visibility: "public",
+      createdAt: new Date(),
+    });
+
+    const { uploadMedia } = await import("./service");
+    await uploadMedia({
+      filename: "logo.png",
+      mimeType: "image/png",
+      size: 512,
+      data: Buffer.from("fake-bytes"),
+      actorId: "actor-1",
+      visibility: "public",
+    });
+
+    expect(insertMediaFile).toHaveBeenCalledWith(expect.objectContaining({ visibility: "public" }));
   });
 });

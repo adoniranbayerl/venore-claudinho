@@ -1,3 +1,4 @@
+export { birthdaysBreadcrumbSegments } from "./breadcrumbs";
 export { createBirthdayHandler as createBirthday } from "./features/create-birthday/handler";
 export { updateBirthdayHandler as updateBirthday } from "./features/update-birthday/handler";
 export { deleteBirthdayHandler as deleteBirthday } from "./features/delete-birthday/handler";

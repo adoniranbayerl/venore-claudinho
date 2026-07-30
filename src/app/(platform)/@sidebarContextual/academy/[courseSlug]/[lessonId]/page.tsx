@@ -1,4 +1,4 @@
-import { getEntry } from "@/contexts/cms";
+import { getCachedEntry } from "@/contexts/cms";
 import {
   LessonTrail,
   getCourseProgress,
@@ -18,7 +18,7 @@ export default async function LessonTrailSlot({
   params: Promise<{ courseSlug: string; lessonId: string }>;
 }) {
   const { courseSlug, lessonId } = await params;
-  const access = await getAcademyCourseAccess({ courseSlug });
+  const access = await getAcademyCourseAccess(courseSlug);
 
   if (access.mode !== "full" && access.mode !== "preview") {
     return null;
@@ -30,7 +30,7 @@ export default async function LessonTrailSlot({
     const lessonsResult = await listLessonsByCourse({ courseId: course.id });
     if (!lessonsResult.success) return null;
 
-    const entries = await Promise.all(lessonsResult.data.map((lesson) => getEntry({ id: lesson.cmsEntryId })));
+    const entries = await Promise.all(lessonsResult.data.map((lesson) => getCachedEntry(lesson.cmsEntryId)));
     const items: LessonTrailItem[] = lessonsResult.data.map((lesson, index) => {
       const entryResult = entries[index];
       const title = entryResult.success && entryResult.data ? entryResult.data.title : `Aula ${lesson.position}`;
@@ -48,7 +48,7 @@ export default async function LessonTrailSlot({
   const progressResult = await getCourseProgress({ courseId: course.id });
   if (!progressResult.success) return null;
 
-  const entries = await Promise.all(progressResult.data.lessons.map((lesson) => getEntry({ id: lesson.cmsEntryId })));
+  const entries = await Promise.all(progressResult.data.lessons.map((lesson) => getCachedEntry(lesson.cmsEntryId)));
   const items: LessonTrailItem[] = progressResult.data.lessons.map((lesson, index) => {
     const entryResult = entries[index];
     const title = entryResult.success && entryResult.data ? entryResult.data.title : `Aula ${lesson.position}`;

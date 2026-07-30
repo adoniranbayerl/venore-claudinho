@@ -1,7 +1,7 @@
 import type { PermissionDefinition } from "@/contexts/rbac";
 import type { PluginManifest } from "./manifest-schema";
 
-export type PluginRegistrationStatus = "active" | "invalid" | "incompatible" | "dependency_missing" | "cycle";
+export type PluginRegistrationStatus = "active" | "invalid" | "incompatible" | "dependency_missing" | "cycle" | "disabled";
 
 export type PluginRegistrationEntry = {
   key: string;

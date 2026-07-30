@@ -1,26 +1,24 @@
-import type { ThemeManifest } from "@/contexts/themes";
+import type { ComponentType } from "react";
+import type { ThemeManifest, ThemeShellProps } from "@/contexts/themes";
 import * as venoreSlime from "./venore-slime";
+import * as venoreBasic from "./venore-basic";
 
-export type ThemeSlotComponents = {
-  Header: typeof venoreSlime.HeaderSlot;
-  Footer: typeof venoreSlime.FooterSlot;
-  Content: typeof venoreSlime.ContentSlot;
-  SidebarLeft: typeof venoreSlime.SidebarLeftSlot;
-};
+export type ThemeShellComponent = ComponentType<ThemeShellProps>;
 
-export type ThemeRegistryEntry = { manifest: ThemeManifest; components: ThemeSlotComponents };
+export type ThemeRegistryEntry = { manifest: ThemeManifest; Shell: ThemeShellComponent };
 
 // Registro dos temas instalados em código (docs/venore-docks.md — "Sobre temas"). Next.js exige
 // import estático para bundling, então instalar um tema novo é uma entrada nova aqui, não um
-// scan de filesystem em runtime.
+// scan de filesystem em runtime. `Shell` é o único componente que o registro exige — quem decide
+// a árvore/arranjo entre as regiões (header, footer, sidebar, conteúdo) é o próprio tema
+// (docs/themes/shell-contract.md — Abordagem A), não este arquivo.
 export const THEME_REGISTRY: Record<string, ThemeRegistryEntry> = {
   "venore-slime": {
     manifest: venoreSlime.venoreSlimeManifest,
-    components: {
-      Header: venoreSlime.HeaderSlot,
-      Footer: venoreSlime.FooterSlot,
-      Content: venoreSlime.ContentSlot,
-      SidebarLeft: venoreSlime.SidebarLeftSlot,
-    },
+    Shell: venoreSlime.Shell,
+  },
+  "venore-basic": {
+    manifest: venoreBasic.venoreBasicManifest,
+    Shell: venoreBasic.Shell,
   },
 };

@@ -120,11 +120,27 @@ logBuffer.push({ message, level });
 
 ## 3. Convenções de CSS / tokens
 
+- **Nenhuma decisão de design (cor, raio, sombra, espaçamento, tipografia, peso, duração, curva
+  de easing, proporção de escala) pode ser declarada em `src/app/globals.css`.** Esse arquivo só
+  CONSOME variáveis via `var(...)`; quem define valor é sempre um tema, em
+  `src/themes/<tema>/theme.css` — hoje só `venore-slime`
+  (`src/themes/venore-slime/theme.css`), sob os seletores `[data-theme="venore-slime"]` /
+  `[data-theme="venore-slime"].dark`. Isso vale inclusive para o vocabulário shadcn
+  (`--background`, `--primary`, etc.) e para os multiplicadores de escala usados em `calc()`
+  (ex: `--ui-radius-scale-lg: 2`, `--ui-button-padding-scale-xs: 0.5`) — o número da proporção é
+  decisão de design tanto quanto a cor.
+- Prova executável: `src/app/globals.no-design-values.test.ts` falha se um literal de design
+  (hex, `oklch()`/`rgb()`/`color-mix()`, `cubic-bezier()`, gradiente, `px`/`rem`/`em`, duração)
+  reaparecer em `globals.css`.
+- **`venore-slime` é o tema oficial e fallback do sistema — nunca deve ser removido/deletado**
+  de `src/themes/registry.ts` nem apagado do disco, mesmo que outro tema seja instalado no
+  futuro. Um segundo tema instalado redeclararia o mesmo vocabulário (`--background`, `--primary`
+  etc.) sob seu próprio `[data-theme="..."]`, nunca por cima do `venore-slime`.
 - Vocabulário de cor único do projeto é o do **shadcn** (`bg-card`, `bg-muted`, `text-foreground`,
   `text-muted-foreground`, `text-muted-foreground/56`, `border-border`, `border-ring`,
   `bg-accent/14`, `text-destructive`, `text-warning`, `bg-primary`/`text-primary-foreground`).
-  Cores são declaradas em `oklch(...)` em `src/app/globals.css` (`:root` / `.dark`), nunca
-  hex/rgb novo.
+  Cores são declaradas em `oklch(...)` em `src/themes/venore-slime/theme.css`, nunca hex/rgb novo,
+  e nunca em `globals.css`.
 - O vocabulário próprio anterior (`surface-*`, `text-text-*`, `border-subtle/default/strong`,
   `accent-soft`, `info-*`) foi eliminado de `src/` e não deve reaparecer — ver a tabela de
   mapeamento completa logo abaixo se precisar reconstituir um valor antigo.
@@ -134,11 +150,13 @@ logBuffer.push({ message, level });
 - **Nada de valor hardcoded** de cor/espaçamento/raio em componente de página, tema ou plugin —
   regra do documento de arquitetura. Só a parte de **cor** tem enforcement mecânico hoje
   (`no-restricted-syntax` em `eslint.config.mjs`, cobrindo `src/app`, `src/themes`,
-  `src/components`, `src/plugins`, `src/platform`). Raio (`rounded-*`) e espaçamento (`p-*`,
-  `gap-*`) **não têm lint bloqueando valor cru** hoje — tratar como regra manual até existir
-  enforcement (ver Known Gaps).
-- Radius: escala derivada de uma única variável (`--radius: 0.2rem`) via `calc()` em
-  `@theme inline` (`--radius-sm` a `--radius-4xl`), não valores soltos por componente.
+  `src/components`, `src/plugins`, `src/platform`) mais o teste de `globals.css` acima. Raio
+  (`rounded-*`) e espaçamento (`p-*`, `gap-*`) **não têm lint bloqueando valor cru** hoje — tratar
+  como regra manual até existir enforcement (ver Known Gaps).
+- Radius: escala derivada de uma única variável (`--radius: 0.2rem`, declarada no tema) via
+  `calc()` em `@theme inline` de `globals.css` (`--radius-sm` a `--radius-4xl`), multiplicada
+  pelas proporções `--ui-radius-scale-*` (também declaradas no tema) — não valores soltos por
+  componente.
 - **`src/components/ui/**` (primitivos shadcn stock) não é editado diretamente.** Customização
   visual sobre um primitivo vive fora dele (ex: seletor `[data-slot="button"]` em `globals.css`),
   para sobreviver a uma reinstalação via `shadcn` CLI. Exceção: `border-input` continua correto

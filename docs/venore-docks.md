@@ -70,23 +70,45 @@ A navegação administrativa (`admin-nav`) é resolvida no servidor, item por it
 
 ### Contrato de slot
 
-Cada área estrutural é implementada pelo tema como um componente React que recebe um objeto de props definido pelo core — o tema nunca busca dado sozinho, ele só recebe e renderiza.
+Um tema é obrigado a exportar exatamente um componente: `Shell`, que recebe `ThemeShellProps`
+(`header`, `footer`, `sidebarLeft`, `children`, `sidebarContextualEnabled`, `sidebarContextual` —
+tudo já resolvido, o tema nunca busca dado sozinho). É o `Shell` quem decide a árvore/arranjo
+entre as regiões estruturais — ordem, lado da sidebar, se alguma região existe ou não — nunca
+`platform/`. Isso é deliberado (docs/themes/shell-contract.md — Abordagem A, decidida sobre uma
+Abordagem B de configuração declarativa): dar ao tema a posse total do layout, não só do
+estilo, porque a alternativa (vocabulário de arranjo antecipado pela aplicação) quebra assim que
+um tema precisa de um arranjo que a aplicação não previu — o que já aconteceu uma vez neste
+mesmo repositório, na região contextual (`docs/ui/shell-spec.md` §1).
+
+Internamente, `Shell` pode ser composto por quantos componentes o tema quiser (o Venore Slime usa
+`HeaderSlot`/`FooterSlot`/`ContentSlot`/`SidebarLeftSlot` como peças internas, ver
+`src/themes/venore-slime/components/Shell.tsx`) — isso é implementação do tema, não parte do
+contrato. Só `Shell` é exigido por `THEME_REGISTRY` (`src/themes/registry.ts`).
 
 **Venore Slime** é ao mesmo tempo o tema padrão e o `fallback` — não são dois temas diferentes. Os valores dele (cor, tipografia, raio, sombra) ficam embutidos no código (não dependem de linha em `contexts/settings` nem de banco), usado sempre que a resolução de tema ativo falhar por qualquer motivo — não só ausência de configuração. Essa é a garantia que importa: um tema de terceiro pode ser instalado e escolhido depois, mas o Venore Slime nunca deixa de existir como opção resolvível sem depender de runtime.
 
-| Slot | Props recebidas (mínimo) |
+Isso cobre só a falha de *configuração* (tema ativo ausente, ou apontando pra uma chave fora do
+`THEME_REGISTRY`). Uma falha diferente — um tema registrado mas sem `Shell` válido (estrutural,
+não de configuração) — não cai nesse fallback: é erro explícito na carga
+(`resolve-active-theme.ts`), porque a aplicação não tem (e não pode ter) uma shell própria de
+reserva que mascare um tema incompleto.
+
+`ThemeShellProps` (mínimo que todo `Shell` recebe):
+
+| Campo | Conteúdo |
 | --- | --- |
-| `HeaderSlot` | `brand`, `userbarEnabled`, `navMode` (`"main" \| "admin"`), `navItems` (de `main-nav` ou `admin-nav`, conforme `navMode`), `canToggleAdminNav` (o ator tem alguma permission administrativa), `scrollState` |
-| `FooterSlot` | `brand`, `sitemapItems`, `creditsEnabled` |
-| `ContentSlot` | `children` (conteúdo resolvido da página), `sidebarContextualEnabled` |
-| `SidebarLeftSlot` | `enabled`, `blocks` (lista de blocos a renderizar, quando habilitado) |
+| `header` | `brand`, `userbarEnabled`, `headerNavItems`, `user`, `canAccessAdmin`, `onSignOut` |
+| `footer` | `brand`, `sitemapItems`, `creditsEnabled` |
+| `sidebarLeft` | `enabled`, `navMode` (`"main" \| "admin"`), `navItems`/`navGroups` (conforme `navMode`), `canToggleAdminNav`, `onToggleNavMode`, `collapsed`, `onToggleCollapsed` |
+| `children` | conteúdo resolvido da página |
+| `sidebarContextualEnabled`, `sidebarContextual` | conteúdo contextual já resolvido (ou `null`) |
 
 Regras do contrato de slot:
 - O tema recebe **dados já resolvidos** (ex: itens de navegação já filtrados por permissão) — nunca uma referência crua a `context` para ele mesmo buscar.
-- Um tema pode optar por não renderizar uma área opcional, mas não pode inventar uma área nova fora dessa lista sem virar uma extensão formal do core.
-- Toda prop nova que um slot passar a receber precisa ser uma mudança versionada do contrato (`themeContractVersion`), porque temas de terceiros/sites diferentes dependem dela.
+- Um tema pode optar por não renderizar uma região (ex: não ter `SidebarLeft`) — decisão de design do próprio tema, não requer aprovação de `platform/`. O que o tema não pode é não exportar `Shell` — isso não é "região ausente", é carga malformada (ver acima).
+- Toda prop nova que `ThemeShellProps` passar a receber precisa ser uma mudança versionada do contrato (`themeContractVersion`), porque temas de terceiros/sites diferentes dependem dela.
 - Nenhum componente do tema usa valor hardcoded — só as variáveis do contrato de design tokens acima.
-- O arranjo espacial entre Content e SidebarLeft (lado a lado, sidebar à esquerda do conteúdo) é responsabilidade da composição da shell (`platform/`), não do tema; o tema só estiliza dentro da área que recebe.
+- O arranjo espacial entre as regiões (que fica ao lado de quê, que existe ou não, sticky ou não) é sempre decisão do `Shell` do tema — nunca de `platform/`. `platform/` só resolve dados e repassa pro `Shell`.
 
 **Exceção deliberada — dark/light toggle**: desde `themeContractVersion` `3.0.0`, o color mode não é mais resolvido pelo core e passado como prop (`isDark`/`onToggleColorMode` foram removidos de `HeaderSlotProps`). O tema lê e altera o tema via `useTheme()` do `next-themes` diretamente (`src/components/color-mode-toggle.tsx`). Isso é a única exceção conhecida a "o tema nunca busca dado sozinho" — decisão explícita do usuário (2026-07-28), ao reinstalar os primitivos shadcn stock: o `sonner` stock exige `next-themes`, e sincronizar esse hook com o cookie anterior (`platform/ui-preferences`, já removido) criaria dois mecanismos de tema concorrentes. Trade-off deliberado, não um desvio silencioso — ver o comentário completo em `src/contexts/themes/contracts/contract-version.ts`.
 

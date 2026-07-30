@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { MediaPickerField } from "@/components/media-picker-field";
 import { PlatformBrand } from "@/themes/venore-slime/components/PlatformBrand";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
 import type { HeaderBrandMode, HeaderBrandPosition } from "@/contexts/themes";
@@ -111,6 +112,11 @@ export function BrandSettingsForm({ brand, media }: { brand: BrandConfig; media:
               className="mt-1"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground">Descrição no rodapé</label>
+          <Textarea name="footerDescription" defaultValue={brand.footerDescription} rows={3} className="mt-1" />
         </div>
 
         <MediaPickerField

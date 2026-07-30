@@ -3,6 +3,10 @@ import { db } from "@/infrastructure/database/client";
 import { assets } from "../../../database/schema";
 import type { MediaAsset } from "../../../contracts/types";
 
+// Sem filtro de visibilidade de propósito: chamadas internas de idempotência do próprio
+// pipeline de upload (dedupe por pathname/checksum), não uma leitura pra um ator ver conteúdo
+// de outro — os dois chamadores (webhook com actorId assinado, e confirmMediaUploadHandler)
+// já exigem media.manage antes de chegar aqui.
 export async function findAssetByPathname(pathname: string): Promise<MediaAsset | null> {
   const [row] = await db.select().from(assets).where(eq(assets.pathname, pathname)).limit(1);
   return (row as MediaAsset) ?? null;

@@ -1,4 +1,5 @@
 import semver from "semver";
+import { getExtensionState } from "@/contexts/extensions";
 import { setSetting } from "@/contexts/settings";
 import { SUPPORTED_THEME_CONTRACT_RANGE } from "../../../contracts/contract-version";
 import type { ActivateThemeInput, ActivateThemeResult } from "./types";
@@ -10,6 +11,22 @@ export async function activateTheme(command: ActivateThemeInput): Promise<Activa
       error: {
         code: "themes.activation.incompatible_contract_version",
         message: `Tema "${command.themeKey}" declara themeContractVersion "${command.themeContractVersion}", incompatível com o intervalo suportado "${SUPPORTED_THEME_CONTRACT_RANGE}".`,
+      },
+    };
+  }
+
+  // Tema desabilitado não é selecionável (docs/venore-docks.md) — checado aqui, na própria
+  // ativação, não só na tela de administração, pra valer pra qualquer chamador.
+  const extensionState = await getExtensionState({ kind: "theme", key: command.themeKey });
+  if (!extensionState.success) {
+    return extensionState;
+  }
+  if (!extensionState.data.enabled) {
+    return {
+      success: false,
+      error: {
+        code: "themes.activation.disabled",
+        message: `Tema "${command.themeKey}" está desabilitado e não pode ser selecionado.`,
       },
     };
   }

@@ -1,4 +1,7 @@
 export { uploadMediaHandler as uploadMedia } from "./features/files/upload-media/handler";
+// Aberto a qualquer ator autenticado (sem media.manage) — só pra imagem de avatar do próprio
+// perfil, sempre privada, sempre < AVATAR_MAX_SIZE_BYTES. Não usar pra biblioteca geral.
+export { uploadAvatarMediaHandler as uploadAvatarMedia } from "./features/files/upload-avatar-media/handler";
 export { listMediaHandler as listMedia } from "./features/files/list-media/handler";
 export { getMediaHandler as getMedia } from "./features/files/get-media/handler";
 // Não checa se o arquivo está em uso por uma entry de cms — media não pode depender de cms
@@ -19,11 +22,13 @@ export { confirmMediaUploadHandler as confirmMediaUpload } from "./features/asse
 export { deleteMediaAssetHandler as deleteMediaAsset } from "./features/assets/delete-media-asset/handler";
 
 export { mediaAdminNavigationItems } from "./admin-navigation";
+export { mediaBreadcrumbSegments } from "./breadcrumbs";
 
-export type { MediaAsset, MediaAssetCategory, MediaAllowedTypeRule, MediaRecord } from "./contracts/types";
-export { MEDIA_ALLOWED_TYPES } from "./contracts/types";
+export type { MediaAsset, MediaAssetCategory, MediaAllowedTypeRule, MediaRecord, MediaVisibility } from "./contracts/types";
+export { MEDIA_ALLOWED_TYPES, AVATAR_MAX_SIZE_BYTES } from "./contracts/types";
 
 export type { UploadMediaInput, UploadMediaResult } from "./features/files/upload-media/types";
+export type { UploadAvatarMediaInput, UploadAvatarMediaResult } from "./features/files/upload-avatar-media/types";
 export type { ListMediaResult } from "./features/files/list-media/types";
 export type { GetMediaQuery, GetMediaResult } from "./features/files/get-media/types";
 export type { DeleteMediaInput, DeleteMediaResult } from "./features/files/delete-media/types";

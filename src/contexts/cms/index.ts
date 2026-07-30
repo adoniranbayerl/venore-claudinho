@@ -39,6 +39,7 @@ export { getMenuByLocationHandler as getMenuByLocation } from "./features/menus/
 export { getContextualMenuHandler as getContextualMenu } from "./features/menus/get-contextual-menu/handler";
 
 export { cmsAdminNavigationItems } from "./admin-navigation";
+export { cmsBreadcrumbSegments, getCachedEntry, getCachedMenuTree } from "./breadcrumbs";
 
 export type {
   ContentTypeRecord,

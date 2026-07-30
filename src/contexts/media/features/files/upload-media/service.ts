@@ -1,10 +1,10 @@
 import { beginOperation, endOperation } from "@/observability";
-import { invalidateCache } from "@/infrastructure/cache/memory-cache";
+import { invalidateCacheByPrefix } from "@/infrastructure/cache/memory-cache";
 import { storageAdapter } from "@/infrastructure/storage";
 import { insertMediaFile } from "./store";
 import type { UploadMediaCommand, UploadMediaResult } from "./types";
 
-const MEDIA_LIST_CACHE_KEY = "media:files";
+const MEDIA_LIST_CACHE_PREFIX = "media:files:";
 
 function sanitizeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9.\-_]/g, "_");
@@ -27,9 +27,10 @@ export async function uploadMedia(command: UploadMediaCommand): Promise<UploadMe
     size: command.size,
     url,
     uploadedBy: command.actorId,
+    visibility: command.visibility,
   });
 
-  invalidateCache(MEDIA_LIST_CACHE_KEY);
+  invalidateCacheByPrefix(MEDIA_LIST_CACHE_PREFIX);
   endOperation(handle, { success: true });
   return { success: true, data: media };
 }

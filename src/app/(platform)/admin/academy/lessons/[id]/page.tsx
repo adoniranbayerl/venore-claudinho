@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { HelpCircle } from "lucide-react";
-import { getEntry } from "@/contexts/cms";
+import { getCachedEntry } from "@/contexts/cms";
 import { getMedia } from "@/contexts/media";
-import { getLesson, getLessonRequirements, listQuizQuestionsByLesson } from "@/plugins/academy";
+import { getCachedLesson, getLessonRequirements, listQuizQuestionsByLesson } from "@/plugins/academy";
 import { getAcademyPageData } from "@/platform/admin-shell/get-academy-page-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
@@ -24,7 +24,7 @@ export default async function LessonDetailPage({ params }: { params: Promise<{ i
     );
   }
 
-  const lessonResult = await getLesson({ id });
+  const lessonResult = await getCachedLesson(id);
   if (!lessonResult.success) {
     return <p className="text-sm text-destructive">Não foi possível carregar esta aula agora. Tente recarregar a página.</p>;
   }
@@ -37,7 +37,7 @@ export default async function LessonDetailPage({ params }: { params: Promise<{ i
   const [requirementsResult, questionsResult, entryResult] = await Promise.all([
     getLessonRequirements({ lessonId: id }),
     listQuizQuestionsByLesson({ lessonId: id }),
-    getEntry({ id: lesson.cmsEntryId }),
+    getCachedEntry(lesson.cmsEntryId),
   ]);
 
   if (!requirementsResult.success) {

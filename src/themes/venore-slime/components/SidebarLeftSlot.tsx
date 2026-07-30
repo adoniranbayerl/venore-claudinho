@@ -39,11 +39,14 @@ export function SidebarLeftSlot({
   return (
     <MobileNavDrawer
       asideClassName={cn(
-        // px-5 é o padrão em qualquer breakpoint (inclusive off-canvas mobile, que ignora
-        // collapsed) — só em lg: com collapsed=true é que o padding aperta pra px-3.
+        // px-5 é fixo em qualquer breakpoint e em qualquer estado de collapsed — a faixa de
+        // largura do ícone não pode depender da largura do sidebar (bug desta sessão: padding
+        // não está na lista de propriedades de ui-motion-emphasis, então px-5→px-3 trocava
+        // instantaneamente enquanto a largura do <aside> ainda levava 300ms pra terminar,
+        // deslocando o ícone antes do fim da transição). Só `width` anima.
         "relative flex h-full w-full flex-col px-5 py-6 text-foreground shadow-float lg:w-(--sidebar-width-expanded) lg:shrink-0 lg:border-r lg:shadow-none ui-motion-emphasis",
         isAdmin ? "border-ring bg-(image:--sidebar-bg-admin)" : "border-border bg-(image:--sidebar-bg)",
-        collapsed && "lg:w-(--sidebar-width-collapsed) lg:px-3",
+        collapsed && "lg:w-(--sidebar-width-collapsed)",
       )}
     >
       <form action={onToggleCollapsed} className="absolute top-4 right-0 z-10 hidden translate-x-1/2 lg:block">
@@ -82,17 +85,26 @@ export function SidebarLeftSlot({
         {isAdmin
           ? navGroups.map((group) => (
               <div key={group.key} className="space-y-1 pb-4">
-                {/* Título da seção é o padrão em qualquer breakpoint (off-canvas mobile ignora
-                    collapsed); só em lg: com collapsed=true ele vira um divisor fino. */}
-                <p
-                  className={cn(
-                    "px-3 pb-1 text-[11px] font-semibold uppercase tracking-caps text-muted-foreground/70",
-                    collapsed && "lg:hidden",
-                  )}
-                >
-                  {group.label}
-                </p>
-                <div className={cn("mx-2 hidden h-px bg-border", collapsed && "lg:block")} aria-hidden="true" />
+                {/* Título da seção (expandido) e divisor fino (colapsado) ocupam uma faixa de
+                    altura FIXA e sempre presente no flex flow — nunca `hidden`/`block` (bug desta
+                    sessão: display:none tira o elemento do cálculo de layout no mesmo quadro em
+                    que troca, deslocando os ícones do grupo pra cima antes do <aside> terminar de
+                    animar a largura). Título e divisor só fazem crossfade de opacidade por cima
+                    um do outro; a altura do bloco nunca muda. */}
+                <div className="relative h-5">
+                  <p
+                    className={cn(
+                      "absolute inset-0 px-3 pb-1 text-[11px] font-semibold uppercase tracking-caps text-muted-foreground/70 ui-motion-emphasis",
+                      collapsed && "lg:opacity-0",
+                    )}
+                  >
+                    {group.label}
+                  </p>
+                  <div
+                    className={cn("absolute inset-x-2 top-1/2 h-px -translate-y-1/2 bg-border opacity-0 ui-motion-emphasis", collapsed && "lg:opacity-100")}
+                    aria-hidden="true"
+                  />
+                </div>
                 {group.items.map((item) => (
                   <SidebarNavLink key={item.key} item={item} collapsed={collapsed} isAdmin={isAdmin} />
                 ))}

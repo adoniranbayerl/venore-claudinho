@@ -24,6 +24,7 @@ export async function updateBrandSettingsAction(
     { key: BRAND_SETTING_KEYS.logoMediaId, value: String(formData.get("logoMediaId") ?? "") },
     { key: BRAND_SETTING_KEYS.logoScrolledMediaId, value: String(formData.get("logoScrolledMediaId") ?? "") },
     { key: BRAND_SETTING_KEYS.faviconMediaId, value: String(formData.get("faviconMediaId") ?? "") },
+    { key: BRAND_SETTING_KEYS.footerDescription, value: String(formData.get("footerDescription") ?? "") },
   ];
 
   for (const entry of entries) {

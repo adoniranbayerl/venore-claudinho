@@ -12,20 +12,25 @@ import { PlatformBrand } from "./PlatformBrand";
 export function FooterSlot({ brand, sitemapItems, creditsEnabled }: FooterSlotProps) {
   return (
     <footer className="mt-auto grid gap-8 border-t border-border px-4 py-10 text-muted-foreground sm:px-6 lg:grid-cols-[max-content_minmax(0,1fr)] lg:px-8">
-      <div className="w-fit max-w-full justify-self-start rounded-panel bg-accent/14 px-5 py-6">
-        <div className="max-w-40 origin-left scale-125">
-          <PlatformBrand
-            name={brand.name}
-            mode={brand.mode}
-            size={brand.size}
-            scrolledSize={brand.scrolledSize}
-            position={brand.position}
-            logoUrl={brand.logoUrl}
-            scrolledLogoUrl={brand.scrolledLogoUrl}
-            isScrolled={false}
-          />
+      <div className="w-fit max-w-full justify-self-start space-y-5 rounded-panel bg-accent/14 px-5 py-6">
+        <div>
+          <div className="max-w-40 origin-left scale-125">
+            <PlatformBrand
+              name={brand.name}
+              mode={brand.mode}
+              size={brand.size}
+              scrolledSize={brand.scrolledSize}
+              position={brand.position}
+              logoUrl={brand.logoUrl}
+              scrolledLogoUrl={brand.scrolledLogoUrl}
+              isScrolled={false}
+            />
+          </div>
+          <span aria-hidden className="mt-4 block h-0.5 w-10 rounded-full bg-primary/30" />
         </div>
-        <span aria-hidden className="mt-4 block h-0.5 w-10 rounded-full" style={{ backgroundColor: brand.color }} />
+        {brand.description.trim().length > 0 && (
+          <p className="max-w-[34ch] text-pretty text-xs leading-6 text-muted-foreground">{brand.description}</p>
+        )}
       </div>
 
       <div className="pt-1">

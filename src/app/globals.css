@@ -11,6 +11,7 @@
    rodou — então não há custo em enviar os N temas instalados de uma vez. Instalar um tema novo é
    uma linha nova aqui, no mesmo espírito do registro estático em src/themes/registry.ts. */
 @import "../themes/venore-slime/theme.css";
+@import "../themes/venore-basic/theme.css";
 
 /* tw-animate-css: os primitivos stock (dialog, select) usam animate-in/fade-in-0/zoom-in-95/
    slide-in-from-* — sem esse import essas classes não geram CSS nenhum (ficam inertes) e os
@@ -20,137 +21,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Venore Slime — tema único embutido no código: padrão e fallback ao mesmo tempo
-   (docs/venore-docks.md — "Sobre temas"). Nenhum valor visual deve ser hardcoded fora daqui.
-   Técnica de tokens computados (color-mix) e formas de gradiente replicadas do repositório de
-   referência (adoniranbayerl/venore-docks — preset "Venore Pulse"). */
-
-:root {
-  --radius: 0.2rem;
-  --radius-shell: 0rem;
-  --radius-panel: 0.2rem;
-  --ui-tracking-caps: 0.22em;
-
-  /* motion — vocabulário único de transição, consumido via ui-motion-base / ui-motion-emphasis */
-  --ui-motion-fast: 120ms;
-  --ui-motion-base: 200ms;
-  --ui-motion-slow: 300ms;
-  --ui-ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
-  --ui-ease-emphasis: cubic-bezier(0.22, 1, 0.36, 1);
-
-  /* tipografia */
-  --ui-font-weight-body: 400;
-  --ui-font-weight-medium: 500;
-  --ui-font-weight-semibold: 600;
-  --ui-font-weight-display: 700;
-  --ui-leading-copy: 1.5;
-  --ui-leading-display: 1.15;
-  --ui-tracking-copy: 0em;
-  --ui-tracking-display: -0.01em;
-
-  /* controles — altura única pra button/input/select/tabs, resolve desalinhamento de formulário */
-  --ui-control-height-xs: 1.75rem;
-  --ui-control-height-sm: 2.25rem;
-  --ui-control-height-md: 2.5rem;
-  --ui-control-height-lg: 2.75rem;
-  --ui-control-padding-x: 1rem;
-
-  /* painéis */
-  --ui-panel-padding-x: 1.5rem;
-  --ui-panel-padding-y: 1.5rem;
-
-  /* base shadcn */
-  --background: oklch(0.972 0.011 154);
-  --foreground: oklch(0.235 0.026 176);
-  --card: oklch(0.991 0.004 145);
-  --card-foreground: oklch(0.235 0.026 176);
-  --popover: oklch(0.991 0.004 145);
-  --popover-foreground: oklch(0.235 0.026 176);
-  --primary: oklch(0.78 0.185 152);
-  --primary-foreground: oklch(0.18 0.02 160);
-  --secondary: oklch(0.954 0.018 162);
-  --secondary-foreground: oklch(0.235 0.026 176);
-  --muted: oklch(0.954 0.018 162);
-  --muted-foreground: oklch(0.445 0.034 172);
-  --accent: oklch(0.9 0.205 102);
-  --accent-foreground: oklch(0.17 0.018 158);
-  --destructive: oklch(0.59 0.213 25);
-  --destructive-foreground: oklch(0.98 0.01 25);
-  --border: oklch(0.89 0.022 162);
-  --input: oklch(0.89 0.022 162);
-  --ring: oklch(0.736 0.058 160);
-
-  /* shadow — cor base + variantes soft via color-mix, mesma cadeia do repositório de referência */
-  --shadow-color: oklch(0.828 0.021 170);
-  --shadow-color-strong: oklch(0.69 0.026 175);
-  --shadow-color-soft: color-mix(in oklch, var(--shadow-color) 38%, transparent);
-  --shadow-color-strong-soft: color-mix(in oklch, var(--shadow-color-strong) 32%, transparent);
-  --shadow-panel: 0 24px 80px -48px var(--shadow-color-soft);
-  --shadow-float: 0 18px 44px -28px var(--shadow-color-strong-soft);
-  --shadow-header: 0 12px 30px -24px var(--shadow-color-strong-soft);
-
-  /* sidebar — largura das duas colunas de grid (expandida/colapsada). Valores idênticos aos do
-     protótipo de referência (docs/ui/shell-spec.md §3.1: 280px/88px) — pedido explícito de paridade
-     visual exata nesta sessão, não estimativa nossa. Mesmo valor em light/dark (não é token de
-     cor), por isso declarado só uma vez em :root. */
-  --sidebar-width-expanded: 17.5rem;
-  --sidebar-width-collapsed: 5.5rem;
-
-  --sidebar-bg-start: oklch(0.963 0.018 158);
-  --sidebar-bg-end: oklch(0.938 0.03 164);
-  --sidebar-bg: linear-gradient(180deg, var(--sidebar-bg-start) 0%, var(--sidebar-bg-end) 100%);
-  --sidebar-bg-admin-start: oklch(0.97 0.01 160);
-  --sidebar-bg-admin-end: oklch(0.948 0.019 162);
-  --sidebar-bg-admin: linear-gradient(180deg, var(--sidebar-bg-admin-start) 0%, var(--sidebar-bg-admin-end) 100%);
-
-  /* status semântico — texto/banner de aviso. */
-  --warning: oklch(0.45 0.15 65);
-  --warning-foreground: oklch(0.98 0.01 65);
-  --warning-soft: color-mix(in oklch, var(--warning) 12%, var(--card));
-  --warning-border: color-mix(in oklch, var(--warning) 30%, var(--border));
-}
-
-.dark {
-  --background: oklch(0.145 0.016 162);
-  --foreground: oklch(0.95 0.017 146);
-  --card: oklch(0.182 0.015 171);
-  --card-foreground: oklch(0.95 0.017 146);
-  --popover: oklch(0.182 0.015 171);
-  --popover-foreground: oklch(0.95 0.017 146);
-  --primary: oklch(0.84 0.205 150);
-  --primary-foreground: oklch(0.17 0.018 158);
-  --secondary: oklch(0.214 0.018 166);
-  --secondary-foreground: oklch(0.95 0.017 146);
-  --muted: oklch(0.214 0.018 166);
-  --muted-foreground: oklch(0.82 0.03 154);
-  --accent: oklch(0.94 0.214 131);
-  --accent-foreground: oklch(0.17 0.018 158);
-  --destructive: oklch(0.64 0.226 26);
-  --destructive-foreground: oklch(0.98 0.01 25);
-  --border: oklch(0.318 0.029 161);
-  --input: oklch(0.318 0.029 161);
-  --ring: oklch(0.458 0.056 156);
-
-  --shadow-color: oklch(0.082 0.004 170);
-  --shadow-color-strong: oklch(0.042 0.003 170);
-  --shadow-color-soft: color-mix(in oklch, var(--shadow-color) 38%, transparent);
-  --shadow-color-strong-soft: color-mix(in oklch, var(--shadow-color-strong) 32%, transparent);
-  --shadow-panel: 0 24px 80px -48px var(--shadow-color-soft);
-  --shadow-float: 0 18px 44px -28px var(--shadow-color-strong-soft);
-  --shadow-header: 0 12px 30px -24px var(--shadow-color-strong-soft);
-
-  --sidebar-bg-start: oklch(0.16 0.014 168);
-  --sidebar-bg-end: oklch(0.131 0.018 162);
-  --sidebar-bg: linear-gradient(180deg, var(--sidebar-bg-start) 0%, var(--sidebar-bg-end) 100%);
-  --sidebar-bg-admin-start: oklch(0.197 0.013 170);
-  --sidebar-bg-admin-end: oklch(0.17 0.016 160);
-  --sidebar-bg-admin: linear-gradient(180deg, var(--sidebar-bg-admin-start) 0%, var(--sidebar-bg-admin-end) 100%);
-
-  --warning: oklch(0.78 0.16 65);
-  --warning-foreground: oklch(0.17 0.02 65);
-  --warning-soft: color-mix(in oklch, var(--warning) 16%, var(--card));
-  --warning-border: color-mix(in oklch, var(--warning) 34%, var(--border));
-}
+/* Nenhum valor de design (cor, raio, sombra, espaçamento, tipografia, peso, duração, curva de
+   easing, proporção de escala) pode ser declarado neste arquivo — AGENTS.md seção 3. Este
+   stylesheet só CONSOME variáveis definidas por um tema (src/themes/<tema>/theme.css); nunca
+   define valor. A prova disso é executável: src/app/globals.no-design-values.test.ts falha se um
+   literal de design reaparecer aqui. Se o tema não for carregado, as variáveis abaixo ficam
+   undefined e a interface aparece sem estilo — é o comportamento esperado, não um bug. */
 
 @theme inline {
   --color-background: var(--background);
@@ -182,17 +58,18 @@
   --color-warning-soft: var(--warning-soft);
   --color-warning-border: var(--warning-border);
 
-  --radius-sm: calc(var(--radius) * 0.5);
-  --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) * 2);
-  --radius-xl: calc(var(--radius) * 3);
+  --radius-sm: calc(var(--radius) * var(--ui-radius-scale-sm));
+  --radius-md: calc(var(--radius) * var(--ui-radius-scale-md));
+  --radius-lg: calc(var(--radius) * var(--ui-radius-scale-lg));
+  --radius-xl: calc(var(--radius) * var(--ui-radius-scale-xl));
   /* 2xl/3xl/4xl — continuação da progressão acima (sm=0.5x, md=1x, lg=2x, xl=3x), não os
      multiplicadores que o registry stock shadcn (preset Nova) propõe: aqueles foram calculados
      em cima do --radius default dele (0.625rem) e, aplicados ao nosso --radius (0.2rem), ficam
-     menores que o nosso próprio xl — quebra a escala. badge.tsx stock usa rounded-4xl. */
-  --radius-2xl: calc(var(--radius) * 4);
-  --radius-3xl: calc(var(--radius) * 5);
-  --radius-4xl: calc(var(--radius) * 6);
+     menores que o nosso próprio xl — quebra a escala. badge.tsx stock usa rounded-4xl. As
+     proporções (--ui-radius-scale-*) são declaradas pelo tema, não aqui. */
+  --radius-2xl: calc(var(--radius) * var(--ui-radius-scale-2xl));
+  --radius-3xl: calc(var(--radius) * var(--ui-radius-scale-3xl));
+  --radius-4xl: calc(var(--radius) * var(--ui-radius-scale-4xl));
   --radius-shell: var(--radius-shell);
   --radius-panel: var(--radius-panel);
 
@@ -220,7 +97,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--ui-button-gap);
   white-space: nowrap;
   border-radius: var(--radius-xl);
   font-weight: var(--ui-font-weight-medium);
@@ -228,12 +105,12 @@
 
 @utility ui-button-xs {
   height: var(--ui-control-height-xs);
-  padding-inline: calc(var(--ui-control-padding-x) * 0.5);
+  padding-inline: calc(var(--ui-control-padding-x) * var(--ui-button-padding-scale-xs));
 }
 
 @utility ui-button-sm {
   height: var(--ui-control-height-sm);
-  padding-inline: calc(var(--ui-control-padding-x) * 0.75);
+  padding-inline: calc(var(--ui-control-padding-x) * var(--ui-button-padding-scale-sm));
 }
 
 @utility ui-button-md {
@@ -243,7 +120,7 @@
 
 @utility ui-button-lg {
   height: var(--ui-control-height-lg);
-  padding-inline: calc(var(--ui-control-padding-x) * 2);
+  padding-inline: calc(var(--ui-control-padding-x) * var(--ui-button-padding-scale-lg));
 }
 
 @utility ui-icon-button-xs {
@@ -296,7 +173,7 @@
 }
 
 @utility ui-motion-emphasis {
-  transition-property: color, background-color, border-color, box-shadow, opacity, transform, height, width;
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform, height, width, max-width;
   transition-duration: var(--ui-motion-slow);
   transition-timing-function: var(--ui-ease-emphasis);
 }

@@ -18,12 +18,14 @@ export async function uploadMediaAction(
   }
 
   const data = Buffer.from(await file.arrayBuffer());
+  const visibility = formData.get("makePublic") === "on" ? "public" : "private";
 
   const result = await uploadMedia({
     filename: file.name,
     mimeType: file.type || "application/octet-stream",
     size: file.size,
     data,
+    visibility,
   });
 
   if (!result.success) {

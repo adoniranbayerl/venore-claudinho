@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { BookOpen, Users } from "lucide-react";
 import { listEntries } from "@/contexts/cms";
 import { getMedia } from "@/contexts/media";
-import { getCourse, listEnrollmentsForCourse, listLessonsByCourse, listQuizProgressForCourse } from "@/plugins/academy";
+import { getCachedCourse, listEnrollmentsForCourse, listLessonsByCourse, listQuizProgressForCourse } from "@/plugins/academy";
 import { getAcademyPageData } from "@/platform/admin-shell/get-academy-page-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   }
 
   const [courseResult, lessonsResult, entriesResult, enrollmentsResult, quizProgressResult] = await Promise.all([
-    getCourse({ id }),
+    getCachedCourse(id),
     listLessonsByCourse({ courseId: id }),
     listEntries(),
     listEnrollmentsForCourse({ courseId: id }),

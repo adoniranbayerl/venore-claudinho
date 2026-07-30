@@ -1,5 +1,6 @@
 import { resolveActiveTheme } from "@/platform/theme-rendering/resolve-active-theme";
 import { resolveThemeSlotProps } from "@/platform/theme-rendering/resolve-theme-slot-props";
+import { resolveBreadcrumbs } from "@/platform/breadcrumbs/resolve-breadcrumbs";
 import { getAdminPageData } from "@/platform/admin-shell/get-admin-page-data";
 import { getVisibleAdminNavGroupsForSidebar } from "@/platform/admin-shell/admin-navigation-registry";
 import { getNavMode } from "@/platform/nav-mode/get-nav-mode";
@@ -9,9 +10,11 @@ import { toggleSidebarCollapsedAction } from "@/platform/sidebar-collapse/toggle
 import { signOutAction } from "@/app/(auth)/actions";
 import type { NavGroup } from "@/contexts/themes";
 
-// Shell única (docs/venore-docks.md — "Shell única — sem área admin separada"): Header/Content/
-// SidebarLeft/Footer do tema ativo montados uma única vez aqui, pra toda página pública,
-// academy e admin — não existe mais um layout de admin à parte com casca própria.
+// Shell única (docs/venore-docks.md — "Shell única — sem área admin separada"): o `Shell` do
+// tema ativo é montado uma única vez aqui, pra toda página pública, academy e admin — não existe
+// mais um layout de admin à parte com casca própria. Este arquivo só resolve dados (gate, nav
+// mode, cookies) e repassa pro `Shell`; a árvore/arranjo entre header/footer/sidebar/conteúdo é
+// decisão do tema, não deste layout (docs/themes/shell-contract.md — Abordagem A).
 export const dynamic = "force-dynamic";
 
 export default async function PlatformLayout({
@@ -25,7 +28,9 @@ export default async function PlatformLayout({
   // é passado sempre vazio, sem tocar em handler/service/store da Academy).
   sidebarContextual: React.ReactNode;
 }) {
-  const { components: Slots } = await resolveActiveTheme();
+  const { Shell } = await resolveActiveTheme();
+
+  const breadcrumbs = await resolveBreadcrumbs();
 
   const adminGate = await getAdminPageData();
   const canToggleAdminNav = adminGate.granted;
@@ -45,15 +50,16 @@ export default async function PlatformLayout({
   });
 
   return (
-    <>
-      <Slots.Header {...props.header} />
-      <div className="flex flex-1">
-        <Slots.SidebarLeft {...props.sidebarLeft} />
-        <Slots.Content sidebarContextualEnabled={sidebarContextual !== null} sidebarContextual={sidebarContextual}>
-          {children}
-        </Slots.Content>
-      </div>
-      <Slots.Footer {...props.footer} />
-    </>
+    <Shell
+      header={props.header}
+      footer={props.footer}
+      sidebarLeft={props.sidebarLeft}
+      sidebarContextualEnabled={sidebarContextual !== null}
+      sidebarContextual={sidebarContextual}
+      breadcrumbs={breadcrumbs.items}
+      breadcrumbsJsonLd={breadcrumbs.jsonLd}
+    >
+      {children}
+    </Shell>
   );
 }

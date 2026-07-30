@@ -12,13 +12,17 @@ export function UploadMediaForm() {
   useActionToast({ pending, error: state.error, successMessage: "Arquivo enviado." });
 
   return (
-    <form action={formAction} className="flex items-center gap-3">
+    <form action={formAction} className="flex flex-col gap-3 sm:flex-row sm:items-center">
       <input
         type="file"
         name="file"
         required
         className="rounded-sm text-sm text-muted-foreground outline-none ui-motion-base file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring"
       />
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        <input type="checkbox" name="makePublic" className="size-4 rounded-sm border-border" />
+        Tornar público na biblioteca
+      </label>
       <Button type="submit" disabled={pending}>
         {pending ? "Enviando..." : "Enviar"}
       </Button>

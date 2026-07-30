@@ -29,5 +29,7 @@ export async function uploadMediaHandler(input: UploadMediaInput): Promise<Uploa
     return { success: false, error: authz.error };
   }
 
-  return uploadMedia({ ...input, actorId: authz.actorId });
+  const visibility = input.visibility === "public" ? "public" : "private";
+
+  return uploadMedia({ ...input, actorId: authz.actorId, visibility });
 }
