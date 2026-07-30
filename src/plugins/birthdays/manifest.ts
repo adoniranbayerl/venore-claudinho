@@ -29,4 +29,5 @@ export const birthdaysManifest: PluginManifest = {
       requiredPermission: "birthdays.read",
     },
   ],
+  blocks: [{ key: "birthdays.month.list", label: "Aniversariantes — Lista do mês" }],
 };

@@ -29,19 +29,21 @@ de fora, e (quando aplicável) de que depende para ser retomado.
   exigiria `setSetting` aceitar uma permission alternativa por namespace de chave, mudança em
   `contexts/settings`, fora do escopo de "criar o plugin birthdays".
 
-- **G6 — Block `birthdays-month-list` não implementado.** O manifesto do plugin original
-  declarava um block `birthdays-month-list` sem nenhum `BlockDefinition`/renderer real — decidiu-se
-  não portar essa declaração vazia (copiaria a inconsistência) nem implementar o block de verdade
-  nesta sessão. Fica dependente das issues abertas do page-builder (o mecanismo de blocks de
-  `contexts/cms` + `platform/page-builder`) antes de virar trabalho real, no mesmo padrão de
-  `academy.course.list`/`academy.course.card`.
+- **G6 — Block `birthdays-month-list` — RESOLVIDO.** Implementado em `src/plugins/birthdays/blocks/`
+  (`birthdays.month.list`), registrado em `platform/page-builder/block-registry.ts` e
+  `block-renderers.tsx`, no mesmo padrão de `academy.course.list`. Não é fidelidade visual com o
+  bloco original do fem-colaborador (pedido explícito: "não precisa ter fidelidade visual, pode
+  gerar algo que você acredita ser melhor") — usa tokens do tema (`bg-card`, `border-border`, etc.)
+  em vez das cores de `birthdays.appearance.*`, e ordena os aniversariantes do mês corrente
+  colocando "hoje em diante" antes de quem já fez aniversário no mês, com destaque para quem faz
+  aniversário hoje.
 
-- **Identidade visual / impressão.** A função de impressão (PDF do quadro de aniversariantes) do
-  módulo original usava `getPlatformIdentity()` (logo, `headerBrandMode`, cor da marca). Não
-  localizei nem usei o equivalente daqui (`src/platform/brand/get-brand-config.ts`) — decisão
-  explícita desta sessão foi não tocar nisso, não criar helper local de brand nem ler
-  `public/brand` diretamente do plugin. Fica dependente de uma sessão dedicada ao subsistema de
-  brand/impressão antes de ser retomado.
+- **Identidade visual / impressão — RESOLVIDO.** A impressão de PDF (`src/plugins/birthdays/
+  features/print-birthdays/`) já usa `getBrandConfig()` (`src/platform/brand/get-brand-config.ts`)
+  para logo/nome/cor da marca — inclusive um campo `color`/`brand.color` novo, adicionado ali
+  porque nada expunha isso ainda (o Header do tema não pinta a marca por cor de setting). Decisão
+  explícita: não criar subsistema de brand paralelo nem helper local no plugin — quando um
+  subsistema real existe (como já era o caso pra logo/nome), ele absorve a leitura.
 
 - **Importação CSV.** Fora do escopo desta sessão. No módulo original
   (`fem-colaborador/src/modules/birthdays/views/admin/client.tsx`, função

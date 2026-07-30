@@ -303,6 +303,12 @@ export function buildBirthdayPdfHtml(input: BirthdayPdfInput): string {
 
           * {
             box-sizing: border-box;
+            /* Sem isto, o Chrome só imprime background-color quando a caixa "Gráficos de
+               segundo plano" está marcada no diálogo de impressão — sem ela, cor de fundo de
+               card e a marca (mask-image + background-color:currentColor) somem, sobrando só a
+               borda. print-color-adjust:exact força a impressão exata independente dessa opção. */
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
           }
 
           body {
@@ -347,7 +353,14 @@ export function buildBirthdayPdfHtml(input: BirthdayPdfInput): string {
             text-align: right;
             justify-self: end;
             width: 100%;
-            padding-right: 18px;
+            /* DIVERGÊNCIA INTENCIONAL do fem-colaborador: lá esta regra tem padding-right:18px,
+               o que deixa o texto do título ~18px pra dentro da borda direita real da folha —
+               enquanto a última coluna da grade de cards (.grid) encosta nessa borda sem nenhum
+               recuo equivalente. Conferido com o usuário: no PDF de referência do fem-colaborador
+               o título fica alinhado com a borda dos cards (sem esse gap), então 0 aqui é o que
+               reproduz fielmente o resultado visual esperado — manter os 18px teria sido a cópia
+               literal errada. */
+            padding-right: 0;
           }
 
           .title {

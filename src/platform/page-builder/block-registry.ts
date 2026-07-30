@@ -1,5 +1,6 @@
 import type { BlockDefinition, ResolveBlockDefinition } from "@/contexts/cms";
 import { blockDefinitions as academyBlockDefinitions } from "@/plugins/academy";
+import { blockDefinitions as birthdaysBlockDefinitions } from "@/plugins/birthdays";
 import { PLUGIN_REGISTRY } from "@/plugins/registry";
 import { buttonBlockDefinition } from "./blocks/button";
 import { headingBlockDefinition } from "./blocks/heading";
@@ -22,6 +23,7 @@ const CORE_LEAF_BLOCKS: BlockDefinition[] = [
 // nunca lido por scan de filesystem em runtime.
 const PLUGIN_BLOCK_BARRELS: Record<string, { blockDefinitions?: BlockDefinition[] }> = {
   academy: { blockDefinitions: academyBlockDefinitions },
+  birthdays: { blockDefinitions: birthdaysBlockDefinitions },
 };
 
 function collectPluginBlocks(): BlockDefinition[] {

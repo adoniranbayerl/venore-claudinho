@@ -8,6 +8,7 @@ import { Button, type buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { VariantProps } from "class-variance-authority";
 import { blockRenderers as academyBlockRenderers } from "@/plugins/academy";
+import { blockRenderers as birthdaysBlockRenderers } from "@/plugins/birthdays";
 import { PLUGIN_REGISTRY } from "@/plugins/registry";
 import { ROW_BLOCK_KEY, ROW_COLUMN_GRID_CLASSES, resolveRowColumns } from "./row-columns";
 
@@ -179,6 +180,7 @@ const CORE_BLOCK_RENDERERS: Record<string, BlockRendererComponent> = {
 // definitions, mas nunca cruza o boundary RSC — este módulo é "server-only".
 const PLUGIN_BLOCK_RENDERER_BARRELS: Record<string, { blockRenderers?: Record<string, BlockRendererComponent> }> = {
   academy: { blockRenderers: academyBlockRenderers },
+  birthdays: { blockRenderers: birthdaysBlockRenderers },
 };
 
 function collectPluginRenderers(): Record<string, BlockRendererComponent> {

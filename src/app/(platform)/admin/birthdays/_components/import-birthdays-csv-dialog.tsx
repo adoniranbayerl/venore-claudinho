@@ -2,7 +2,6 @@
 
 import { useRef, useState, useTransition, type ChangeEvent } from "react";
 import { Download, Upload } from "lucide-react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -113,13 +112,19 @@ export function ImportBirthdaysCsvDialog() {
         </DialogHeader>
 
         <div className="space-y-4">
-          <Link
+          {/* <a> nativa de propósito, não next/link: a rota é um download de arquivo (Content-
+              Disposition: attachment), não uma página — deixar o Link fazer soft navigation pra
+              ela troca a URL da página para /api/birthdays/import-template, e as Server Actions
+              de preview/import passam a fazer POST lá (405, só aceita GET) em vez de voltar pra
+              /admin/birthdays. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- rota de download de arquivo, não uma página */}
+          <a
             href="/api/birthdays/import-template"
             className="inline-flex w-fit items-center gap-1 text-sm text-primary underline-offset-4 hover:underline"
           >
             <Download className="size-3.5" />
             Baixar modelo .csv
-          </Link>
+          </a>
 
           {!outcome && (
             <div className="flex flex-wrap items-center gap-3">

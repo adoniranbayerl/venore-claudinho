@@ -31,6 +31,13 @@ describe("buildBirthdayPdfHtml", () => {
     expect(html).not.toContain("undefined");
   });
 
+  it("força impressão de cor de fundo (print-color-adjust:exact), senão cards e marca somem sem a opção de gráficos de fundo do navegador", () => {
+    const html = buildBirthdayPdfHtml({ ...baseInput, birthdays: [] });
+
+    expect(html).toContain("print-color-adjust: exact");
+    expect(html).toContain("-webkit-print-color-adjust: exact");
+  });
+
   it("gera o documento sem erro para lista vazia, com a grade preenchida por slots vazios", () => {
     // Nota de fidelidade: igual ao fem-colaborador, a mensagem "Nenhum aniversariante..." é
     // um fallback inalcançável — a grade de slots vazios (resolvePdfGridLayout) sempre produz uma

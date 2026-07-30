@@ -15,6 +15,12 @@ export {
   importBirthdaysCsvHandler as importBirthdaysCsv,
 } from "./features/import-birthdays-csv/handler";
 
+// Ponto de extensão "blocks" do plugin engine, mesmo padrão do academy (src/plugins/academy/
+// index.ts): platform/page-builder/block-registry.ts importa blockDefinitions (dado,
+// serializável) e block-renderers.tsx importa blockRenderers (componente) — dois registries
+// paralelos, nunca misturados.
+export { blockDefinitions, blockRenderers } from "./blocks";
+
 export { MONTH_LABELS } from "./shared/months";
 export { BIRTHDAY_APPEARANCE_SETTINGS, DEFAULT_BIRTHDAY_APPEARANCE } from "./shared/appearance";
 export type { BirthdayAppearanceField, BirthdayAppearanceSettings } from "./shared/appearance";
