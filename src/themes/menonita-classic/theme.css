@@ -1,0 +1,227 @@
+/* Venore Slime — tema único, oficial e fallback (docs/venore-docks.md — "Sobre temas";
+   AGENTS.md seção 3). Este é o ÚNICO lugar do repositório onde um valor de design (cor, raio,
+   sombra, espaçamento, tipografia, peso, duração, curva de easing, proporção de escala) pode ser
+   declarado. src/app/globals.css consome essas variáveis via var(); nunca define valor novo.
+
+   Este tema nunca deve ser removido/deletado do registry (src/themes/registry.ts) — ele é o
+   fallback do sistema de temas quando nenhum outro está instalado.
+
+   [data-theme="venore-slime"] no <html> ativa este bloco; .dark também vive no <html> (nunca
+   aninhado), por isso a variante escura é o seletor composto abaixo, não um descendente. Tudo
+   que não muda entre light/dark (raio, motion, tipografia, dimensões de controle/painel,
+   proporções de escala) é declarado só no bloco base — herda para .dark pelo mesmo elemento. */
+
+[data-theme="menonita-classic"] {
+  /* raio */
+  --radius: 0.3rem;
+  --radius-shell: 0rem;
+  --radius-panel: 0.2rem;
+  /* proporção da escala de raio (sm=0.5x, md=1x, lg=2x, xl=3x, 2xl=4x, 3xl=5x, 4xl=6x) —
+     progressão própria, não os multiplicadores do preset stock shadcn (ver globals.css). */
+  --ui-radius-scale-sm: 0.5;
+  --ui-radius-scale-md: 1;
+  --ui-radius-scale-lg: 2;
+  --ui-radius-scale-xl: 3;
+  --ui-radius-scale-2xl: 4;
+  --ui-radius-scale-3xl: 5;
+  --ui-radius-scale-4xl: 6;
+
+  --ui-tracking-caps: 0.22em;
+
+  /* motion — vocabulário único de transição, consumido via ui-motion-base / ui-motion-emphasis */
+  --ui-motion-fast: 120ms;
+  --ui-motion-base: 200ms;
+  --ui-motion-slow: 300ms;
+  --ui-ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --ui-ease-emphasis: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* tipografia */
+  --ui-font-weight-body: 400;
+  --ui-font-weight-medium: 500;
+  --ui-font-weight-semibold: 600;
+  --ui-font-weight-display: 700;
+  --ui-leading-copy: 1.5;
+  --ui-leading-display: 1.15;
+  --ui-tracking-copy: 0em;
+  --ui-tracking-display: -0.01em;
+
+  /* controles — altura única pra button/input/select/tabs, resolve desalinhamento de formulário */
+  --ui-control-height-xs: 1.75rem;
+  --ui-control-height-sm: 2.25rem;
+  --ui-control-height-md: 2.5rem;
+  --ui-control-height-lg: 2.75rem;
+  --ui-control-padding-x: 1rem;
+  /* proporção do padding-inline por tamanho de botão (xs=0.5x, sm=0.75x, lg=2x; md=1x é o
+     próprio --ui-control-padding-x, sem multiplicador) */
+  --ui-button-padding-scale-xs: 0.5;
+  --ui-button-padding-scale-sm: 0.75;
+  --ui-button-padding-scale-lg: 2;
+  --ui-button-gap: 0.5rem;
+
+  /* painéis */
+  --ui-panel-padding-x: 1.5rem;
+  --ui-panel-padding-y: 1.5rem;
+
+  /* base shadcn */
+  --background: oklch(1.0 0.03 219.49);
+  --foreground: oklch(0.1879 0.030 219.49);
+  --card: oklch(0.761 0.1008 204.27);
+  --card-foreground: oklch(0.4879 0.0885 219.49);
+  --popover: oklch(0.9879 0.0685 219.49);
+  --popover-foreground: ooklch(0.4879 0.0885 219.49);
+  --primary: oklch(0.4879 0.0885 219.49);
+  --primary-foreground: oklch(1.0 0.03 219.49);
+  --secondary: oklch(0.761 0.1008 204.27);
+  --secondary-foreground: oklch(0.1879 0.030 219.49);
+  --muted: oklch(1.0 0.03 219.49);
+  --muted-foreground: oklch(0.3 0.060 219.49);
+  --accent: oklch(0.4879 0.0885 219.49);
+  --accent-foreground: oklch(0.4879 0.0885 219.49);
+  --destructive: oklch(0.64 0.226 26);
+  --destructive-foreground: oklch(1.0 0.03 219.49);
+  --border: oklch(0.85 0.035 219.49);
+  --input: oklch(0.4879 0.0885 219.49);
+  --ring: oklch(0.4879 0.0885 219.49);
+
+  /* shadow — cor base + variantes soft via color-mix, mesma cadeia do repositório de referência */
+  --shadow-color: oklch(0.4879 0.0885 219.49);
+  --shadow-color-strong: oklch(0.4879 0.0885 219.49);
+  --shadow-color-soft: color-mix(in oklch, var(--shadow-color) 38%, transparent);
+  --shadow-color-strong-soft: color-mix(in oklch, var(--shadow-color-strong) 32%, transparent);
+  --shadow-panel: 0 24px 80px -48px var(--shadow-color-soft);
+  --shadow-float: 0 18px 44px -28px var(--shadow-color-strong-soft);
+  --shadow-header: 0 12px 30px -24px var(--shadow-color-strong-soft);
+
+  /* sidebar — largura das duas colunas de grid (expandida/colapsada). Valores idênticos aos do
+     protótipo de referência (docs/ui/shell-spec.md §3.1: 280px/88px) — pedido explícito de paridade
+     visual exata nesta sessão, não estimativa nossa. Mesmo valor em light/dark (não é token de
+     cor), por isso declarado só uma vez no bloco base. */
+  --sidebar-width-expanded: 17.5rem;
+  --sidebar-width-collapsed: 5.5rem;
+
+  --sidebar-bg-start:var(--background);
+  --sidebar-bg-end: var(--primary);
+  --sidebar-bg: linear-gradient(180deg, var(--sidebar-bg-start) 0%, var(--sidebar-bg-end) 400%);
+  --sidebar-bg-admin-start: var(--background);
+  --sidebar-bg-admin-end: var(--primary);
+  --sidebar-bg-admin: linear-gradient(120deg, var(--sidebar-bg-admin-start) 0%, var(--sidebar-bg-admin-end) 400%);
+
+  /* status semântico — texto/banner de aviso. */
+  --warning: oklch(0.4879 0.0885 219.49);
+  --warning-foreground: oklch(0.4879 0.0885 219.49);
+  --warning-soft: color-mix(in oklch, var(--warning) 12%, var(--card));
+  --warning-border: color-mix(in oklch, var(--warning) 30%, var(--border));
+
+  /* status semântico — sucesso. Hue (155) deliberadamente distinto de --primary (152, quase a
+     mesma família de verde do brand) via mais chroma/menos lightness, pra não se confundir com
+     elementos de marca comuns (botão primário etc.) num app já verde. */
+  --success: oklch(0.4879 0.0885 219.49);
+  --success-foreground: oklch(0.4879 0.0885 219.49);
+  --success-soft: color-mix(in oklch, var(--success) 12%, var(--card));
+  --success-border: color-mix(in oklch, var(--success) 30%, var(--border));
+
+  /* charts — reaproveita o vocabulário shadcn já declarado acima, não introduz cor nova; usado
+     pelo componente shadcn "chart" (Recharts) via var(--chart-N) no ChartConfig de cada bloco. */
+  --chart-1: var(--primary);
+  --chart-2: var(--accent);
+  --chart-3: var(--muted-foreground);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
+
+  /* identidade — gradiente de fundo do app e família de tokens do header. Só o que é IDENTIDADE
+     deste tema mora aqui à parte do vocabulário shadcn acima; o vocabulário shadcn também só
+     existe neste arquivo (é o único tema instalado), mas continua nomeado de forma genérica —
+     um segundo tema instalado redeclarararia essas mesmas variáveis sob seu próprio
+     [data-theme="..."], nunca por cima de "venore-slime". */
+  --app-bg-start: var(--background);
+  --app-bg-end: var(--primary);
+  --app-background: 
+    linear-gradient(180deg, var(--app-bg-start) 0%, var(--app-bg-end) 400%);
+
+  --header-bg: oklch(0.4879 0.0885 219.49);
+  --header-chip-bg: color-mix(in oklch, var(--header-bg) 74%, var(--card));
+  --header-avatar-bg: color-mix(in oklch, var(--accent) 18%, var(--header-bg));
+  --header-avatar-fg: var(--foreground);
+  --header-border-subtle: color-mix(in oklch, var(--header-bg) 28%, var(--border));
+  --header-border-strong: color-mix(in oklch, var(--accent) 36%, var(--ring));
+}
+
+[data-theme="menonita-classic"].dark {
+  --background: oklch(0.145 0.016 162);
+  --foreground: oklch(0.95 0.017 146);
+  --card: oklch(0.182 0.015 171);
+  --card-foreground: oklch(0.95 0.017 146);
+  --popover: oklch(0.182 0.015 171);
+  --popover-foreground: oklch(0.95 0.017 146);
+  --primary: oklch(0.84 0.205 150);
+  --primary-foreground: oklch(0.17 0.018 158);
+  --secondary: oklch(0.214 0.018 166);
+  --secondary-foreground: oklch(0.95 0.017 146);
+  --muted: oklch(0.214 0.018 166);
+  --muted-foreground: oklch(0.82 0.03 154);
+  --accent: oklch(0.94 0.214 131);
+  --accent-foreground: oklch(0.17 0.018 158);
+  --destructive: oklch(0.64 0.226 26);
+  --destructive-foreground: oklch(0.98 0.01 25);
+  --border: oklch(0.318 0.029 161);
+  --input: oklch(0.318 0.029 161);
+  --ring: oklch(0.458 0.056 156);
+
+  --shadow-color: oklch(0.082 0.004 170);
+  --shadow-color-strong: oklch(0.042 0.003 170);
+  --shadow-color-soft: color-mix(in oklch, var(--shadow-color) 38%, transparent);
+  --shadow-color-strong-soft: color-mix(in oklch, var(--shadow-color-strong) 32%, transparent);
+  --shadow-panel: 0 24px 80px -48px var(--shadow-color-soft);
+  --shadow-float: 0 18px 44px -28px var(--shadow-color-strong-soft);
+  --shadow-header: 0 12px 30px -24px var(--shadow-color-strong-soft);
+
+  --sidebar-bg-start: oklch(0.16 0.014 168);
+  --sidebar-bg-end: oklch(0.131 0.018 162);
+  --sidebar-bg: linear-gradient(180deg, var(--sidebar-bg-start) 0%, var(--sidebar-bg-end) 100%);
+  --sidebar-bg-admin-start: oklch(0.197 0.013 170);
+  --sidebar-bg-admin-end: oklch(0.17 0.016 160);
+  --sidebar-bg-admin: linear-gradient(180deg, var(--sidebar-bg-admin-start) 0%, var(--sidebar-bg-admin-end) 100%);
+
+  --warning: oklch(0.78 0.16 65);
+  --warning-foreground: oklch(0.17 0.02 65);
+  --warning-soft: color-mix(in oklch, var(--warning) 16%, var(--card));
+  --warning-border: color-mix(in oklch, var(--warning) 34%, var(--border));
+
+  --success: oklch(0.72 0.18 155);
+  --success-foreground: oklch(0.17 0.02 155);
+  --success-soft: color-mix(in oklch, var(--success) 16%, var(--card));
+  --success-border: color-mix(in oklch, var(--success) 34%, var(--border));
+
+  --chart-1: var(--primary);
+  --chart-2: var(--accent);
+  --chart-3: var(--muted-foreground);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
+
+  --app-bg-start: oklch(0.136 0.018 170);
+  --app-bg-mid: oklch(0.136 0.018 170);
+  --app-bg-end: oklch(0.124 0.023 164);
+  --app-background: radial-gradient(
+      140% 88% at 12% 8%,
+      color-mix(in oklch, var(--accent) 16%, transparent) 0%,
+      transparent 52%
+    ),
+    radial-gradient(
+      120% 92% at 82% 18%,
+      color-mix(in oklch, var(--primary) 12%, var(--popover)) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      130% 110% at 50% 100%,
+      color-mix(in oklch, var(--popover) 68%, var(--app-bg-end)) 0%,
+      transparent 62%
+    ),
+    linear-gradient(180deg, var(--app-bg-start) 0%, var(--app-bg-mid) 46%, var(--app-bg-end) 100%);
+
+  --header-bg: oklch(0.136 0.018 170);
+  --header-chip-bg: color-mix(in oklch, var(--header-bg) 74%, var(--card));
+  --header-avatar-bg: color-mix(in oklch, var(--accent) 18%, var(--header-bg));
+  --header-avatar-fg: var(--foreground);
+  --header-border-subtle: color-mix(in oklch, var(--header-bg) 28%, var(--border));
+  --header-border-strong: color-mix(in oklch, var(--accent) 36%, var(--ring));
+}

@@ -6,6 +6,7 @@ import * as venoreNightcity from "./venore-nightcity";
 import * as venoreKazordoon from "./venore-kazordoon";
 import * as venorePulse from "./venore-pulse";
 import * as venoreFrost from "./venore-frost";
+import * as menonitaClassic from "./menonita-classic";
 
 export type ThemeShellComponent = ComponentType<ThemeShellProps>;
 
@@ -41,4 +42,8 @@ export const THEME_REGISTRY: Record<string, ThemeRegistryEntry> = {
     manifest: venoreFrost.venoreFrostManifest,
     Shell: venoreFrost.Shell,
   },
+  "menonita-classic": {
+    manifest: menonitaClassic.menonitaClassicManifest,
+    Shell: menonitaClassic.Shell,
+  }
 };
