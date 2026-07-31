@@ -189,6 +189,14 @@ const SECTION_BACKGROUND_CLASSES: Record<string, string> = {
   none: "",
   panel: "bg-card",
   muted: "bg-muted",
+  secondary: "bg-secondary",
+  // primary/accent nunca sólidos (regra já documentada em AGENTS.md pra accent-soft) — opacidade
+  // fixa em vez da variante -soft de warning/success porque não existe --primary-soft/--accent-soft
+  // declarado no tema (só warning/success têm essa variante hoje).
+  primary: "bg-primary/10",
+  accent: "bg-accent/14",
+  warning: "bg-warning-soft",
+  success: "bg-success-soft",
 };
 
 const SECTION_MAX_WIDTH_CLASSES: Record<string, string> = {
@@ -200,9 +208,22 @@ const SECTION_MAX_WIDTH_CLASSES: Record<string, string> = {
 
 const SECTION_PADDING_Y_CLASSES: Record<string, string> = {
   none: "",
+  xs: "py-2 sm:py-3",
   sm: "py-4 sm:py-6",
   md: "py-8 sm:py-12",
   lg: "py-12 sm:py-20",
+  xl: "py-16 sm:py-28",
+};
+
+// px-6 é o mesmo padding horizontal usado em ContentSlot/Breadcrumbs de todos os temas — aqui só
+// configurável por seção, com a mesma escala de passos de SECTION_PADDING_Y_CLASSES.
+const SECTION_PADDING_X_CLASSES: Record<string, string> = {
+  none: "",
+  xs: "px-3 sm:px-4",
+  sm: "px-4 sm:px-6",
+  md: "px-6 sm:px-8",
+  lg: "px-8 sm:px-12",
+  xl: "px-10 sm:px-16",
 };
 
 const CARD_GRID_COLUMN_CLASSES: Record<number, string> = {
@@ -364,11 +385,36 @@ function QuoteBlock({ block }: BlockRendererProps) {
 // grid nativo do Alert stock (has-[>svg]:grid-cols-[auto_1fr]) posiciona o ícone ao lado de
 // título E descrição juntos, sem noção de mobile — aqui o pedido é ícone só ao lado do título
 // (desktop) / acima do título (mobile), então a responsividade mora neste wrapper, não no Alert.
-const ALERT_TITLE_ALIGN_CLASSES: Record<string, string> = {
+// Compartilhado por qualquer bloco que precise de "ícone + título", responsivo (ícone ao lado do
+// título no desktop, acima no mobile) — Alert e Section usam o mesmo padrão, então mora aqui em
+// vez de duplicado nos dois renderers.
+const ICON_TITLE_ALIGN_CLASSES: Record<string, string> = {
   start: "items-start text-left sm:items-center sm:justify-start",
   center: "items-center text-center sm:items-center sm:justify-center",
   end: "items-end text-right sm:items-center sm:justify-end",
 };
+
+function IconTitleRow({
+  icon: Icon,
+  align,
+  iconClassName,
+  className,
+  children,
+}: {
+  icon: LucideIcon | null;
+  align: string;
+  iconClassName?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const alignClass = ICON_TITLE_ALIGN_CLASSES[align] ?? ICON_TITLE_ALIGN_CLASSES.start;
+  return (
+    <div className={cn("flex flex-col gap-2 sm:flex-row", alignClass, className)}>
+      {Icon && <Icon className={cn("size-4 shrink-0", iconClassName)} strokeWidth={1.75} />}
+      {children}
+    </div>
+  );
+}
 
 function AlertBlockRenderer({ block }: BlockRendererProps) {
   const title = readString(block.data, "title");
@@ -377,14 +423,13 @@ function AlertBlockRenderer({ block }: BlockRendererProps) {
   const tone = ALERT_VARIANTS.has(requestedVariant) ? requestedVariant : "default";
   const iconName = readString(block.data, "icon");
   const IconComponent = iconName ? ICON_COMPONENTS[iconName] : null;
-  const titleAlign = ALERT_TITLE_ALIGN_CLASSES[readString(block.data, "titleAlign", "start")] ?? ALERT_TITLE_ALIGN_CLASSES.start;
+  const titleAlign = readString(block.data, "titleAlign", "start");
 
   return (
     <Alert variant={toNativeAlertVariant(tone)} className={ALERT_TONE_CLASSNAMES[tone]}>
-      <div className={cn("flex flex-col gap-2 sm:flex-row", titleAlign)}>
-        {IconComponent && <IconComponent className="size-4 shrink-0" strokeWidth={1.75} />}
+      <IconTitleRow icon={IconComponent} align={titleAlign}>
         <AlertTitle>{title}</AlertTitle>
-      </div>
+      </IconTitleRow>
       {hasRichTextContent(description) && (
         <AlertDescription className={RICH_TEXT_INLINE_CLASSES}>{renderRichTextContent(description)}</AlertDescription>
       )}
@@ -514,12 +559,24 @@ async function SectionBlock({ block, renderBlocks }: BlockRendererProps) {
   const background = SECTION_BACKGROUND_CLASSES[readString(block.data, "background", "none")] ?? "";
   const maxWidth = SECTION_MAX_WIDTH_CLASSES[readString(block.data, "maxWidth", "full")] ?? SECTION_MAX_WIDTH_CLASSES.full;
   const paddingY = SECTION_PADDING_Y_CLASSES[readString(block.data, "paddingY", "md")] ?? SECTION_PADDING_Y_CLASSES.md;
+  const paddingX = SECTION_PADDING_X_CLASSES[readString(block.data, "paddingX", "md")] ?? SECTION_PADDING_X_CLASSES.md;
+  const title = readString(block.data, "title");
+  const iconName = readString(block.data, "icon");
+  const IconComponent = iconName ? ICON_COMPONENTS[iconName] : null;
+  const titleAlign = readString(block.data, "titleAlign", "start");
   const area = readArea(block, "content");
   const content = area ? await renderBlocks(area.blocks) : null;
 
   return (
-    <section className={cn(background, paddingY)}>
-      <div className={cn("mx-auto w-full space-y-4", maxWidth)}>{content}</div>
+    <section className={cn(background, paddingY, paddingX)}>
+      <div className={cn("mx-auto w-full space-y-4", maxWidth)}>
+        {(title || IconComponent) && (
+          <IconTitleRow icon={IconComponent} align={titleAlign} iconClassName="size-6 text-foreground">
+            {title && <h2 className="text-2xl font-semibold text-foreground">{title}</h2>}
+          </IconTitleRow>
+        )}
+        {content}
+      </div>
     </section>
   );
 }

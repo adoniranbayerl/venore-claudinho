@@ -1,4 +1,5 @@
 import type { AreaDefinition, BlockDefinition } from "@/contexts/cms";
+import { ICON_NAMES } from "./icon";
 
 export const SECTION_BLOCK_KEY = "core.layout.section";
 
@@ -17,9 +18,41 @@ export function createSectionBlockDefinition(nestableBlockKeys: string[]): Block
     category: "estrutura",
     structure: "areas",
     allowedInRoot: true,
-    defaultData: { background: "none", maxWidth: "full", paddingY: "md" },
+    defaultData: {
+      background: "none",
+      maxWidth: "full",
+      paddingY: "md",
+      paddingX: "md",
+      title: "",
+      icon: "",
+      titleAlign: "start",
+    },
     editorFields: [
+      { name: "title", type: "text", label: "Título (opcional)" },
       {
+        // Mesma allowlist do bloco Ícone (blocks/icon.ts) — reaproveitada, não duplicada.
+        name: "icon",
+        type: "select",
+        label: "Ícone (opcional)",
+        options: [{ value: "", label: "Nenhum" }, ...ICON_NAMES.map((name) => ({ value: name, label: name }))],
+      },
+      {
+        // No desktop o ícone fica ao lado do título (linha); no mobile fica acima (coluna) —
+        // mesmo padrão do bloco Aviso (IconTitleRow em block-renderers.tsx).
+        name: "titleAlign",
+        type: "select",
+        label: "Alinhamento do título e ícone",
+        options: [
+          { value: "start", label: "Esquerda" },
+          { value: "center", label: "Centro" },
+          { value: "end", label: "Direita" },
+        ],
+      },
+      {
+        // panel/muted/secondary são cores "seguras" pra fundo cheio (baixo contraste, não brigam
+        // com o texto dos blocos filhos, que não sabem que estão sobre um fundo colorido).
+        // primary/accent/warning/success usam a variante -soft/opacidade fixa de cada token (nunca
+        // sólido) — mesma regra de accent-soft já documentada em AGENTS.md (nunca bg-accent puro).
         name: "background",
         type: "select",
         label: "Fundo",
@@ -27,6 +60,11 @@ export function createSectionBlockDefinition(nestableBlockKeys: string[]): Block
           { value: "none", label: "Nenhum" },
           { value: "panel", label: "Painel" },
           { value: "muted", label: "Suave" },
+          { value: "secondary", label: "Secundário" },
+          { value: "primary", label: "Destaque (marca)" },
+          { value: "accent", label: "Destaque (acento)" },
+          { value: "warning", label: "Aviso" },
+          { value: "success", label: "Sucesso" },
         ],
       },
       {
@@ -46,9 +84,27 @@ export function createSectionBlockDefinition(nestableBlockKeys: string[]): Block
         label: "Espaçamento vertical",
         options: [
           { value: "none", label: "Nenhum" },
+          { value: "xs", label: "Extra pequeno" },
           { value: "sm", label: "Pequeno" },
           { value: "md", label: "Médio" },
           { value: "lg", label: "Grande" },
+          { value: "xl", label: "Extra grande" },
+        ],
+      },
+      {
+        // Faltava — Section com fundo (background acima) e maxWidth "Total" encostava o conteúdo
+        // na borda da tela sem isso. Mesmo padrão de px-6 usado em ContentSlot/Breadcrumbs de
+        // todos os temas, só que configurável por seção.
+        name: "paddingX",
+        type: "select",
+        label: "Espaçamento horizontal",
+        options: [
+          { value: "none", label: "Nenhum" },
+          { value: "xs", label: "Extra pequeno" },
+          { value: "sm", label: "Pequeno" },
+          { value: "md", label: "Médio" },
+          { value: "lg", label: "Grande" },
+          { value: "xl", label: "Extra grande" },
         ],
       },
     ],

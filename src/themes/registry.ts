@@ -5,6 +5,7 @@ import * as venoreBasic from "./venore-basic";
 import * as venoreNightcity from "./venore-nightcity";
 import * as venoreKazordoon from "./venore-kazordoon";
 import * as venorePulse from "./venore-pulse";
+import * as venoreFrost from "./venore-frost";
 
 export type ThemeShellComponent = ComponentType<ThemeShellProps>;
 
@@ -35,5 +36,9 @@ export const THEME_REGISTRY: Record<string, ThemeRegistryEntry> = {
   "venore-pulse": {
     manifest: venorePulse.venorePulseManifest,
     Shell: venorePulse.Shell,
+  },
+  "venore-frost": {
+    manifest: venoreFrost.venoreFrostManifest,
+    Shell: venoreFrost.Shell,
   },
 };
