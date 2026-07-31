@@ -1,8 +1,10 @@
 "use client";
 
 import type { Block, BlockDefinition, EditorField } from "@/contexts/cms";
+import type { JSONContent } from "@tiptap/core";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ImageField } from "./image-field";
+import { MediaField } from "./media-field";
+import { RichTextField } from "./rich-text-field";
 
 // Nada hardcoded por bloco: os campos vêm de definition.editorFields (pedido da sessão). Cada
 // EditorFieldType vira um controle; blocos novos (plugins) ganham painel de edição de graça,
@@ -24,6 +26,11 @@ function readBoolean(data: Block["data"], name: string): boolean {
 function readNullableString(data: Block["data"], name: string): string | null {
   const value = data[name];
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function readJSONContent(data: Block["data"], name: string): JSONContent | null {
+  const value = data[name];
+  return value && typeof value === "object" ? (value as JSONContent) : null;
 }
 
 // Alguns defaultData guardam número (ex: row.columns: 2) mesmo com editorField "select" (cujas
@@ -96,17 +103,24 @@ function FieldControl({
         </div>
       );
     case "textarea":
-    case "richtext":
       return (
         <div>
           {label}
           <textarea
-            rows={field.type === "richtext" ? 8 : 4}
+            rows={4}
             value={readString(block.data, field.name)}
             onChange={(event) => onChange(field.name, event.target.value)}
             className="mt-1 w-full rounded-md border border-border px-2 py-1 text-sm"
           />
         </div>
+      );
+    case "richtext":
+      return (
+        <RichTextField
+          label={field.label}
+          value={readJSONContent(block.data, field.name)}
+          onChange={(content) => onChange(field.name, content)}
+        />
       );
     case "number":
       return (
@@ -154,10 +168,20 @@ function FieldControl({
       );
     case "image":
       return (
-        <ImageField
+        <MediaField
           label={field.label}
           value={readNullableString(block.data, field.name)}
           onChange={(mediaId) => onChange(field.name, mediaId)}
+          accept="image/"
+        />
+      );
+    case "audio":
+      return (
+        <MediaField
+          label={field.label}
+          value={readNullableString(block.data, field.name)}
+          onChange={(mediaId) => onChange(field.name, mediaId)}
+          accept="audio/"
         />
       );
     default:

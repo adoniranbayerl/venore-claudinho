@@ -13,6 +13,8 @@
 @import "../themes/venore-slime/theme.css";
 @import "../themes/venore-basic/theme.css";
 @import "../themes/venore-nightcity/theme.css";
+@import "../themes/venore-kazordoon/theme.css";
+@import "../themes/venore-pulse/theme.css";
 
 /* tw-animate-css: os primitivos stock (dialog, select) usam animate-in/fade-in-0/zoom-in-95/
    slide-in-from-* — sem esse import essas classes não geram CSS nenhum (ficam inertes) e os
@@ -21,6 +23,24 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+
+/* Os primitivos stock do shadcn (accordion.tsx, tabs.tsx, switch.tsx, etc.) usam classes
+   "data-horizontal:", "data-active:", "data-open:" etc. assumindo que essas viram seletores tipo
+   &[data-orientation="horizontal"]/&[data-state="active"] — mas o Radix (biblioteca por trás
+   desses primitivos) sempre emite o estado como valor de atributo (data-orientation="horizontal",
+   data-state="active"/"open"/"checked"), nunca como atributo booleano solto (data-horizontal,
+   data-active). Sem esses @custom-variant, as classes acima geram CSS pra um seletor que nunca
+   bate em runtime (confirmado inspecionando o CSS compilado) — orientação de Tabs, estado ativo
+   de aba, abrir/fechar de Accordion e afins ficam sem efeito. Registrar aqui é a correção — não
+   editar os arquivos em components/ui/** (AGENTS.md §3). */
+@custom-variant data-horizontal (&[data-orientation="horizontal"]);
+@custom-variant data-vertical (&[data-orientation="vertical"]);
+@custom-variant data-active (&[data-state="active"]);
+@custom-variant data-inactive (&[data-state="inactive"]);
+@custom-variant data-open (&[data-state="open"]);
+@custom-variant data-closed (&[data-state="closed"]);
+@custom-variant data-checked (&[data-state="checked"]);
+@custom-variant data-unchecked (&[data-state="unchecked"]);
 
 /* Nenhum valor de design (cor, raio, sombra, espaçamento, tipografia, peso, duração, curva de
    easing, proporção de escala) pode ser declarado neste arquivo — AGENTS.md seção 3. Este
@@ -58,6 +78,11 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-warning-soft: var(--warning-soft);
   --color-warning-border: var(--warning-border);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-success-border: var(--success-border);
 
   --radius-sm: calc(var(--radius) * var(--ui-radius-scale-sm));
   --radius-md: calc(var(--radius) * var(--ui-radius-scale-md));
@@ -218,6 +243,49 @@ body {
   [data-slot="tabs-trigger"] {
     transition-duration: var(--ui-motion-base);
     transition-timing-function: var(--ui-ease-standard);
+  }
+}
+
+/* switch-thumb do stock só troca de cor por estado (checked vs unchecked) dentro de `dark:` —
+   em light mode ele fica sempre bg-background, então quando --background e --input (a cor da
+   trilha desligada) são próximos em luminosidade (caso de temas claros/neutros), a bolinha some
+   dentro da trilha. Aqui a mesma distinção checked/unchecked que o stock já faz certo em dark
+   mode passa a valer sempre, com as variáveis semânticas que o componente já usa (foreground/
+   primary-foreground) — não é um valor de design novo, só estende a regra pros dois modos. */
+@layer utilities {
+  [data-slot="switch-thumb"] {
+    background-color: var(--foreground);
+  }
+
+  [data-slot="switch-thumb"][data-state="checked"] {
+    background-color: var(--primary-foreground);
+  }
+}
+
+/* Duas classes de tabs.tsx continuam sem efeito mesmo com os @custom-variant acima — "horizontal"
+   e "active" bare (sem prefixo group-/peer-) não resolvem contra o custom-variant registrado
+   (confirmado comparando o CSS compilado: as formas group-data-horizontal/tabs:* e
+   group-data-[variant=...]/tabs-list:data-active:* resolvem certinho pra
+   [data-orientation="horizontal"]/[data-state="active"], mas data-horizontal:flex-col e
+   data-active:bg-background/text-foreground soltos não geram regra nenhuma — parece uma
+   particularidade do motor de variantes do Tailwind 4 pra nomes que colidem com outra coisa,
+   não algo que valha a pena investigar mais a fundo). Restaura só o que ficou de fora: Tabs vira
+   coluna (lista em cima, conteúdo embaixo) e a aba ativa ganha o mesmo destaque de fundo/texto
+   que o stock já pretendia. */
+@layer utilities {
+  [data-slot="tabs"][data-orientation="horizontal"] {
+    flex-direction: column;
+  }
+
+  [data-slot="tabs-trigger"][data-state="active"] {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  .dark [data-slot="tabs-trigger"][data-state="active"] {
+    border-color: var(--input);
+    background-color: var(--input);
+    color: var(--foreground);
   }
 }
 

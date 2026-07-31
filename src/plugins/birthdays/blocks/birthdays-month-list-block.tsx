@@ -2,6 +2,8 @@ import { Cake } from "lucide-react";
 import { listPublicBirthdaysHandler as listPublicBirthdays } from "../features/list-public-birthdays/handler";
 import { MONTH_LABELS } from "../shared/months";
 import type { BlockRendererProps } from "@/platform/page-builder/block-renderers";
+import { hasRichTextContent, renderRichTextContent, RICH_TEXT_INLINE_CLASSES } from "@/platform/page-builder/rich-text/render";
+import { cn } from "@/lib/utils";
 
 function readString(data: Record<string, unknown>, key: string, fallback: string): string {
   const value = data[key];
@@ -15,8 +17,10 @@ function readLimit(data: Record<string, unknown>, fallback: number): number {
 
 export async function BirthdaysMonthListBlock({ block }: BlockRendererProps) {
   const title = readString(block.data, "title", "Aniversariantes do mês");
-  const description = readString(block.data, "description", "");
-  const emptyMessage = readString(block.data, "emptyMessage", "Não há aniversariantes cadastrados para este mês.");
+  const description = block.data.description;
+  const emptyMessage = hasRichTextContent(block.data.emptyMessage)
+    ? block.data.emptyMessage
+    : "Não há aniversariantes cadastrados para este mês.";
   const limit = readLimit(block.data, 12);
 
   const result = await listPublicBirthdays();
@@ -30,9 +34,18 @@ export async function BirthdaysMonthListBlock({ block }: BlockRendererProps) {
   const currentMonth = now.getMonth() + 1;
   const today = now.getDate();
 
+  // "Próximo primeiro": hoje e quem ainda vai fazer aniversário este mês aparecem antes de quem já
+  // fez — achado da revisão de blocos desta sessão (antes só ordenava por dia, misturando quem já
+  // passou com quem ainda vem). MAX_DAYS_IN_MONTH (31) como deslocamento garante que o grupo "já
+  // passou" sempre vem depois do grupo "ainda vem", mantendo ordem crescente dentro de cada grupo.
+  const MAX_DAYS_IN_MONTH = 31;
+  function rank(day: number): number {
+    return day >= today ? day - today : day - today + MAX_DAYS_IN_MONTH;
+  }
+
   const monthBirthdays = result.data
     .filter((birthday) => birthday.month === currentMonth)
-    .sort((a, b) => a.day - b.day)
+    .sort((a, b) => rank(a.day) - rank(b.day))
     .slice(0, limit);
 
   return (
@@ -40,7 +53,9 @@ export async function BirthdaysMonthListBlock({ block }: BlockRendererProps) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold text-foreground">{title}</h3>
-          {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+          {hasRichTextContent(description) && (
+            <div className={cn("mt-1 text-sm text-muted-foreground", RICH_TEXT_INLINE_CLASSES)}>{renderRichTextContent(description)}</div>
+          )}
         </div>
         <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
           {MONTH_LABELS[currentMonth]}
@@ -48,7 +63,7 @@ export async function BirthdaysMonthListBlock({ block }: BlockRendererProps) {
       </div>
 
       {monthBirthdays.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">{emptyMessage}</p>
+        <div className={cn("mt-4 text-sm text-muted-foreground", RICH_TEXT_INLINE_CLASSES)}>{renderRichTextContent(emptyMessage)}</div>
       ) : (
         <ul className="mt-4 space-y-2">
           {monthBirthdays.map((birthday) => {

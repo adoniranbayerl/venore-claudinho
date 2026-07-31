@@ -1,26 +1,32 @@
-import { Globe2, ShieldCheck, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import type { NavGroup, SidebarLeftSlotProps } from "@/contexts/themes";
 import { cn } from "@/lib/utils";
 import { MobileNavDrawer } from "../../venore-slime/components/MobileNavDrawer";
 import { SidebarNavLink } from "../../venore-slime/components/SidebarNavLink";
 import { closeMobileNav } from "../../venore-slime/components/mobile-nav-store";
-import { flattenNavItems, ICON_BUTTON_BASE, RAIL_LABEL_CLASSES, RailNavLink } from "./RailNavLink";
+import { AdminNavSwitch } from "./AdminNavSwitch";
+import { RailNavLink } from "./RailNavLink";
 
-// Estrutura deliberadamente diferente da SidebarLeftSlot do Venore Slime (docs pedido desta
-// sessão): lá é uma coluna com texto que colapsa/expande sob demanda (`collapsed`/
-// `onToggleCollapsed`, persistido em cookie). Aqui é um rail de ícones fixo — nunca expande, nunca
-// colapsa — a largura nunca muda, então este componente simplesmente não usa `collapsed`/
-// `onToggleCollapsed` do contrato (o contrato permite: nenhuma prop é obrigatória de *usar*, só de
-// aceitar, mesmo precedente já registrado em venore-basic/components/Shell.tsx). Abaixo de `lg`
-// reaproveita a mecânica headless do drawer off-canvas do Slime (MobileNavDrawer +
-// mobile-nav-store: focus-trap, Escape, scroll-lock) — comportamento de acessibilidade genérico,
-// não identidade visual do Slime — só que aqui é uma lista cheia (ícone+texto), não o rail.
+// Estrutura deliberadamente diferente da SidebarLeftSlot do Venore Slime (docs/themes/
+// shell-contract.md): lá é uma coluna com texto que colapsa/expande, aqui é um rail de ícones que
+// também colapsa/expande — mas colapsado aqui significa "só ícone, com flyout no hover", não
+// "esconder tudo". `collapsed`/`onToggleCollapsed` do contrato (persistido em cookie, resolvido
+// no servidor, sem flash pós-hidratação) continuam em uso.
 //
-// Simplificação desta sessão (UX pesada demais na primeira versão): rail não depende mais de
-// hover pra revelar rótulo (RailNavLink já mostra ícone+legenda sempre) e agregadores não abrem
-// mais um segundo nível de flyout — flattenNavItems achata a árvore antes de chegar aqui, então
-// filhos de agregador viram itens de primeiro nível no rail.
-export function SidebarLeftSlot({ enabled, navMode, navItems, navGroups, canToggleAdminNav, onToggleNavMode }: SidebarLeftSlotProps) {
+// Pedido desta sessão: switch site/admin e botão de expandir/colapsar sobem pro topo do rail (não
+// mais depois da lista de nav), e a lista de nav não rola mais (nem overflow-y-auto nem min-h-0 —
+// se a lista for maior que a viewport, ela simplesmente estica o rail, não ganha barra de rolagem
+// própria).
+export function SidebarLeftSlot({
+  enabled,
+  navMode,
+  navItems,
+  navGroups,
+  canToggleAdminNav,
+  onToggleNavMode,
+  collapsed,
+  onToggleCollapsed,
+}: SidebarLeftSlotProps) {
   if (!enabled) return null;
 
   const isAdmin = navMode === "admin";
@@ -29,38 +35,51 @@ export function SidebarLeftSlot({ enabled, navMode, navItems, navGroups, canTogg
     <>
       <aside
         className={cn(
-          "sticky top-0 hidden h-screen w-(--sidebar-width-rail) shrink-0 flex-col items-center border-r py-4 lg:flex",
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-r py-4 ui-motion-emphasis lg:flex",
+          collapsed ? "w-(--sidebar-width-rail-collapsed) items-center" : "w-(--sidebar-width-rail-expanded) items-stretch",
           isAdmin ? "border-ring bg-(image:--sidebar-bg-admin)" : "border-border bg-(image:--sidebar-bg)",
         )}
       >
-        <nav data-nav-mode={navMode} className="flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto py-1">
+        <div className={cn("flex w-full flex-col gap-3 pb-3", collapsed && "items-center")}>
+          <form
+            action={onToggleCollapsed}
+            className={collapsed ? "flex w-full justify-center" : "flex w-full justify-end px-2"}
+          >
+            <button
+              type="submit"
+              aria-expanded={!collapsed}
+              aria-label={collapsed ? "Expandir barra lateral" : "Colapsar barra lateral"}
+              className="flex size-8 items-center justify-center rounded-sm border border-border bg-card text-foreground ui-motion-base outline-none hover:border-ring hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {collapsed ? <ChevronRight className="size-4" aria-hidden="true" /> : <ChevronLeft className="size-4" aria-hidden="true" />}
+            </button>
+          </form>
+
+          {canToggleAdminNav && <AdminNavSwitch isAdmin={isAdmin} collapsed={collapsed} onToggleNavMode={onToggleNavMode} />}
+
+          <span aria-hidden="true" className={collapsed ? "h-px w-6 bg-border" : "h-px w-full bg-border"} />
+        </div>
+
+        <nav data-nav-mode={navMode} className={cn("flex w-full flex-1 flex-col gap-1", collapsed ? "items-center" : "items-stretch")}>
           {isAdmin
             ? navGroups.map((group, index) => (
-                <div key={group.key} className="flex w-full flex-col items-center gap-1">
-                  {index > 0 && <span aria-hidden="true" className="my-1.5 h-px w-6 bg-border" />}
+                <div key={group.key} className={cn("flex w-full flex-col gap-1", collapsed && "items-center")}>
+                  {index > 0 && <span aria-hidden="true" className={collapsed ? "my-1.5 h-px w-6 bg-border" : "my-1.5 h-px w-full bg-border"} />}
                   {group.items.map((item) => (
-                    <RailNavLink key={item.key} item={item} />
+                    <RailNavLink key={item.key} item={item} collapsed={collapsed} />
                   ))}
                 </div>
               ))
-            : flattenNavItems(navItems).map((item) => <RailNavLink key={item.key} item={item} />)}
+            : navItems.map((item) => <RailNavLink key={item.key} item={item} collapsed={collapsed} />)}
 
           {isAdmin && navGroups.length === 0 && <p className="text-[10px] text-muted-foreground/56">—</p>}
           {!isAdmin && navItems.length === 0 && <p className="text-[10px] text-muted-foreground/56">—</p>}
         </nav>
-
-        {canToggleAdminNav && (
-          <form action={onToggleNavMode} className="mt-2 flex w-full flex-col items-center border-t border-border pt-3">
-            <button type="submit" className={cn(ICON_BUTTON_BASE, isAdmin && "text-primary")}>
-              {isAdmin ? <Globe2 className="size-5 shrink-0" aria-hidden="true" /> : <ShieldCheck className="size-5 shrink-0" aria-hidden="true" />}
-              <span className={RAIL_LABEL_CLASSES}>{isAdmin ? "Site" : "Admin"}</span>
-            </button>
-          </form>
-        )}
       </aside>
 
       {/* Off-canvas mobile — o próprio MobileNavDrawer some em `lg:` (ver asideClassName abaixo);
-          o rail acima é quem assume a partir daí. */}
+          o rail acima é quem assume a partir daí. Sempre "expandido" (lista cheia), o estado
+          collapsed é exclusivo do desktop, mesmo critério documentado no Slime. */}
       <MobileNavDrawer asideClassName="flex h-full w-full flex-col gap-4 bg-card px-5 py-6 text-foreground shadow-float lg:hidden">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-caps text-muted-foreground">Navegação</p>
@@ -75,32 +94,9 @@ export function SidebarLeftSlot({ enabled, navMode, navItems, navGroups, canTogg
         </div>
 
         {canToggleAdminNav && (
-          <form action={onToggleNavMode} className="grid grid-cols-2 gap-1 rounded-sm border border-border bg-muted p-1">
-            <button
-              type="submit"
-              disabled={!isAdmin}
-              aria-current={!isAdmin ? true : undefined}
-              className={cn(
-                "flex h-9 items-center justify-center gap-2 rounded-sm text-xs font-semibold uppercase tracking-caps ui-motion-base disabled:cursor-default",
-                !isAdmin ? "bg-card text-foreground shadow-float" : "text-muted-foreground",
-              )}
-            >
-              <Globe2 className="size-4" aria-hidden="true" />
-              Site
-            </button>
-            <button
-              type="submit"
-              disabled={isAdmin}
-              aria-current={isAdmin ? true : undefined}
-              className={cn(
-                "flex h-9 items-center justify-center gap-2 rounded-sm text-xs font-semibold uppercase tracking-caps ui-motion-base disabled:cursor-default",
-                isAdmin ? "bg-card text-foreground shadow-float" : "text-muted-foreground",
-              )}
-            >
-              <ShieldCheck className="size-4" aria-hidden="true" />
-              Admin
-            </button>
-          </form>
+          <div className="rounded-sm border border-border bg-muted py-2">
+            <AdminNavSwitch isAdmin={isAdmin} collapsed={false} onToggleNavMode={onToggleNavMode} />
+          </div>
         )}
 
         <nav data-nav-mode={navMode} className="min-h-0 flex-1 space-y-1 overflow-y-auto">

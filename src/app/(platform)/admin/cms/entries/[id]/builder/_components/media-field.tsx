@@ -6,22 +6,25 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listMediaForPickerAction, type PickableMedia } from "@/components/media-picker-field.actions";
 
-// Variante controlada (value/onChange) de components/media-picker-field.tsx: aquele componente
-// só existe pra formulários com FormData (input hidden por name); aqui o valor mora na árvore de
-// composição em memória, então precisamos do callback em vez de um input escondido.
-export function ImageField({
+// Generalização de ImageField (era só imagem) — prop `accept` filtra por prefixo de mimeType
+// ("image/", "audio/") antes de montar a grade do picker. listMediaForPickerAction não filtra por
+// tipo na origem (devolve toda mídia), então o filtro é sempre client-side aqui.
+export function MediaField({
   label,
   value,
   onChange,
+  accept = "image/",
 }: {
   label: string;
   value: string | null;
   onChange: (mediaId: string | null) => void;
+  accept?: string;
 }) {
   const [selected, setSelected] = useState<PickableMedia | null>(null);
   const [items, setItems] = useState<PickableMedia[]>([]);
   const [isPending, startTransition] = useTransition();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const mediaKindLabel = accept === "audio/" ? "arquivos de áudio" : "imagens";
 
   useEffect(() => {
     if (selected?.id === value) return;
@@ -40,7 +43,7 @@ export function ImageField({
     dialogRef.current?.showModal();
     startTransition(async () => {
       const media = await listMediaForPickerAction();
-      setItems(media);
+      setItems(media.filter((item) => item.mimeType.startsWith(accept)));
     });
   }
 
@@ -126,7 +129,9 @@ export function ImageField({
             <div className="col-span-full flex flex-col items-center gap-2 py-6 text-center">
               <ImageOff className="size-6 text-muted-foreground/56" strokeWidth={1.5} />
               <p className="text-sm text-foreground">Nenhum arquivo enviado ainda</p>
-              <p className="text-xs text-muted-foreground">Envie imagens na página de Mídia para poder selecioná-las aqui.</p>
+              <p className="text-xs text-muted-foreground">
+                Envie {mediaKindLabel} na página de Mídia para poder selecioná-las aqui.
+              </p>
               <Link
                 href="/admin/media"
                 className="rounded-sm text-xs font-medium text-foreground outline-none ui-motion-base hover:underline focus-visible:ring-2 focus-visible:ring-ring"

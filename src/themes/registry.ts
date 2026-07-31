@@ -3,6 +3,8 @@ import type { ThemeManifest, ThemeShellProps } from "@/contexts/themes";
 import * as venoreSlime from "./venore-slime";
 import * as venoreBasic from "./venore-basic";
 import * as venoreNightcity from "./venore-nightcity";
+import * as venoreKazordoon from "./venore-kazordoon";
+import * as venorePulse from "./venore-pulse";
 
 export type ThemeShellComponent = ComponentType<ThemeShellProps>;
 
@@ -25,5 +27,13 @@ export const THEME_REGISTRY: Record<string, ThemeRegistryEntry> = {
   "venore-nightcity": {
     manifest: venoreNightcity.venoreNightcityManifest,
     Shell: venoreNightcity.Shell,
+  },
+  "venore-kazordoon": {
+    manifest: venoreKazordoon.venoreKazordoonManifest,
+    Shell: venoreKazordoon.Shell,
+  },
+  "venore-pulse": {
+    manifest: venorePulse.venorePulseManifest,
+    Shell: venorePulse.Shell,
   },
 };

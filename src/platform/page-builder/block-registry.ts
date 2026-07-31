@@ -7,12 +7,38 @@ import { headingBlockDefinition } from "./blocks/heading";
 import { imageBlockDefinition } from "./blocks/image";
 import { createRowBlockDefinition } from "./blocks/row";
 import { richtextBlockDefinition } from "./blocks/richtext";
+import { spacerBlockDefinition } from "./blocks/spacer";
+import { dividerBlockDefinition } from "./blocks/divider";
+import { iconBlockDefinition } from "./blocks/icon";
+import { badgeBlockDefinition } from "./blocks/badge";
+import { quoteBlockDefinition } from "./blocks/quote";
+import { alertBlockDefinition } from "./blocks/alert";
+import { listBlockDefinition } from "./blocks/list";
+import { progressBlockDefinition } from "./blocks/progress";
+import { cardBlockDefinition } from "./blocks/card";
+import { audioBlockDefinition } from "./blocks/audio";
+import { createSectionBlockDefinition } from "./blocks/section";
+import { accordionBlockDefinition } from "./blocks/accordion";
+import { createAccordionItemBlockDefinition } from "./blocks/accordion-item";
+import { tabsBlockDefinition } from "./blocks/tabs";
+import { createTabsItemBlockDefinition } from "./blocks/tabs-item";
+import { cardGridBlockDefinition } from "./blocks/card-grid";
 
 const CORE_LEAF_BLOCKS: BlockDefinition[] = [
   headingBlockDefinition,
   richtextBlockDefinition,
   imageBlockDefinition,
   buttonBlockDefinition,
+  spacerBlockDefinition,
+  dividerBlockDefinition,
+  iconBlockDefinition,
+  badgeBlockDefinition,
+  quoteBlockDefinition,
+  alertBlockDefinition,
+  listBlockDefinition,
+  progressBlockDefinition,
+  cardBlockDefinition,
+  audioBlockDefinition,
 ];
 
 // contexts/cms não conhece plugin nenhum (regra de boundary da sessão) — este registry mora em
@@ -30,10 +56,42 @@ function collectPluginBlocks(): BlockDefinition[] {
   return PLUGIN_REGISTRY.flatMap((manifest) => PLUGIN_BLOCK_BARRELS[manifest.key]?.blockDefinitions ?? []);
 }
 
-const nestableBlocks: BlockDefinition[] = [...CORE_LEAF_BLOCKS, ...collectPluginBlocks()];
-const rowBlockDefinition = createRowBlockDefinition(nestableBlocks.map((block) => block.key));
+// Ordem de montagem importa: cada fábrica só conhece as keys já resolvidas antes dela.
+// 1) leaf (core + plugin) — sem dependência de nada.
+const leafBlocks: BlockDefinition[] = [...CORE_LEAF_BLOCKS, ...collectPluginBlocks()];
+const leafBlockKeys = leafBlocks.map((block) => block.key);
 
-const ALL_BLOCK_DEFINITIONS: BlockDefinition[] = [rowBlockDefinition, ...nestableBlocks];
+// 2) accordion-item/tabs-item — área de conteúdo aceita só leaf/plugin (sem blocos estruturais
+// aninhados nesta primeira versão, ver comentário em accordion-item.ts).
+const accordionItemBlockDefinition = createAccordionItemBlockDefinition(leafBlockKeys);
+const tabsItemBlockDefinition = createTabsItemBlockDefinition(leafBlockKeys);
+
+// 3) accordion/tabs/card-grid — allowedBlockKeys fixo (só aceitam seu próprio bloco-item), não
+// precisam de fábrica.
+const structuralItemBlocks: BlockDefinition[] = [
+  accordionBlockDefinition,
+  accordionItemBlockDefinition,
+  tabsBlockDefinition,
+  tabsItemBlockDefinition,
+  cardGridBlockDefinition,
+];
+
+// 4) row — "tudo menos row" (mesma regra de sempre), agora incluindo os blocos estruturais do
+// passo 3.
+const rowNestableKeys = [...leafBlockKeys, ...structuralItemBlocks.map((block) => block.key)];
+const rowBlockDefinition = createRowBlockDefinition(rowNestableKeys);
+
+// 5) section — "agrupa várias rows" (motivo de existir): sua área de conteúdo aceita tudo que row
+// aceita, mais o próprio row.
+const sectionNestableKeys = [...rowNestableKeys, rowBlockDefinition.key];
+const sectionBlockDefinition = createSectionBlockDefinition(sectionNestableKeys);
+
+const ALL_BLOCK_DEFINITIONS: BlockDefinition[] = [
+  rowBlockDefinition,
+  sectionBlockDefinition,
+  ...leafBlocks,
+  ...structuralItemBlocks,
+];
 
 const BLOCK_DEFINITIONS_BY_KEY = new Map(ALL_BLOCK_DEFINITIONS.map((block) => [block.key, block]));
 

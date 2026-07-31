@@ -41,7 +41,7 @@ export type MediaAsset = {
   updatedAt: Date;
 };
 
-export type MediaAssetCategory = "image" | "document" | "video";
+export type MediaAssetCategory = "image" | "document" | "video" | "audio";
 
 export type MediaAllowedTypeRule = {
   category: MediaAssetCategory;
@@ -58,6 +58,9 @@ export const MEDIA_ALLOWED_TYPES: Record<string, MediaAllowedTypeRule> = {
   "application/pdf": { category: "document", maxSizeBytes: 20 * 1024 * 1024 },
   "video/mp4": { category: "video", maxSizeBytes: 200 * 1024 * 1024 },
   "video/webm": { category: "video", maxSizeBytes: 200 * 1024 * 1024 },
+  "audio/mpeg": { category: "audio", maxSizeBytes: 20 * 1024 * 1024 },
+  "audio/wav": { category: "audio", maxSizeBytes: 20 * 1024 * 1024 },
+  "audio/ogg": { category: "audio", maxSizeBytes: 20 * 1024 * 1024 },
 };
 
 // Limite próprio do upload de avatar (upload-avatar-media) — bem mais restrito que o teto geral

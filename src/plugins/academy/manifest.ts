@@ -28,5 +28,8 @@ export const academyManifest: PluginManifest = {
     { key: "academy.course.list", label: "Academy — Lista de cursos" },
     { key: "academy.course.card", label: "Academy — Curso" },
     { key: "academy.enroll.cta", label: "Academy — Botão de matrícula" },
+    { key: "academy.course.progress", label: "Academy — Progresso do curso" },
+    { key: "academy.course.lesson-trail", label: "Academy — Trilha de lições" },
+    { key: "academy.course.dashboard-chart", label: "Academy — Gráfico de progresso do curso" },
   ],
 };

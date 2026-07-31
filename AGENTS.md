@@ -297,9 +297,10 @@ continua sendo a lista geral, derivada da leitura do código:
   a lista de ações que chamam `recordAuditEvent` é trabalho incremental, não builtin automático.
 - **Estratégia de teste por camada não documentada** além do que a seção 5/6 deste arquivo já
   descreve — o documento de arquitetura lista isso como não coberto.
-- **Plugin `birthdays` — ativação/desativação, escopo de `settings.manage`, block
-  `birthdays-month-list`, impressão/identidade visual e importação CSV** ficaram fora da sessão
-  que criou o plugin. Detalhado com contexto e dependências em `docs/issues.md`.
+- **Plugin `birthdays` — ativação/desativação, escopo de `settings.manage`, impressão/identidade
+  visual e importação CSV** ficaram fora da sessão que criou o plugin (o block `birthdays-month-
+  list` já foi implementado e revisado — ver `docs/issues.md` G6). Detalhado com contexto e
+  dependências em `docs/issues.md`.
 
 ## Preferências de UI: nav-mode (cookie) vs color-mode (localStorage) — assimetria intencional
 `nav-mode` (`src/platform/nav-mode`) continua em cookie porque o servidor precisa saber qual

@@ -94,12 +94,11 @@
   --shadow-float: 0 14px 34px -22px var(--shadow-color-strong-soft);
   --shadow-header: 0 10px 24px -18px var(--shadow-color-strong-soft);
 
-  /* sidebar — rail de ícones de largura fixa (nunca expande/colapsa, docs pedido desta sessão:
-     Shell estruturalmente diferente do Venore Slime). Um único token de largura, não o par
-     expandido/colapsado do Slime, porque não existe o segundo estado aqui. 5.5rem (não 5rem) —
-     largura ajustada nesta sessão pra caber ícone + legenda sempre visível (simplificação: rail
-     deixou de depender de hover pra revelar o rótulo de cada item). */
-  --sidebar-width-rail: 5.5rem;
+  /* sidebar — rail de ícones com dois estados (docs pedido desta sessão: opção de expandir e
+     mostrar rótulo, como o par --sidebar-width-expanded/collapsed do Slime, mas com nomes
+     próprios porque o significado de "colapsado" aqui é ícone+flyout, não texto escondido). */
+  --sidebar-width-rail-collapsed: 5.5rem;
+  --sidebar-width-rail-expanded: 15rem;
 
   --sidebar-bg-start: oklch(0.92 0.012 262);
   --sidebar-bg-end: oklch(0.87 0.022 268);
@@ -113,6 +112,11 @@
   --warning-foreground: oklch(0.16 0.02 95);
   --warning-soft: color-mix(in oklch, var(--warning) 14%, var(--card));
   --warning-border: color-mix(in oklch, var(--warning) 32%, var(--border));
+
+  --success: oklch(0.58 0.16 150);
+  --success-foreground: oklch(0.98 0.01 150);
+  --success-soft: color-mix(in oklch, var(--success) 12%, var(--card));
+  --success-border: color-mix(in oklch, var(--success) 30%, var(--border));
 
   /* identidade — céu poluído com neon já ligado por cima, discreto contra o céu ainda claro */
   --app-bg-start: oklch(0.95 0.008 255);
@@ -144,26 +148,27 @@
 }
 
 [data-theme="venore-nightcity"].dark {
-  /* base shadcn — noite: quase preto com fundo azul-violeta profundo, ciano e magenta em
-     saturação máxima (a leitura "padrão" de Night City) */
-  --background: oklch(0.12 0.028 278);
+  /* base shadcn — noite: bem mais escura que a primeira versão (pedido desta sessão), quase preto
+     puro em vez de um cinza-azulado médio, pra ciano/magenta neon terem mais contraste pra
+     "estourar" contra o fundo */
+  --background: oklch(0.07 0.02 278);
   --foreground: oklch(0.95 0.018 200);
-  --card: oklch(0.165 0.032 280);
+  --card: oklch(0.1 0.024 280);
   --card-foreground: oklch(0.95 0.018 200);
-  --popover: oklch(0.165 0.032 280);
+  --popover: oklch(0.1 0.024 280);
   --popover-foreground: oklch(0.95 0.018 200);
   --primary: oklch(0.85 0.16 196);
-  --primary-foreground: oklch(0.11 0.03 280);
-  --secondary: oklch(0.235 0.038 280);
+  --primary-foreground: oklch(0.09 0.024 280);
+  --secondary: oklch(0.16 0.032 280);
   --secondary-foreground: oklch(0.95 0.018 200);
-  --muted: oklch(0.235 0.038 280);
-  --muted-foreground: oklch(0.72 0.03 255);
+  --muted: oklch(0.16 0.032 280);
+  --muted-foreground: oklch(0.68 0.03 255);
   --accent: oklch(0.73 0.25 340);
-  --accent-foreground: oklch(0.12 0.03 340);
+  --accent-foreground: oklch(0.09 0.024 340);
   --destructive: oklch(0.63 0.25 25);
   --destructive-foreground: oklch(0.98 0.01 25);
-  --border: oklch(0.32 0.05 280);
-  --input: oklch(0.32 0.05 280);
+  --border: oklch(0.22 0.04 280);
+  --input: oklch(0.22 0.04 280);
   --ring: oklch(0.85 0.16 196);
 
   /* shadow — praticamente tudo é sombra na cidade à noite */
@@ -175,11 +180,11 @@
   --shadow-float: 0 18px 44px -26px var(--shadow-color-strong-soft);
   --shadow-header: 0 12px 30px -22px var(--shadow-color-strong-soft);
 
-  --sidebar-bg-start: oklch(0.145 0.03 278);
-  --sidebar-bg-end: oklch(0.1 0.024 282);
+  --sidebar-bg-start: oklch(0.095 0.026 278);
+  --sidebar-bg-end: oklch(0.06 0.02 282);
   --sidebar-bg: linear-gradient(180deg, var(--sidebar-bg-start) 0%, var(--sidebar-bg-end) 100%);
-  --sidebar-bg-admin-start: oklch(0.16 0.05 330);
-  --sidebar-bg-admin-end: oklch(0.11 0.045 300);
+  --sidebar-bg-admin-start: oklch(0.11 0.045 330);
+  --sidebar-bg-admin-end: oklch(0.07 0.04 300);
   --sidebar-bg-admin: linear-gradient(180deg, var(--sidebar-bg-admin-start) 0%, var(--sidebar-bg-admin-end) 100%);
 
   --warning: oklch(0.84 0.18 97);
@@ -187,19 +192,24 @@
   --warning-soft: color-mix(in oklch, var(--warning) 18%, var(--card));
   --warning-border: color-mix(in oklch, var(--warning) 36%, var(--border));
 
+  --success: oklch(0.75 0.19 150);
+  --success-foreground: oklch(0.15 0.02 150);
+  --success-soft: color-mix(in oklch, var(--success) 16%, var(--card));
+  --success-border: color-mix(in oklch, var(--success) 34%, var(--border));
+
   /* identidade — skyline sob luz neon plena: glow ciano e magenta cortando o azul-violeta quase
-     preto do céu poluído */
-  --app-bg-start: oklch(0.1 0.025 278);
-  --app-bg-mid: oklch(0.115 0.03 280);
-  --app-bg-end: oklch(0.09 0.026 282);
+     preto do céu poluído, ainda mais escuro que a primeira versão (pedido desta sessão) */
+  --app-bg-start: oklch(0.06 0.022 278);
+  --app-bg-mid: oklch(0.068 0.026 280);
+  --app-bg-end: oklch(0.05 0.022 282);
   --app-background: radial-gradient(
       140% 90% at 10% 6%,
-      color-mix(in oklch, var(--accent) 22%, transparent) 0%,
+      color-mix(in oklch, var(--accent) 24%, transparent) 0%,
       transparent 52%
     ),
     radial-gradient(
       125% 95% at 90% 16%,
-      color-mix(in oklch, var(--primary) 20%, transparent) 0%,
+      color-mix(in oklch, var(--primary) 22%, transparent) 0%,
       transparent 58%
     ),
     radial-gradient(
@@ -209,10 +219,27 @@
     ),
     linear-gradient(180deg, var(--app-bg-start) 0%, var(--app-bg-mid) 46%, var(--app-bg-end) 100%);
 
-  --header-bg: oklch(0.1 0.025 278);
+  --header-bg: oklch(0.06 0.022 278);
   --header-chip-bg: color-mix(in oklch, var(--header-bg) 74%, var(--card));
   --header-avatar-bg: color-mix(in oklch, var(--accent) 22%, var(--header-bg));
   --header-avatar-fg: var(--foreground);
   --header-border-subtle: color-mix(in oklch, var(--header-bg) 26%, var(--border));
   --header-border-strong: color-mix(in oklch, var(--primary) 44%, var(--accent));
+}
+
+/* Animação de identidade (pedido desta sessão: "pode acrescentar animações") — glow pulsante na
+   barra de item ativo do rail, único keyframe deste tema. @keyframes é sempre top-level (não
+   aninha em seletor), então fica fora dos blocos [data-theme=...] acima; só é referenciado pela
+   classe utilitária animate-[nightcity-pulse_...] usada em RailNavLink.tsx, então não afeta outro
+   tema mesmo carregado no mesmo bundle. prefers-reduced-motion já é tratado globalmente
+   (src/app/globals.css força animation-duration: 0.01ms !important), não precisa de tratamento
+   próprio aqui. */
+@keyframes nightcity-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
 }

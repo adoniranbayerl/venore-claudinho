@@ -14,8 +14,8 @@ export const birthdaysMonthListBlockDefinition: BlockDefinition = {
   },
   editorFields: [
     { name: "title", type: "text", label: "Título" },
-    { name: "description", type: "textarea", label: "Descrição" },
-    { name: "emptyMessage", type: "textarea", label: "Mensagem quando não há aniversariantes" },
+    { name: "description", type: "richtext", label: "Descrição" },
+    { name: "emptyMessage", type: "richtext", label: "Mensagem quando não há aniversariantes" },
     { name: "limit", type: "number", label: "Quantidade máxima exibida" },
   ],
 };

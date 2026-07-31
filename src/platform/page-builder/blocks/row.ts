@@ -19,7 +19,7 @@ export function createRowBlockDefinition(nestableBlockKeys: string[]): BlockDefi
     structure: "areas",
     // Regra de posição: só row na raiz (pedido da sessão).
     allowedInRoot: true,
-    defaultData: { columns: 2, gap: "md", align: "stretch", surface: "none" },
+    defaultData: { columns: 2, widths: "equal", gap: "md", align: "stretch", surface: "none" },
     editorFields: [
       {
         name: "columns",
@@ -30,6 +30,19 @@ export function createRowBlockDefinition(nestableBlockKeys: string[]): BlockDefi
           { value: "2", label: "2" },
           { value: "3", label: "3" },
           { value: "4", label: "4" },
+        ],
+      },
+      {
+        // Só tem efeito com 2 colunas — ver comentário em row-columns.ts.
+        name: "widths",
+        type: "select",
+        label: "Proporção das colunas (só com 2 colunas)",
+        options: [
+          { value: "equal", label: "Iguais" },
+          { value: "1-3", label: "1/4 + 3/4" },
+          { value: "1-2", label: "1/3 + 2/3" },
+          { value: "2-1", label: "2/3 + 1/3" },
+          { value: "3-1", label: "3/4 + 1/4" },
         ],
       },
       {

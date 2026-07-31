@@ -112,6 +112,22 @@
   --warning-soft: color-mix(in oklch, var(--warning) 12%, var(--card));
   --warning-border: color-mix(in oklch, var(--warning) 30%, var(--border));
 
+  /* status semântico — sucesso. Hue (155) deliberadamente distinto de --primary (152, quase a
+     mesma família de verde do brand) via mais chroma/menos lightness, pra não se confundir com
+     elementos de marca comuns (botão primário etc.) num app já verde. */
+  --success: oklch(0.5 0.16 155);
+  --success-foreground: oklch(0.98 0.01 155);
+  --success-soft: color-mix(in oklch, var(--success) 12%, var(--card));
+  --success-border: color-mix(in oklch, var(--success) 30%, var(--border));
+
+  /* charts — reaproveita o vocabulário shadcn já declarado acima, não introduz cor nova; usado
+     pelo componente shadcn "chart" (Recharts) via var(--chart-N) no ChartConfig de cada bloco. */
+  --chart-1: var(--primary);
+  --chart-2: var(--accent);
+  --chart-3: var(--muted-foreground);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
+
   /* identidade — gradiente de fundo do app e família de tokens do header. Só o que é IDENTIDADE
      deste tema mora aqui à parte do vocabulário shadcn acima; o vocabulário shadcn também só
      existe neste arquivo (é o único tema instalado), mas continua nomeado de forma genérica —
@@ -185,6 +201,17 @@
   --warning-foreground: oklch(0.17 0.02 65);
   --warning-soft: color-mix(in oklch, var(--warning) 16%, var(--card));
   --warning-border: color-mix(in oklch, var(--warning) 34%, var(--border));
+
+  --success: oklch(0.72 0.18 155);
+  --success-foreground: oklch(0.17 0.02 155);
+  --success-soft: color-mix(in oklch, var(--success) 16%, var(--card));
+  --success-border: color-mix(in oklch, var(--success) 34%, var(--border));
+
+  --chart-1: var(--primary);
+  --chart-2: var(--accent);
+  --chart-3: var(--muted-foreground);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
 
   --app-bg-start: oklch(0.136 0.018 170);
   --app-bg-mid: oklch(0.136 0.018 170);

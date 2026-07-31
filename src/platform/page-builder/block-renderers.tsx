@@ -1,16 +1,46 @@
 import "server-only";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import Markdown from "react-markdown";
+import { hasRichTextContent, renderRichTextContent, RICH_TEXT_INLINE_CLASSES } from "./rich-text/render";
+import {
+  Star,
+  Heart,
+  Check,
+  ArrowRight,
+  Info,
+  AlertTriangle,
+  CheckCircle,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Clock,
+  User,
+  Users,
+  Settings,
+  Search,
+  Download,
+  Award,
+  BookOpen,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import type { Block, Composition } from "@/contexts/cms";
 import { getMedia } from "@/contexts/media";
 import { Button, type buttonVariants } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { VariantProps } from "class-variance-authority";
 import { blockRenderers as academyBlockRenderers } from "@/plugins/academy";
 import { blockRenderers as birthdaysBlockRenderers } from "@/plugins/birthdays";
 import { PLUGIN_REGISTRY } from "@/plugins/registry";
-import { ROW_BLOCK_KEY, ROW_COLUMN_GRID_CLASSES, resolveRowColumns } from "./row-columns";
+import { ROW_BLOCK_KEY, resolveRowColumns, resolveRowGridClasses } from "./row-columns";
 
 type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
 
@@ -59,18 +89,141 @@ const HEADING_ALIGN_CLASSES: Record<string, string> = {
   end: "text-end",
 };
 
-const HEADING_SIZE_CLASSES: Record<number, string> = {
-  1: "text-4xl",
-  2: "text-3xl",
-  3: "text-2xl",
-  4: "text-xl",
+const HEADING_SIZE_CLASSES: Record<string, string> = {
+  sm: "text-lg",
+  md: "text-xl",
+  lg: "text-2xl",
+  xl: "text-3xl",
+  "2xl": "text-4xl",
+  "3xl": "text-5xl",
+  "4xl": "text-6xl",
+};
+
+// Antes desta sessão, level (tag semântica) e tamanho visual eram a mesma coisa — entries
+// salvas sem o campo "size" (novo) precisam continuar do mesmo tamanho que já tinham.
+const LEGACY_HEADING_LEVEL_SIZE: Record<number, string> = { 1: "2xl", 2: "xl", 3: "lg", 4: "md" };
+
+// Só as duas famílias já carregadas pelo app (layout.tsx: Geist Sans/Geist Mono).
+const HEADING_FONT_CLASSES: Record<string, string> = {
+  sans: "font-sans",
+  mono: "font-mono",
+};
+
+// Tokens --ui-tracking-* do tema (theme.css) via as utilities tracking-copy/tracking-display/
+// tracking-caps já geradas em globals.css (@theme inline) — nunca um valor de tracking solto.
+const HEADING_TRACKING_CLASSES: Record<string, string> = {
+  normal: "tracking-copy",
+  tight: "tracking-display",
+  wide: "tracking-caps",
 };
 
 const BUTTON_VARIANTS = new Set<ButtonVariant>(["default", "outline", "secondary", "ghost"]);
 
+type BadgeVariant = "default" | "secondary" | "outline" | "destructive";
+const BADGE_VARIANTS = new Set<BadgeVariant>(["default", "secondary", "outline", "destructive"]);
+
+type AlertVariant = "default" | "destructive" | "warning" | "success" | "info";
+const ALERT_VARIANTS = new Set<AlertVariant>(["default", "destructive", "warning", "success", "info"]);
+
+// Alert do shadcn (src/components/ui/alert.tsx, não editado diretamente — regra da sessão) só
+// declara "default"/"destructive" no cva. Warning/success/info são camadas de className por cima
+// de variant="default", replicando o mesmo truque que a variante "destructive" nativa já usa pra
+// colorir AlertDescription (*:data-[slot=alert-description]:text-destructive/90 dentro do próprio
+// alertVariants). "info" reaproveita border/secondary — sem token de cor próprio, mesma decisão
+// já documentada em AGENTS.md (tabela de migração: "info-*" não tem papel no shadcn).
+const ALERT_TONE_CLASSNAMES: Partial<Record<AlertVariant, string>> = {
+  warning: "border-warning-border bg-warning-soft text-warning *:data-[slot=alert-description]:text-warning/90",
+  success: "border-success-border bg-success-soft text-success *:data-[slot=alert-description]:text-success/90",
+  info: "border-border bg-secondary text-secondary-foreground *:data-[slot=alert-description]:text-secondary-foreground/90",
+};
+
+function toNativeAlertVariant(tone: AlertVariant): "default" | "destructive" {
+  return tone === "destructive" ? "destructive" : "default";
+}
+
+const SPACER_SIZE_CLASSES: Record<string, string> = {
+  sm: "h-4",
+  md: "h-8",
+  lg: "h-16",
+  xl: "h-24",
+};
+
+const ICON_SIZE_CLASSES: Record<string, string> = {
+  sm: "size-4",
+  md: "size-6",
+  lg: "size-8",
+};
+
+const ICON_TONE_CLASSES: Record<string, string> = {
+  foreground: "text-foreground",
+  muted: "text-muted-foreground",
+  primary: "text-primary",
+};
+
+// Mesmas chaves de ICON_NAMES em blocks/icon.ts — nome dinâmico de ícone não é bundlable sem mapa
+// fixo (mesmo motivo de GAP_CLASSES).
+const ICON_COMPONENTS: Record<string, LucideIcon> = {
+  star: Star,
+  heart: Heart,
+  check: Check,
+  "arrow-right": ArrowRight,
+  info: Info,
+  "alert-triangle": AlertTriangle,
+  "check-circle": CheckCircle,
+  mail: Mail,
+  phone: Phone,
+  "map-pin": MapPin,
+  calendar: Calendar,
+  clock: Clock,
+  user: User,
+  users: Users,
+  settings: Settings,
+  search: Search,
+  download: Download,
+  award: Award,
+  "book-open": BookOpen,
+  zap: Zap,
+};
+
+const SECTION_BACKGROUND_CLASSES: Record<string, string> = {
+  none: "",
+  panel: "bg-card",
+  muted: "bg-muted",
+};
+
+const SECTION_MAX_WIDTH_CLASSES: Record<string, string> = {
+  full: "max-w-none",
+  "7xl": "max-w-7xl",
+  "5xl": "max-w-5xl",
+  "3xl": "max-w-3xl",
+};
+
+const SECTION_PADDING_Y_CLASSES: Record<string, string> = {
+  none: "",
+  sm: "py-4 sm:py-6",
+  md: "py-8 sm:py-12",
+  lg: "py-12 sm:py-20",
+};
+
+const CARD_GRID_COLUMN_CLASSES: Record<number, string> = {
+  2: "grid-cols-1 sm:grid-cols-2",
+  3: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+  4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
+};
+
 function readString(data: Block["data"], key: string, fallback = ""): string {
   const value = data[key];
   return typeof value === "string" ? value : fallback;
+}
+
+function readArea(block: Block, key: string) {
+  return block.areas.find((area) => area.key === key) ?? null;
+}
+
+function clampPercent(value: unknown): number {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.min(100, Math.max(0, Math.round(numeric)));
 }
 
 async function RowBlock({ block, renderBlocks }: BlockRendererProps) {
@@ -89,7 +242,7 @@ async function RowBlock({ block, renderBlocks }: BlockRendererProps) {
   );
 
   return (
-    <div className={cn("grid", ROW_COLUMN_GRID_CLASSES[columns] ?? ROW_COLUMN_GRID_CLASSES[2], gap, align, surface)}>
+    <div className={cn("grid", resolveRowGridClasses(block.data, columns), gap, align, surface)}>
       {areas.map(({ key, content }) => (
         <div key={key}>{content}</div>
       ))}
@@ -102,7 +255,13 @@ function HeadingBlock({ block }: BlockRendererProps) {
   const level = Number(data.level) || 2;
   const text = readString(data, "text");
   const align = HEADING_ALIGN_CLASSES[readString(data, "align", "start")] ?? HEADING_ALIGN_CLASSES.start;
-  const className = cn("font-semibold tracking-tight text-foreground", HEADING_SIZE_CLASSES[level] ?? HEADING_SIZE_CLASSES[2], align);
+  // data.size ausente = entry salva antes do campo existir — deriva da tag (level), preservando o
+  // tamanho visual que a entry já tinha (level e size eram a mesma coisa antes desta sessão).
+  const size = HEADING_SIZE_CLASSES[readString(data, "size")] ?? HEADING_SIZE_CLASSES[LEGACY_HEADING_LEVEL_SIZE[level] ?? "xl"];
+  const fontFamily = HEADING_FONT_CLASSES[readString(data, "fontFamily", "sans")] ?? HEADING_FONT_CLASSES.sans;
+  const tracking = HEADING_TRACKING_CLASSES[readString(data, "tracking", "tight")] ?? HEADING_TRACKING_CLASSES.tight;
+  const uppercase = data.uppercase === true;
+  const className = cn("font-semibold text-foreground", size, fontFamily, tracking, uppercase && "uppercase", align);
 
   if (level === 1) return <h1 className={className}>{text}</h1>;
   if (level === 3) return <h3 className={className}>{text}</h3>;
@@ -110,25 +269,21 @@ function HeadingBlock({ block }: BlockRendererProps) {
   return <h2 className={className}>{text}</h2>;
 }
 
-function RichtextBlock({ block }: BlockRendererProps) {
-  const markdown = readString(block.data, "markdown");
+const RICHTEXT_CLASSES = cn(
+  "max-w-none space-y-3 text-foreground",
+  "[&_a]:text-primary [&_a]:underline",
+  "[&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:text-2xl [&_h2]:font-semibold [&_h3]:text-xl [&_h3]:font-semibold",
+  "[&_p]:leading-relaxed",
+  "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
+  "[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground",
+);
 
-  return (
-    <div
-      className={cn(
-        "max-w-none space-y-3 text-foreground",
-        "[&_a]:text-primary [&_a]:underline",
-        "[&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:text-2xl [&_h2]:font-semibold [&_h3]:text-xl [&_h3]:font-semibold",
-        "[&_p]:leading-relaxed",
-        "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
-        "[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground",
-      )}
-    >
-      {/* react-markdown nunca renderiza HTML cru do markdown de origem (sem dangerouslySetInnerHTML,
-          sem rehype-raw) — é a sanitização exigida pra conteúdo de usuário nesta sessão. */}
-      <Markdown>{markdown}</Markdown>
-    </div>
-  );
+function RichtextBlock({ block }: BlockRendererProps) {
+  const content = block.data.content;
+  if (!hasRichTextContent(content)) {
+    return null;
+  }
+  return <div className={RICHTEXT_CLASSES}>{renderRichTextContent(content)}</div>;
 }
 
 async function ImageBlock({ block }: BlockRendererProps) {
@@ -153,6 +308,297 @@ async function ImageBlock({ block }: BlockRendererProps) {
   );
 }
 
+function SpacerBlock({ block }: BlockRendererProps) {
+  const size = SPACER_SIZE_CLASSES[readString(block.data, "size", "md")] ?? SPACER_SIZE_CLASSES.md;
+  return <div className={size} aria-hidden="true" />;
+}
+
+function DividerBlock({ block }: BlockRendererProps) {
+  const label = readString(block.data, "label");
+  if (!label) {
+    return <Separator />;
+  }
+  return (
+    <div className="flex items-center gap-3">
+      <Separator className="flex-1" />
+      <span className="shrink-0 text-xs text-muted-foreground/56">{label}</span>
+      <Separator className="flex-1" />
+    </div>
+  );
+}
+
+function IconBlock({ block }: BlockRendererProps) {
+  const name = readString(block.data, "name", "star");
+  const IconComponent = ICON_COMPONENTS[name] ?? Star;
+  const size = ICON_SIZE_CLASSES[readString(block.data, "size", "md")] ?? ICON_SIZE_CLASSES.md;
+  const tone = ICON_TONE_CLASSES[readString(block.data, "tone", "foreground")] ?? ICON_TONE_CLASSES.foreground;
+  return <IconComponent className={cn(size, tone)} strokeWidth={1.75} />;
+}
+
+function BadgeBlock({ block }: BlockRendererProps) {
+  const text = readString(block.data, "text");
+  const requestedVariant = readString(block.data, "variant", "default") as BadgeVariant;
+  const variant = BADGE_VARIANTS.has(requestedVariant) ? requestedVariant : "default";
+  const uppercase = block.data.uppercase === true;
+  return (
+    <Badge variant={variant} className={uppercase ? "uppercase tracking-caps" : undefined}>
+      {text}
+    </Badge>
+  );
+}
+
+function QuoteBlock({ block }: BlockRendererProps) {
+  const text = block.data.text;
+  const author = readString(block.data, "author");
+  return (
+    <blockquote className="border-l-2 border-border pl-4">
+      <div className={cn("text-lg leading-relaxed text-foreground italic", RICH_TEXT_INLINE_CLASSES)}>
+        {renderRichTextContent(text)}
+      </div>
+      {author && <cite className="mt-2 block text-sm text-muted-foreground not-italic">— {author}</cite>}
+    </blockquote>
+  );
+}
+
+// Ícone + título ficam num wrapper à parte (não como filho direto de <Alert>) de propósito: o
+// grid nativo do Alert stock (has-[>svg]:grid-cols-[auto_1fr]) posiciona o ícone ao lado de
+// título E descrição juntos, sem noção de mobile — aqui o pedido é ícone só ao lado do título
+// (desktop) / acima do título (mobile), então a responsividade mora neste wrapper, não no Alert.
+const ALERT_TITLE_ALIGN_CLASSES: Record<string, string> = {
+  start: "items-start text-left sm:items-center sm:justify-start",
+  center: "items-center text-center sm:items-center sm:justify-center",
+  end: "items-end text-right sm:items-center sm:justify-end",
+};
+
+function AlertBlockRenderer({ block }: BlockRendererProps) {
+  const title = readString(block.data, "title");
+  const description = block.data.description;
+  const requestedVariant = readString(block.data, "variant", "default") as AlertVariant;
+  const tone = ALERT_VARIANTS.has(requestedVariant) ? requestedVariant : "default";
+  const iconName = readString(block.data, "icon");
+  const IconComponent = iconName ? ICON_COMPONENTS[iconName] : null;
+  const titleAlign = ALERT_TITLE_ALIGN_CLASSES[readString(block.data, "titleAlign", "start")] ?? ALERT_TITLE_ALIGN_CLASSES.start;
+
+  return (
+    <Alert variant={toNativeAlertVariant(tone)} className={ALERT_TONE_CLASSNAMES[tone]}>
+      <div className={cn("flex flex-col gap-2 sm:flex-row", titleAlign)}>
+        {IconComponent && <IconComponent className="size-4 shrink-0" strokeWidth={1.75} />}
+        <AlertTitle>{title}</AlertTitle>
+      </div>
+      {hasRichTextContent(description) && (
+        <AlertDescription className={RICH_TEXT_INLINE_CLASSES}>{renderRichTextContent(description)}</AlertDescription>
+      )}
+    </Alert>
+  );
+}
+
+function ListBlock({ block }: BlockRendererProps) {
+  const raw = readString(block.data, "items");
+  const ordered = block.data.ordered === true;
+  const items = raw
+    .split("\n")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  const className = cn("space-y-1 pl-5 text-foreground", ordered ? "list-decimal" : "list-disc");
+  if (ordered) {
+    return (
+      <ol className={className}>
+        {items.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ol>
+    );
+  }
+  return (
+    <ul className={className}>
+      {items.map((item, index) => (
+        <li key={index}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
+function ProgressBlockRenderer({ block }: BlockRendererProps) {
+  const label = readString(block.data, "label");
+  const showPercent = block.data.showPercent !== false;
+  const value = clampPercent(block.data.value);
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium text-foreground">{label}</span>
+        {showPercent && <span className="text-muted-foreground/56">{value}%</span>}
+      </div>
+      <Progress value={value} />
+    </div>
+  );
+}
+
+async function CardBlock({ block }: BlockRendererProps) {
+  const data = block.data;
+  const mediaId = readString(data, "mediaId");
+  const title = readString(data, "title");
+  const description = data.description;
+  const href = readString(data, "href");
+  const buttonLabel = readString(data, "buttonLabel", "Saiba mais");
+
+  let mediaUrl: string | null = null;
+  if (mediaId) {
+    const mediaResult = await getMedia({ id: mediaId });
+    if (mediaResult.success && mediaResult.data) {
+      mediaUrl = mediaResult.data.url;
+    }
+  }
+
+  return (
+    <Card className="h-full">
+      {mediaUrl && (
+        // Card (ui/card.tsx) já trata <img> como primeiro filho: remove o padding-top e arredonda
+        // o topo sozinho (has-[>img:first-child]:pt-0, *:[img:first-child]:rounded-t-xl).
+        // eslint-disable-next-line @next/next/no-img-element -- mesmo padrão de ImageBlock, sem domínio remoto configurado pra next/image
+        <img src={mediaUrl} alt={title} className="aspect-video w-full object-cover" />
+      )}
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        {hasRichTextContent(description) && (
+          <CardDescription className={RICH_TEXT_INLINE_CLASSES}>{renderRichTextContent(description)}</CardDescription>
+        )}
+      </CardHeader>
+      {href && (
+        <CardFooter>
+          <Button asChild size="sm" variant="outline">
+            <Link href={href}>{buttonLabel}</Link>
+          </Button>
+        </CardFooter>
+      )}
+    </Card>
+  );
+}
+
+async function AudioBlock({ block }: BlockRendererProps) {
+  const data = block.data;
+  const mediaId = readString(data, "mediaId");
+  const title = readString(data, "title");
+  const showDownloadLink = data.showDownloadLink === true;
+
+  if (!mediaId) {
+    return null;
+  }
+
+  const mediaResult = await getMedia({ id: mediaId });
+  if (!mediaResult.success || !mediaResult.data) {
+    return null;
+  }
+  const media = mediaResult.data;
+
+  return (
+    <Card>
+      <CardContent className="space-y-2">
+        {title && <p className="text-sm font-medium text-foreground">{title}</p>}
+        <audio controls src={media.url} className="w-full" />
+        {showDownloadLink && (
+          <a href={media.url} download={media.filename} className="text-xs font-medium text-primary hover:underline">
+            Baixar arquivo
+          </a>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+async function SectionBlock({ block, renderBlocks }: BlockRendererProps) {
+  const background = SECTION_BACKGROUND_CLASSES[readString(block.data, "background", "none")] ?? "";
+  const maxWidth = SECTION_MAX_WIDTH_CLASSES[readString(block.data, "maxWidth", "full")] ?? SECTION_MAX_WIDTH_CLASSES.full;
+  const paddingY = SECTION_PADDING_Y_CLASSES[readString(block.data, "paddingY", "md")] ?? SECTION_PADDING_Y_CLASSES.md;
+  const area = readArea(block, "content");
+  const content = area ? await renderBlocks(area.blocks) : null;
+
+  return (
+    <section className={cn(background, paddingY)}>
+      <div className={cn("mx-auto w-full space-y-4", maxWidth)}>{content}</div>
+    </section>
+  );
+}
+
+async function AccordionBlock({ block, renderBlocks }: BlockRendererProps) {
+  const allowMultiple = block.data.allowMultiple === true;
+  const area = readArea(block, "items");
+  const items = area ? await renderBlocks(area.blocks) : null;
+
+  return (
+    <Card>
+      <CardContent>
+        {allowMultiple ? (
+          <Accordion type="multiple">{items}</Accordion>
+        ) : (
+          <Accordion type="single" collapsible>
+            {items}
+          </Accordion>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+async function AccordionItemBlock({ block, renderBlocks }: BlockRendererProps) {
+  const title = readString(block.data, "title", "Item");
+  const area = readArea(block, "content");
+  const content = area ? await renderBlocks(area.blocks) : null;
+
+  return (
+    <AccordionItem value={block.id}>
+      <AccordionTrigger>{title}</AccordionTrigger>
+      <AccordionContent>{content}</AccordionContent>
+    </AccordionItem>
+  );
+}
+
+async function TabsBlock({ block, renderBlocks }: BlockRendererProps) {
+  const area = readArea(block, "items");
+  const children = area?.blocks ?? [];
+  const content = area ? await renderBlocks(area.blocks) : null;
+
+  if (children.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <Tabs defaultValue={children[0].id} className="w-full">
+          <TabsList className="w-full">
+            {children.map((child) => (
+              <TabsTrigger key={child.id} value={child.id}>
+                {readString(child.data, "label", "Aba")}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <div className="pt-4">{content}</div>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+}
+
+async function TabsItemBlock({ block, renderBlocks }: BlockRendererProps) {
+  const area = readArea(block, "content");
+  const content = area ? await renderBlocks(area.blocks) : null;
+  return <TabsContent value={block.id}>{content}</TabsContent>;
+}
+
+async function CardGridBlock({ block, renderBlocks }: BlockRendererProps) {
+  const requestedColumns = Number(block.data.columns) || 3;
+  const columns = CARD_GRID_COLUMN_CLASSES[requestedColumns] ? requestedColumns : 3;
+  const area = readArea(block, "items");
+  const content = area ? await renderBlocks(area.blocks) : null;
+
+  return <div className={cn("grid gap-4 sm:gap-6", CARD_GRID_COLUMN_CLASSES[columns])}>{content}</div>;
+}
+
 function ButtonBlock({ block }: BlockRendererProps) {
   const data = block.data;
   const href = readString(data, "href");
@@ -173,6 +619,22 @@ const CORE_BLOCK_RENDERERS: Record<string, BlockRendererComponent> = {
   "core.content.richtext": RichtextBlock,
   "core.content.image": ImageBlock,
   "core.content.button": ButtonBlock,
+  "core.layout.spacer": SpacerBlock,
+  "core.layout.divider": DividerBlock,
+  "core.content.icon": IconBlock,
+  "core.content.badge": BadgeBlock,
+  "core.content.quote": QuoteBlock,
+  "core.content.alert": AlertBlockRenderer,
+  "core.content.list": ListBlock,
+  "core.content.progress": ProgressBlockRenderer,
+  "core.content.card": CardBlock,
+  "core.content.audio": AudioBlock,
+  "core.layout.section": SectionBlock,
+  "core.layout.accordion": AccordionBlock,
+  "core.layout.accordion-item": AccordionItemBlock,
+  "core.layout.tabs": TabsBlock,
+  "core.layout.tabs-item": TabsItemBlock,
+  "core.layout.card-grid": CardGridBlock,
 };
 
 // Mesmo padrão de PLUGIN_BLOCK_BARRELS em block-registry.ts: import estático (Next exige pra
