@@ -12,4 +12,15 @@ export const observabilityAdminNavigationItems: AdminNavItemDefinition[] = [
     order: 10,
     requiredPermission: "observability.logs.view",
   },
+  {
+    key: "observability.diagnostics.audit",
+    label: "Auditoria de segurança",
+    icon: "shield-check",
+    href: "/admin/diagnostics/audit",
+    groupKey: "system",
+    groupLabel: "Sistema",
+    groupOrder: 40,
+    order: 11,
+    requiredPermission: "observability.audit.view",
+  },
 ];

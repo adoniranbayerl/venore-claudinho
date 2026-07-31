@@ -1,11 +1,11 @@
-import type { LogEntryRecord, TraceEntryRecord } from "./contracts/types";
+import type { EventRecord, TraceEntryRecord } from "./contracts/types";
 
-const logBuffer: LogEntryRecord[] = [];
+const eventBuffer: EventRecord[] = [];
 const traceBuffer: TraceEntryRecord[] = [];
 
-export function pushLogEntry(entry: LogEntryRecord): number {
-  logBuffer.push(entry);
-  return logBuffer.length;
+export function pushEvent(entry: EventRecord): number {
+  eventBuffer.push(entry);
+  return eventBuffer.length;
 }
 
 export function pushTraceEntry(entry: TraceEntryRecord): number {
@@ -13,14 +13,14 @@ export function pushTraceEntry(entry: TraceEntryRecord): number {
   return traceBuffer.length;
 }
 
-export function drainLogEntries(): LogEntryRecord[] {
-  return logBuffer.splice(0, logBuffer.length);
+export function drainEvents(): EventRecord[] {
+  return eventBuffer.splice(0, eventBuffer.length);
 }
 
 export function drainTraceEntries(): TraceEntryRecord[] {
   return traceBuffer.splice(0, traceBuffer.length);
 }
 
-export function peekBufferSizes(): { log: number; trace: number } {
-  return { log: logBuffer.length, trace: traceBuffer.length };
+export function peekBufferSizes(): { event: number; trace: number } {
+  return { event: eventBuffer.length, trace: traceBuffer.length };
 }

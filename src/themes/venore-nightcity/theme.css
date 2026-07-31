@@ -1,0 +1,216 @@
+/* Venore Night City — tema inspirado em Night City de Cyberpunk 2077 (CD Projekt Red). Shell
+   própria (components/Shell.tsx) com arranjo estruturalmente diferente do Venore Slime — rail de
+   ícones de altura inteira em vez de header no topo + sidebar colapsável — não só uma reskin de
+   cor. Este arquivo cobre a mesma paleta de tokens semânticos que qualquer tema instalado precisa
+   declarar (docs/venore-docks.md — "Contrato de design tokens — proibido valor hardcoded"): todo
+   componente consome só variável semântica, então trocar de tema troca este arquivo + a Shell.
+
+   Paleta: ciano neon (holograma/interface) + magenta neon (letreiro/braindance) sobre base quase
+   preta com fundo azul-violeta profundo (céu poluído da cidade à noite), amarelo neon (a cor de
+   marca de Cyberpunk 2077) reservado só pro token semântico `warning`. Raio quase zero e cantos
+   quase retos (estética de HUD/holograma, não orgânica). Motion rápido e seco (glitch/snap), não
+   suave — combina com interface digital/holográfica, não com movimento físico.
+
+   [data-theme="venore-nightcity"] no <html> ativa este bloco; .dark também vive no <html> (nunca
+   aninhado), por isso a variante escura é o seletor composto abaixo. O bloco base (claro) é
+   Night City de dia — smog, luz cinza-azulada, letreiros neon já ligados mas discretos contra o
+   céu claro; .dark é a cidade à noite, a leitura "padrão" da referência. */
+
+[data-theme="venore-nightcity"] {
+  /* raio — quase reto, estética de HUD/holograma, não orgânica */
+  --radius: 0.1rem;
+  --radius-shell: 0rem;
+  --radius-panel: 0.1rem;
+  --ui-radius-scale-sm: 0.5;
+  --ui-radius-scale-md: 1;
+  --ui-radius-scale-lg: 1.5;
+  --ui-radius-scale-xl: 2;
+  --ui-radius-scale-2xl: 2.5;
+  --ui-radius-scale-3xl: 3;
+  --ui-radius-scale-4xl: 3.5;
+
+  --ui-tracking-caps: 0.28em;
+
+  /* motion — rápido e seco, "glitch/snap" digital, não movimento físico suave */
+  --ui-motion-fast: 80ms;
+  --ui-motion-base: 140ms;
+  --ui-motion-slow: 220ms;
+  --ui-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ui-ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* tipografia — display mais condensado/tracking negativo, leitura de HUD */
+  --ui-font-weight-body: 400;
+  --ui-font-weight-medium: 500;
+  --ui-font-weight-semibold: 600;
+  --ui-font-weight-display: 700;
+  --ui-leading-copy: 1.5;
+  --ui-leading-display: 1.1;
+  --ui-tracking-copy: 0em;
+  --ui-tracking-display: -0.02em;
+
+  /* controles */
+  --ui-control-height-xs: 1.75rem;
+  --ui-control-height-sm: 2.25rem;
+  --ui-control-height-md: 2.5rem;
+  --ui-control-height-lg: 2.75rem;
+  --ui-control-padding-x: 1rem;
+  --ui-button-padding-scale-xs: 0.5;
+  --ui-button-padding-scale-sm: 0.75;
+  --ui-button-padding-scale-lg: 2;
+  --ui-button-gap: 0.5rem;
+
+  /* painéis */
+  --ui-panel-padding-x: 1.5rem;
+  --ui-panel-padding-y: 1.5rem;
+
+  /* base shadcn — dia: smog cinza-azulado, ciano/magenta já presentes mas contidos pra contraste
+     em fundo claro */
+  --background: oklch(0.94 0.008 258);
+  --foreground: oklch(0.19 0.03 280);
+  --card: oklch(0.985 0.004 258);
+  --card-foreground: oklch(0.19 0.03 280);
+  --popover: oklch(0.985 0.004 258);
+  --popover-foreground: oklch(0.19 0.03 280);
+  --primary: oklch(0.56 0.16 196);
+  --primary-foreground: oklch(0.98 0.01 196);
+  --secondary: oklch(0.885 0.012 260);
+  --secondary-foreground: oklch(0.19 0.03 280);
+  --muted: oklch(0.885 0.012 260);
+  --muted-foreground: oklch(0.44 0.03 265);
+  --accent: oklch(0.6 0.24 340);
+  --accent-foreground: oklch(0.98 0.02 340);
+  --destructive: oklch(0.56 0.22 25);
+  --destructive-foreground: oklch(0.98 0.01 25);
+  --border: oklch(0.78 0.015 260);
+  --input: oklch(0.78 0.015 260);
+  --ring: oklch(0.56 0.16 196);
+
+  /* shadow */
+  --shadow-color: oklch(0.5 0.02 260);
+  --shadow-color-strong: oklch(0.3 0.03 270);
+  --shadow-color-soft: color-mix(in oklch, var(--shadow-color) 30%, transparent);
+  --shadow-color-strong-soft: color-mix(in oklch, var(--shadow-color-strong) 26%, transparent);
+  --shadow-panel: 0 20px 60px -40px var(--shadow-color-soft);
+  --shadow-float: 0 14px 34px -22px var(--shadow-color-strong-soft);
+  --shadow-header: 0 10px 24px -18px var(--shadow-color-strong-soft);
+
+  /* sidebar — rail de ícones de largura fixa (nunca expande/colapsa, docs pedido desta sessão:
+     Shell estruturalmente diferente do Venore Slime). Um único token de largura, não o par
+     expandido/colapsado do Slime, porque não existe o segundo estado aqui. */
+  --sidebar-width-rail: 5rem;
+
+  --sidebar-bg-start: oklch(0.92 0.012 262);
+  --sidebar-bg-end: oklch(0.87 0.022 268);
+  --sidebar-bg: linear-gradient(180deg, var(--sidebar-bg-start) 0%, var(--sidebar-bg-end) 100%);
+  --sidebar-bg-admin-start: oklch(0.9 0.02 340);
+  --sidebar-bg-admin-end: oklch(0.86 0.03 300);
+  --sidebar-bg-admin: linear-gradient(180deg, var(--sidebar-bg-admin-start) 0%, var(--sidebar-bg-admin-end) 100%);
+
+  /* status semântico — amarelo neon, cor de marca de Cyberpunk 2077, reservado só pro warning */
+  --warning: oklch(0.62 0.17 95);
+  --warning-foreground: oklch(0.16 0.02 95);
+  --warning-soft: color-mix(in oklch, var(--warning) 14%, var(--card));
+  --warning-border: color-mix(in oklch, var(--warning) 32%, var(--border));
+
+  /* identidade — céu poluído com neon já ligado por cima, discreto contra o céu ainda claro */
+  --app-bg-start: oklch(0.95 0.008 255);
+  --app-bg-mid: oklch(0.91 0.014 262);
+  --app-bg-end: oklch(0.88 0.018 268);
+  --app-background: radial-gradient(
+      130% 85% at 10% 6%,
+      color-mix(in oklch, var(--accent) 14%, transparent) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      120% 90% at 88% 14%,
+      color-mix(in oklch, var(--primary) 16%, transparent) 0%,
+      transparent 56%
+    ),
+    radial-gradient(
+      130% 105% at 50% 100%,
+      color-mix(in oklch, var(--popover) 70%, var(--app-bg-end)) 0%,
+      transparent 62%
+    ),
+    linear-gradient(180deg, var(--app-bg-start) 0%, var(--app-bg-mid) 48%, var(--app-bg-end) 100%);
+
+  --header-bg: oklch(0.97 0.006 258);
+  --header-chip-bg: color-mix(in oklch, var(--header-bg) 74%, var(--card));
+  --header-avatar-bg: color-mix(in oklch, var(--accent) 20%, var(--header-bg));
+  --header-avatar-fg: var(--foreground);
+  --header-border-subtle: color-mix(in oklch, var(--header-bg) 26%, var(--border));
+  --header-border-strong: color-mix(in oklch, var(--primary) 40%, var(--accent));
+}
+
+[data-theme="venore-nightcity"].dark {
+  /* base shadcn — noite: quase preto com fundo azul-violeta profundo, ciano e magenta em
+     saturação máxima (a leitura "padrão" de Night City) */
+  --background: oklch(0.12 0.028 278);
+  --foreground: oklch(0.95 0.018 200);
+  --card: oklch(0.165 0.032 280);
+  --card-foreground: oklch(0.95 0.018 200);
+  --popover: oklch(0.165 0.032 280);
+  --popover-foreground: oklch(0.95 0.018 200);
+  --primary: oklch(0.85 0.16 196);
+  --primary-foreground: oklch(0.11 0.03 280);
+  --secondary: oklch(0.235 0.038 280);
+  --secondary-foreground: oklch(0.95 0.018 200);
+  --muted: oklch(0.235 0.038 280);
+  --muted-foreground: oklch(0.72 0.03 255);
+  --accent: oklch(0.73 0.25 340);
+  --accent-foreground: oklch(0.12 0.03 340);
+  --destructive: oklch(0.63 0.25 25);
+  --destructive-foreground: oklch(0.98 0.01 25);
+  --border: oklch(0.32 0.05 280);
+  --input: oklch(0.32 0.05 280);
+  --ring: oklch(0.85 0.16 196);
+
+  /* shadow — praticamente tudo é sombra na cidade à noite */
+  --shadow-color: oklch(0.04 0.01 275);
+  --shadow-color-strong: oklch(0.015 0.005 275);
+  --shadow-color-soft: color-mix(in oklch, var(--shadow-color) 44%, transparent);
+  --shadow-color-strong-soft: color-mix(in oklch, var(--shadow-color-strong) 38%, transparent);
+  --shadow-panel: 0 24px 80px -46px var(--shadow-color-soft);
+  --shadow-float: 0 18px 44px -26px var(--shadow-color-strong-soft);
+  --shadow-header: 0 12px 30px -22px var(--shadow-color-strong-soft);
+
+  --sidebar-bg-start: oklch(0.145 0.03 278);
+  --sidebar-bg-end: oklch(0.1 0.024 282);
+  --sidebar-bg: linear-gradient(180deg, var(--sidebar-bg-start) 0%, var(--sidebar-bg-end) 100%);
+  --sidebar-bg-admin-start: oklch(0.16 0.05 330);
+  --sidebar-bg-admin-end: oklch(0.11 0.045 300);
+  --sidebar-bg-admin: linear-gradient(180deg, var(--sidebar-bg-admin-start) 0%, var(--sidebar-bg-admin-end) 100%);
+
+  --warning: oklch(0.84 0.18 97);
+  --warning-foreground: oklch(0.15 0.02 97);
+  --warning-soft: color-mix(in oklch, var(--warning) 18%, var(--card));
+  --warning-border: color-mix(in oklch, var(--warning) 36%, var(--border));
+
+  /* identidade — skyline sob luz neon plena: glow ciano e magenta cortando o azul-violeta quase
+     preto do céu poluído */
+  --app-bg-start: oklch(0.1 0.025 278);
+  --app-bg-mid: oklch(0.115 0.03 280);
+  --app-bg-end: oklch(0.09 0.026 282);
+  --app-background: radial-gradient(
+      140% 90% at 10% 6%,
+      color-mix(in oklch, var(--accent) 22%, transparent) 0%,
+      transparent 52%
+    ),
+    radial-gradient(
+      125% 95% at 90% 16%,
+      color-mix(in oklch, var(--primary) 20%, transparent) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      130% 110% at 50% 100%,
+      color-mix(in oklch, var(--popover) 72%, var(--app-bg-end)) 0%,
+      transparent 64%
+    ),
+    linear-gradient(180deg, var(--app-bg-start) 0%, var(--app-bg-mid) 46%, var(--app-bg-end) 100%);
+
+  --header-bg: oklch(0.1 0.025 278);
+  --header-chip-bg: color-mix(in oklch, var(--header-bg) 74%, var(--card));
+  --header-avatar-bg: color-mix(in oklch, var(--accent) 22%, var(--header-bg));
+  --header-avatar-fg: var(--foreground);
+  --header-border-subtle: color-mix(in oklch, var(--header-bg) 26%, var(--border));
+  --header-border-strong: color-mix(in oklch, var(--primary) 44%, var(--accent));
+}

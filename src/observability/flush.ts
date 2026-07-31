@@ -1,17 +1,17 @@
 import { db } from "@/infrastructure/database/client";
-import { drainLogEntries, drainTraceEntries } from "./buffer";
+import { drainEvents, drainTraceEntries } from "./buffer";
 import { getObservabilityConfig } from "./config";
-import { observabilityLogEntries, observabilityTraceEntries } from "./database/schema";
+import { observabilityEvents, observabilityTraceEntries } from "./database/schema";
 
 export async function flushNow(): Promise<void> {
-  const logEntries = drainLogEntries();
+  const events = drainEvents();
   const traceEntries = drainTraceEntries();
 
-  if (logEntries.length > 0) {
+  if (events.length > 0) {
     try {
-      await db.insert(observabilityLogEntries).values(logEntries);
+      await db.insert(observabilityEvents).values(events);
     } catch (error) {
-      console.error("[observability] failed to flush log entries", error);
+      console.error("[observability] failed to flush events", error);
     }
   }
 

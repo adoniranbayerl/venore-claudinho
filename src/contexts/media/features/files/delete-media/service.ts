@@ -24,6 +24,10 @@ export async function deleteMedia(command: DeleteMediaCommand): Promise<DeleteMe
   await deleteMediaById(command.id);
 
   invalidateCacheByPrefix(MEDIA_LIST_CACHE_PREFIX);
-  endOperation(handle, { success: true });
+  endOperation(handle, {
+    success: true,
+    summary: `Arquivo de mídia "${media.filename}" foi excluído.`,
+    detail: { id: command.id, filename: media.filename },
+  });
   return { success: true, data: { id: command.id } };
 }

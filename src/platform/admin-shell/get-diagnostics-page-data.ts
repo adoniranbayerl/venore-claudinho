@@ -18,3 +18,7 @@ export async function getDiagnosticsPageData(): Promise<AdminPageGate> {
 
   return gate;
 }
+
+export function canClearDiagnosticsEvents(actor: { isSuperadmin: boolean; permissions: string[] }): boolean {
+  return actor.isSuperadmin || actor.permissions.includes("observability.logs.clear");
+}

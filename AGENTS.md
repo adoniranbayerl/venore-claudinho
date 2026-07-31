@@ -283,18 +283,18 @@ continua sendo a lista geral, derivada da leitura do código:
   [NÃO VERIFICADO] o estado exato do que está mockado vs. resolvido.
 - **TODO explícito em `src/themes/venore-slime/components/UserMenu.tsx:60`** — link para
   `/account` pendente porque a rota ainda não existe.
-- **`scripts/seed-observability-logs-permission.mjs` existe mas não tem entrada em
-  `package.json#scripts`** — os outros seeds de permission (`admin-access`, `media-manage`,
-  `cms-menus-manage`) têm `db:seed:*` correspondente; este não.
 - **`src/platform/ui-preferences/` existe como diretório vazio.** O cookie que vivia lá já é
   tratado como removido (substituído por `useTheme()`/`next-themes`, seção 1), mas a pasta em si
   não foi apagada.
 - **Permission com escopo dentro de um recurso** (RBAC granular por seção/instância do CMS) —
   documentado como em aberto no documento de arquitetura, não implementado.
-- **Rate limiting, auditoria de ações sensíveis e controle de acesso a arquivos de mídia** —
-  listados como não cobertos no documento de arquitetura; nenhuma implementação encontrada em
-  `src/infrastructure/` ou `src/observability/`. [NÃO VERIFICADO] se algo disso existe fora de
-  `src/`.
+- **Rate limiting e controle de acesso a arquivos de mídia** — ainda não cobertos. Auditoria de
+  ações sensíveis existe desde a sessão do log de eventos legível (`src/observability/audit-log.ts`
+  + tabela `audit.security_audit_events`), mas só é chamada explicitamente pelas ações já
+  migradas (ver `src/observability/features/clear-events/service.ts` e os `service.ts` apontados
+  no comentário de `src/observability/origin-registry.ts`); a maioria das ~130 outras chamadas de
+  `beginOperation`/`endOperation` no projeto ainda só gera log operacional, não auditoria — expandir
+  a lista de ações que chamam `recordAuditEvent` é trabalho incremental, não builtin automático.
 - **Estratégia de teste por camada não documentada** além do que a seção 5/6 deste arquivo já
   descreve — o documento de arquitetura lista isso como não coberto.
 - **Plugin `birthdays` — ativação/desativação, escopo de `settings.manage`, block

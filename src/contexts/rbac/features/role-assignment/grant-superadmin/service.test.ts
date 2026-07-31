@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/observability", () => ({
   beginOperation: vi.fn(() => ({ operationId: "op-1", useCase: "test", actor: { id: "user-1", type: "system" }, kind: "write", startedAt: new Date() })),
   endOperation: vi.fn(),
+  recordAuditEvent: vi.fn(),
 }));
 
 const insertUserRole = vi.fn();

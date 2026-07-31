@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { drainLogEntries, drainTraceEntries } from "./buffer";
+import { drainEvents, drainTraceEntries } from "./buffer";
 
 vi.mock("./flush", () => ({ flushNow: vi.fn() }));
 
 describe("operation log", () => {
   beforeEach(() => {
-    drainLogEntries();
+    drainEvents();
     drainTraceEntries();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
@@ -22,9 +22,9 @@ describe("operation log", () => {
     const handle = beginOperation({ useCase: "example.write-thing", actor: { id: "u1", type: "user" }, kind: "write" });
     endOperation(handle, { success: true });
 
-    const logs = drainLogEntries();
-    expect(logs).toHaveLength(1);
-    expect(logs[0]).toMatchObject({ useCase: "example.write-thing", kind: "write", success: true });
+    const events = drainEvents();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ action: "example.write-thing", outcome: "success", level: "info" });
   });
 
   it("does not log a successful read operation", async () => {
@@ -33,7 +33,7 @@ describe("operation log", () => {
     const handle = beginOperation({ useCase: "example.list-things", actor: { id: "u1", type: "user" }, kind: "read" });
     endOperation(handle, { success: true });
 
-    expect(drainLogEntries()).toHaveLength(0);
+    expect(drainEvents()).toHaveLength(0);
   });
 
   it("logs a failed read operation, carrying the error", async () => {
@@ -42,10 +42,11 @@ describe("operation log", () => {
     const handle = beginOperation({ useCase: "example.get-thing", actor: { id: "u1", type: "user" }, kind: "read" });
     endOperation(handle, { success: false, error: { code: "NOT_FOUND", message: "missing" } });
 
-    const logs = drainLogEntries();
-    expect(logs).toHaveLength(1);
-    expect(logs[0]).toMatchObject({
-      success: false,
+    const events = drainEvents();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      outcome: "failure",
+      level: "error",
       errorCode: "NOT_FOUND",
       errorMessage: "missing",
     });
@@ -60,7 +61,7 @@ describe("operation log", () => {
     endOperation(handle, { success: true });
     vi.useRealTimers();
 
-    expect(drainLogEntries()[0].durationMs).toBe(120);
+    expect(drainEvents()[0].durationMs).toBe(120);
   });
 
   it("always traces a failed operation regardless of sample rate", async () => {
@@ -85,5 +86,58 @@ describe("operation log", () => {
     const sampled = beginOperation({ useCase: "example.write-thing", actor: { id: "u1", type: "user" }, kind: "write" });
     endOperation(sampled, { success: true });
     expect(drainTraceEntries()).toHaveLength(1);
+  });
+
+  it("generates a default natural-language summary when the caller does not pass one", async () => {
+    const { beginOperation, endOperation } = await import("./operation-log");
+
+    const handle = beginOperation({ useCase: "rbac.grant-superadmin", actor: { id: "u1", type: "user" }, kind: "write" });
+    endOperation(handle, { success: true });
+
+    expect(drainEvents()[0].summary).toBe('Ação "rbac.grant-superadmin" concluída com sucesso por user:u1.');
+  });
+
+  it("uses the caller-provided summary and detail instead of the default", async () => {
+    const { beginOperation, endOperation } = await import("./operation-log");
+
+    const handle = beginOperation({ useCase: "rbac.grant-superadmin", actor: { id: "u1", type: "user" }, kind: "write" });
+    endOperation(handle, { success: true, summary: "Fulano recebeu superadmin.", detail: { promotedUserId: "u2" } });
+
+    expect(drainEvents()[0]).toMatchObject({
+      summary: "Fulano recebeu superadmin.",
+      detail: { promotedUserId: "u2" },
+    });
+  });
+
+  it("infers origin from the useCase prefix (context vs plugin) unless one is given explicitly", async () => {
+    const { beginOperation, endOperation } = await import("./operation-log");
+
+    const contextHandle = beginOperation({ useCase: "rbac.grant-superadmin", actor: { id: "u1", type: "user" }, kind: "write" });
+    endOperation(contextHandle, { success: true });
+
+    const pluginHandle = beginOperation({ useCase: "academy.publish-course", actor: { id: "u1", type: "user" }, kind: "write" });
+    endOperation(pluginHandle, { success: true });
+
+    const explicitHandle = beginOperation({
+      useCase: "custom.action",
+      actor: { id: "u1", type: "user" },
+      kind: "write",
+      origin: "system:cron",
+    });
+    endOperation(explicitHandle, { success: true });
+
+    const [contextEvent, pluginEvent, explicitEvent] = drainEvents();
+    expect(contextEvent.origin).toBe("context:rbac");
+    expect(pluginEvent.origin).toBe("plugin:academy");
+    expect(explicitEvent.origin).toBe("system:cron");
+  });
+
+  it("lets the caller override the default level (e.g. a degraded-but-successful write)", async () => {
+    const { beginOperation, endOperation } = await import("./operation-log");
+
+    const handle = beginOperation({ useCase: "example.write-thing", actor: { id: "u1", type: "user" }, kind: "write" });
+    endOperation(handle, { success: true, level: "warn" });
+
+    expect(drainEvents()[0].level).toBe("warn");
   });
 });

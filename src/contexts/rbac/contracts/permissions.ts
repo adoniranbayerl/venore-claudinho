@@ -26,4 +26,10 @@ export const RBAC_PERMISSIONS: PermissionDefinition[] = [
   // Pertence conceitualmente a observability/ (infraestrutura técnica, não um context de
   // domínio) — mesmo stopgap das entradas acima.
   { key: "observability.logs.view", label: "Ver logs de observabilidade" },
+  // Ação privilegiada e destrutiva (expurgo manual do log operacional) — separada de
+  // observability.logs.view de propósito, mesmo padrão de media.purge vs media.manage.
+  { key: "observability.logs.clear", label: "Limpar logs operacionais de diagnóstico" },
+  // Trilha de auditoria de segurança é mais sensível que o log operacional (não é apagável por
+  // ninguém via UI) — permission própria, não reaproveita observability.logs.view.
+  { key: "observability.audit.view", label: "Ver auditoria de segurança" },
 ];

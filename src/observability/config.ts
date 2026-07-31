@@ -17,5 +17,9 @@ export function getObservabilityConfig() {
     flushIntervalMs: readIntEnv("OBSERVABILITY_FLUSH_INTERVAL_MS", 5000),
     flushBatchSize: readIntEnv("OBSERVABILITY_FLUSH_BATCH_SIZE", 50),
     traceSampleRate: readRateEnv("OBSERVABILITY_TRACE_SAMPLE_RATE", 0),
+    // Retenção do log operacional (não se aplica a security_audit_events — auditoria não expurga).
+    retentionDays: readIntEnv("OBSERVABILITY_RETENTION_DAYS", 30),
+    maxEventVolume: readIntEnv("OBSERVABILITY_MAX_EVENT_VOLUME", 200_000),
+    retentionIntervalMs: readIntEnv("OBSERVABILITY_RETENTION_INTERVAL_MS", 24 * 60 * 60 * 1000),
   };
 }

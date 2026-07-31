@@ -12,6 +12,7 @@
    uma linha nova aqui, no mesmo espírito do registro estático em src/themes/registry.ts. */
 @import "../themes/venore-slime/theme.css";
 @import "../themes/venore-basic/theme.css";
+@import "../themes/venore-nightcity/theme.css";
 
 /* tw-animate-css: os primitivos stock (dialog, select) usam animate-in/fade-in-0/zoom-in-95/
    slide-in-from-* — sem esse import essas classes não geram CSS nenhum (ficam inertes) e os

@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { ThemeManifest, ThemeShellProps } from "@/contexts/themes";
 import * as venoreSlime from "./venore-slime";
 import * as venoreBasic from "./venore-basic";
+import * as venoreNightcity from "./venore-nightcity";
 
 export type ThemeShellComponent = ComponentType<ThemeShellProps>;
 
@@ -20,5 +21,9 @@ export const THEME_REGISTRY: Record<string, ThemeRegistryEntry> = {
   "venore-basic": {
     manifest: venoreBasic.venoreBasicManifest,
     Shell: venoreBasic.Shell,
+  },
+  "venore-nightcity": {
+    manifest: venoreNightcity.venoreNightcityManifest,
+    Shell: venoreNightcity.Shell,
   },
 };

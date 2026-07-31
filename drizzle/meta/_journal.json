@@ -141,6 +141,20 @@
       "when": 1785454759192,
       "tag": "0019_chilly_lester",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1785457507152,
+      "tag": "0020_observability_events_and_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1785457523087,
+      "tag": "0021_drop_observability_log_entries",
+      "breakpoints": true
     }
   ]
 }

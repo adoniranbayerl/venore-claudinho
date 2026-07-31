@@ -1,4 +1,4 @@
-import { beginOperation, endOperation } from "@/observability";
+import { beginOperation, endOperation, recordAuditEvent } from "@/observability";
 import { invalidateUserContext } from "../../../user-context-cache";
 import { findRoleById, findUserIdsWithRole, replaceRolePermissions } from "./store";
 import { toRoleRef } from "./view";
@@ -34,7 +34,16 @@ export async function updateRolePermissions(command: UpdateRolePermissionsComman
     invalidateUserContext(userId);
   }
 
-  endOperation(handle, { success: true });
+  const summary = `user:${command.actor.id} alterou as permissions do papel "${role.key}" (${command.permissionKeys.length} permission${command.permissionKeys.length === 1 ? "" : "s"}), afetando ${affectedUserIds.length} usuário${affectedUserIds.length === 1 ? "" : "s"}.`;
+  endOperation(handle, { success: true, summary, detail: { roleId: command.roleId, permissionKeys: command.permissionKeys } });
+
+  await recordAuditEvent({
+    action: "rbac.update-role-permissions",
+    actor: { id: command.actor.id, type: "user" },
+    outcome: "success",
+    summary,
+    detail: { roleId: command.roleId, roleKey: role.key, permissionKeys: command.permissionKeys, affectedUserCount: affectedUserIds.length },
+  });
 
   return { success: true, data: toRoleRef(updated) };
 }

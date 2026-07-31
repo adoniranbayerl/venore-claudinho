@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { drainLogEntries, drainTraceEntries, pushLogEntry, pushTraceEntry } from "./buffer";
-import type { LogEntryRecord, TraceEntryRecord } from "./contracts/types";
+import { drainEvents, drainTraceEntries, pushEvent, pushTraceEntry } from "./buffer";
+import type { EventRecord, TraceEntryRecord } from "./contracts/types";
 
 const insertValues = vi.fn().mockResolvedValue(undefined);
 const insert = vi.fn(() => ({ values: insertValues }));
@@ -9,18 +9,21 @@ vi.mock("@/infrastructure/database/client", () => ({
   db: { insert },
 }));
 
-function makeLogEntry(overrides: Partial<LogEntryRecord> = {}): LogEntryRecord {
+function makeEvent(overrides: Partial<EventRecord> = {}): EventRecord {
   return {
-    id: "log-1",
-    useCase: "example.do-thing",
+    id: "event-1",
+    occurredAt: new Date(),
+    level: "info",
+    origin: "context:example",
+    action: "example.do-thing",
     actorId: "actor-1",
     actorType: "user",
-    kind: "write",
-    success: true,
+    outcome: "success",
+    summary: "Ação de exemplo concluída.",
+    detail: null,
     errorCode: null,
     errorMessage: null,
     durationMs: 10,
-    startedAt: new Date(),
     ...overrides,
   };
 }
@@ -39,7 +42,7 @@ function makeTraceEntry(overrides: Partial<TraceEntryRecord> = {}): TraceEntryRe
 
 describe("observability flush", () => {
   beforeEach(() => {
-    drainLogEntries();
+    drainEvents();
     drainTraceEntries();
     insert.mockClear();
     insertValues.mockClear();
@@ -49,8 +52,8 @@ describe("observability flush", () => {
   it("writes buffered entries in a single batched insert per table", async () => {
     const { flushNow } = await import("./flush");
 
-    pushLogEntry(makeLogEntry({ id: "log-1" }));
-    pushLogEntry(makeLogEntry({ id: "log-2" }));
+    pushEvent(makeEvent({ id: "event-1" }));
+    pushEvent(makeEvent({ id: "event-2" }));
     pushTraceEntry(makeTraceEntry({ id: "trace-1" }));
 
     await flushNow();
@@ -73,7 +76,7 @@ describe("observability flush", () => {
     insertValues.mockRejectedValueOnce(new Error("connection lost"));
     const { flushNow } = await import("./flush");
 
-    pushLogEntry(makeLogEntry());
+    pushEvent(makeEvent());
 
     await expect(flushNow()).resolves.toBeUndefined();
   });

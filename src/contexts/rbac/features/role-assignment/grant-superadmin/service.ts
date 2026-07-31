@@ -1,4 +1,4 @@
-import { beginOperation, endOperation } from "@/observability";
+import { beginOperation, endOperation, recordAuditEvent } from "@/observability";
 import { invalidateUserContext } from "../../../user-context-cache";
 import { insertUserRole } from "../assign-role-to-user/store";
 import { findRoleIdByKey } from "../assign-default-role/store";
@@ -23,6 +23,20 @@ export async function grantSuperadmin(command: GrantSuperadminInput): Promise<Gr
 
   await insertUserRole(command.userId, roleId);
   invalidateUserContext(command.userId);
-  endOperation(handle, { success: true });
+  endOperation(handle, {
+    success: true,
+    summary: `Usuário ${command.userId} recebeu o papel superadmin.`,
+  });
+
+  // Concessão de superadmin é a ação mais privilegiada do sistema — sempre auditada,
+  // independente de quem chamou (bootstrap ou fluxo futuro), ver audit-log.ts.
+  await recordAuditEvent({
+    action: "rbac.grant-superadmin",
+    actor: { id: command.userId, type: "system" },
+    outcome: "success",
+    summary: `Usuário ${command.userId} recebeu o papel superadmin.`,
+    detail: { userId: command.userId, roleId },
+  });
+
   return { success: true, data: undefined };
 }

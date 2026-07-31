@@ -1,0 +1,1 @@
+DROP TABLE "observability"."observability_log_entries" CASCADE;

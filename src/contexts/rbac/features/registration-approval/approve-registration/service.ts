@@ -1,4 +1,4 @@
-import { beginOperation, endOperation } from "@/observability";
+import { beginOperation, endOperation, recordAuditEvent } from "@/observability";
 import { approveUserRegistration } from "@/contexts/auth";
 import { assignRoleToUser } from "../../role-assignment/assign-role-to-user/service";
 import { findRoleIdByKey } from "../../role-assignment/assign-default-role/store";
@@ -36,6 +36,16 @@ export async function approveRegistration(command: ApproveRegistrationCommand): 
     return assignment;
   }
 
-  endOperation(handle, { success: true });
+  const summary = `user:${command.actor.id} aprovou o registro do usuário ${command.userId}.`;
+  endOperation(handle, { success: true, summary });
+
+  await recordAuditEvent({
+    action: "rbac.approve-registration",
+    actor: { id: command.actor.id, type: "user" as const },
+    outcome: "success",
+    summary,
+    detail: { userId: command.userId, roleId },
+  });
+
   return { success: true, data: undefined };
 }
