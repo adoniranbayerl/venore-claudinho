@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { MobileNavDrawer } from "../../venore-slime/components/MobileNavDrawer";
 import { SidebarNavLink } from "../../venore-slime/components/SidebarNavLink";
 import { closeMobileNav } from "../../venore-slime/components/mobile-nav-store";
-import { FLYOUT_BASE, ICON_BUTTON_BASE, RailNavLink } from "./RailNavLink";
+import { flattenNavItems, ICON_BUTTON_BASE, RAIL_LABEL_CLASSES, RailNavLink } from "./RailNavLink";
 
 // Estrutura deliberadamente diferente da SidebarLeftSlot do Venore Slime (docs pedido desta
 // sessão): lá é uma coluna com texto que colapsa/expande sob demanda (`collapsed`/
@@ -15,6 +15,11 @@ import { FLYOUT_BASE, ICON_BUTTON_BASE, RailNavLink } from "./RailNavLink";
 // reaproveita a mecânica headless do drawer off-canvas do Slime (MobileNavDrawer +
 // mobile-nav-store: focus-trap, Escape, scroll-lock) — comportamento de acessibilidade genérico,
 // não identidade visual do Slime — só que aqui é uma lista cheia (ícone+texto), não o rail.
+//
+// Simplificação desta sessão (UX pesada demais na primeira versão): rail não depende mais de
+// hover pra revelar rótulo (RailNavLink já mostra ícone+legenda sempre) e agregadores não abrem
+// mais um segundo nível de flyout — flattenNavItems achata a árvore antes de chegar aqui, então
+// filhos de agregador viram itens de primeiro nível no rail.
 export function SidebarLeftSlot({ enabled, navMode, navItems, navGroups, canToggleAdminNav, onToggleNavMode }: SidebarLeftSlotProps) {
   if (!enabled) return null;
 
@@ -28,29 +33,27 @@ export function SidebarLeftSlot({ enabled, navMode, navItems, navGroups, canTogg
           isAdmin ? "border-ring bg-(image:--sidebar-bg-admin)" : "border-border bg-(image:--sidebar-bg)",
         )}
       >
-        <nav data-nav-mode={navMode} className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto py-1">
+        <nav data-nav-mode={navMode} className="flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto py-1">
           {isAdmin
             ? navGroups.map((group, index) => (
-                <div key={group.key} className="flex flex-col items-center gap-1">
+                <div key={group.key} className="flex w-full flex-col items-center gap-1">
                   {index > 0 && <span aria-hidden="true" className="my-1.5 h-px w-6 bg-border" />}
                   {group.items.map((item) => (
                     <RailNavLink key={item.key} item={item} />
                   ))}
                 </div>
               ))
-            : navItems.map((item) => <RailNavLink key={item.key} item={item} />)}
+            : flattenNavItems(navItems).map((item) => <RailNavLink key={item.key} item={item} />)}
 
           {isAdmin && navGroups.length === 0 && <p className="text-[10px] text-muted-foreground/56">—</p>}
           {!isAdmin && navItems.length === 0 && <p className="text-[10px] text-muted-foreground/56">—</p>}
         </nav>
 
         {canToggleAdminNav && (
-          <form action={onToggleNavMode} className="mt-2 flex flex-col items-center border-t border-border pt-3">
+          <form action={onToggleNavMode} className="mt-2 flex w-full flex-col items-center border-t border-border pt-3">
             <button type="submit" className={cn(ICON_BUTTON_BASE, isAdmin && "text-primary")}>
-              {isAdmin ? <Globe2 className="size-5" aria-hidden="true" /> : <ShieldCheck className="size-5" aria-hidden="true" />}
-              <span className={cn(FLYOUT_BASE, "whitespace-nowrap px-2.5 py-1.5 text-xs font-medium uppercase tracking-caps")}>
-                {isAdmin ? "Sair do admin" : "Área administrativa"}
-              </span>
+              {isAdmin ? <Globe2 className="size-5 shrink-0" aria-hidden="true" /> : <ShieldCheck className="size-5 shrink-0" aria-hidden="true" />}
+              <span className={RAIL_LABEL_CLASSES}>{isAdmin ? "Site" : "Admin"}</span>
             </button>
           </form>
         )}

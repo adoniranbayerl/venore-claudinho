@@ -96,8 +96,10 @@
 
   /* sidebar — rail de ícones de largura fixa (nunca expande/colapsa, docs pedido desta sessão:
      Shell estruturalmente diferente do Venore Slime). Um único token de largura, não o par
-     expandido/colapsado do Slime, porque não existe o segundo estado aqui. */
-  --sidebar-width-rail: 5rem;
+     expandido/colapsado do Slime, porque não existe o segundo estado aqui. 5.5rem (não 5rem) —
+     largura ajustada nesta sessão pra caber ícone + legenda sempre visível (simplificação: rail
+     deixou de depender de hover pra revelar o rótulo de cada item). */
+  --sidebar-width-rail: 5.5rem;
 
   --sidebar-bg-start: oklch(0.92 0.012 262);
   --sidebar-bg-end: oklch(0.87 0.022 268);
