@@ -1,5 +1,5 @@
 # Venore Docks
-`Version do documento: 2.0.0-forge`
+`Version do documento: 2.0.1-forge`
 
 > `CORE_VERSION` (usado em `compatibility.coreVersion` do manifesto de plugin) é um semver puro, sem sufixo de prerelease, vivendo em código (`platform/plugin-engine/core-version.ts`) — deliberadamente desacoplado do "Version" acima. Sufixo de prerelease quebra `semver.satisfies` contra faixas como `>=2.0.0 <3.0.0` por padrão; a versão do documento pode evoluir livremente sem afetar checagem de compatibilidade de plugin.
 
