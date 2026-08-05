@@ -1,30 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const findPublishedCourseById = vi.fn();
-const findPublishedCourseBySlug = vi.fn();
+const findVisibleCourseById = vi.fn();
+const findVisibleCourseBySlug = vi.fn();
 
 vi.mock("./store", () => ({
-  findPublishedCourseById: (...args: unknown[]) => findPublishedCourseById(...args),
-  findPublishedCourseBySlug: (...args: unknown[]) => findPublishedCourseBySlug(...args),
+  findVisibleCourseById: (...args: unknown[]) => findVisibleCourseById(...args),
+  findVisibleCourseBySlug: (...args: unknown[]) => findVisibleCourseBySlug(...args),
 }));
 
 describe("getCourseForStudent", () => {
   beforeEach(() => {
-    findPublishedCourseById.mockReset();
-    findPublishedCourseBySlug.mockReset();
+    findVisibleCourseById.mockReset();
+    findVisibleCourseBySlug.mockReset();
   });
 
-  it("returns the course when it exists and is published", async () => {
+  it("returns the course when it exists and is not a draft", async () => {
     const course = {
       id: "course-1",
       title: "Intro",
       description: null,
-      status: "published",
+      status: "restricted",
       createdBy: "actor-1",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    findPublishedCourseById.mockResolvedValue(course);
+    findVisibleCourseById.mockResolvedValue(course);
 
     const { getCourseForStudent } = await import("./service");
     const result = await getCourseForStudent({ id: "course-1" });
@@ -33,7 +33,7 @@ describe("getCourseForStudent", () => {
   });
 
   it("returns null data for a draft or missing course, never leaking it", async () => {
-    findPublishedCourseById.mockResolvedValue(null);
+    findVisibleCourseById.mockResolvedValue(null);
 
     const { getCourseForStudent } = await import("./service");
     const result = await getCourseForStudent({ id: "draft-course" });
@@ -42,14 +42,14 @@ describe("getCourseForStudent", () => {
   });
 
   it("resolves by slug when the query carries a slug", async () => {
-    const course = { id: "course-1", slug: "intro", status: "published" };
-    findPublishedCourseBySlug.mockResolvedValue(course);
+    const course = { id: "course-1", slug: "intro", status: "public" };
+    findVisibleCourseBySlug.mockResolvedValue(course);
 
     const { getCourseForStudent } = await import("./service");
     const result = await getCourseForStudent({ slug: "intro" });
 
     expect(result).toEqual({ success: true, data: course });
-    expect(findPublishedCourseBySlug).toHaveBeenCalledWith("intro");
-    expect(findPublishedCourseById).not.toHaveBeenCalled();
+    expect(findVisibleCourseBySlug).toHaveBeenCalledWith("intro");
+    expect(findVisibleCourseById).not.toHaveBeenCalled();
   });
 });

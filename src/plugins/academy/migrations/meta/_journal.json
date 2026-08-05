@@ -50,6 +50,69 @@
       "when": 1785356204713,
       "tag": "0006_plain_lilandra",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785797159062,
+      "tag": "0007_classy_jackpot",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785844377247,
+      "tag": "0008_lessons_own_content_step1",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785844418138,
+      "tag": "0009_lessons_own_content_step2",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785849279898,
+      "tag": "0010_curved_overlord",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785854612085,
+      "tag": "0011_flaky_mysterio",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1785872242972,
+      "tag": "0012_unusual_raza",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1785931914450,
+      "tag": "0013_brave_flatman",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1785933226646,
+      "tag": "0014_equal_eternals",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1785939840908,
+      "tag": "0015_wealthy_doomsday",
+      "breakpoints": true
     }
   ]
 }

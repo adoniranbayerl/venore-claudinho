@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import { entries } from "../../../database/schema";
+import { toEntryRecord } from "../../../database/entry-content-types";
 import type { EntryRecord } from "../../../contracts/types";
 
 export async function findPublishedEntryByCategoryAndSlug(
@@ -19,5 +20,5 @@ export async function findPublishedEntryByCategoryAndSlug(
     )
     .limit(1);
 
-  return (row as EntryRecord) ?? null;
+  return row ? await toEntryRecord(row) : null;
 }

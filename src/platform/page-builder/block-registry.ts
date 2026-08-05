@@ -1,6 +1,7 @@
 import type { BlockDefinition, ResolveBlockDefinition } from "@/contexts/cms";
 import { blockDefinitions as academyBlockDefinitions } from "@/plugins/academy";
 import { blockDefinitions as birthdaysBlockDefinitions } from "@/plugins/birthdays";
+import { blockDefinitions as donationsBlockDefinitions } from "@/plugins/donations";
 import { PLUGIN_REGISTRY } from "@/plugins/registry";
 import { buttonBlockDefinition } from "./blocks/button";
 import { headingBlockDefinition } from "./blocks/heading";
@@ -50,6 +51,7 @@ const CORE_LEAF_BLOCKS: BlockDefinition[] = [
 const PLUGIN_BLOCK_BARRELS: Record<string, { blockDefinitions?: BlockDefinition[] }> = {
   academy: { blockDefinitions: academyBlockDefinitions },
   birthdays: { blockDefinitions: birthdaysBlockDefinitions },
+  donations: { blockDefinitions: donationsBlockDefinitions },
 };
 
 function collectPluginBlocks(): BlockDefinition[] {

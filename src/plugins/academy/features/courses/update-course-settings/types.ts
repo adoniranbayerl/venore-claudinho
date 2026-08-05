@@ -4,7 +4,6 @@ import type { CourseRecord } from "../../../contracts/types";
 export type UpdateCourseSettingsCommand = {
   id: string;
   slug?: string;
-  selfEnrollmentEnabled: boolean;
   publiclyListed: boolean;
   // null limpa a capa; undefined não toca no campo (form de configurações sempre reenvia os dois
   // outros campos boolean, então coverMediaId também é sempre resubmetido — null quando o usuário

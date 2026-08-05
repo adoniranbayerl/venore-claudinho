@@ -16,7 +16,8 @@ export async function findNextPosition(courseId: string): Promise<number> {
 
 export async function insertLesson(input: {
   courseId: string;
-  cmsEntryId: string;
+  title: string;
+  body?: string;
   videoUrl?: string;
   coverMediaId?: string;
   position: number;
@@ -25,7 +26,8 @@ export async function insertLesson(input: {
     .insert(lessons)
     .values({
       courseId: input.courseId,
-      cmsEntryId: input.cmsEntryId,
+      title: input.title,
+      body: input.body ?? null,
       videoUrl: input.videoUrl ?? null,
       position: input.position,
       ...(input.coverMediaId !== undefined && { coverMediaId: input.coverMediaId }),

@@ -11,7 +11,7 @@ export type PermissionGroupView = { id: string; label: string; permissions: Perm
 
 const GROUP_ORDER: { id: string; label: string }[] = [
   { id: "people-and-access", label: "Pessoas e acessos" },
-  { id: "content", label: "Conteúdo do site" },
+  { id: "content", label: "Editorial" },
   { id: "media", label: "Arquivos e mídia" },
   { id: "settings", label: "Configurações da organização" },
   { id: "system", label: "Sistema e extensões" },
@@ -40,8 +40,8 @@ const CORE_PERMISSION_COPY: Record<string, { groupId: string; title: string; des
   },
   "cms.content-types.manage": {
     groupId: "content",
-    title: "Definir tipos de conteúdo",
-    description: 'Permite criar novos modelos de conteúdo, como um novo tipo "Evento" além de "Notícia".',
+    title: "Definir tags",
+    description: 'Permite criar novas tags de conteúdo, como "Evento" além de "Notícia".',
   },
   "cms.categories.manage": {
     groupId: "content",

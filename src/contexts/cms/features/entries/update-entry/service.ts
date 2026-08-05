@@ -1,6 +1,6 @@
-import { getMedia } from "@/contexts/media";
+import { getMediaAsset } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
-import { invalidateCacheByPrefix } from "../../../../../infrastructure/cache/memory-cache";
+import { invalidateCache, invalidateCacheByPrefix } from "../../../../../infrastructure/cache/memory-cache";
 import { findEntryById, findOtherEntryByCategoryAndSlug, updateEntryFields } from "./store";
 import type { UpdateEntryCommand, UpdateEntryResult } from "./types";
 
@@ -34,7 +34,7 @@ export async function updateEntry(command: UpdateEntryCommand): Promise<UpdateEn
   }
 
   if (command.mediaId) {
-    const media = await getMedia({ id: command.mediaId });
+    const media = await getMediaAsset({ id: command.mediaId });
     if (!media.success || !media.data) {
       const error = {
         code: "cms.entries.invalid_media",
@@ -49,6 +49,9 @@ export async function updateEntry(command: UpdateEntryCommand): Promise<UpdateEn
     title: command.title,
     slug: command.slug,
     categoryId: command.categoryId,
+    contentTypeIds: command.contentTypeIds,
+    visibility: command.visibility,
+    scheduledArchiveAt: command.scheduledArchiveAt,
     data: command.data,
     mediaId: command.mediaId,
   });
@@ -60,6 +63,12 @@ export async function updateEntry(command: UpdateEntryCommand): Promise<UpdateEn
   if (existing.status === "published") {
     invalidateCacheByPrefix("cms:entries:published");
     invalidateCacheByPrefix("cms:navigation");
+  }
+
+  // listContentTypes cacheia entryCount por tag junto do catálogo (Fase 3/C8) — mudar as tags de
+  // uma entry precisa invalidar essa chave mesmo quando nada mais muda.
+  if (command.contentTypeIds !== undefined) {
+    invalidateCache("cms:content-types");
   }
 
   endOperation(handle, { success: true });

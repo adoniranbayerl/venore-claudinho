@@ -1,4 +1,5 @@
 import { MEDIA_ALLOWED_TYPES } from "@/contexts/media/contracts/types";
+import { resolveMediaStorageFolder } from "@/contexts/media/resolve-media-storage-folder";
 import { beginOperation, endOperation } from "@/observability";
 import type { OperationResult } from "@/shared/types";
 import type { MediaUploadTicket, RequestMediaUploadTicketCommand } from "./types";
@@ -57,7 +58,7 @@ export async function requestMediaUploadTicket(
     return validation;
   }
 
-  const pathname = `${crypto.randomUUID()}-${sanitizeFilename(command.filename)}`;
+  const pathname = `${resolveMediaStorageFolder(command.contentType)}/${crypto.randomUUID()}-${sanitizeFilename(command.filename)}`;
   endOperation(handle, { success: true });
   return {
     success: true,

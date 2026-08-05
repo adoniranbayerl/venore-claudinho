@@ -28,6 +28,12 @@ export async function deleteLessonSectionService(
   // inferir "progresso desta seção" a partir do progresso da aula sem gerar falso negativo (ex:
   // aluno completou o vídeo da aula antes desta seção existir). A guarda real entra junto com o
   // schema de progresso por seção na T2.
+  // LACUNA ACEITA (pedido de "secao via page builder" desta sessao): quando section.cmsEntryId
+  // existe, a entry oculta por tras dela (contexts/cms, internalOwner="academy") NAO e apagada
+  // junto -- deleteEntry (CMS) so apaga entry com status "archived", e essas entries nunca passam
+  // pelo fluxo de publish/archive (ficam "draft" pra sempre, ver create-lesson-text-section/
+  // service.ts). Fica orfa, mas invisivel em /admin/cms/entries -- custo aceito em vez de forcar
+  // a entry por um workflow de publicacao que nao faz sentido pra ela.
   await deleteSectionAndRenumber(section.lessonId, section.position, section.id);
 
   endOperation(handle, { success: true });

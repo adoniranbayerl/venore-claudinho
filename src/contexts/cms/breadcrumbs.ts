@@ -17,11 +17,11 @@ export const getCachedEntry = cache((id: string) => getEntryHandler({ id }));
 export const getCachedMenuTree = cache((menuId: string) => getMenuTreeHandler({ menuId }));
 
 export const cmsBreadcrumbSegments: BreadcrumbSegmentDefinition[] = [
-  staticBreadcrumbSegment({ key: "cms.overview", segments: ["admin", "cms"], label: "CMS" }),
+  staticBreadcrumbSegment({ key: "cms.overview", segments: ["admin", "cms"], label: "Editorial" }),
   staticBreadcrumbSegment({
     key: "cms.content-types",
     segments: ["admin", "cms", "content-types"],
-    label: "Tipos de conteúdo",
+    label: "Tags",
   }),
   staticBreadcrumbSegment({ key: "cms.categories", segments: ["admin", "cms", "categories"], label: "Categorias" }),
   staticBreadcrumbSegment({ key: "cms.entries", segments: ["admin", "cms", "entries"], label: "Conteúdos" }),

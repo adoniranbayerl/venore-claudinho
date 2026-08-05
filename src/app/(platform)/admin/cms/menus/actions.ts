@@ -10,7 +10,7 @@ import {
   removeMenuItem,
   updateMenuItem,
 } from "@/contexts/cms";
-import type { MenuItemTarget, MenuLocation } from "@/contexts/cms";
+import type { EntryStatus, MenuItemTarget, MenuLocation } from "@/contexts/cms";
 
 export type MenuActionState = { error: string | null };
 
@@ -157,7 +157,7 @@ export async function moveMenuItemAction(input: {
   return { error: null };
 }
 
-export type ContentSearchResult = { id: string; title: string; slug: string; status: "draft" | "published" };
+export type ContentSearchResult = { id: string; title: string; slug: string; status: EntryStatus };
 
 // Seletor de conteúdo por busca (nunca id/URL crus) — filtra no servidor pra não vazar entries
 // além do que o admin de CMS já pode ver.

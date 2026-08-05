@@ -13,10 +13,10 @@ export const settingsAdminNavigationItems: AdminNavItemDefinition[] = [
     requiredPermission: "settings.manage",
   },
   {
-    key: "settings.appearance",
-    label: "Aparência",
+    key: "settings.brand",
+    label: "Identidade do site",
     icon: "palette",
-    href: "/admin/settings/appearance",
+    href: "/admin/settings/brand",
     groupKey: "platform",
     groupLabel: "Plataforma",
     groupOrder: 10,

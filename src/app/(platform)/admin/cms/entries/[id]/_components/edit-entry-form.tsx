@@ -25,16 +25,22 @@ export function EditEntryForm({
   slug,
   body,
   categoryId,
+  contentTypeIds,
+  visibility,
   media,
   categories,
+  contentTypes,
 }: {
   entryId: string;
   title: string;
   slug: string;
   body: string;
   categoryId: string | null;
+  contentTypeIds: string[];
+  visibility: "public" | "authenticated";
   media: PickableMedia | null;
   categories: { id: string; name: string }[];
+  contentTypes: { id: string; name: string }[];
 }) {
   const [state, formAction, pending] = useActionState(updateEntryAction, initialState);
   const [titleValue, setTitleValue] = useState(title);
@@ -56,6 +62,38 @@ export function EditEntryForm({
       </div>
 
       <AutoSlugField name="slug" sourceValue={titleValue} defaultValue={slug} label="Endereço da página" />
+
+      <div>
+        <label className="block text-xs font-medium text-muted-foreground">Tags</label>
+        <div className="mt-1 space-y-2 rounded-md border border-border p-3">
+          {contentTypes.map((contentType) => (
+            <label key={contentType.id} className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                name="contentTypeIds"
+                value={contentType.id}
+                defaultChecked={contentTypeIds.includes(contentType.id)}
+                className="size-4"
+              />
+              {contentType.name}
+            </label>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground/56">Selecione ao menos uma. Um conteúdo pode ter mais de uma tag.</p>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-muted-foreground">Privacidade</label>
+        <Select name="visibility" defaultValue={visibility}>
+          <SelectTrigger className="mt-1 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="public">Aberto (qualquer visitante)</SelectItem>
+            <SelectItem value="authenticated">Fechado (só logados)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       <div>
         <label className="block text-xs font-medium text-muted-foreground">Categoria (opcional)</label>

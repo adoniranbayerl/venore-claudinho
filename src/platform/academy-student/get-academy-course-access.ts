@@ -2,6 +2,7 @@ import { cache } from "react";
 import { getCurrentUser } from "@/contexts/auth";
 import { getUserContext } from "@/contexts/rbac";
 import { getCourseForStudent, getCachedCourseForStudent, isEnrolled } from "@/plugins/academy";
+import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 import type { AcademyCourseAccess } from "./types";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -20,6 +21,15 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 // plugins/academy/breadcrumbs.ts:academyBreadcrumbSegments (nível "/academy/:courseSlug") — três
 // consumidores, uma chamada por request quando o slug bate.
 export const getAcademyCourseAccess = cache(async (courseSlug: string): Promise<AcademyCourseAccess> => {
+  // Plugin desabilitado se comporta como curso inexistente pro aluno — não existe um "mode"
+  // dedicado pra isso porque, do ponto de vista de quem acessa a URL, não há diferença prática
+  // entre "nunca existiu" e "existe mas o subsistema está desligado" (mesmo raciocínio de
+  // get-academy-page-data.ts pro admin, mas aqui reaproveitando "not-found" em vez de "forbidden"
+  // porque não existe conceito de permission nesta camada).
+  if (!(await isPluginActive("academy"))) {
+    return { mode: "not-found" };
+  }
+
   const currentUser = await getCurrentUser();
   if (!currentUser.success || !currentUser.data) {
     return { mode: "unauthenticated" };
@@ -45,7 +55,10 @@ export const getAcademyCourseAccess = cache(async (courseSlug: string): Promise<
     slug: courseResult.data.slug,
     title: courseResult.data.title,
     description: courseResult.data.description,
-    selfEnrollmentEnabled: courseResult.data.selfEnrollmentEnabled,
+    // findCourseForStudent já exclui "draft" (ver get-course-for-student/store.ts) — só
+    // restricted/public chegam aqui.
+    status: courseResult.data.status as "restricted" | "public",
+    coverMediaId: courseResult.data.coverMediaId,
   };
 
   const enrolledResult = await isEnrolled({ courseId: course.id });
@@ -62,7 +75,7 @@ export const getAcademyCourseAccess = cache(async (courseSlug: string): Promise<
     return { mode: "preview", actor, course };
   }
 
-  if (course.selfEnrollmentEnabled) {
+  if (course.status === "public") {
     return { mode: "enroll-available", actor, course };
   }
 

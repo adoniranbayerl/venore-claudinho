@@ -1,5 +1,6 @@
 import {
   Activity,
+  ArrowLeftRight,
   Award,
   Bell,
   BookOpen,
@@ -64,6 +65,7 @@ export const NAV_ICON_BY_KEY: Record<string, LucideIcon> = {
   files: Files,
   menu: Menu,
   activity: Activity,
+  "arrow-left-right": ArrowLeftRight,
   puzzle: Puzzle,
   cake: Cake,
   mail: Mail,

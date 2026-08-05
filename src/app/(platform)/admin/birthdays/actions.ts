@@ -8,11 +8,13 @@ import {
   previewBirthdaysCsvImport,
   updateBirthday,
 } from "@/plugins/birthdays";
+import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 import type { ImportBirthdaysCsvActionState, PreviewBirthdaysCsvImportState } from "./initial-state";
 
 export type BirthdaysActionState = { error: string | null };
 
 const returnTo = "/admin/birthdays";
+const PLUGIN_DISABLED_ERROR = "O plugin Aniversariantes está desabilitado.";
 
 function readCsvFile(formData: FormData): File | { error: string } {
   const file = formData.get("file");
@@ -26,6 +28,10 @@ export async function createBirthdayAction(
   _prevState: BirthdaysActionState,
   formData: FormData,
 ): Promise<BirthdaysActionState> {
+  if (!(await isPluginActive("birthdays"))) {
+    return { error: PLUGIN_DISABLED_ERROR };
+  }
+
   const result = await createBirthday({
     fullName: String(formData.get("fullName") ?? ""),
     role: String(formData.get("role") ?? "") || undefined,
@@ -46,6 +52,10 @@ export async function updateBirthdayAction(
   _prevState: BirthdaysActionState,
   formData: FormData,
 ): Promise<BirthdaysActionState> {
+  if (!(await isPluginActive("birthdays"))) {
+    return { error: PLUGIN_DISABLED_ERROR };
+  }
+
   const result = await updateBirthday({
     birthdayId: String(formData.get("birthdayId") ?? ""),
     fullName: String(formData.get("fullName") ?? ""),
@@ -67,6 +77,10 @@ export async function deleteBirthdayAction(
   _prevState: BirthdaysActionState,
   formData: FormData,
 ): Promise<BirthdaysActionState> {
+  if (!(await isPluginActive("birthdays"))) {
+    return { error: PLUGIN_DISABLED_ERROR };
+  }
+
   const result = await deleteBirthday({ birthdayId: String(formData.get("birthdayId") ?? "") });
 
   if (!result.success) {
@@ -82,6 +96,10 @@ export async function previewBirthdaysCsvImportAction(
   _prevState: PreviewBirthdaysCsvImportState,
   formData: FormData,
 ): Promise<PreviewBirthdaysCsvImportState> {
+  if (!(await isPluginActive("birthdays"))) {
+    return { error: PLUGIN_DISABLED_ERROR, report: null };
+  }
+
   const file = readCsvFile(formData);
   if ("error" in file) {
     return { error: file.error, report: null };
@@ -104,6 +122,10 @@ export async function importBirthdaysCsvAction(
   _prevState: ImportBirthdaysCsvActionState,
   formData: FormData,
 ): Promise<ImportBirthdaysCsvActionState> {
+  if (!(await isPluginActive("birthdays"))) {
+    return { error: PLUGIN_DISABLED_ERROR, outcome: null };
+  }
+
   const file = readCsvFile(formData);
   if ("error" in file) {
     return { error: file.error, outcome: null };

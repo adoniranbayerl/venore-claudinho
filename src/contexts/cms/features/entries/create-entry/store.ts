@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import { entries } from "../../../database/schema";
+import { replaceEntryContentTypes } from "../../../database/entry-content-types";
 import type { EntryRecord } from "../../../contracts/types";
 
 // Unicidade pública é por (categoryId, slug) — content type nunca aparece na URL
@@ -21,26 +22,33 @@ export async function findEntryByCategoryAndSlug(
 }
 
 export async function insertEntry(input: {
-  contentTypeId: string;
+  contentTypeIds: string[];
   categoryId?: string;
   title: string;
   slug: string;
+  visibility?: "public" | "authenticated";
   data?: unknown;
   mediaId?: string;
+  internalOwner?: string;
   authorId: string;
 }): Promise<EntryRecord> {
-  const [row] = await db
-    .insert(entries)
-    .values({
-      contentTypeId: input.contentTypeId,
-      categoryId: input.categoryId ?? null,
-      title: input.title,
-      slug: input.slug,
-      data: input.data ?? {},
-      mediaId: input.mediaId ?? null,
-      authorId: input.authorId,
-    })
-    .returning();
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(entries)
+      .values({
+        categoryId: input.categoryId ?? null,
+        title: input.title,
+        slug: input.slug,
+        visibility: input.visibility ?? "public",
+        data: input.data ?? {},
+        mediaId: input.mediaId ?? null,
+        internalOwner: input.internalOwner ?? null,
+        authorId: input.authorId,
+      })
+      .returning();
 
-  return row as EntryRecord;
+    await replaceEntryContentTypes(tx, row.id, input.contentTypeIds);
+
+    return { ...row, contentTypeIds: input.contentTypeIds } as EntryRecord;
+  });
 }

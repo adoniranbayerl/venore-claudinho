@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useTransition } from "react";
 import { ChevronLeft, ChevronRight, Globe2, ShieldCheck } from "lucide-react";
 import type { SidebarLeftSlotProps } from "@/contexts/themes";
 import { cn } from "@/lib/utils";
@@ -11,12 +14,17 @@ import { SIDEBAR_COLLAPSE_TOOLTIP_COLLAPSED_CLASSES } from "./sidebar-collapse-t
 // coloca o SidebarSurfaceSwitch: platform-sidebar.tsx, dentro de um bloco com border-b no topo).
 //
 // Abaixo de lg vira drawer off-canvas (MobileNavDrawer, client) fechado por padrão; a partir de
-// lg volta a ser a coluna fixa de sempre — só a casca de posicionamento é client, este
-// componente segue server component. Colapso (docs/ui/shell-spec.md §3.1-3.2) é exclusivo do
-// desktop: `collapsed` já vem resolvido do cookie no servidor (get-sidebar-collapsed.ts), então a
-// largura certa está presente no primeiro HTML — sem flash de layout pós-hidratação. O botão de
-// colapso só existe em `lg:` (não faz sentido no off-canvas), mas sempre com alvo de toque de
-// 44px (`size-11`), independente do breakpoint em que apareça.
+// lg volta a ser a coluna fixa de sempre. Colapso (docs/ui/shell-spec.md §3.1-3.2) é exclusivo do
+// desktop: `collapsedFromServer` vem resolvido do cookie no servidor (get-sidebar-collapsed.ts),
+// então a largura certa está presente no primeiro HTML — sem flash de layout pós-hidratação. A
+// partir daí o componente é client e mantém o próprio `useState` (bug desta sessão: o toggle era
+// um `<form action={onToggleCollapsed}>` só-servidor — cada clique esperava o round-trip da
+// Server Action pra o cookie voltar lido e só então a classe de largura mudar, então a transição
+// CSS começava num instante que variava com a latência da rede em vez de no clique). Estado local
+// muda a classe na hora; a Server Action ainda roda por baixo (via startTransition, sem bloquear a
+// animação) só pra persistir o cookie e o próximo carregamento completo continuar acertando de
+// primeira — não é o padrão client-only sem persistência que o protótipo tinha e que já foi
+// registrado como "não portar" (docs/ui/shell-spec.md §3.3/§6.3).
 //
 // `<nav>` precisa do próprio `flex-1 min-h-0 overflow-y-auto`: o `<aside>` já preenche a altura
 // inteira (h-full, sem override lg:h-auto — bug desta sessão), mas sem isso o elemento de
@@ -29,12 +37,22 @@ export function SidebarLeftSlot({
   navGroups,
   canToggleAdminNav,
   onToggleNavMode,
-  collapsed,
+  collapsed: collapsedFromServer,
   onToggleCollapsed,
 }: SidebarLeftSlotProps) {
+  const [collapsed, setCollapsed] = useState(collapsedFromServer);
+  const [, startTransition] = useTransition();
+
   if (!enabled) return null;
 
   const isAdmin = navMode === "admin";
+
+  function handleToggleCollapsed() {
+    setCollapsed((value) => !value);
+    startTransition(() => {
+      onToggleCollapsed();
+    });
+  }
 
   return (
     <MobileNavDrawer
@@ -49,9 +67,10 @@ export function SidebarLeftSlot({
         collapsed && "lg:w-(--sidebar-width-collapsed)",
       )}
     >
-      <form action={onToggleCollapsed} className="absolute top-4 right-0 z-10 hidden translate-x-1/2 lg:block">
+      <div className="absolute top-4 right-0 z-10 hidden translate-x-1/2 lg:block">
         <button
-          type="submit"
+          type="button"
+          onClick={handleToggleCollapsed}
           aria-expanded={!collapsed}
           aria-label={collapsed ? "Expandir barra lateral" : "Colapsar barra lateral"}
           className="flex size-11 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-float ui-motion-base outline-none hover:border-ring active:border-ring focus-visible:ring-2 focus-visible:ring-ring"
@@ -62,7 +81,7 @@ export function SidebarLeftSlot({
             <ChevronLeft className="size-4" aria-hidden="true" />
           )}
         </button>
-      </form>
+      </div>
 
       {canToggleAdminNav && (
         // pt-8: espaço reservado pro botão flutuante de colapso (top-4, size-11), que fica

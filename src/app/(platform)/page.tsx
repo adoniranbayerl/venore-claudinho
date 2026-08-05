@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Settings2 } from "lucide-react";
-import { getEntryBody, getPublishedEntryBySlug } from "@/contexts/cms";
+import { getEntryBody, getEntryComposition, getPublishedEntryBySlug, recordEntryView } from "@/contexts/cms";
 import { getCurrentUser } from "@/contexts/auth";
 import { getAdminPageData } from "@/platform/admin-shell/get-admin-page-data";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
+import { BlockRenderer } from "@/components/page-builder/block-renderer";
 
 // force-dynamic: conteúdo (CMS) e tema ativo são runtime-configuráveis, sem rebuild
 // (docs/venore-docks.md — "Sobre temas").
@@ -17,26 +18,31 @@ const HOME_SLUG = "home";
 
 export default async function HomePage() {
   const result = await getPublishedEntryBySlug({ categoryId: null, slug: HOME_SLUG });
+  const currentUser = await getCurrentUser();
+  const isAuthenticated = currentUser.success && Boolean(currentUser.data);
 
-  if (result.success && result.data) {
-    const entry = result.data;
+  // Privacidade por conteúdo (Fase 2/C7): "authenticated" sem sessão cai no mesmo empty state de
+  // "nenhuma entry home ainda" — a home nunca 404 (é a raiz do site), então blindar o conteúdo
+  // fechado significa tratá-lo como se a entry não existisse pra esse visitante.
+  const entry = result.success && result.data && (result.data.visibility === "public" || isAuthenticated) ? result.data : null;
+
+  if (entry) {
+    recordEntryView(entry.id);
+    const compositionResult = await getEntryComposition({ id: entry.id });
+    const composition = compositionResult.success ? compositionResult.data : null;
 
     return (
       <article>
         <h1>{entry.title}</h1>
-        <p>{getEntryBody(entry.data)}</p>
+        {composition ? <BlockRenderer blocks={composition} mode="published" /> : <p>{getEntryBody(entry.data)}</p>}
       </article>
     );
   }
 
   const adminGate = await getAdminPageData();
 
-  if (!adminGate.granted) {
-    const currentUser = await getCurrentUser();
-
-    if (currentUser.success && currentUser.data) {
-      redirect("/academy");
-    }
+  if (!adminGate.granted && isAuthenticated) {
+    redirect("/academy");
   }
 
   return (

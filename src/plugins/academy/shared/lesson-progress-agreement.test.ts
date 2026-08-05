@@ -30,10 +30,12 @@ function lesson(id: string, position: number) {
   return {
     id,
     courseId: "course-1",
-    cmsEntryId: `entry-${position}`,
+    title: `Aula ${position}`,
+    body: null,
     videoUrl: null,
     coverMediaId: null,
     position,
+    status: "restricted" as const,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -70,6 +72,8 @@ describe("isLessonAccessible vs getCourseProgress agreement", () => {
       textCompletedLessonIds: new Set(),
       videoCompletedLessonIds: new Set(),
       attemptsByLessonId: new Map(),
+      activityIdsByLessonId: new Map(),
+      submittedActivityIds: new Set(),
     });
 
     const { isLessonAccessible } = await import("./lesson-progress");
@@ -103,6 +107,8 @@ describe("isLessonAccessible vs getCourseProgress agreement", () => {
       textCompletedLessonIds: new Set(),
       videoCompletedLessonIds: new Set(),
       attemptsByLessonId: new Map(),
+      activityIdsByLessonId: new Map(),
+      submittedActivityIds: new Set(),
     });
 
     const { isLessonAccessible } = await import("./lesson-progress");

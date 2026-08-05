@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Menu as MenuIcon } from "lucide-react";
+import { listCategories, listContentTypes, listEntriesForAdmin } from "@/contexts/cms";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
+import { EditorialDashboard } from "./_components/editorial-dashboard";
 
 export default async function CmsAdminPage() {
   const gate = await getCmsPageData();
@@ -20,28 +22,42 @@ export default async function CmsAdminPage() {
   const canManageEntries = actor.isSuperadmin || actor.permissions.includes("cms.entries.manage");
   const canManageMenus = actor.isSuperadmin || actor.permissions.includes("cms.menus.manage");
 
+  // C8 (Fase 3): dashboard só busca o que o ator já pode ver — mesmo critério de gate das seções
+  // abaixo, nenhum dado extra carregado pra quem não tem a permission correspondente.
+  const [entriesResult, categoriesResult, contentTypesResult] = await Promise.all([
+    canManageEntries ? listEntriesForAdmin() : null,
+    canManageCategories ? listCategories() : null,
+    canManageContentTypes ? listContentTypes() : null,
+  ]);
+
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Conteúdo do site</h1>
+        <h1 className="text-xl font-semibold text-foreground">Editorial</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Visão geral das áreas de conteúdo do site — escolha uma para gerenciar.
         </p>
       </div>
 
+      <EditorialDashboard
+        entries={entriesResult?.success ? entriesResult.data : null}
+        categories={categoriesResult?.success ? categoriesResult.data : null}
+        contentTypes={contentTypesResult?.success ? contentTypesResult.data : null}
+      />
+
       {canManageContentTypes && (
         <section className="rounded-panel border border-border bg-card ui-panel-padding-roomy">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground">Tipos de conteúdo</h2>
+            <h2 className="text-sm font-semibold text-foreground">Tags</h2>
             <Link
               href="/admin/cms/content-types"
               className="rounded-sm text-xs font-medium text-foreground outline-none ui-motion-base hover:underline focus-visible:ring-2 focus-visible:ring-ring"
             >
-              Gerenciar tipos de conteúdo
+              Gerenciar tags
             </Link>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Definem quais campos os conteúdos dessa categoria têm — por exemplo, &ldquo;Notícia&rdquo; ou &ldquo;Página&rdquo;.
+            Um conteúdo pode ter mais de uma — por exemplo, &ldquo;Notícia&rdquo; e &ldquo;Destaque&rdquo; ao mesmo tempo.
           </p>
         </section>
       )}
@@ -72,7 +88,7 @@ export default async function CmsAdminPage() {
               Ver todos os conteúdos
             </Link>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Conteúdos publicados e em rascunho no site.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Rascunho, agendado, publicado ou arquivado.</p>
         </section>
       )}
 

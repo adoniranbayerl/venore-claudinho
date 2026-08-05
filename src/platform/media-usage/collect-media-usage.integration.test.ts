@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { db } from "@/infrastructure/database/client";
 import { seedUser } from "@/test-support/integration/academy-seed";
-import { files } from "@/contexts/media/database/schema";
+import { assets } from "@/contexts/media/database/schema";
 import { createContentType } from "@/contexts/cms/features/content-types/create-content-type/service";
 import { createEntry } from "@/contexts/cms/features/entries/create-entry/service";
 import { updateEntry } from "@/contexts/cms/features/entries/update-entry/service";
@@ -18,12 +18,13 @@ function unwrap<T>(result: OperationResult<T>): T {
 
 async function seedMediaFile(uploadedBy: string) {
   const [row] = await db
-    .insert(files)
+    .insert(assets)
     .values({
       filename: "file.png",
-      storageKey: `${randomUUID()}-file.png`,
-      mimeType: "image/png",
+      pathname: `${randomUUID()}-file.png`,
+      contentType: "image/png",
       size: 10,
+      checksum: `checksum-${randomUUID()}`,
       url: "https://example.test/file.png",
       uploadedBy,
       visibility: "private",
@@ -43,7 +44,7 @@ describe("collectMediaUsage — vínculo e desvínculo com uma entry de CMS", ()
       await createContentType({ key: `usage-${randomUUID()}`, name: "Usage Test", actorId: actor.id }),
     );
     await createEntry({
-      contentTypeId: contentType.id,
+      contentTypeIds: [contentType.id],
       title: "Sem mídia",
       slug: `sem-midia-${randomUUID()}`,
       actorId: actor.id,
@@ -62,7 +63,7 @@ describe("collectMediaUsage — vínculo e desvínculo com uma entry de CMS", ()
     );
     const entry = unwrap(
       await createEntry({
-        contentTypeId: contentType.id,
+        contentTypeIds: [contentType.id],
         title: "Com mídia",
         slug: `com-midia-${randomUUID()}`,
         mediaId: media.id,

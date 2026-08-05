@@ -23,15 +23,19 @@ vi.mock("@/plugins/academy", () => ({
   isEnrolled: (...args: unknown[]) => isEnrolled(...args),
 }));
 
+const isPluginActive = vi.fn();
+vi.mock("@/platform/plugin-engine/is-plugin-active", () => ({
+  isPluginActive: (...args: unknown[]) => isPluginActive(...args),
+}));
+
 const actorUser = { id: "actor-1", email: "actor@example.com", name: "Actor" };
 const course = {
   id: "course-1",
   slug: "curso",
   title: "Curso",
   description: "desc",
-  status: "published",
+  status: "public",
   createdBy: "teacher-1",
-  selfEnrollmentEnabled: true,
   publiclyListed: true,
 };
 
@@ -42,6 +46,18 @@ describe("getAcademyCourseAccess", () => {
     getCourseForStudent.mockReset();
     getCachedCourseForStudent.mockReset();
     isEnrolled.mockReset();
+    isPluginActive.mockReset();
+    isPluginActive.mockResolvedValue(true);
+  });
+
+  it("is not-found when the academy plugin is disabled, without even checking the session", async () => {
+    isPluginActive.mockResolvedValue(false);
+
+    const { getAcademyCourseAccess } = await import("./get-academy-course-access");
+    const result = await getAcademyCourseAccess("curso");
+
+    expect(result).toEqual({ mode: "not-found" });
+    expect(getCurrentUser).not.toHaveBeenCalled();
   });
 
   it("is unauthenticated when there is no session", async () => {
@@ -163,9 +179,9 @@ describe("getAcademyCourseAccess", () => {
     expect(result.mode).toBe("enroll-available");
   });
 
-  it("is restricted when not enrolled, no preview access, and self-enrollment is off", async () => {
+  it("is restricted when not enrolled, no preview access, and the course status is restricted", async () => {
     getCurrentUser.mockResolvedValue({ success: true, data: actorUser });
-    getCachedCourseForStudent.mockResolvedValue({ success: true, data: { ...course, selfEnrollmentEnabled: false } });
+    getCachedCourseForStudent.mockResolvedValue({ success: true, data: { ...course, status: "restricted" } });
     isEnrolled.mockResolvedValue({ success: true, data: false });
     getUserContext.mockResolvedValue({
       success: true,

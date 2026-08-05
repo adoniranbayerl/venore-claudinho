@@ -10,7 +10,7 @@ export async function enrollSelf(command: EnrollSelfCommand): Promise<EnrollSelf
   });
 
   const course = await findCourseById(command.courseId);
-  if (!course || course.status !== "published") {
+  if (!course || course.status === "draft") {
     const error = {
       code: "academy.enrollments.course_not_found",
       message: `Course "${command.courseId}" não encontrado.`,
@@ -19,7 +19,7 @@ export async function enrollSelf(command: EnrollSelfCommand): Promise<EnrollSelf
     return { success: false, error };
   }
 
-  if (!course.selfEnrollmentEnabled) {
+  if (course.status !== "public") {
     const error = {
       code: "academy.enrollments.self_enrollment_disabled",
       message: "Este curso não permite matrícula automática. Fale com um administrador.",

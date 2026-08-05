@@ -69,6 +69,18 @@ export function TogglePluginControl({
 }) {
   const [open, setOpen] = useState(false);
 
+  // Reseta o dialog quando o plugin sai do estado "habilitado", ajustando o state durante a
+  // própria renderização (React docs — "Adjusting state when a prop changes") em vez de useEffect:
+  // revalidatePath do disable pode trazer enabled=false no mesmo commit em que o pending do
+  // ToggleForm de confirmação vira false, desmontando esse ToggleForm antes do onSuccess
+  // (setOpen(false)) rodar — sem este ajuste, open fica preso em true e reabre sozinho quando o
+  // plugin é reabilitado depois (bug desta sessão).
+  const [prevEnabled, setPrevEnabled] = useState(enabled);
+  if (enabled !== prevEnabled) {
+    setPrevEnabled(enabled);
+    if (!enabled) setOpen(false);
+  }
+
   if (!enabled) {
     return (
       <div className="flex items-center gap-2">

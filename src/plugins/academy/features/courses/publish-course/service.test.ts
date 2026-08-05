@@ -9,7 +9,6 @@ const findCourseById = vi.fn();
 const markCoursePublished = vi.fn();
 const findLessonsWithQuizFlagByCourse = vi.fn();
 const countQuizQuestionsByLessonIds = vi.fn();
-const getEntry = vi.fn();
 
 vi.mock("./store", () => ({
   findCourseById: (...args: unknown[]) => findCourseById(...args),
@@ -18,13 +17,8 @@ vi.mock("./store", () => ({
   countQuizQuestionsByLessonIds: (...args: unknown[]) => countQuizQuestionsByLessonIds(...args),
 }));
 
-vi.mock("@/contexts/cms", () => ({
-  getEntry: (...args: unknown[]) => getEntry(...args),
-}));
-
-const publishedLesson = (overrides: Partial<{ id: string; cmsEntryId: string; position: number; quizEnabled: boolean }> = {}) => ({
+const publishedLesson = (overrides: Partial<{ id: string; position: number; quizEnabled: boolean }> = {}) => ({
   id: "lesson-1",
-  cmsEntryId: "entry-1",
   position: 1,
   quizEnabled: false,
   ...overrides,
@@ -36,29 +30,39 @@ describe("publishCourse", () => {
     markCoursePublished.mockReset();
     findLessonsWithQuizFlagByCourse.mockReset();
     countQuizQuestionsByLessonIds.mockReset();
-    getEntry.mockReset();
 
     countQuizQuestionsByLessonIds.mockResolvedValue(new Map());
   });
 
-  it("publishes a course with a published lesson", async () => {
+  it("publishes a course as restricted with a lesson", async () => {
     findCourseById.mockResolvedValue({ id: "course-1", status: "draft" });
     findLessonsWithQuizFlagByCourse.mockResolvedValue([publishedLesson()]);
-    getEntry.mockResolvedValue({ success: true, data: { id: "entry-1", status: "published" } });
-    markCoursePublished.mockResolvedValue({ id: "course-1", status: "published" });
+    markCoursePublished.mockResolvedValue({ id: "course-1", status: "restricted" });
 
     const { publishCourse } = await import("./service");
-    const result = await publishCourse({ id: "course-1", actorId: "actor-1" });
+    const result = await publishCourse({ id: "course-1", status: "restricted", actorId: "actor-1" });
 
-    expect(result).toEqual({ success: true, data: { id: "course-1", status: "published" } });
-    expect(markCoursePublished).toHaveBeenCalledWith("course-1");
+    expect(result).toEqual({ success: true, data: { id: "course-1", status: "restricted" } });
+    expect(markCoursePublished).toHaveBeenCalledWith("course-1", "restricted");
+  });
+
+  it("publishes a course as public with a lesson", async () => {
+    findCourseById.mockResolvedValue({ id: "course-1", status: "draft" });
+    findLessonsWithQuizFlagByCourse.mockResolvedValue([publishedLesson()]);
+    markCoursePublished.mockResolvedValue({ id: "course-1", status: "public" });
+
+    const { publishCourse } = await import("./service");
+    const result = await publishCourse({ id: "course-1", status: "public", actorId: "actor-1" });
+
+    expect(result).toEqual({ success: true, data: { id: "course-1", status: "public" } });
+    expect(markCoursePublished).toHaveBeenCalledWith("course-1", "public");
   });
 
   it("fails when the course does not exist", async () => {
     findCourseById.mockResolvedValue(null);
 
     const { publishCourse } = await import("./service");
-    const result = await publishCourse({ id: "missing", actorId: "actor-1" });
+    const result = await publishCourse({ id: "missing", status: "public", actorId: "actor-1" });
 
     expect(result).toEqual({
       success: false,
@@ -72,7 +76,7 @@ describe("publishCourse", () => {
     findLessonsWithQuizFlagByCourse.mockResolvedValue([]);
 
     const { publishCourse } = await import("./service");
-    const result = await publishCourse({ id: "course-1", actorId: "actor-1" });
+    const result = await publishCourse({ id: "course-1", status: "public", actorId: "actor-1" });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -82,42 +86,13 @@ describe("publishCourse", () => {
     expect(markCoursePublished).not.toHaveBeenCalled();
   });
 
-  it("fails when a lesson's cms entry is not published", async () => {
-    findCourseById.mockResolvedValue({ id: "course-1", status: "draft" });
-    findLessonsWithQuizFlagByCourse.mockResolvedValue([publishedLesson({ position: 2 })]);
-    getEntry.mockResolvedValue({ success: true, data: { id: "entry-1", status: "draft" } });
-
-    const { publishCourse } = await import("./service");
-    const result = await publishCourse({ id: "course-1", actorId: "actor-1" });
-
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.message).toContain("Aula 2");
-      expect(result.error.message).toContain("não está publicado");
-    }
-    expect(markCoursePublished).not.toHaveBeenCalled();
-  });
-
-  it("fails when a lesson's cms entry no longer exists", async () => {
-    findCourseById.mockResolvedValue({ id: "course-1", status: "draft" });
-    findLessonsWithQuizFlagByCourse.mockResolvedValue([publishedLesson()]);
-    getEntry.mockResolvedValue({ success: true, data: null });
-
-    const { publishCourse } = await import("./service");
-    const result = await publishCourse({ id: "course-1", actorId: "actor-1" });
-
-    expect(result.success).toBe(false);
-    expect(markCoursePublished).not.toHaveBeenCalled();
-  });
-
   it("fails when a quiz-enabled lesson has no questions", async () => {
     findCourseById.mockResolvedValue({ id: "course-1", status: "draft" });
     findLessonsWithQuizFlagByCourse.mockResolvedValue([publishedLesson({ quizEnabled: true })]);
-    getEntry.mockResolvedValue({ success: true, data: { id: "entry-1", status: "published" } });
     countQuizQuestionsByLessonIds.mockResolvedValue(new Map());
 
     const { publishCourse } = await import("./service");
-    const result = await publishCourse({ id: "course-1", actorId: "actor-1" });
+    const result = await publishCourse({ id: "course-1", status: "public", actorId: "actor-1" });
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -126,21 +101,16 @@ describe("publishCourse", () => {
     expect(markCoursePublished).not.toHaveBeenCalled();
   });
 
-  it("reports every problem found, not just the first", async () => {
+  it("reports every quiz-without-questions problem found, not just the first", async () => {
     findCourseById.mockResolvedValue({ id: "course-1", status: "draft" });
     findLessonsWithQuizFlagByCourse.mockResolvedValue([
-      publishedLesson({ id: "lesson-1", cmsEntryId: "entry-1", position: 1, quizEnabled: true }),
-      publishedLesson({ id: "lesson-2", cmsEntryId: "entry-2", position: 2, quizEnabled: false }),
+      publishedLesson({ id: "lesson-1", position: 1, quizEnabled: true }),
+      publishedLesson({ id: "lesson-2", position: 2, quizEnabled: true }),
     ]);
-    getEntry.mockImplementation(({ id }: { id: string }) =>
-      id === "entry-1"
-        ? Promise.resolve({ success: true, data: { id, status: "draft" } })
-        : Promise.resolve({ success: true, data: { id, status: "draft" } }),
-    );
     countQuizQuestionsByLessonIds.mockResolvedValue(new Map());
 
     const { publishCourse } = await import("./service");
-    const result = await publishCourse({ id: "course-1", actorId: "actor-1" });
+    const result = await publishCourse({ id: "course-1", status: "public", actorId: "actor-1" });
 
     expect(result.success).toBe(false);
     if (!result.success) {

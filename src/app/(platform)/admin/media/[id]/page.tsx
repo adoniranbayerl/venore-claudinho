@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getMedia, listCategories } from "@/contexts/media";
+import { getMediaAsset, listCategories } from "@/contexts/media";
 import { getMediaPageData } from "@/platform/admin-shell/get-media-page-data";
 import { collectMediaUsage } from "@/platform/media-usage/media-usage-registry";
 import { DeleteMediaButton } from "../_components/delete-media-button";
@@ -28,7 +28,7 @@ export default async function MediaDetailPage({ params }: { params: Promise<{ id
   const { id } = await params;
 
   const [mediaResult, categoriesResult, usage] = await Promise.all([
-    getMedia({ id }),
+    getMediaAsset({ id }),
     listCategories(),
     collectMediaUsage(id),
   ]);
@@ -39,7 +39,7 @@ export default async function MediaDetailPage({ params }: { params: Promise<{ id
 
   const media = mediaResult.data;
   const categories = categoriesResult.success ? categoriesResult.data : [];
-  const isImage = media.mimeType.startsWith("image/");
+  const isImage = media.contentType.startsWith("image/");
 
   return (
     <div className="space-y-4">
@@ -47,7 +47,7 @@ export default async function MediaDetailPage({ params }: { params: Promise<{ id
         <div>
           <h1 className="text-xl font-semibold text-foreground">{media.filename}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {formatSize(media.size)} · {media.mimeType} · enviado em {media.createdAt.toLocaleDateString("pt-BR")}
+            {formatSize(media.size)} · {media.contentType} · enviado em {media.createdAt.toLocaleDateString("pt-BR")}
           </p>
         </div>
         <Link href="/admin/media" className="text-xs font-medium text-muted-foreground outline-none hover:underline">

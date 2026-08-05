@@ -8,6 +8,7 @@ export type ConfigureLessonRequirementsCommand = {
   quizEnabled: boolean;
   quizPassThresholdPercent?: number;
   quizMaxAttempts?: number;
+  activityEnabled: boolean;
   actorId: string;
 };
 export type ConfigureLessonRequirementsInput = Omit<ConfigureLessonRequirementsCommand, "actorId">;

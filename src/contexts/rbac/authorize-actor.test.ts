@@ -72,6 +72,35 @@ describe("authorizeActor", () => {
     expect(result).toEqual({ authorized: true, actorId: "user-1" });
   });
 
+  it("authorizes when the actor has any one of a list of required permissions (OR, not AND)", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: { id: "user-1", email: null, name: null, image: null } });
+    getUserContext.mockResolvedValue({
+      success: true,
+      data: { userId: "user-1", roles: [], permissions: ["cms.entries.manage"], isSuperadmin: false },
+    });
+
+    const { authorizeActor } = await import("./authorize-actor");
+    const result = await authorizeActor(["cms.entries.publish", "cms.entries.manage"]);
+
+    expect(result).toEqual({ authorized: true, actorId: "user-1" });
+  });
+
+  it("rejects when the actor has none of a list of required permissions", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: { id: "user-1", email: null, name: null, image: null } });
+    getUserContext.mockResolvedValue({
+      success: true,
+      data: { userId: "user-1", roles: [], permissions: ["cms.categories.manage"], isSuperadmin: false },
+    });
+
+    const { authorizeActor } = await import("./authorize-actor");
+    const result = await authorizeActor(["cms.entries.publish", "cms.entries.manage"]);
+
+    expect(result).toEqual({
+      authorized: false,
+      error: { code: "rbac.authorization.forbidden", message: expect.any(String) },
+    });
+  });
+
   it("propagates a failure from getUserContext", async () => {
     getCurrentUser.mockResolvedValue({ success: true, data: { id: "user-1", email: null, name: null, image: null } });
     getUserContext.mockResolvedValue({

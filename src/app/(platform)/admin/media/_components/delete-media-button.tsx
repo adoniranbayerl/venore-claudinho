@@ -1,18 +1,30 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { deleteMediaAction, getMediaUsageSummaryAction, type MediaActionState } from "../actions";
 
 const initialState: MediaActionState = { error: null };
 
 // Aviso + confirmação (docs do pedido: "a deleção avisa quantos locais serão afetados e exige
-// confirmação"): antes de deixar o form submeter de verdade, busca o resumo de uso e monta a
-// mensagem de confirmação com a contagem — só depois disso o form é reenviado de propósito
-// (bypassRef), já com `confirmed=true`. deleteMediaSafely ainda recusa apagar mídia em uso sem
-// esse flag (defesa em profundidade — não confia só nesta checagem do client).
+// confirmação", depois trocado de window.confirm nativo para um AlertDialog do próprio site):
+// o clique no botão abre o diálogo já com um texto provisório e dispara a busca do resumo de uso
+// em paralelo (useTransition) — o texto é atualizado assim que a resposta chega, sem bloquear a
+// abertura do diálogo. Só ao clicar em "Excluir" dentro do diálogo o form (fora do AlertDialog,
+// sempre com confirmed="true") é submetido de verdade via formRef — deleteMediaSafely ainda é
+// quem decide o que fazer com isso no servidor.
 export function DeleteMediaButton({
   id,
   className,
@@ -37,43 +49,61 @@ export function DeleteMediaButton({
     onSuccess: redirectTo ? () => router.push(redirectTo) : undefined,
   });
 
-  const bypassConfirmRef = useRef(false);
-  const confirmedInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState("Excluir este arquivo?");
+  const [loadingUsage, startLoadingUsage] = useTransition();
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    if (bypassConfirmRef.current) {
-      bypassConfirmRef.current = false;
-      return;
-    }
+  function handleTriggerClick() {
+    setMessage("Verificando onde este arquivo é usado…");
+    setOpen(true);
+    startLoadingUsage(async () => {
+      const usage = await getMediaUsageSummaryAction(id);
+      setMessage(
+        usage.length > 0
+          ? `Este arquivo está em uso em ${usage.length} ${usage.length === 1 ? "local" : "locais"}: ${usage
+              .map((reference) => reference.label)
+              .join(", ")}. Excluir mesmo assim?`
+          : "Excluir este arquivo?",
+      );
+    });
+  }
 
-    event.preventDefault();
-    const usage = await getMediaUsageSummaryAction(id);
-
-    const message =
-      usage.length > 0
-        ? `Este arquivo está em uso em ${usage.length} ${usage.length === 1 ? "local" : "locais"}: ${usage
-            .map((reference) => reference.label)
-            .join(", ")}. Excluir mesmo assim?`
-        : "Excluir este arquivo?";
-
-    if (!window.confirm(message)) {
-      return;
-    }
-
-    if (confirmedInputRef.current) {
-      confirmedInputRef.current.value = "true";
-    }
-    bypassConfirmRef.current = true;
-    event.currentTarget.requestSubmit();
+  function handleConfirm() {
+    setOpen(false);
+    formRef.current?.requestSubmit();
   }
 
   return (
-    <form action={formAction} onSubmit={handleSubmit}>
-      <input type="hidden" name="id" value={id} />
-      <input ref={confirmedInputRef} type="hidden" name="confirmed" value="false" />
-      <Button type="submit" variant="outline" size={size} disabled={pending} className={className ?? "text-destructive"}>
+    <>
+      <form ref={formRef} action={formAction}>
+        <input type="hidden" name="id" value={id} />
+        <input type="hidden" name="confirmed" value="true" />
+      </form>
+      <Button
+        type="button"
+        variant="outline"
+        size={size}
+        disabled={pending}
+        className={className ?? "text-destructive"}
+        onClick={handleTriggerClick}
+      >
         {label}
       </Button>
-    </form>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir arquivo</AlertDialogTitle>
+            <AlertDialogDescription>{message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" disabled={loadingUsage} onClick={handleConfirm}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

@@ -5,7 +5,6 @@ export type CreateCourseCommand = {
   title: string;
   description?: string;
   slug?: string;
-  selfEnrollmentEnabled?: boolean;
   publiclyListed?: boolean;
   coverMediaId?: string;
   actorId: string;

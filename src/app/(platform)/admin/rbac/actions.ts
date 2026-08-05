@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assignRoleToUser, createCustomRole, removeRoleFromUser, updateRolePermissions } from "@/contexts/rbac";
+import { assignRoleToUser, createCustomRole, removeRoleFromUser, renameRole, updateRolePermissions } from "@/contexts/rbac";
 
 function getAllValues(formData: FormData, key: string): string[] {
   return formData.getAll(key).map((value) => String(value));
@@ -33,6 +33,20 @@ export async function updateRolePermissionsAction(
   const result = await updateRolePermissions({
     roleId: String(formData.get("roleId") ?? ""),
     permissionKeys: getAllValues(formData, "permissionKeys"),
+  });
+
+  if (!result.success) {
+    return { error: result.error.message };
+  }
+
+  revalidatePath("/admin/rbac");
+  return { error: null };
+}
+
+export async function renameRoleAction(_prevState: RbacActionState, formData: FormData): Promise<RbacActionState> {
+  const result = await renameRole({
+    roleId: String(formData.get("roleId") ?? ""),
+    name: String(formData.get("name") ?? ""),
   });
 
   if (!result.success) {

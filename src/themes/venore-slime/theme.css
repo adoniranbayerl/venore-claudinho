@@ -128,6 +128,12 @@
   --chart-4: var(--warning);
   --chart-5: var(--destructive);
 
+  /* Texto/borda sobre imagem com véu escuro (ex: capa de curso na Academy) — precisa continuar
+     claro em cima de uma foto arbitrária independente do tema estar em light ou dark, por isso
+     um token à parte em vez de reaproveitar --foreground (que inverte entre os dois). Só no
+     bloco base pelo mesmo motivo de --sidebar-width-* acima: não muda entre light/dark. */
+  --overlay-foreground: oklch(1 0 0);
+
   /* identidade — gradiente de fundo do app e família de tokens do header. Só o que é IDENTIDADE
      deste tema mora aqui à parte do vocabulário shadcn acima; o vocabulário shadcn também só
      existe neste arquivo (é o único tema instalado), mas continua nomeado de forma genérica —

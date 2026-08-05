@@ -1,13 +1,12 @@
-import { index, integer, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { check, index, integer, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { users } from "@/contexts/auth/database/schema";
 
 export const mediaSchema = pgSchema("media");
 
 // Categoria é classificação organizacional de um asset (uma por asset, não tag — ver
 // contracts/types.ts MediaCategory), não a classificação técnica de mimeType (MediaAssetCategory,
-// que já existia). Vive no mesmo schema `media` que `files`: FK real entre elas é seguro porque
-// as duas são donas do mesmo domínio (diferente de mediaId em cms.entries/academy.courses, que
-// cruza schema e por isso não tem FK — ver comentários lá).
+// que já existia).
 export const categories = mediaSchema.table("categories", {
   id: text("id")
     .primaryKey()
@@ -17,42 +16,22 @@ export const categories = mediaSchema.table("categories", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const files = mediaSchema.table("files", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  filename: text("filename").notNull(),
-  storageKey: text("storage_key").notNull().unique(),
-  mimeType: text("mime_type").notNull(),
-  size: integer("size").notNull(),
-  url: text("url").notNull(),
-  uploadedBy: text("uploaded_by")
-    .notNull()
-    .references(() => users.id),
-  // "private" (só dono e quem tem media.manage) ou "public" (biblioteca, visível a qualquer
-  // ator autenticado). Default "private" de propósito — nenhum upload nasce público por
-  // omissão (docs/media/visibility.md, decisão de correção do vazamento de avatar).
-  visibility: text("visibility").notNull().default("private"),
-  // Nullable: nem todo asset precisa de categoria. Um asset tem no máximo UMA categoria — decisão
-  // de produto (não N:N): categoria aqui é classificação organizacional ("que tipo de conteúdo é
-  // isto"), não tag descritiva, então valor único mantém o filtro (biblioteca/seletor) e a regra
-  // "categoria em uso não apaga sem tratar os assets" simples (contagem direta por categoryId, sem
-  // ambiguidade de "apaga o vínculo ou some com o asset"). onDelete "restrict": mesma regra
-  // reforçada no banco, não só na aplicação — apagar uma categoria com arquivos vinculados falha
-  // mesmo se algum caminho novo esquecer de checar antes.
-  categoryId: text("category_id").references(() => categories.id, { onDelete: "restrict" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
-
-// Tabela nova do fluxo de client-upload direto ao Blob (docs/media/blob-spec.md, seção 3).
-// Convive com `files` (fluxo server-buffered legado) de propósito — a migração de dados de
-// `files` para `assets` é decisão de implementação futura, fora desta sessão (spec, seção 0.1).
+// `files` (fluxo server-buffered legado, storage em disco local) foi descontinuado —
+// docs/implementation-roadmap.md, Fase 4/M1-M3: local storage só funcionava em dev, produção
+// precisa de um storage real (Vercel Blob). `assets` (fluxo do blob-spec) é agora o único sistema
+// de mídia; ganhou de volta `filename` (nome original, distinto de `pathname` — a key de storage
+// sanitizada) e `categoryId` (que só existia em `files`) pra não perder essas duas capacidades na
+// migração.
 export const assets = mediaSchema.table(
   "assets",
   {
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
+    // Nome original do arquivo (exibido na UI) — distinto de `pathname`, que é sempre
+    // `${uuid}-${sanitizeFilename(filename)}` (a key real no storage, nunca aceita direto do
+    // client). Sem isso, a biblioteca exibiria a key sanitizada como "nome do arquivo".
+    filename: text("filename").notNull(),
     pathname: text("pathname").notNull(),
     url: text("url").notNull(),
     contentType: text("content_type").notNull(),
@@ -64,8 +43,15 @@ export const assets = mediaSchema.table(
     uploadedBy: text("uploaded_by")
       .notNull()
       .references(() => users.id),
-    // Mesma semântica de `files.visibility` acima — mantida para as duas tabelas convivendo.
+    // "public" (qualquer ator autenticado vê e usa), "restricted" (só o contexto de origem —
+    // enforcement de consumo ainda não implementado, ver Known Gap no roadmap), "private" (só
+    // dono + media.manage; avatar sempre nasce assim). Default "private" de propósito — nenhum
+    // upload nasce público por omissão.
     visibility: text("visibility").notNull().default("private"),
+    // Nullable — nem todo asset tem categoria. No máximo uma por asset (decisão de produto já
+    // herdada de `files.categoryId`, não é tag N:N). onDelete "restrict": apagar uma categoria
+    // com assets vinculados falha no banco, não só na aplicação.
+    categoryId: text("category_id").references(() => categories.id, { onDelete: "restrict" }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -75,5 +61,6 @@ export const assets = mediaSchema.table(
     index("media_assets_checksum_idx").on(table.checksum),
     index("media_assets_uploaded_by_idx").on(table.uploadedBy),
     index("media_assets_deleted_at_idx").on(table.deletedAt),
+    check("media_assets_visibility_valid", sql`${table.visibility} IN ('public', 'restricted', 'private')`),
   ],
 );

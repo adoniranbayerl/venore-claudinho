@@ -26,7 +26,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Block, Composition } from "@/contexts/cms";
-import { getMedia } from "@/contexts/media";
+import { getMediaAsset } from "@/contexts/media";
 import { Button, type buttonVariants } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import type { VariantProps } from "class-variance-authority";
 import { blockRenderers as academyBlockRenderers } from "@/plugins/academy";
 import { blockRenderers as birthdaysBlockRenderers } from "@/plugins/birthdays";
+import { blockRenderers as donationsBlockRenderers } from "@/plugins/donations";
 import { PLUGIN_REGISTRY } from "@/plugins/registry";
 import { ROW_BLOCK_KEY, resolveRowColumns, resolveRowGridClasses } from "./row-columns";
 
@@ -310,7 +311,7 @@ function RichtextBlock({ block }: BlockRendererProps) {
 async function ImageBlock({ block }: BlockRendererProps) {
   const data = block.data;
   const mediaId = readString(data, "mediaId");
-  const mediaResult = await getMedia({ id: mediaId });
+  const mediaResult = await getMediaAsset({ id: mediaId });
   if (!mediaResult.success || !mediaResult.data) {
     return null;
   }
@@ -493,7 +494,7 @@ async function CardBlock({ block }: BlockRendererProps) {
 
   let mediaUrl: string | null = null;
   if (mediaId) {
-    const mediaResult = await getMedia({ id: mediaId });
+    const mediaResult = await getMediaAsset({ id: mediaId });
     if (mediaResult.success && mediaResult.data) {
       mediaUrl = mediaResult.data.url;
     }
@@ -534,7 +535,7 @@ async function AudioBlock({ block }: BlockRendererProps) {
     return null;
   }
 
-  const mediaResult = await getMedia({ id: mediaId });
+  const mediaResult = await getMediaAsset({ id: mediaId });
   if (!mediaResult.success || !mediaResult.data) {
     return null;
   }
@@ -700,6 +701,7 @@ const CORE_BLOCK_RENDERERS: Record<string, BlockRendererComponent> = {
 const PLUGIN_BLOCK_RENDERER_BARRELS: Record<string, { blockRenderers?: Record<string, BlockRendererComponent> }> = {
   academy: { blockRenderers: academyBlockRenderers },
   birthdays: { blockRenderers: birthdaysBlockRenderers },
+  donations: { blockRenderers: donationsBlockRenderers },
 };
 
 function collectPluginRenderers(): Record<string, BlockRendererComponent> {

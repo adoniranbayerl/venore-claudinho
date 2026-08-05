@@ -9,20 +9,24 @@ vi.mock("./lesson-chain-store", () => ({
 const lesson1 = {
   id: "lesson-1",
   courseId: "course-1",
-  cmsEntryId: "e1",
+  title: "Aula 1",
+  body: null,
   videoUrl: null,
   coverMediaId: null,
   position: 1,
+  status: "restricted" as const,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
 const lesson2 = {
   id: "lesson-2",
   courseId: "course-1",
-  cmsEntryId: "e2",
+  title: "Aula 2",
+  body: null,
   videoUrl: null,
   coverMediaId: null,
   position: 2,
+  status: "restricted" as const,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -42,6 +46,8 @@ describe("loadLessonChain", () => {
       textCompletedLessonIds: new Set(["lesson-1"]),
       videoCompletedLessonIds: new Set(),
       attemptsByLessonId: new Map(),
+      activityIdsByLessonId: new Map(),
+      submittedActivityIds: new Set(),
     });
 
     const { loadLessonChain } = await import("./lesson-progress");
@@ -64,6 +70,8 @@ describe("loadLessonChain", () => {
       attemptsByLessonId: new Map([
         ["lesson-1", [{ id: "a1", lessonId: "lesson-1", actorId: "actor-1", attemptNumber: 1, score: 40, passed: false, answers: [], createdAt: new Date(), invalidatedAt: null }]],
       ]),
+      activityIdsByLessonId: new Map(),
+      submittedActivityIds: new Set(),
     });
 
     const { loadLessonChain } = await import("./lesson-progress");
@@ -85,6 +93,8 @@ describe("isLessonAccessible", () => {
       textCompletedLessonIds: new Set(),
       videoCompletedLessonIds: new Set(),
       attemptsByLessonId: new Map(),
+      activityIdsByLessonId: new Map(),
+      submittedActivityIds: new Set(),
     });
 
     const { isLessonAccessible } = await import("./lesson-progress");
@@ -101,6 +111,8 @@ describe("isLessonAccessible", () => {
       textCompletedLessonIds: new Set(),
       videoCompletedLessonIds: new Set(),
       attemptsByLessonId: new Map(),
+      activityIdsByLessonId: new Map(),
+      submittedActivityIds: new Set(),
     });
 
     const { isLessonAccessible } = await import("./lesson-progress");
@@ -114,6 +126,8 @@ describe("isLessonAccessible", () => {
       textCompletedLessonIds: new Set(),
       videoCompletedLessonIds: new Set(),
       attemptsByLessonId: new Map(),
+      activityIdsByLessonId: new Map(),
+      submittedActivityIds: new Set(),
     });
 
     const { isLessonAccessible } = await import("./lesson-progress");

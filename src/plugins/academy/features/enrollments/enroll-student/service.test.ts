@@ -22,8 +22,8 @@ describe("enrollStudent", () => {
     insertEnrollment.mockReset();
   });
 
-  it("enrolls a student even when the course has self-enrollment disabled", async () => {
-    findCourseById.mockResolvedValue({ id: "course-1", status: "draft", selfEnrollmentEnabled: false });
+  it("enrolls a student even when the course is restricted (self-enrollment disabled)", async () => {
+    findCourseById.mockResolvedValue({ id: "course-1", status: "restricted" });
     findEnrollment.mockResolvedValue(null);
     insertEnrollment.mockResolvedValue({ id: "enrollment-1", courseId: "course-1", actorId: "student-1", enrolledBy: "teacher-1" });
 
@@ -51,7 +51,7 @@ describe("enrollStudent", () => {
   });
 
   it("fails when the student is already enrolled", async () => {
-    findCourseById.mockResolvedValue({ id: "course-1", status: "published", selfEnrollmentEnabled: true });
+    findCourseById.mockResolvedValue({ id: "course-1", status: "public" });
     findEnrollment.mockResolvedValue({ id: "enrollment-1", courseId: "course-1", actorId: "student-1" });
 
     const { enrollStudent } = await import("./service");

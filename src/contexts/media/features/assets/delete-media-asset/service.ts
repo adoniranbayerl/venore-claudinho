@@ -1,6 +1,9 @@
+import { invalidateCacheByPrefix } from "@/infrastructure/cache/memory-cache";
 import { beginOperation, endOperation } from "@/observability";
 import { findAssetById, softDeleteAssetById } from "./store";
 import type { DeleteMediaAssetCommand, DeleteMediaAssetResult } from "./types";
+
+const MEDIA_LIST_CACHE_PREFIX = "media:assets:";
 
 // Soft delete (blob-spec seção 7): seta `deletedAt`, nunca chama storagePort.remove aqui — o
 // blob e a linha continuam existindo até o sweep de purge (fora do escopo desta sessão).
@@ -20,6 +23,7 @@ export async function deleteMediaAsset(command: DeleteMediaAssetCommand): Promis
 
   if (!asset.deletedAt) {
     await softDeleteAssetById(command.id);
+    invalidateCacheByPrefix(MEDIA_LIST_CACHE_PREFIX);
   }
 
   endOperation(handle, { success: true });

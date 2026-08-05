@@ -1,4 +1,4 @@
-import { getMedia } from "@/contexts/media";
+import { getMediaAsset } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
 import { slugify } from "../../../shared/slug";
 import { findCourseBySlug, insertCourse } from "./store";
@@ -25,7 +25,7 @@ export async function createCourse(command: CreateCourseCommand): Promise<Create
   });
 
   if (command.coverMediaId) {
-    const media = await getMedia({ id: command.coverMediaId });
+    const media = await getMediaAsset({ id: command.coverMediaId });
     if (!media.success || !media.data) {
       const error = {
         code: "academy.courses.invalid_cover_media",
@@ -42,7 +42,6 @@ export async function createCourse(command: CreateCourseCommand): Promise<Create
     title: command.title,
     description: command.description,
     slug,
-    selfEnrollmentEnabled: command.selfEnrollmentEnabled,
     publiclyListed: command.publiclyListed,
     coverMediaId: command.coverMediaId,
     createdBy: command.actorId,

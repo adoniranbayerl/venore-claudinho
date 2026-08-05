@@ -1,16 +1,33 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { markTextRead, markVideoWatched, submitQuizAttempt } from "@/plugins/academy";
+import {
+  markLessonMaterialRead,
+  markLessonSectionRead,
+  markTextRead,
+  markVideoWatched,
+  submitLessonActivity,
+  submitQuizAttempt,
+} from "@/plugins/academy";
+import { uploadActivitySubmissionMediaAsset } from "@/contexts/media";
+import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 
 export type LessonActionState = { error: string | null };
+
+const PLUGIN_DISABLED_ERROR = "O plugin Academy está desabilitado.";
 
 function revalidateLesson(courseSlug: string, lessonId: string) {
   revalidatePath(`/academy/${courseSlug}`);
   revalidatePath(`/academy/${courseSlug}/${lessonId}`);
 }
 
+// Checagem de plugin ativo (Fase 6) repetida em cada Server Action: invocáveis direto, sem passar
+// pelo gate da página (get-academy-course-access.ts) que as renderiza.
 export async function markTextReadAction(_prevState: LessonActionState, formData: FormData): Promise<LessonActionState> {
+  if (!(await isPluginActive("academy"))) {
+    return { error: PLUGIN_DISABLED_ERROR };
+  }
+
   const lessonId = String(formData.get("lessonId") ?? "");
   const courseSlug = String(formData.get("courseSlug") ?? "");
 
@@ -23,10 +40,56 @@ export async function markTextReadAction(_prevState: LessonActionState, formData
   return { error: null };
 }
 
+export async function markLessonSectionReadAction(
+  _prevState: LessonActionState,
+  formData: FormData,
+): Promise<LessonActionState> {
+  if (!(await isPluginActive("academy"))) {
+    return { error: PLUGIN_DISABLED_ERROR };
+  }
+
+  const lessonId = String(formData.get("lessonId") ?? "");
+  const courseSlug = String(formData.get("courseSlug") ?? "");
+  const sectionId = String(formData.get("sectionId") ?? "");
+
+  const result = await markLessonSectionRead({ sectionId });
+  if (!result.success) {
+    return { error: result.error.message };
+  }
+
+  revalidateLesson(courseSlug, lessonId);
+  return { error: null };
+}
+
+export async function markLessonMaterialReadAction(
+  _prevState: LessonActionState,
+  formData: FormData,
+): Promise<LessonActionState> {
+  if (!(await isPluginActive("academy"))) {
+    return { error: PLUGIN_DISABLED_ERROR };
+  }
+
+  const lessonId = String(formData.get("lessonId") ?? "");
+  const courseSlug = String(formData.get("courseSlug") ?? "");
+  const materialId = String(formData.get("materialId") ?? "");
+
+  const result = await markLessonMaterialRead({ materialId });
+  if (!result.success) {
+    return { error: result.error.message };
+  }
+
+  revalidateLesson(courseSlug, lessonId);
+  return { error: null };
+}
+
 export async function markVideoWatchedAction(
   _prevState: LessonActionState,
   formData: FormData,
 ): Promise<LessonActionState> {
+  if (!(await isPluginActive("academy"))) {
+    return { error: PLUGIN_DISABLED_ERROR };
+  }
+
   const lessonId = String(formData.get("lessonId") ?? "");
   const courseSlug = String(formData.get("courseSlug") ?? "");
 
@@ -45,6 +108,10 @@ export type QuizActionState = {
 };
 
 export async function submitQuizAction(_prevState: QuizActionState, formData: FormData): Promise<QuizActionState> {
+  if (!(await isPluginActive("academy"))) {
+    return { error: PLUGIN_DISABLED_ERROR, result: null };
+  }
+
   const lessonId = String(formData.get("lessonId") ?? "");
   const courseSlug = String(formData.get("courseSlug") ?? "");
   const questionIds = formData.getAll("questionId").map((value) => String(value));
@@ -61,4 +128,100 @@ export async function submitQuizAction(_prevState: QuizActionState, formData: Fo
 
   revalidateLesson(courseSlug, lessonId);
   return { error: null, result: result.data };
+}
+
+export type ActivitySubmissionState = {
+  reviewStatus: "pending" | "approved" | "needs_revision" | "rejected";
+  reviewFeedback: string | null;
+  reviewScore: number | null;
+  contentText: string | null;
+  mediaUrl: string | null;
+  mediaFilename: string | null;
+};
+export type SubmitActivityActionState = { error: string | null; submission: ActivitySubmissionState | null };
+
+// deliverableFormat "text"/"none" — os dois únicos que não envolvem arquivo.
+export async function submitLessonActivityAction(
+  _prevState: SubmitActivityActionState,
+  formData: FormData,
+): Promise<SubmitActivityActionState> {
+  if (!(await isPluginActive("academy"))) {
+    return { error: PLUGIN_DISABLED_ERROR, submission: null };
+  }
+
+  const lessonId = String(formData.get("lessonId") ?? "");
+  const courseSlug = String(formData.get("courseSlug") ?? "");
+  const activityId = String(formData.get("activityId") ?? "");
+  const contentText = String(formData.get("contentText") ?? "").trim();
+
+  const result = await submitLessonActivity({ activityId, contentText: contentText || undefined });
+  if (!result.success) {
+    return { error: result.error.message, submission: null };
+  }
+
+  revalidateLesson(courseSlug, lessonId);
+  return {
+    error: null,
+    submission: {
+      reviewStatus: result.data.reviewStatus,
+      reviewFeedback: result.data.reviewFeedback,
+      reviewScore: result.data.reviewScore,
+      contentText: result.data.contentText,
+      mediaUrl: null,
+      mediaFilename: null,
+    },
+  };
+}
+
+// deliverableFormat "audio"/"image"/"pdf" — envia o arquivo pra categoria reservada
+// "activity-submissions" (sempre private, dono = próprio aluno) e já aplica como entrega, um só
+// passo (mesmo padrão de uploadAvatarAction em account/actions.ts: upload + uso imediato, sem
+// passar pelo picker da biblioteca geral). submitLessonActivity valida matrícula/aula acessível/
+// atividade habilitada/tipo do arquivo antes de aceitar.
+export async function submitLessonActivityFileAction(
+  _prevState: SubmitActivityActionState,
+  formData: FormData,
+): Promise<SubmitActivityActionState> {
+  if (!(await isPluginActive("academy"))) {
+    return { error: PLUGIN_DISABLED_ERROR, submission: null };
+  }
+
+  const lessonId = String(formData.get("lessonId") ?? "");
+  const courseSlug = String(formData.get("courseSlug") ?? "");
+  const activityId = String(formData.get("activityId") ?? "");
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Selecione um arquivo para enviar.", submission: null };
+  }
+
+  const data = Buffer.from(await file.arrayBuffer());
+
+  const uploadResult = await uploadActivitySubmissionMediaAsset({
+    filename: file.name,
+    contentType: file.type || "application/octet-stream",
+    size: file.size,
+    data,
+  });
+  if (!uploadResult.success) {
+    return { error: uploadResult.error.message, submission: null };
+  }
+
+  const result = await submitLessonActivity({ activityId, mediaId: uploadResult.data.id });
+  if (!result.success) {
+    return { error: result.error.message, submission: null };
+  }
+
+  revalidateLesson(courseSlug, lessonId);
+  return {
+    error: null,
+    submission: {
+      reviewStatus: result.data.reviewStatus,
+      reviewFeedback: result.data.reviewFeedback,
+      reviewScore: result.data.reviewScore,
+      contentText: result.data.contentText,
+      mediaUrl: uploadResult.data.url,
+      mediaFilename: uploadResult.data.filename,
+    },
+  };
 }

@@ -7,10 +7,10 @@ export async function updateLessonHandler(input: UpdateLessonInput): Promise<Upd
     return { success: false, error: { code: "academy.lessons.invalid_id", message: "id não pode ser vazio." } };
   }
 
-  if (input.cmsEntryId !== undefined && input.cmsEntryId.trim().length === 0) {
+  if (input.title !== undefined && input.title.trim().length === 0) {
     return {
       success: false,
-      error: { code: "academy.lessons.invalid_cms_entry_id", message: "cmsEntryId não pode ser vazio." },
+      error: { code: "academy.lessons.invalid_title", message: "title não pode ser vazio." },
     };
   }
 

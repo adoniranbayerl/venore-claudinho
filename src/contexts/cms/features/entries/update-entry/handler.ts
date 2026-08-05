@@ -21,6 +21,13 @@ export async function updateEntryHandler(input: UpdateEntryInput): Promise<Updat
     };
   }
 
+  if (input.contentTypeIds !== undefined && input.contentTypeIds.length === 0) {
+    return {
+      success: false,
+      error: { code: "cms.entries.invalid_content_type", message: "Selecione ao menos uma tag." },
+    };
+  }
+
   const authz = await authorizeActor("cms.entries.manage");
   if (!authz.authorized) {
     return { success: false, error: authz.error };

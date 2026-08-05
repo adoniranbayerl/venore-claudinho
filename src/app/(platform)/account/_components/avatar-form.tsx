@@ -7,7 +7,7 @@ import { updateOwnAvatarAction, uploadAvatarAction, type AccountActionState } fr
 
 const initialState: AccountActionState = { error: null };
 
-export type AvatarPreview = { id: string; filename: string; url: string; mimeType: string };
+export type AvatarPreview = { id: string; filename: string; url: string; contentType: string };
 
 export function AvatarForm({ avatarMedia }: { avatarMedia: AvatarPreview | null }) {
   const [uploadState, uploadFormAction, uploadPending] = useActionState(uploadAvatarAction, initialState);

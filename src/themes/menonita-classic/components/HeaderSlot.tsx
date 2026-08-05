@@ -13,7 +13,7 @@ import { HeaderScrollSentinel } from "./HeaderScrollSentinel";
 // `group-data-[scrolled=true]/header:` nos descendentes), nunca via prop `isScrolled` recomputada
 // em React. Único lugar que ainda recebe um `isScrolled` boolean de verdade é PlatformBrand,
 // porque esse componente também é usado fora do header (preview estático em
-// admin/settings/appearance/_components/brand-settings-form.tsx, dois painéis lado a lado sem
+// admin/settings/brand/_components/brand-settings-form.tsx, dois painéis lado a lado sem
 // scroll real nenhum) — o valor passado aqui é só o baseline SSR; dentro do header de verdade ele
 // é sempre sobrescrito pelas classes group-data (ver comentário em PlatformBrand.tsx).
 export function HeaderSlot({ brand, userbarEnabled, headerNavItems, user, canAccessAdmin, onSignOut }: HeaderSlotProps) {

@@ -5,6 +5,7 @@ import { Cake } from "lucide-react";
 import { getBirthdayAppearance, listBirthdays, MONTH_LABELS, type BirthdayAdminView } from "@/plugins/birthdays";
 import { getBirthdaysPageData } from "@/platform/admin-shell/get-birthdays-page-data";
 import { getBrandConfig } from "@/platform/brand/get-brand-config";
+import { resolveBrandAesthetics } from "@/platform/theme-rendering/resolve-brand-aesthetics";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { CreateBirthdayDialog } from "./_components/create-birthday-dialog";
@@ -34,10 +35,11 @@ export default async function BirthdaysAdminPage() {
     );
   }
 
+  const aesthetics = await resolveBrandAesthetics();
   const [result, appearanceResult, brandConfig, giftSvgMarkup] = await Promise.all([
     listBirthdays(),
     getBirthdayAppearance(),
-    getBrandConfig(),
+    getBrandConfig(aesthetics.mode),
     readGiftSvgMarkup(),
   ]);
 
@@ -83,10 +85,10 @@ export default async function BirthdaysAdminPage() {
             birthdays={birthdays}
             appearance={appearanceResult.data}
             brand={{
-              mode: brandConfig.mode,
+              mode: aesthetics.mode,
               logoUrl: brandConfig.logoUrl,
               name: brandConfig.siteName,
-              color: brandConfig.color,
+              color: aesthetics.color,
             }}
             giftSvgMarkup={giftSvgMarkup}
           />

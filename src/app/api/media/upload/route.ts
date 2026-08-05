@@ -14,14 +14,16 @@ const RATE_LIMIT_CONFIG = { limit: 20, windowMs: 60_000 };
 // seção 6/9: "a negativa não vaza informação sobre o que existe").
 const UPLOAD_NOT_AUTHORIZED_MESSAGE = "Não foi possível autorizar este upload.";
 
-type ClientUploadPayload = { contentType: string; size: number };
+type ClientUploadPayload = { filename: string; contentType: string; size: number };
 
 function parseClientPayload(raw: string | null): ClientUploadPayload | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<ClientUploadPayload>;
-    if (typeof parsed.contentType !== "string" || typeof parsed.size !== "number") return null;
-    return { contentType: parsed.contentType, size: parsed.size };
+    if (typeof parsed.filename !== "string" || typeof parsed.contentType !== "string" || typeof parsed.size !== "number") {
+      return null;
+    }
+    return { filename: parsed.filename, contentType: parsed.contentType, size: parsed.size };
   } catch {
     return null;
   }
@@ -86,7 +88,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           allowedContentTypes: [payload.contentType],
           maximumSizeInBytes: validation.data.maxSizeBytes,
           addRandomSuffix: false,
-          tokenPayload: JSON.stringify({ actorId: authz.actorId, pathname }),
+          tokenPayload: JSON.stringify({ actorId: authz.actorId, pathname, filename: payload.filename }),
         };
       },
       // Só dispara em produção/preview (URL publicamente alcançável) — em localhost, a
@@ -95,14 +97,15 @@ export async function POST(request: Request): Promise<NextResponse> {
       // segunda chamada de segurança, idempotente por pathname (blob-spec seção 9).
       onUploadCompleted: async ({ blob, tokenPayload }) => {
         if (!tokenPayload) return;
-        const { actorId } = JSON.parse(tokenPayload) as { actorId?: string };
-        if (!actorId) return;
+        const { actorId, filename } = JSON.parse(tokenPayload) as { actorId?: string; filename?: string };
+        if (!actorId || !filename) return;
 
         const response = await fetch(blob.url);
         const bytes = Buffer.from(await response.arrayBuffer());
         const checksum = computeSha256Hex(bytes);
 
         await registerUploadedMediaHandler({
+          filename,
           pathname: blob.pathname,
           url: blob.url,
           contentType: blob.contentType,

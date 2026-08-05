@@ -23,7 +23,7 @@ export async function findBrandMediaUsage(mediaId: string): Promise<MediaUsageRe
         consumerKey: "brand",
         consumerLabel: "Marca",
         label: field.label,
-        href: "/admin/settings/appearance",
+        href: "/admin/settings/brand",
       });
     }
   }

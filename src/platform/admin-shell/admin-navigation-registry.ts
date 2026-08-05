@@ -1,5 +1,6 @@
 import type { NavGroup } from "@/contexts/themes";
 import { cmsAdminNavigationItems } from "@/contexts/cms";
+import { importExportAdminNavigationItems } from "@/contexts/import-export";
 import { mediaAdminNavigationItems } from "@/contexts/media";
 import { rbacAdminNavigationItems } from "@/contexts/rbac";
 import { settingsAdminNavigationItems } from "@/contexts/settings";
@@ -25,6 +26,7 @@ export async function collectAdminNavigationItems(): Promise<AdminNavItemDefinit
     ...rbacAdminNavigationItems,
     ...cmsAdminNavigationItems,
     ...mediaAdminNavigationItems,
+    ...importExportAdminNavigationItems,
     ...settingsAdminNavigationItems,
     ...themesAdminNavigationItems,
     ...observabilityAdminNavigationItems,

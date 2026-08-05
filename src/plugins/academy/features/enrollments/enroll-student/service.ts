@@ -2,8 +2,9 @@ import { beginOperation, endOperation } from "@/observability";
 import { findCourseById, findEnrollment, insertEnrollment } from "./store";
 import type { EnrollStudentCommand, EnrollStudentResult } from "./types";
 
-// Matrícula manual (professor/admin) — funciona independente de course.selfEnrollmentEnabled,
-// diferente de enroll-self (docs/venore-docks.md, item 2 do pedido desta sessão).
+// Matrícula manual (professor/admin) — funciona independente de course.status (inclusive
+// restricted, cujo único jeito de matricular é este), diferente de enroll-self (docs/venore-
+// docks.md, item 2 do pedido desta sessão).
 export async function enrollStudent(command: EnrollStudentCommand): Promise<EnrollStudentResult> {
   const handle = beginOperation({
     useCase: "academy.enroll-student",

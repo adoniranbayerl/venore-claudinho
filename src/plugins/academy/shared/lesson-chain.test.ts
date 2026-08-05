@@ -9,6 +9,8 @@ function facts(overrides: Partial<LessonChainFacts> & { lessonId: string }): Les
     videoWatched: false,
     quizEnabled: false,
     quizPassed: false,
+    activityEnabled: false,
+    activitiesSubmitted: false,
     ...overrides,
   };
 }
@@ -58,6 +60,16 @@ describe("computeLessonChain", () => {
     expect(chain[0]).toMatchObject({ lessonId: "lesson-1", completed: false, locked: false });
     expect(chain[1]).toMatchObject({ lessonId: "lesson-2", completed: true, locked: true });
     expect(chain[2]).toMatchObject({ lessonId: "lesson-3", locked: true });
+  });
+
+  it("is incomplete when the practical activity is enabled but not submitted", () => {
+    const [state] = computeLessonChain([facts({ lessonId: "lesson-1", activityEnabled: true, activitiesSubmitted: false })]);
+    expect(state.completed).toBe(false);
+  });
+
+  it("is complete once the practical activity has been submitted", () => {
+    const [state] = computeLessonChain([facts({ lessonId: "lesson-1", activityEnabled: true, activitiesSubmitted: true })]);
+    expect(state.completed).toBe(true);
   });
 
   it("a lesson without any requirements enabled counts as complete", () => {

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { updateOwnAvatar } from "@/contexts/auth";
-import { uploadAvatarMedia } from "@/contexts/media";
+import { uploadAvatarMediaAsset } from "@/contexts/media";
 
 export type AccountActionState = { error: string | null };
 
@@ -31,9 +31,9 @@ export async function uploadAvatarAction(_prevState: AccountActionState, formDat
 
   const data = Buffer.from(await file.arrayBuffer());
 
-  const uploadResult = await uploadAvatarMedia({
+  const uploadResult = await uploadAvatarMediaAsset({
     filename: file.name,
-    mimeType: file.type || "application/octet-stream",
+    contentType: file.type || "application/octet-stream",
     size: file.size,
     data,
   });

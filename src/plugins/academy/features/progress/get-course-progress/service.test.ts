@@ -29,6 +29,8 @@ function emptyChainDeps() {
     textCompletedLessonIds: new Set(),
     videoCompletedLessonIds: new Set(),
     attemptsByLessonId: new Map(),
+    activityIdsByLessonId: new Map(),
+    submittedActivityIds: new Set(),
   };
 }
 
@@ -132,13 +134,27 @@ describe("getCourseProgress", () => {
     loadLessonChain.mockResolvedValue({
       lessons: [lesson1],
       requirementsByLessonId: new Map([
-        ["lesson-1", { lessonId: "lesson-1", readTextEnabled: true, watchVideoEnabled: false, quizEnabled: true, quizPassThresholdPercent: 70, quizMaxAttempts: 3, updatedAt: new Date() }],
+        [
+          "lesson-1",
+          {
+            lessonId: "lesson-1",
+            readTextEnabled: true,
+            watchVideoEnabled: false,
+            quizEnabled: true,
+            quizPassThresholdPercent: 70,
+            quizMaxAttempts: 3,
+            activityEnabled: true,
+            updatedAt: new Date(),
+          },
+        ],
       ]),
       textCompletedLessonIds: new Set(["lesson-1"]),
       videoCompletedLessonIds: new Set(),
       attemptsByLessonId: new Map([
         ["lesson-1", [{ id: "a1", lessonId: "lesson-1", actorId: "actor-1", attemptNumber: 1, score: 80, passed: true, answers: [], createdAt: new Date(), invalidatedAt: null }]],
       ]),
+      activityIdsByLessonId: new Map([["lesson-1", ["activity-1", "activity-2"]]]),
+      submittedActivityIds: new Set(["activity-1"]),
       chain: [{ lessonId: "lesson-1", completed: true, locked: false }],
     });
 
@@ -156,6 +172,10 @@ describe("getCourseProgress", () => {
       quizAttemptsUsed: 1,
       quizBestScore: 80,
       quizBestGrade: 8,
+      activityEnabled: true,
+      activitiesTotal: 2,
+      activitiesSubmittedCount: 1,
+      activitiesSubmitted: false,
     });
   });
 });

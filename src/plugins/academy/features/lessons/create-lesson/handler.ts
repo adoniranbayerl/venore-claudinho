@@ -7,8 +7,8 @@ export async function createLessonHandler(input: CreateLessonInput): Promise<Cre
     return { success: false, error: { code: "academy.lessons.invalid_course_id", message: "courseId não pode ser vazio." } };
   }
 
-  if (input.cmsEntryId.trim().length === 0) {
-    return { success: false, error: { code: "academy.lessons.invalid_cms_entry_id", message: "cmsEntryId não pode ser vazio." } };
+  if (input.title.trim().length === 0) {
+    return { success: false, error: { code: "academy.lessons.invalid_title", message: "title não pode ser vazio." } };
   }
 
   const authz = await authorizeActor("academy.courses.manage");

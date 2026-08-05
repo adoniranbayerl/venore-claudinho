@@ -43,7 +43,7 @@ export function MediaField({
     dialogRef.current?.showModal();
     startTransition(async () => {
       const media = await listMediaForPickerAction();
-      setItems(media.filter((item) => item.mimeType.startsWith(accept)));
+      setItems(media.filter((item) => item.contentType.startsWith(accept)));
     });
   }
 
@@ -60,7 +60,7 @@ export function MediaField({
       <div className="mt-1 flex items-center gap-3">
         {selected && (
           <div className="flex items-center gap-2 rounded-lg border border-border px-2 py-1">
-            {selected.mimeType.startsWith("image/") ? (
+            {selected.contentType.startsWith("image/") ? (
               // eslint-disable-next-line @next/next/no-img-element -- mesmo padrão de media-picker-field.tsx
               <img src={selected.url} alt={selected.filename} className="h-8 w-8 rounded object-cover" />
             ) : null}
@@ -113,11 +113,11 @@ export function MediaField({
                   className="flex flex-col gap-1 rounded-lg border border-border p-2 text-left outline-none ui-motion-base hover:border-ring focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <div className="flex h-16 items-center justify-center overflow-hidden rounded-md bg-muted">
-                    {item.mimeType.startsWith("image/") ? (
+                    {item.contentType.startsWith("image/") ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.url} alt={item.filename} className="h-full w-full object-cover" />
                     ) : (
-                      <span className="text-[10px] text-muted-foreground/56">{item.mimeType || "arquivo"}</span>
+                      <span className="text-[10px] text-muted-foreground/56">{item.contentType || "arquivo"}</span>
                     )}
                   </div>
                   <span className="truncate text-[11px] text-muted-foreground" title={item.filename}>

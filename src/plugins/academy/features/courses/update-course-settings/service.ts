@@ -1,4 +1,4 @@
-import { getMedia } from "@/contexts/media";
+import { getMediaAsset } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
 import { isValidSlug, slugify } from "../../../shared/slug";
 import { applyCourseSettings, findCourseById, findCourseBySlug } from "./store";
@@ -37,7 +37,7 @@ export async function updateCourseSettings(command: UpdateCourseSettingsCommand)
   }
 
   if (command.coverMediaId) {
-    const media = await getMedia({ id: command.coverMediaId });
+    const media = await getMediaAsset({ id: command.coverMediaId });
     if (!media.success || !media.data) {
       const error = {
         code: "academy.courses.invalid_cover_media",
@@ -51,7 +51,6 @@ export async function updateCourseSettings(command: UpdateCourseSettingsCommand)
   const course = await applyCourseSettings({
     id: command.id,
     slug,
-    selfEnrollmentEnabled: command.selfEnrollmentEnabled,
     publiclyListed: command.publiclyListed,
     coverMediaId: command.coverMediaId,
   });

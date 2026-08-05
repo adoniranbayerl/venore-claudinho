@@ -15,7 +15,7 @@ vi.mock("./store", () => ({
   insertEnrollment: (...args: unknown[]) => insertEnrollment(...args),
 }));
 
-const publishedCourse = { id: "course-1", status: "published", selfEnrollmentEnabled: true };
+const publicCourse = { id: "course-1", status: "public" };
 
 describe("enrollSelf", () => {
   beforeEach(() => {
@@ -24,8 +24,8 @@ describe("enrollSelf", () => {
     insertEnrollment.mockReset();
   });
 
-  it("enrolls the actor when the course exists, is published and allows self-enrollment", async () => {
-    findCourseById.mockResolvedValue(publishedCourse);
+  it("enrolls the actor when the course exists and is public", async () => {
+    findCourseById.mockResolvedValue(publicCourse);
     findEnrollment.mockResolvedValue(null);
     insertEnrollment.mockResolvedValue({ id: "enrollment-1", courseId: "course-1", actorId: "actor-1", enrolledBy: "self" });
 
@@ -52,18 +52,21 @@ describe("enrollSelf", () => {
     expect(insertEnrollment).not.toHaveBeenCalled();
   });
 
-  it("fails when the course is not published", async () => {
-    findCourseById.mockResolvedValue({ ...publishedCourse, status: "draft" });
+  it("fails when the course is a draft", async () => {
+    findCourseById.mockResolvedValue({ ...publicCourse, status: "draft" });
 
     const { enrollSelf } = await import("./service");
     const result = await enrollSelf({ courseId: "course-1", actorId: "actor-1" });
 
-    expect(result.success).toBe(false);
+    expect(result).toEqual({
+      success: false,
+      error: { code: "academy.enrollments.course_not_found", message: expect.any(String) },
+    });
     expect(insertEnrollment).not.toHaveBeenCalled();
   });
 
-  it("fails when self-enrollment is disabled", async () => {
-    findCourseById.mockResolvedValue({ ...publishedCourse, selfEnrollmentEnabled: false });
+  it("fails when the course is restricted (self-enrollment disabled)", async () => {
+    findCourseById.mockResolvedValue({ ...publicCourse, status: "restricted" });
 
     const { enrollSelf } = await import("./service");
     const result = await enrollSelf({ courseId: "course-1", actorId: "actor-1" });
@@ -76,7 +79,7 @@ describe("enrollSelf", () => {
   });
 
   it("fails when the actor is already enrolled", async () => {
-    findCourseById.mockResolvedValue(publishedCourse);
+    findCourseById.mockResolvedValue(publicCourse);
     findEnrollment.mockResolvedValue({ id: "enrollment-1", courseId: "course-1", actorId: "actor-1" });
 
     const { enrollSelf } = await import("./service");

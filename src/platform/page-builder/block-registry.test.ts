@@ -1,13 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { blockDefinitions as academyBlockDefinitions } from "@/plugins/academy/blocks/definitions";
 import { blockDefinitions as birthdaysBlockDefinitions } from "@/plugins/birthdays/blocks/definitions";
+import { blockDefinitions as donationsBlockDefinitions } from "@/plugins/donations/blocks/definitions";
 
-// block-registry.ts importa o barrel público de academy/birthdays pra somar os blocos de cada
-// plugin; esses barrels reexportam handlers que puxam next-auth (não resolve nesse ambiente de
-// teste). Mocka só a superfície usada aqui (blockDefinitions), reaproveitando as definitions reais
-// de cada plugin — pure data, sem tocar em handler/store.
+// block-registry.ts importa o barrel público de academy/birthdays/donations pra somar os blocos de
+// cada plugin; esses barrels reexportam handlers que puxam next-auth (não resolve nesse ambiente
+// de teste). Mocka só a superfície usada aqui (blockDefinitions), reaproveitando as definitions
+// reais de cada plugin — pure data, sem tocar em handler/store.
 vi.mock("@/plugins/academy", () => ({ blockDefinitions: academyBlockDefinitions }));
 vi.mock("@/plugins/birthdays", () => ({ blockDefinitions: birthdaysBlockDefinitions }));
+vi.mock("@/plugins/donations", () => ({ blockDefinitions: donationsBlockDefinitions }));
 
 const { listBlockDefinitions } = await import("./block-registry");
 

@@ -17,17 +17,36 @@ export type CategoryRecord = {
   updatedAt: Date;
 };
 
-export type EntryStatus = "draft" | "published";
+export type EntryStatus = "draft" | "scheduled" | "published" | "archived";
+
+// "public": qualquer visitante (logado ou não). "authenticated": só usuário logado. Ver
+// enforcement em get-published-entry-by-slug (Fase 2/C7 — docs/implementation-roadmap.md).
+export type EntryVisibility = "public" | "authenticated";
 
 export type EntryRecord = {
   id: string;
-  contentTypeId: string;
+  // Tag N:N (Fase 2/#2) — substitui o antigo contentTypeId singular (FK notNull, 1:1). O
+  // mínimo de uma tag é regra de negócio (create-entry/update-entry), não constraint de banco —
+  // a tabela de junção em si aceita zero linhas por entry.
+  contentTypeIds: string[];
   categoryId: string | null;
   title: string;
   slug: string;
   status: EntryStatus;
+  // scheduledPublishAt é obrigatório de fato (não só de tipo) quando status é "scheduled" —
+  // validado em schedule-entry, não representado no tipo pra não duplicar a regra em dois
+  // lugares. scheduledArchiveAt é independente: pode estar presente em "scheduled" ou
+  // "published" ao mesmo tempo (agendar publicação e arquivamento não se excluem).
+  scheduledPublishAt: Date | null;
+  scheduledArchiveAt: Date | null;
+  visibility: EntryVisibility;
+  // Fase 3/C9 — incrementado em lote por cms/view-tracking.ts, nunca por escrita síncrona.
+  viewCount: number;
   data: unknown;
   mediaId: string | null;
+  // Não-null == entry gerenciada por outro context/plugin (ex: "academy") e escondida de
+  // /admin/cms/entries — ver comentário no schema (database/schema/index.ts).
+  internalOwner: string | null;
   authorId: string;
   publishedAt: Date | null;
   createdAt: Date;

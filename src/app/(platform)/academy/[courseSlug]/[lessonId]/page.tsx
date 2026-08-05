@@ -1,14 +1,303 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getCachedEntry, getEntryBody, getEntryComposition } from "@/contexts/cms";
-import { getCachedLesson, getCourseProgress, listQuizQuestionsByLesson, listQuizQuestionsForStudent } from "@/plugins/academy";
+import { ChevronLeft } from "lucide-react";
+import type { ReactNode } from "react";
+import {
+  getCachedLesson,
+  getCourseProgress,
+  getLessonRequirements,
+  listLessonActivitiesByLesson,
+  listLessonActivitiesForStudent,
+  listLessonExamplesByLesson,
+  listLessonExamplesForStudent,
+  listLessonMaterialsByLesson,
+  listLessonMaterialsForStudent,
+  listLessonSectionsByLesson,
+  listLessonSectionsForStudent,
+  listQuizQuestionsByLesson,
+  listQuizQuestionsForStudent,
+} from "@/plugins/academy";
+import type {
+  LessonActivityRecord,
+  LessonExampleRecord,
+  LessonMaterialRecord,
+  LessonRecord,
+  LessonSectionRecord,
+  StudentLessonActivityRecord,
+  StudentQuizQuestionRecord,
+} from "@/plugins/academy";
+import { getEntryComposition, type Composition } from "@/contexts/cms";
+import { getMediaAsset } from "@/contexts/media";
 import { getAcademyCourseAccess } from "@/platform/academy-student/get-academy-course-access";
 import { BlockRenderer } from "@/components/page-builder/block-renderer";
 import { LessonVideoEmbed } from "./_components/lesson-video-embed";
-import { MarkProgressButton } from "./_components/mark-progress-button";
 import { QuizForm } from "./_components/quiz-form";
+import { PreviewQuizForm } from "./_components/preview-quiz-form";
+import { DoneBadge, LessonMaterialsList, type LessonMaterialStepItem } from "./_components/lesson-materials";
+import { LessonExamplesList, type LessonExampleStepItem } from "./_components/lesson-examples-list";
+import { ActivitiesList, type ActivityStepItem } from "./_components/activity-form";
+import { LessonStepFlow, type LessonFlowStep, type LessonStepReadMark } from "./_components/lesson-step-flow";
+import { markLessonSectionReadAction, markTextReadAction, markVideoWatchedAction } from "./actions";
+
+type SectionItem = { id: string; title: string; composition: Composition; completed: boolean };
+type ProgressMode = "live" | "preview" | "none";
+
+// materials/sections vêm de dois caminhos diferentes conforme o modo da página: as versões
+// "for-student" já anotam `completed` (progresso do próprio ator); as versões admin-only
+// (list-lesson-*-by-lesson, usadas só no preview de professor) não têm esse conceito — por isso
+// completed é opcional aqui e sempre cai pra false (preview nunca lê esse valor real mesmo,
+// simula localmente no client — ver lesson-step-flow.tsx, ReadMarkAction "local").
+async function resolveMaterialLinks(
+  materials: (LessonMaterialRecord & { completed?: boolean })[],
+): Promise<LessonMaterialStepItem[]> {
+  const resolved = await Promise.all(
+    materials.map(async (material) => {
+      const mediaResult = await getMediaAsset({ id: material.mediaId });
+      if (!mediaResult.success || !mediaResult.data) return null;
+      return { id: material.id, label: material.label, url: mediaResult.data.url, completed: material.completed ?? false };
+    }),
+  );
+  return resolved.filter((material) => material !== null);
+}
+
+// Texto da aula é composto por seções — cada uma uma entry oculta do CMS editada no page builder
+// (/admin/cms/entries/{cmsEntryId}/builder). Seção sem cmsEntryId (só videoUrl, campo que o
+// schema permite mas esta sessão não usa na autoria) não entra aqui.
+async function resolveSectionContents(sections: (LessonSectionRecord & { completed?: boolean })[]): Promise<SectionItem[]> {
+  const resolved = await Promise.all(
+    sections.map(async (section) => {
+      if (!section.cmsEntryId) return null;
+      const compositionResult = await getEntryComposition({ id: section.cmsEntryId });
+      if (!compositionResult.success || !compositionResult.data) return null;
+      return { id: section.id, title: section.title, composition: compositionResult.data, completed: section.completed ?? false };
+    }),
+  );
+  return resolved.filter((section) => section !== null);
+}
+
+async function resolveExampleLinks(examples: LessonExampleRecord[]): Promise<LessonExampleStepItem[]> {
+  return Promise.all(
+    examples.map(async (example) => {
+      const [audioResult, sheetResult] = await Promise.all([
+        example.audioMediaId ? getMediaAsset({ id: example.audioMediaId }) : null,
+        example.sheetMediaId ? getMediaAsset({ id: example.sheetMediaId }) : null,
+      ]);
+      const audio = audioResult?.success ? audioResult.data : null;
+      const sheet = sheetResult?.success ? sheetResult.data : null;
+      return {
+        id: example.id,
+        title: example.title,
+        captionText: example.captionText,
+        audioUrl: audio?.url ?? null,
+        sheetUrl: sheet?.url ?? null,
+        sheetFilename: sheet?.filename ?? null,
+        notationData: example.notationData,
+      };
+    }),
+  );
+}
+
+// Preview de professor usa lessonActivities cru (sem submission — ninguém entregou nada em nome
+// dele) — mesma ideia de resolveMaterialLinks/resolveSectionContents acima, completed/submission
+// opcional cai pro estado vazio. mediaUrl resolvido via getMediaAsset (escopado) — funciona
+// porque quem está vendo a própria entrega é sempre o dono do arquivo (uploadedBy === actorId).
+async function resolveActivityItems(
+  activities: (LessonActivityRecord & { submission?: StudentLessonActivityRecord["submission"] })[],
+): Promise<ActivityStepItem[]> {
+  return Promise.all(
+    activities.map(async (activity) => {
+      const media = activity.submission?.mediaId ? await getMediaAsset({ id: activity.submission.mediaId }) : null;
+      return {
+        id: activity.id,
+        title: activity.title,
+        instructionsText: activity.instructionsText,
+        deliverableFormat: activity.deliverableFormat,
+        submission: activity.submission
+          ? {
+              reviewStatus: activity.submission.reviewStatus,
+              reviewFeedback: activity.submission.reviewFeedback,
+              reviewScore: activity.submission.reviewScore,
+              contentText: activity.submission.contentText,
+              mediaUrl: media?.success && media.data ? media.data.url : null,
+              mediaFilename: media?.success && media.data ? media.data.filename : null,
+            }
+          : null,
+      };
+    }),
+  );
+}
+
+function buildVideoStep(url: string, readMark?: LessonStepReadMark): LessonFlowStep {
+  return {
+    id: "video",
+    kicker: "Vídeo",
+    readMark,
+    content: (
+      <div className="overflow-hidden rounded-lg border border-border">
+        <LessonVideoEmbed url={url} />
+      </div>
+    ),
+  };
+}
+
+function buildSectionStep(section: SectionItem, readMark?: LessonStepReadMark): LessonFlowStep {
+  return {
+    id: section.id,
+    kicker: "Leitura",
+    readMark,
+    content: (
+      <div className="space-y-4">
+        <h2 className="text-sm font-semibold text-foreground">{section.title}</h2>
+        <article className="prose max-w-none text-sm">
+          <BlockRenderer blocks={section.composition} mode="published" />
+        </article>
+      </div>
+    ),
+  };
+}
+
+function buildTextFallbackStep(readMark: LessonStepReadMark): LessonFlowStep {
+  return {
+    id: "text-fallback",
+    kicker: "Leitura",
+    readMark,
+    content: (
+      <p className="text-center text-sm text-muted-foreground">
+        Marque esta aula como lida para acompanhar seu progresso.
+      </p>
+    ),
+  };
+}
+
+function buildMaterialsStep(
+  courseSlug: string,
+  lessonId: string,
+  materials: LessonMaterialStepItem[],
+  progressMode: ProgressMode,
+): LessonFlowStep {
+  return {
+    id: "materials",
+    kicker: "Material complementar",
+    content: <LessonMaterialsList courseSlug={courseSlug} lessonId={lessonId} materials={materials} progressMode={progressMode} />,
+  };
+}
+
+function buildExamplesStep(examples: LessonExampleStepItem[]): LessonFlowStep {
+  return {
+    id: "examples",
+    kicker: "Exemplo sonoro",
+    content: <LessonExamplesList examples={examples} />,
+  };
+}
+
+function buildActivityStep(courseSlug: string, lessonId: string, activities: ActivityStepItem[], interactive: boolean): LessonFlowStep {
+  return {
+    id: "activity",
+    kicker: "Atividade prática",
+    content: interactive ? (
+      <ActivitiesList courseSlug={courseSlug} lessonId={lessonId} activities={activities} />
+    ) : (
+      <div className="space-y-3">
+        {activities.map((activity) => (
+          <div key={activity.id} className="rounded-md border border-border px-3.5 py-3">
+            <p className="text-sm font-medium text-foreground">{activity.title}</p>
+            <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">{activity.instructionsText}</p>
+          </div>
+        ))}
+        <p className="text-xs text-muted-foreground/56">
+          Modo de visualização (professor) — nenhuma entrega é salva aqui.
+        </p>
+      </div>
+    ),
+  };
+}
+
+function buildQuizStep(content: ReactNode, badge: ReactNode): LessonFlowStep {
+  return {
+    id: "quiz",
+    kicker: "Quiz",
+    content: (
+      <div className="space-y-3">
+        {badge}
+        {content}
+      </div>
+    ),
+  };
+}
 
 export const dynamic = "force-dynamic";
+
+// Cabeçalho compartilhado pelos três modos: só identidade da aula (voltar/título/aviso) — posição
+// dentro da aula é responsabilidade só do LessonStepFlow abaixo, pra não duplicar duas barras de
+// progresso com significados diferentes na mesma tela.
+function LessonHeaderCard({ backHref, title, banner }: { backHref: string; title: string; banner?: ReactNode }) {
+  return (
+    <div className="space-y-4 rounded-panel border border-border bg-card ui-panel-padding-roomy shadow-panel">
+      <Link
+        href={backHref}
+        className="inline-flex items-center gap-1 rounded-sm text-xs font-medium text-muted-foreground outline-none ui-motion-base hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <ChevronLeft className="size-3.5" aria-hidden="true" />
+        Curso
+      </Link>
+      <h1 className="text-2xl font-semibold tracking-tight text-balance text-foreground sm:text-3xl">{title}</h1>
+      {banner}
+    </div>
+  );
+}
+
+// Amostra grátis (visitante não matriculado, aula "public") — único modo sem interação real
+// nenhuma, nem simulada: quem chega aqui ainda não decidiu se vai se matricular.
+function FreeSampleLessonView({
+  courseSlug,
+  lesson,
+  questions,
+  materials,
+  sections,
+  examples,
+}: {
+  courseSlug: string;
+  lesson: LessonRecord;
+  questions: StudentQuizQuestionRecord[];
+  materials: LessonMaterialStepItem[];
+  sections: SectionItem[];
+  examples: LessonExampleStepItem[];
+}) {
+  const steps: LessonFlowStep[] = [];
+  if (lesson.videoUrl) steps.push(buildVideoStep(lesson.videoUrl));
+  sections.forEach((section) => steps.push(buildSectionStep(section)));
+  if (materials.length > 0) steps.push(buildMaterialsStep(courseSlug, lesson.id, materials, "none"));
+  if (examples.length > 0) steps.push(buildExamplesStep(examples));
+  if (questions.length > 0) {
+    steps.push(
+      buildQuizStep(
+        <ul className="space-y-2">
+          {questions.map((question) => (
+            <li key={question.id} className="rounded-md border border-border px-3.5 py-2.5 text-sm">
+              {question.text}
+            </li>
+          ))}
+        </ul>,
+        null,
+      ),
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <LessonHeaderCard
+        backHref={`/academy/${courseSlug}`}
+        title={lesson.title}
+        banner={
+          <p className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-secondary-foreground">
+            Aula gratuita — matricule-se no curso para acompanhar o progresso e as demais aulas.
+          </p>
+        }
+      />
+      <LessonStepFlow steps={steps} courseHref={`/academy/${courseSlug}`} />
+    </div>
+  );
+}
 
 export default async function AcademyLessonPage({
   params,
@@ -32,15 +321,47 @@ export default async function AcademyLessonPage({
   if (access.mode === "redirect") {
     redirect(`/academy/${access.slug}/${lessonId}`);
   }
-  // Sem matrícula (e sem preview de professor), não existe motivo legítimo pra estar numa URL de
-  // aula específica — mesma disciplina do bloqueio de lock-chain: checado no servidor, não só
-  // escondido na UI (docs/venore-docks.md, item 5 do pedido desta sessão).
+  // Sem matrícula e sem preview de professor, só uma aula "public" é acessível — amostra grátis
+  // do curso (contracts/types.ts, LessonStatus). Qualquer outra aula redireciona pro curso, mesma
+  // disciplina do bloqueio de lock-chain: checado no servidor, não só escondido na UI
+  // (docs/venore-docks.md, item 5 do pedido desta sessão).
   if (access.mode === "restricted" || access.mode === "enroll-available") {
-    redirect(`/academy/${courseSlug}`);
+    const lessonResult = await getCachedLesson(lessonId);
+    const lesson = lessonResult.success ? lessonResult.data : null;
+    if (!lesson || lesson.courseId !== access.course.id || lesson.status !== "public") {
+      redirect(`/academy/${courseSlug}`);
+    }
+
+    const quizResult = await listQuizQuestionsForStudent({ lessonId });
+    const questions = quizResult.success ? quizResult.data : [];
+
+    const materialsResult = await listLessonMaterialsForStudent({ lessonId });
+    const materials = materialsResult.success ? await resolveMaterialLinks(materialsResult.data) : [];
+
+    const sectionsResult = await listLessonSectionsForStudent({ lessonId });
+    const sections = sectionsResult.success ? await resolveSectionContents(sectionsResult.data) : [];
+
+    const examplesResult = await listLessonExamplesForStudent({ lessonId });
+    const examples = examplesResult.success ? await resolveExampleLinks(examplesResult.data) : [];
+
+    return (
+      <FreeSampleLessonView
+        courseSlug={courseSlug}
+        lesson={lesson}
+        questions={questions}
+        materials={materials}
+        sections={sections}
+        examples={examples}
+      />
+    );
   }
 
   const { course } = access;
 
+  // Preview de professor: precisa parecer igual ao que o aluno vê, sem gravar nada — o professor
+  // normalmente não está matriculado no próprio curso, e as ações reais (mark-lesson-section-read
+  // etc.) exigem matrícula como fronteira de segurança. "local" no ReadMarkAction simula a
+  // interação inteira em estado do LessonStepFlow, sem round-trip ao servidor.
   if (access.mode === "preview") {
     const lessonResult = await getCachedLesson(lessonId);
     if (!lessonResult.success) {
@@ -51,62 +372,84 @@ export default async function AcademyLessonPage({
       notFound();
     }
 
-    const [entryResult, quizResult] = await Promise.all([
-      getCachedEntry(lesson.cmsEntryId),
-      listQuizQuestionsByLesson({ lessonId }),
-    ]);
+    const requirementsResult = await getLessonRequirements({ lessonId });
+    const requirements = requirementsResult.success ? requirementsResult.data : null;
 
-    if (!entryResult.success) {
-      return <p className="text-sm text-destructive">Erro ao carregar conteúdo: {entryResult.error.message}</p>;
+    const quizResult = requirements?.quizEnabled
+      ? await listQuizQuestionsByLesson({ lessonId })
+      : { success: true as const, data: [] };
+
+    const materialsResult = await listLessonMaterialsByLesson({ lessonId });
+    const materials = materialsResult.success ? await resolveMaterialLinks(materialsResult.data) : [];
+
+    const sectionsResult = await listLessonSectionsByLesson({ lessonId });
+    const sections = sectionsResult.success ? await resolveSectionContents(sectionsResult.data) : [];
+
+    const examplesResult = await listLessonExamplesByLesson({ lessonId });
+    const examples = examplesResult.success ? await resolveExampleLinks(examplesResult.data) : [];
+
+    const activitiesResult = requirements?.activityEnabled
+      ? await listLessonActivitiesByLesson({ lessonId })
+      : { success: true as const, data: [] };
+    const activities = activitiesResult.success ? await resolveActivityItems(activitiesResult.data) : [];
+
+    const steps: LessonFlowStep[] = [];
+    if (lesson.videoUrl) {
+      steps.push(
+        buildVideoStep(
+          lesson.videoUrl,
+          requirements?.watchVideoEnabled
+            ? { mark: { kind: "local" }, completed: false, actionLabel: "Marcar vídeo como assistido", doneLabel: "Vídeo assistido" }
+            : undefined,
+        ),
+      );
     }
-
-    const entry = entryResult.data;
-    const questions = quizResult.success ? quizResult.data : [];
-    const previewCompositionResult = entry ? await getEntryComposition({ id: entry.id }) : null;
-    const previewComposition = previewCompositionResult?.success ? previewCompositionResult.data : null;
+    if (requirements?.readTextEnabled && sections.length === 0) {
+      steps.push(
+        buildTextFallbackStep({
+          mark: { kind: "local" },
+          completed: false,
+          actionLabel: "Marcar texto como lido",
+          doneLabel: "Texto lido",
+          confirmBeforeAdvance: true,
+        }),
+      );
+    }
+    sections.forEach((section) =>
+      steps.push(
+        buildSectionStep(section, {
+          mark: { kind: "local" },
+          completed: section.completed,
+          actionLabel: "Marcar como lida",
+          doneLabel: "Lida",
+          confirmBeforeAdvance: true,
+        }),
+      ),
+    );
+    if (materials.length > 0) steps.push(buildMaterialsStep(course.slug, lessonId, materials, "preview"));
+    if (examples.length > 0) steps.push(buildExamplesStep(examples));
+    if (activities.length > 0) steps.push(buildActivityStep(course.slug, lessonId, activities, false));
+    if (requirements?.quizEnabled && quizResult.success && quizResult.data.length > 0) {
+      steps.push(
+        buildQuizStep(
+          <PreviewQuizForm questions={quizResult.data} quizPassThresholdPercent={requirements.quizPassThresholdPercent ?? 70} />,
+          null,
+        ),
+      );
+    }
 
     return (
       <div className="space-y-6">
-        <p className="rounded border border-border bg-secondary p-3 text-sm text-secondary-foreground">
-          Modo de visualização (professor) — sem ações de progresso.
-        </p>
-        <div>
-          <Link href={`/academy/${course.slug}`} className="text-xs font-medium text-muted-foreground/56 hover:underline">
-            ← Curso
-          </Link>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{entry ? entry.title : `Aula ${lesson.position}`}</h1>
-        </div>
-
-        {entry &&
-          (previewComposition ? (
-            <BlockRenderer blocks={previewComposition} mode="published" />
-          ) : (
-            <article className="prose max-w-none">
-              <p>{getEntryBody(entry.data)}</p>
-            </article>
-          ))}
-
-        {lesson.videoUrl && (
-          <section>
-            <h2 className="text-sm font-semibold">Vídeo</h2>
-            <div className="mt-2">
-              <LessonVideoEmbed url={lesson.videoUrl} />
-            </div>
-          </section>
-        )}
-
-        {questions.length > 0 && (
-          <section>
-            <h2 className="text-sm font-semibold">Quiz ({questions.length} pergunta(s))</h2>
-            <ul className="mt-2 space-y-2">
-              {questions.map((question) => (
-                <li key={question.id} className="rounded border border-border p-3 text-sm">
-                  {question.text}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <LessonHeaderCard
+          backHref={`/academy/${course.slug}`}
+          title={lesson.title}
+          banner={
+            <p className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-secondary-foreground">
+              Modo de visualização (professor) — a mesma tela do aluno, mas nada aqui é salvo na sua conta.
+            </p>
+          }
+        />
+        <LessonStepFlow steps={steps} courseHref={`/academy/${course.slug}`} />
       </div>
     );
   }
@@ -132,104 +475,114 @@ export default async function AcademyLessonPage({
     redirect(`/academy/${course.slug}?blocked=1`);
   }
 
-  const [entryResult, quizResult] = await Promise.all([
-    getCachedEntry(lesson.cmsEntryId),
-    lesson.requirements.quizEnabled
-      ? listQuizQuestionsForStudent({ lessonId })
-      : Promise.resolve({ success: true as const, data: [] }),
-  ]);
+  // progress.lessons já vem ordenado por position (getCourseProgress/loadLessonChain) — o próximo
+  // item da lista é literalmente a próxima aula. Se ela ainda estiver bloqueada (requisitos desta
+  // aula não cumpridos), a própria AcademyLessonPage redireciona de volta ao clicar (mesma lógica
+  // de lock-chain acima), então não precisa checar lesson.locked aqui de novo.
+  const lessonIndex = progress.lessons.findIndex((item) => item.lessonId === lessonId);
+  const nextLesson = lessonIndex >= 0 ? progress.lessons[lessonIndex + 1] : undefined;
+  const nextLessonHref = nextLesson ? `/academy/${course.slug}/${nextLesson.lessonId}` : null;
 
-  if (!entryResult.success) {
-    return <p className="text-sm text-destructive">Erro ao carregar conteúdo: {entryResult.error.message}</p>;
-  }
+  const quizResult = lesson.requirements.quizEnabled
+    ? await listQuizQuestionsForStudent({ lessonId })
+    : { success: true as const, data: [] };
 
-  const entry = entryResult.data;
-  const compositionResult = entry ? await getEntryComposition({ id: entry.id }) : null;
-  const composition = compositionResult?.success ? compositionResult.data : null;
+  const materialsResult = await listLessonMaterialsForStudent({ lessonId });
+  const materials = materialsResult.success ? await resolveMaterialLinks(materialsResult.data) : [];
+
+  const sectionsResult = await listLessonSectionsForStudent({ lessonId });
+  const sections = sectionsResult.success ? await resolveSectionContents(sectionsResult.data) : [];
+
+  const examplesResult = await listLessonExamplesForStudent({ lessonId });
+  const examples = examplesResult.success ? await resolveExampleLinks(examplesResult.data) : [];
+
+  const activitiesResult = lesson.requirements.activityEnabled
+    ? await listLessonActivitiesForStudent({ lessonId })
+    : { success: true as const, data: [] };
+  const activities = activitiesResult.success ? await resolveActivityItems(activitiesResult.data) : [];
+
   const attemptsExhausted =
     lesson.requirements.quizMaxAttempts !== null &&
     !lesson.requirements.quizPassed &&
     lesson.requirements.quizAttemptsUsed >= lesson.requirements.quizMaxAttempts;
 
+  const quizContent = lesson.requirements.quizPassed ? (
+    <div className="space-y-0.5">
+      <p className="text-sm text-muted-foreground">Você já passou neste quiz.</p>
+      {lesson.requirements.quizBestGrade !== null && (
+        <p className="text-xs text-muted-foreground/56">
+          Nota: {lesson.requirements.quizBestGrade.toFixed(1)} ({lesson.requirements.quizBestScore}% de acerto)
+        </p>
+      )}
+    </div>
+  ) : !quizResult.success ? (
+    <p className="text-sm text-destructive">Erro ao carregar o quiz: {quizResult.error.message}</p>
+  ) : (
+    <QuizForm courseSlug={course.slug} lessonId={lessonId} questions={quizResult.data} attemptsExhausted={attemptsExhausted} />
+  );
+
+  const steps: LessonFlowStep[] = [];
+  if (lesson.videoUrl) {
+    steps.push(
+      buildVideoStep(
+        lesson.videoUrl,
+        lesson.requirements.watchVideoEnabled
+          ? {
+              mark: { kind: "server", action: markVideoWatchedAction, fields: { courseSlug: course.slug, lessonId } },
+              completed: lesson.requirements.videoWatched,
+              actionLabel: "Marcar vídeo como assistido",
+              doneLabel: "Vídeo assistido",
+            }
+          : undefined,
+      ),
+    );
+  }
+  // Fallback só quando a aula não tem nenhuma seção (ex: aula antiga que ainda não migrou pro
+  // modelo de seções) — com seções, "ler o texto" passa a ser marcar cada seção na sua própria
+  // etapa, então este passo de aula inteira sumiria como redundante. Sem isso, uma aula com
+  // readTextEnabled e zero seções ficaria com o requisito impossível de cumprir.
+  if (lesson.requirements.readTextEnabled && sections.length === 0) {
+    steps.push(
+      buildTextFallbackStep({
+        mark: { kind: "server", action: markTextReadAction, fields: { courseSlug: course.slug, lessonId } },
+        completed: lesson.requirements.textRead,
+        actionLabel: "Marcar texto como lido",
+        doneLabel: "Texto lido",
+        confirmBeforeAdvance: true,
+      }),
+    );
+  }
+  sections.forEach((section) =>
+    steps.push(
+      buildSectionStep(section, {
+        mark: {
+          kind: "server",
+          action: markLessonSectionReadAction,
+          fields: { courseSlug: course.slug, lessonId, sectionId: section.id },
+        },
+        completed: section.completed,
+        actionLabel: "Marcar como lida",
+        doneLabel: "Lida",
+        confirmBeforeAdvance: true,
+      }),
+    ),
+  );
+  if (materials.length > 0) steps.push(buildMaterialsStep(course.slug, lessonId, materials, "live"));
+  if (examples.length > 0) steps.push(buildExamplesStep(examples));
+  if (activities.length > 0) steps.push(buildActivityStep(course.slug, lessonId, activities, true));
+  if (lesson.requirements.quizEnabled) {
+    steps.push(buildQuizStep(quizContent, lesson.requirements.quizPassed ? <DoneBadge label="Concluída" /> : null));
+  }
+
   return (
     <div className="space-y-6">
       {blocked && (
-        <p className="rounded border border-warning-border bg-warning-soft p-3 text-sm text-warning">
-          A aula que você tentou acessar está bloqueada. Esta é sua aula liberada atual.
+        <p className="rounded-panel border border-warning-border bg-warning-soft p-3 text-sm text-warning">
+          A aula que você tentou acessar está bloqueada. Complete as aulas anteriores para liberá-la.
         </p>
       )}
-      <div>
-        <Link href={`/academy/${course.slug}`} className="text-xs font-medium text-muted-foreground/56 hover:underline">
-          ← Curso
-        </Link>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight">{entry ? entry.title : `Aula ${lesson.position}`}</h1>
-      </div>
-
-      {entry &&
-        (composition ? (
-          <BlockRenderer blocks={composition} mode="published" />
-        ) : (
-          <article className="prose max-w-none">
-            <p>{getEntryBody(entry.data)}</p>
-          </article>
-        ))}
-
-      {lesson.videoUrl && (
-        <section>
-          <h2 className="text-sm font-semibold">Vídeo</h2>
-          <div className="mt-2">
-            <LessonVideoEmbed url={lesson.videoUrl} />
-          </div>
-        </section>
-      )}
-
-      <section className="flex flex-wrap gap-4">
-        {lesson.requirements.readTextEnabled &&
-          (lesson.requirements.textRead ? (
-            <p className="text-sm text-muted-foreground">Texto lido ✓</p>
-          ) : (
-            <MarkProgressButton courseSlug={course.slug} lessonId={lessonId} kind="text" label="Marcar texto como lido" />
-          ))}
-
-        {lesson.requirements.watchVideoEnabled &&
-          (lesson.requirements.videoWatched ? (
-            <p className="text-sm text-muted-foreground">Vídeo assistido ✓</p>
-          ) : (
-            <MarkProgressButton
-              courseSlug={course.slug}
-              lessonId={lessonId}
-              kind="video"
-              label="Marcar vídeo como assistido"
-            />
-          ))}
-      </section>
-
-      {lesson.requirements.quizEnabled && (
-        <section>
-          <h2 className="text-sm font-semibold">Quiz</h2>
-          {lesson.requirements.quizPassed ? (
-            <div className="mt-2 space-y-0.5">
-              <p className="text-sm text-muted-foreground">Você já passou neste quiz.</p>
-              {lesson.requirements.quizBestGrade !== null && (
-                <p className="text-xs text-muted-foreground/56">
-                  Nota: {lesson.requirements.quizBestGrade.toFixed(1)} ({lesson.requirements.quizBestScore}% de acerto)
-                </p>
-              )}
-            </div>
-          ) : !quizResult.success ? (
-            <p className="mt-2 text-sm text-destructive">Erro ao carregar o quiz: {quizResult.error.message}</p>
-          ) : (
-            <div className="mt-2">
-              <QuizForm
-                courseSlug={course.slug}
-                lessonId={lessonId}
-                questions={quizResult.data}
-                attemptsExhausted={attemptsExhausted}
-              />
-            </div>
-          )}
-        </section>
-      )}
+      <LessonHeaderCard backHref={`/academy/${course.slug}`} title={lesson.title} />
+      <LessonStepFlow steps={steps} courseHref={`/academy/${course.slug}`} nextLessonHref={nextLessonHref} />
     </div>
   );
 }

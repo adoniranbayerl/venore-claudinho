@@ -6,14 +6,16 @@ vi.mock("@/observability", () => ({
 }));
 
 const invalidateCacheByPrefix = vi.fn();
+const invalidateCache = vi.fn();
 vi.mock("../../../../../infrastructure/cache/memory-cache", () => ({
   invalidateCacheByPrefix: (...args: unknown[]) => invalidateCacheByPrefix(...args),
+  invalidateCache: (...args: unknown[]) => invalidateCache(...args),
 }));
 
-const getMedia = vi.fn();
+const getMediaAsset = vi.fn();
 
 vi.mock("@/contexts/media", () => ({
-  getMedia: (...args: unknown[]) => getMedia(...args),
+  getMediaAsset: (...args: unknown[]) => getMediaAsset(...args),
 }));
 
 const findEntryById = vi.fn();
@@ -47,8 +49,29 @@ describe("updateEntry", () => {
     findOtherEntryByCategoryAndSlug.mockReset();
     findOtherEntryByCategoryAndSlug.mockResolvedValue(null);
     updateEntryFields.mockReset();
-    getMedia.mockReset();
+    getMediaAsset.mockReset();
     invalidateCacheByPrefix.mockReset();
+    invalidateCache.mockReset();
+  });
+
+  it("invalidates the tag entryCount cache when contentTypeIds changes", async () => {
+    findEntryById.mockResolvedValue(existingEntry);
+    updateEntryFields.mockResolvedValue({ ...existingEntry, contentTypeIds: ["ct-2"] });
+
+    const { updateEntry } = await import("./service");
+    await updateEntry({ id: "entry-1", contentTypeIds: ["ct-2"], actorId: "actor-1" });
+
+    expect(invalidateCache).toHaveBeenCalledWith("cms:content-types");
+  });
+
+  it("does not touch the tag entryCount cache when contentTypeIds is not part of the update", async () => {
+    findEntryById.mockResolvedValue(existingEntry);
+    updateEntryFields.mockResolvedValue({ ...existingEntry, title: "Updated" });
+
+    const { updateEntry } = await import("./service");
+    await updateEntry({ id: "entry-1", title: "Updated", actorId: "actor-1" });
+
+    expect(invalidateCache).not.toHaveBeenCalled();
   });
 
   it("invalidates the navigation cache when a published entry's address (slug) changes", async () => {
@@ -86,7 +109,7 @@ describe("updateEntry", () => {
 
   it("fails when mediaId does not reference an existing media file", async () => {
     findEntryById.mockResolvedValue(existingEntry);
-    getMedia.mockResolvedValue({ success: true, data: null });
+    getMediaAsset.mockResolvedValue({ success: true, data: null });
 
     const { updateEntry } = await import("./service");
     const result = await updateEntry({ id: "entry-1", mediaId: "media-missing", actorId: "actor-1" });
@@ -100,14 +123,14 @@ describe("updateEntry", () => {
 
   it("updates the entry when mediaId references an existing media file", async () => {
     findEntryById.mockResolvedValue(existingEntry);
-    getMedia.mockResolvedValue({ success: true, data: { id: "media-1" } });
+    getMediaAsset.mockResolvedValue({ success: true, data: { id: "media-1" } });
     updateEntryFields.mockResolvedValue({ ...existingEntry, mediaId: "media-1" });
 
     const { updateEntry } = await import("./service");
     const result = await updateEntry({ id: "entry-1", mediaId: "media-1", actorId: "actor-1" });
 
     expect(result.success).toBe(true);
-    expect(getMedia).toHaveBeenCalledWith({ id: "media-1" });
+    expect(getMediaAsset).toHaveBeenCalledWith({ id: "media-1" });
   });
 
   it("skips media validation when mediaId is not provided", async () => {
@@ -118,7 +141,7 @@ describe("updateEntry", () => {
     const result = await updateEntry({ id: "entry-1", title: "Updated", actorId: "actor-1" });
 
     expect(result.success).toBe(true);
-    expect(getMedia).not.toHaveBeenCalled();
+    expect(getMediaAsset).not.toHaveBeenCalled();
   });
 
   it("fails when the new slug/category combination is already taken by another entry", async () => {

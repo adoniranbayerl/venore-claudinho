@@ -63,7 +63,7 @@ export function MediaPickerField({
       <div className="mt-1 flex items-center gap-3">
         {selected && (
           <div className="flex items-center gap-2 rounded border border-border px-2 py-1">
-            {selected.mimeType.startsWith("image/") ? (
+            {selected.contentType.startsWith("image/") ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={selected.url} alt={selected.filename} className="h-8 w-8 rounded object-cover" />
             ) : null}
@@ -133,7 +133,7 @@ export function MediaPickerField({
                   className="flex flex-col gap-1 rounded-lg border border-border p-2 text-left outline-none ui-motion-base hover:border-ring focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <div className="flex h-16 items-center justify-center overflow-hidden rounded-md bg-muted">
-                    {item.mimeType.startsWith("image/") ? (
+                    {item.contentType.startsWith("image/") ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.url} alt={item.filename} className="h-full w-full object-cover" />
                     ) : (

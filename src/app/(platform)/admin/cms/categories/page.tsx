@@ -2,6 +2,7 @@ import { listCategories } from "@/contexts/cms";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { EmptyState } from "@/components/empty-state";
 import { CreateCategoryForm } from "../_components/create-category-form";
+import { CategoriesTable } from "../_components/categories-table";
 import { FolderTree } from "lucide-react";
 
 export default async function CmsCategoriesAdminPage() {
@@ -35,10 +36,13 @@ export default async function CmsCategoriesAdminPage() {
   const categories = categoriesResult.data;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Categorias</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Agrupam conteúdos relacionados sob um mesmo endereço de página.</p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Categorias</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Agrupam conteúdos relacionados sob um mesmo endereço de página.</p>
+        </div>
+        {categories.length > 0 && <CreateCategoryForm />}
       </div>
 
       <section className="rounded-panel border border-border bg-card ui-panel-padding-roomy">
@@ -50,18 +54,7 @@ export default async function CmsCategoriesAdminPage() {
             action={<CreateCategoryForm />}
           />
         ) : (
-          <>
-            <ul className="space-y-1">
-              {categories.map((category) => (
-                <li key={category.id} className="text-sm text-muted-foreground">
-                  <span className="text-foreground">{category.name}</span>{" "}
-                  <span className="text-muted-foreground/56">(/{category.slug})</span>
-                  {category.description && <span className="text-muted-foreground/56"> — {category.description}</span>}
-                </li>
-              ))}
-            </ul>
-            <CreateCategoryForm />
-          </>
+          <CategoriesTable categories={categories} />
         )}
       </section>
     </div>

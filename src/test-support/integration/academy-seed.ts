@@ -8,10 +8,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@/infrastructure/database/client";
 import { users } from "@/contexts/auth/database/schema";
-import { createContentType } from "@/contexts/cms/features/content-types/create-content-type/service";
-import { createEntry } from "@/contexts/cms/features/entries/create-entry/service";
-import { publishEntry } from "@/contexts/cms/features/entries/publish-entry/service";
-import type { EntryRecord } from "@/contexts/cms/contracts/types";
 import { createCourse } from "@/plugins/academy/features/courses/create-course/service";
 import { createLesson } from "@/plugins/academy/features/lessons/create-lesson/service";
 import { configureLessonRequirements } from "@/plugins/academy/features/lessons/configure-lesson-requirements/service";
@@ -62,46 +58,15 @@ export async function seedCourse(
   );
 }
 
-// Entry em rascunho — cada chamada cria seu próprio content type (key única) porque
-// cms.content_types.key é unique e é truncado a cada teste.
-export async function seedDraftEntry(actorId: string, overrides: Partial<{ title: string; slug: string }> = {}): Promise<EntryRecord> {
-  const unique = randomUUID();
-  const contentType = unwrap(
-    await createContentType({ key: `academy-lesson-${unique}`, name: "Academy Lesson (test)", actorId }),
-  );
-  return unwrap(
-    await createEntry({
-      contentTypeId: contentType.id,
-      title: overrides.title ?? `Entry ${unique}`,
-      slug: overrides.slug ?? `entry-${unique}`,
-      actorId,
-    }),
-  );
-}
-
-// Entry publicada, pronta pra ser referenciada por uma lesson.
-export async function seedPublishedEntry(actorId: string, overrides: Partial<{ title: string; slug: string }> = {}): Promise<EntryRecord> {
-  const draft = await seedDraftEntry(actorId, overrides);
-  return unwrap(await publishEntry({ id: draft.id, actorId, resolveDefinition: () => null }));
-}
-
-// Cria `count` aulas em ordem (posições 1..count), cada uma com sua própria entry publicada —
-// é o que o pedido chama de "criar N aulas com posições".
+// Cria `count` aulas em ordem (posições 1..count) — é o que o pedido chama de "criar N aulas com
+// posições". Conteúdo (title/body) é próprio da aula desde A1 (docs/implementation-roadmap.md,
+// Fase 7): sem entry de CMS envolvida.
 export async function seedLessons(courseId: string, count: number, actorId: string): Promise<LessonRecord[]> {
   const lessons: LessonRecord[] = [];
   for (let i = 0; i < count; i += 1) {
-    const entry = await seedPublishedEntry(actorId);
-    lessons.push(unwrap(await createLesson({ courseId, cmsEntryId: entry.id, actorId })));
+    lessons.push(unwrap(await createLesson({ courseId, title: `Aula ${i + 1}`, actorId })));
   }
   return lessons;
-}
-
-// Aula cujo cmsEntryId aponta pra uma entry ainda em rascunho — cenário do teste de
-// publish-course (achado: cms.getEntry não filtra por status hoje, então create-lesson aceita a
-// referência mesmo sem publicar; ver academy-seed.ts topo de arquivo / relatório da sessão).
-export async function seedLessonWithDraftEntry(courseId: string, actorId: string): Promise<LessonRecord> {
-  const entry = await seedDraftEntry(actorId);
-  return unwrap(await createLesson({ courseId, cmsEntryId: entry.id, actorId }));
 }
 
 // videoUrl precisa existir antes de watchVideoEnabled=true (configure-lesson-requirements
@@ -117,6 +82,7 @@ export async function seedLessonRequirements(
     quizPassThresholdPercent: number;
     quizMaxAttempts: number;
     videoUrl: string;
+    activityEnabled: boolean;
   }> = {},
 ): Promise<LessonRequirementsRecord> {
   if (overrides.watchVideoEnabled) {
@@ -132,6 +98,7 @@ export async function seedLessonRequirements(
       quizEnabled: overrides.quizEnabled ?? false,
       quizPassThresholdPercent: overrides.quizPassThresholdPercent,
       quizMaxAttempts: overrides.quizMaxAttempts,
+      activityEnabled: overrides.activityEnabled ?? false,
       actorId,
     }),
   );

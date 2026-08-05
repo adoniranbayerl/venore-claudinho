@@ -43,7 +43,7 @@ export async function AcademyEnrollCtaBlock({ block }: BlockRendererProps) {
     );
   }
 
-  if (!course.selfEnrollmentEnabled) {
+  if (course.status !== "public") {
     return (
       <Button asChild variant="outline">
         <Link href={`/academy/${course.slug}`}>Ver curso</Link>

@@ -19,10 +19,6 @@ export function CreateCourseForm({ onSuccess }: { onSuccess?: () => void }) {
       <Input name="description" placeholder="descrição (opcional)" />
       <Input name="slug" placeholder="slug (opcional — gerado do título se vazio)" />
       <label className="flex items-center gap-2 text-sm text-muted-foreground">
-        <input type="checkbox" name="selfEnrollmentEnabled" defaultChecked />
-        Permitir matrícula automática
-      </label>
-      <label className="flex items-center gap-2 text-sm text-muted-foreground">
         <input type="checkbox" name="publiclyListed" defaultChecked />
         Listar publicamente
       </label>

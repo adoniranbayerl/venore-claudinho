@@ -1,10 +1,11 @@
-import { findCoursesByCoverMediaId, findLessonsByCoverMediaId } from "./store";
+import { findCoursesByCoverMediaId, findLessonsByCoverMediaId, findLessonsByMaterialMediaId } from "./store";
 import type { FindAcademyMediaUsageResult } from "./types";
 
 export async function findAcademyMediaUsage(mediaId: string): Promise<FindAcademyMediaUsageResult> {
-  const [coursesFound, lessonsFound] = await Promise.all([
+  const [coursesFound, lessonsFound, materialsFound] = await Promise.all([
     findCoursesByCoverMediaId(mediaId),
     findLessonsByCoverMediaId(mediaId),
+    findLessonsByMaterialMediaId(mediaId),
   ]);
 
   return [
@@ -18,6 +19,12 @@ export async function findAcademyMediaUsage(mediaId: string): Promise<FindAcadem
       consumerKey: "academy",
       consumerLabel: "Academy",
       label: `Aula ${lesson.position} de "${lesson.courseTitle}"`,
+      href: `/admin/academy/lessons/${lesson.id}`,
+    })),
+    ...materialsFound.map((lesson) => ({
+      consumerKey: "academy",
+      consumerLabel: "Academy",
+      label: `Material "${lesson.materialLabel}" da aula ${lesson.position} de "${lesson.courseTitle}"`,
       href: `/admin/academy/lessons/${lesson.id}`,
     })),
   ];

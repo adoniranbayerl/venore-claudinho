@@ -1,5 +1,5 @@
 import { beginOperation, endOperation } from "@/observability";
-import { findLessonById, upsertLessonRequirements } from "./store";
+import { countLessonActivities, findLessonById, upsertLessonRequirements } from "./store";
 import type { ConfigureLessonRequirementsCommand, ConfigureLessonRequirementsResult } from "./types";
 
 export async function configureLessonRequirements(command: ConfigureLessonRequirementsCommand): Promise<ConfigureLessonRequirementsResult> {
@@ -25,6 +25,15 @@ export async function configureLessonRequirements(command: ConfigureLessonRequir
     return { success: false, error };
   }
 
+  if (command.activityEnabled && (await countLessonActivities(command.lessonId)) === 0) {
+    const error = {
+      code: "academy.lessons.missing_lesson_activity",
+      message: "activityEnabled não pode ser habilitado: a lesson não tem nenhuma atividade prática cadastrada.",
+    };
+    endOperation(handle, { success: false, error });
+    return { success: false, error };
+  }
+
   const requirements = await upsertLessonRequirements({
     lessonId: command.lessonId,
     readTextEnabled: command.readTextEnabled,
@@ -32,6 +41,7 @@ export async function configureLessonRequirements(command: ConfigureLessonRequir
     quizEnabled: command.quizEnabled,
     quizPassThresholdPercent: command.quizPassThresholdPercent,
     quizMaxAttempts: command.quizMaxAttempts,
+    activityEnabled: command.activityEnabled,
   });
 
   endOperation(handle, { success: true });

@@ -64,6 +64,17 @@ export function ToggleThemeControl({
 }) {
   const [open, setOpen] = useState(false);
 
+  // Mesmo bug/fix de admin/plugins/_components/toggle-plugin-control.tsx (ajusta state durante a
+  // renderização em vez de useEffect — react-hooks/set-state-in-effect): revalidatePath do
+  // disable pode trazer enabled=false no mesmo commit em que o pending do ToggleForm de
+  // confirmação vira false, desmontando esse ToggleForm antes do onSuccess (setOpen(false))
+  // rodar — sem este ajuste, open fica preso em true e reabre sozinho ao reabilitar depois.
+  const [prevEnabled, setPrevEnabled] = useState(enabled);
+  if (enabled !== prevEnabled) {
+    setPrevEnabled(enabled);
+    if (!enabled) setOpen(false);
+  }
+
   if (!enabled) {
     return (
       <div className="flex items-center gap-2">

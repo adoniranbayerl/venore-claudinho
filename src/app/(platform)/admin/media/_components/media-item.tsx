@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Lock } from "lucide-react";
+import { Lock, ShieldQuestion } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import type { MediaVisibility } from "@/contexts/media";
 import { DeleteMediaButton } from "./delete-media-button";
 
 function formatSize(bytes: number): string {
@@ -13,7 +14,7 @@ export function MediaItem({
   id,
   filename,
   url,
-  mimeType,
+  contentType,
   size,
   createdAt,
   visibility,
@@ -22,13 +23,13 @@ export function MediaItem({
   id: string;
   filename: string;
   url: string;
-  mimeType: string;
+  contentType: string;
   size: number;
   createdAt: string;
-  visibility: "private" | "public";
+  visibility: MediaVisibility;
   categoryName: string | null;
 }) {
-  const isImage = mimeType.startsWith("image/");
+  const isImage = contentType.startsWith("image/");
 
   return (
     <div className="flex flex-col gap-2 rounded-panel border border-border bg-card p-3">
@@ -49,14 +50,19 @@ export function MediaItem({
       <div className="flex flex-wrap items-center gap-1">
         {/* Reconhecível de relance, sem abrir (docs do pedido): cadeado + cor de destaque, não só
             um texto pequeno cinza igual ao resto da UI. */}
-        {visibility === "private" ? (
+        {visibility === "private" && (
           <Badge variant="destructive">
             <Lock className="size-3" strokeWidth={2} />
             Privado
           </Badge>
-        ) : (
-          <Badge variant="outline">Público</Badge>
         )}
+        {visibility === "restricted" && (
+          <Badge variant="outline" className="text-warning">
+            <ShieldQuestion className="size-3" strokeWidth={2} />
+            Restrito
+          </Badge>
+        )}
+        {visibility === "public" && <Badge variant="outline">Público</Badge>}
         {categoryName && <Badge variant="secondary">{categoryName}</Badge>}
       </div>
       <DeleteMediaButton id={id} className="w-full text-destructive" />

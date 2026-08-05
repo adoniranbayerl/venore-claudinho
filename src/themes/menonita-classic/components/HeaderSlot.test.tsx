@@ -22,6 +22,8 @@ const baseProps: HeaderSlotProps = {
     scrolledLogoUrl: "/brand/brand-logo-scrolled.png",
   },
   userbarEnabled: true,
+  stickyEnabled: true,
+  scrollShrinkEnabled: true,
   headerNavItems: [{ key: "home", label: "Home", href: "/" }],
   user: null,
   canAccessAdmin: false,

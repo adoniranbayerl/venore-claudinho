@@ -1,32 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { seedCourse, seedLessons, seedPublishedEntry, seedUser } from "@/test-support/integration/academy-seed";
+import { seedCourse, seedLessons, seedUser } from "@/test-support/integration/academy-seed";
 import { updateLessonService } from "./service";
 
 describe("updateLessonService (integração)", () => {
-  it("troca o cmsEntryId por uma entry existente de verdade", async () => {
+  it("troca o título e o corpo da aula", async () => {
     const teacher = await seedUser();
     const course = await seedCourse(teacher.id);
     const [lesson] = await seedLessons(course.id, 1, teacher.id);
-    const newEntry = await seedPublishedEntry(teacher.id);
 
-    const result = await updateLessonService({ id: lesson.id, cmsEntryId: newEntry.id, actorId: teacher.id });
+    const result = await updateLessonService({
+      id: lesson.id,
+      title: "Novo título",
+      body: "Novo conteúdo",
+      actorId: teacher.id,
+    });
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.cmsEntryId).toBe(newEntry.id);
+      expect(result.data.title).toBe("Novo título");
+      expect(result.data.body).toBe("Novo conteúdo");
     }
   });
 
-  it("recusa trocar para um cmsEntryId que não existe", async () => {
+  it("recusa trocar para um coverMediaId que não existe", async () => {
     const teacher = await seedUser();
     const course = await seedCourse(teacher.id);
     const [lesson] = await seedLessons(course.id, 1, teacher.id);
 
-    const result = await updateLessonService({ id: lesson.id, cmsEntryId: "does-not-exist", actorId: teacher.id });
+    const result = await updateLessonService({ id: lesson.id, coverMediaId: "does-not-exist", actorId: teacher.id });
 
     expect(result).toEqual({
       success: false,
-      error: { code: "academy.lessons.invalid_cms_entry", message: expect.any(String) },
+      error: { code: "academy.lessons.invalid_cover_media", message: expect.any(String) },
     });
   });
 });

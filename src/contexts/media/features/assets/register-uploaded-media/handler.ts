@@ -15,6 +15,9 @@ export type ConfirmMediaUploadInput = Omit<RegisterUploadedMediaCommand, "actorI
 // Repetir authorizeActor aqui seria autorizar duas vezes no caminho 2 e seria impossível no
 // caminho 1 (webhook não tem sessão de usuário).
 export async function registerUploadedMediaHandler(command: RegisterUploadedMediaCommand): Promise<RegisterUploadedMediaResult> {
+  if (command.filename.trim().length === 0) {
+    return { success: false, error: { code: "media.register.invalid_filename", message: "O nome do arquivo não pode ser vazio." } };
+  }
   if (command.pathname.trim().length === 0) {
     return { success: false, error: { code: "media.register.invalid_pathname", message: "O pathname não pode ser vazio." } };
   }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCachedEntry, getEntryBody, listCategories } from "@/contexts/cms";
-import { getMedia } from "@/contexts/media";
+import { getCachedEntry, getEntryBody, listCategories, listContentTypes } from "@/contexts/cms";
+import { getMediaAsset } from "@/contexts/media";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { EditEntryForm } from "./_components/edit-entry-form";
 import { PublishButton } from "./_components/publish-button";
@@ -29,7 +29,11 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
     );
   }
 
-  const [entryResult, categoriesResult] = await Promise.all([getCachedEntry(id), listCategories()]);
+  const [entryResult, categoriesResult, contentTypesResult] = await Promise.all([
+    getCachedEntry(id),
+    listCategories(),
+    listContentTypes(),
+  ]);
 
   if (!entryResult.success) {
     return <p className="text-sm text-destructive">Não foi possível carregar este conteúdo agora. Tente recarregar a página.</p>;
@@ -37,13 +41,16 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
   if (!categoriesResult.success) {
     return <p className="text-sm text-destructive">Não foi possível carregar as categorias agora. Tente recarregar a página.</p>;
   }
+  if (!contentTypesResult.success) {
+    return <p className="text-sm text-destructive">Não foi possível carregar as tags agora. Tente recarregar a página.</p>;
+  }
 
   const entry = entryResult.data;
   if (!entry) {
     notFound();
   }
 
-  const mediaResult = entry.mediaId ? await getMedia({ id: entry.mediaId }) : null;
+  const mediaResult = entry.mediaId ? await getMediaAsset({ id: entry.mediaId }) : null;
   const media = mediaResult?.success && mediaResult.data ? mediaResult.data : null;
 
   return (
@@ -68,8 +75,11 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
           slug={entry.slug}
           body={getEntryBody(entry.data)}
           categoryId={entry.categoryId}
+          contentTypeIds={entry.contentTypeIds}
+          visibility={entry.visibility}
           media={media}
           categories={categoriesResult.data}
+          contentTypes={contentTypesResult.data}
         />
       </div>
 

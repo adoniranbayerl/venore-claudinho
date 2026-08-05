@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import { entries } from "../../../database/schema";
+import { toEntryRecord } from "../../../database/entry-content-types";
 import type { EntryRecord } from "../../../contracts/types";
 
 // Usada pela tela de admin (/admin/cms/entries/[id]) pra abrir uma entry pra edição
@@ -8,5 +9,5 @@ import type { EntryRecord } from "../../../contracts/types";
 // status vive em get-published-entry-by-slug, não aqui.
 export async function findEntryById(id: string): Promise<EntryRecord | null> {
   const [row] = await db.select().from(entries).where(eq(entries.id, id)).limit(1);
-  return (row as EntryRecord) ?? null;
+  return row ? await toEntryRecord(row) : null;
 }

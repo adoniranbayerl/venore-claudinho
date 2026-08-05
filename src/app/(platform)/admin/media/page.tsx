@@ -1,11 +1,20 @@
-import { ImageOff } from "lucide-react";
-import { listCategories, listMedia } from "@/contexts/media";
+import Link from "next/link";
+import { ImageOff, Trash2 } from "lucide-react";
+import { listCategories, listMediaAssets } from "@/contexts/media";
 import { getMediaPageData } from "@/platform/admin-shell/get-media-page-data";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { MediaItem } from "./_components/media-item";
 import { UploadMediaForm } from "./_components/upload-media-form";
 import { CategoryFilter } from "./_components/category-filter";
 import { ManageCategories } from "./_components/manage-categories";
+
+// Import só pelo efeito colateral: dispara o auto-start do sweep de autopurge (blob-spec seção 7)
+// na primeira vez que alguém visita a seção de mídia do admin — mesmo mecanismo de
+// contexts/media/index.ts importar ./reconciliation. Fica aqui (não no barrel do context) porque
+// o job depende de collectMediaUsage, que atravessa cms/brand/academy — media não pode depender
+// disso (regra 12), então o job mora em platform/media-lifecycle/, fora do context.
+import "@/platform/media-lifecycle/sweep-soft-deleted-media";
 
 export default async function MediaAdminPage({
   searchParams,
@@ -26,7 +35,7 @@ export default async function MediaAdminPage({
   const { category: categoryId } = await searchParams;
 
   const [mediaResult, categoriesResult] = await Promise.all([
-    listMedia(categoryId ? { categoryId } : {}),
+    listMediaAssets(categoryId ? { categoryId } : {}),
     listCategories(),
   ]);
 
@@ -36,13 +45,24 @@ export default async function MediaAdminPage({
 
   const categories = categoriesResult.success ? categoriesResult.data : [];
   const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
-  const files = mediaResult.data;
+  const assets = mediaResult.data;
+  const hasPurgeAccess = gate.actor.isSuperadmin || gate.actor.permissions.includes("media.purge");
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Mídia</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Envie e gerencie as imagens e arquivos usados no conteúdo do site.</p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Mídia</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Envie e gerencie as imagens e arquivos usados no conteúdo do site.</p>
+        </div>
+        {hasPurgeAccess && (
+          <Button asChild variant="outline" size="sm" className="shrink-0">
+            <Link href="/admin/media/trash">
+              <Trash2 className="size-4" strokeWidth={2} />
+              Lixeira
+            </Link>
+          </Button>
+        )}
       </div>
 
       <section className="rounded-panel border border-border bg-card ui-panel-padding-roomy">
@@ -58,7 +78,7 @@ export default async function MediaAdminPage({
         <CategoryFilter categories={categories} />
       </div>
 
-      {files.length === 0 ? (
+      {assets.length === 0 ? (
         <EmptyState
           icon={<ImageOff className="size-8" strokeWidth={1.5} />}
           title="Nenhum arquivo enviado ainda"
@@ -66,17 +86,17 @@ export default async function MediaAdminPage({
         />
       ) : (
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {files.map((file) => (
+          {assets.map((asset) => (
             <MediaItem
-              key={file.id}
-              id={file.id}
-              filename={file.filename}
-              url={file.url}
-              mimeType={file.mimeType}
-              size={file.size}
-              createdAt={file.createdAt.toISOString()}
-              visibility={file.visibility}
-              categoryName={file.categoryId ? (categoryNameById.get(file.categoryId) ?? null) : null}
+              key={asset.id}
+              id={asset.id}
+              filename={asset.filename}
+              url={asset.url}
+              contentType={asset.contentType}
+              size={asset.size}
+              createdAt={asset.createdAt.toISOString()}
+              visibility={asset.visibility}
+              categoryName={asset.categoryId ? (categoryNameById.get(asset.categoryId) ?? null) : null}
             />
           ))}
         </section>

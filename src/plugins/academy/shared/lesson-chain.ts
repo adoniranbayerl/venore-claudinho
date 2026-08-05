@@ -13,6 +13,8 @@ export type LessonChainFacts = {
   videoWatched: boolean;
   quizEnabled: boolean;
   quizPassed: boolean;
+  activityEnabled: boolean;
+  activitiesSubmitted: boolean;
 };
 
 export type LessonChainState = {
@@ -25,6 +27,7 @@ function isComplete(facts: LessonChainFacts): boolean {
   if (facts.readTextEnabled && !facts.textRead) return false;
   if (facts.watchVideoEnabled && !facts.videoWatched) return false;
   if (facts.quizEnabled && !facts.quizPassed) return false;
+  if (facts.activityEnabled && !facts.activitiesSubmitted) return false;
   return true;
 }
 

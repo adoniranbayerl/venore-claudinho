@@ -1,4 +1,4 @@
-import { getMedia } from "@/contexts/media";
+import { getMediaAsset } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
 import { updateAvatarMediaId } from "./store";
 import type { UpdateOwnAvatarCommand, UpdateOwnAvatarResult } from "./types";
@@ -11,7 +11,7 @@ export async function updateOwnAvatar(command: UpdateOwnAvatarCommand): Promise<
   });
 
   if (command.avatarMediaId) {
-    const media = await getMedia({ id: command.avatarMediaId });
+    const media = await getMediaAsset({ id: command.avatarMediaId });
     if (!media.success || !media.data) {
       const error = {
         code: "auth.identity.invalid_avatar_media",

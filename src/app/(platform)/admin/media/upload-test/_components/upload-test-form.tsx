@@ -52,11 +52,12 @@ export function UploadTestForm() {
         access: "public",
         handleUploadUrl: "/api/media/upload",
         contentType: ticket.data.contentType,
-        clientPayload: JSON.stringify({ contentType: ticket.data.contentType, size: file.size }),
+        clientPayload: JSON.stringify({ filename: file.name, contentType: ticket.data.contentType, size: file.size }),
       });
 
       setStatus({ step: "confirming" });
       const registered = await confirmUploadAction({
+        filename: file.name,
         pathname: blob.pathname,
         url: blob.url,
         contentType: ticket.data.contentType,

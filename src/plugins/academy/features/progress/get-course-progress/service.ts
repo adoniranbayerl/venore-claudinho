@@ -24,8 +24,16 @@ export async function getCourseProgress(query: GetCourseProgressQuery): Promise<
   // Mesma função (e mesmo carregador em lote) usada pela fronteira de autorização em
   // shared/lesson-progress.ts::isLessonAccessible — locked/completed não podem divergir entre a
   // tela e o servidor (ver docs/venore-docks.md, plano da sessão que unificou a regra).
-  const { lessons, requirementsByLessonId, textCompletedLessonIds, videoCompletedLessonIds, attemptsByLessonId, chain } =
-    await loadLessonChain(query.courseId, query.actorId);
+  const {
+    lessons,
+    requirementsByLessonId,
+    textCompletedLessonIds,
+    videoCompletedLessonIds,
+    attemptsByLessonId,
+    activityIdsByLessonId,
+    submittedActivityIds,
+    chain,
+  } = await loadLessonChain(query.courseId, query.actorId);
 
   const chainByLessonId = new Map(chain.map((state) => [state.lessonId, state]));
 
@@ -40,6 +48,8 @@ export async function getCourseProgress(query: GetCourseProgressQuery): Promise<
       textRead: textCompletedLessonIds.has(lesson.id),
       videoWatched: videoCompletedLessonIds.has(lesson.id),
       quizAttempts: attemptsByLessonId.get(lesson.id) ?? [],
+      activityIds: activityIdsByLessonId.get(lesson.id) ?? [],
+      submittedActivityIds,
     });
   });
 

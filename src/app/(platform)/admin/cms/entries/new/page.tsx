@@ -27,7 +27,7 @@ export default async function NewEntryPage() {
   const [contentTypesResult, categoriesResult] = await Promise.all([listContentTypes(), listCategories()]);
 
   if (!contentTypesResult.success) {
-    return <p className="text-sm text-destructive">Não foi possível carregar os tipos de conteúdo agora. Tente recarregar a página.</p>;
+    return <p className="text-sm text-destructive">Não foi possível carregar as tags agora. Tente recarregar a página.</p>;
   }
   if (!categoriesResult.success) {
     return <p className="text-sm text-destructive">Não foi possível carregar as categorias agora. Tente recarregar a página.</p>;

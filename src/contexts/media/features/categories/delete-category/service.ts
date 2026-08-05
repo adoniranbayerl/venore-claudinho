@@ -1,4 +1,4 @@
-import { countFilesByCategory, deleteCategoryById, findCategoryById } from "./store";
+import { countAssetsByCategory, deleteCategoryById, findCategoryById } from "./store";
 import type { DeleteCategoryInput, DeleteCategoryResult } from "./types";
 
 // Categoria em uso nunca apaga por cascata silenciosa (docs do pedido: "não é apagada sem tratar
@@ -14,7 +14,7 @@ export async function deleteCategory(input: DeleteCategoryInput): Promise<Delete
     };
   }
 
-  const filesInUse = await countFilesByCategory(input.id);
+  const filesInUse = await countAssetsByCategory(input.id);
   if (filesInUse > 0) {
     return {
       success: false,

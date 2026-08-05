@@ -29,22 +29,20 @@ describe("updateCourseSettings", () => {
   });
 
   it("updates the course flags when the course exists", async () => {
-    findCourseById.mockResolvedValue({ id: "course-1", slug: "curso-1", selfEnrollmentEnabled: true, publiclyListed: true });
-    applyCourseSettings.mockResolvedValue({ id: "course-1", selfEnrollmentEnabled: false, publiclyListed: false });
+    findCourseById.mockResolvedValue({ id: "course-1", slug: "curso-1", publiclyListed: true });
+    applyCourseSettings.mockResolvedValue({ id: "course-1", publiclyListed: false });
 
     const { updateCourseSettings } = await import("./service");
     const result = await updateCourseSettings({
       id: "course-1",
-      selfEnrollmentEnabled: false,
       publiclyListed: false,
       actorId: "actor-1",
     });
 
-    expect(result).toEqual({ success: true, data: { id: "course-1", selfEnrollmentEnabled: false, publiclyListed: false } });
+    expect(result).toEqual({ success: true, data: { id: "course-1", publiclyListed: false } });
     expect(applyCourseSettings).toHaveBeenCalledWith({
       id: "course-1",
       slug: undefined,
-      selfEnrollmentEnabled: false,
       publiclyListed: false,
     });
     expect(findCourseBySlug).not.toHaveBeenCalled();
@@ -56,7 +54,6 @@ describe("updateCourseSettings", () => {
     const { updateCourseSettings } = await import("./service");
     const result = await updateCourseSettings({
       id: "missing",
-      selfEnrollmentEnabled: false,
       publiclyListed: false,
       actorId: "actor-1",
     });
@@ -69,14 +66,13 @@ describe("updateCourseSettings", () => {
   });
 
   it("rejects a slug already used by another course", async () => {
-    findCourseById.mockResolvedValue({ id: "course-1", slug: "curso-1", selfEnrollmentEnabled: true, publiclyListed: true });
+    findCourseById.mockResolvedValue({ id: "course-1", slug: "curso-1", publiclyListed: true });
     findCourseBySlug.mockResolvedValue({ id: "course-2", slug: "curso-2" });
 
     const { updateCourseSettings } = await import("./service");
     const result = await updateCourseSettings({
       id: "course-1",
       slug: "curso-2",
-      selfEnrollmentEnabled: true,
       publiclyListed: true,
       actorId: "actor-1",
     });
@@ -87,13 +83,12 @@ describe("updateCourseSettings", () => {
   });
 
   it("rejects an empty/invalid slug", async () => {
-    findCourseById.mockResolvedValue({ id: "course-1", slug: "curso-1", selfEnrollmentEnabled: true, publiclyListed: true });
+    findCourseById.mockResolvedValue({ id: "course-1", slug: "curso-1", publiclyListed: true });
 
     const { updateCourseSettings } = await import("./service");
     const result = await updateCourseSettings({
       id: "course-1",
       slug: "   ",
-      selfEnrollmentEnabled: true,
       publiclyListed: true,
       actorId: "actor-1",
     });
@@ -104,14 +99,13 @@ describe("updateCourseSettings", () => {
   });
 
   it("allows keeping the same slug the course already has", async () => {
-    findCourseById.mockResolvedValue({ id: "course-1", slug: "curso-1", selfEnrollmentEnabled: true, publiclyListed: true });
+    findCourseById.mockResolvedValue({ id: "course-1", slug: "curso-1", publiclyListed: true });
     applyCourseSettings.mockResolvedValue({ id: "course-1", slug: "curso-1" });
 
     const { updateCourseSettings } = await import("./service");
     const result = await updateCourseSettings({
       id: "course-1",
       slug: "curso-1",
-      selfEnrollmentEnabled: true,
       publiclyListed: true,
       actorId: "actor-1",
     });

@@ -9,6 +9,7 @@ import { themesBreadcrumbSegments } from "@/contexts/themes";
 import { observabilityBreadcrumbSegments } from "@/observability";
 import { academyBreadcrumbSegments } from "@/plugins/academy";
 import { birthdaysBreadcrumbSegments } from "@/plugins/birthdays";
+import { donationsBreadcrumbSegments } from "@/plugins/donations";
 
 // Registro de breadcrumbs (mesmo padrão de platform/admin-shell/admin-navigation-registry.ts):
 // cada context/plugin declara os próprios segmentos num breadcrumbs.ts, reexportado pelo barrel
@@ -25,6 +26,7 @@ export const collectBreadcrumbSegments = cache(async (): Promise<BreadcrumbSegme
     ...observabilityBreadcrumbSegments,
     ...academyBreadcrumbSegments,
     ...birthdaysBreadcrumbSegments,
+    ...donationsBreadcrumbSegments,
   ];
   assertUniqueBreadcrumbTemplates(segments);
   return segments;

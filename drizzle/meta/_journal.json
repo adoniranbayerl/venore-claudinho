@@ -155,6 +155,41 @@
       "when": 1785457523087,
       "tag": "0021_drop_observability_log_entries",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1785778234266,
+      "tag": "0022_cms_tag_junction_and_entry_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1785778263325,
+      "tag": "0023_cms_drop_entry_content_type_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1785781154656,
+      "tag": "0024_cms_entry_view_count",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1785785734629,
+      "tag": "0025_media_assets_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1785852333029,
+      "tag": "0026_flimsy_amphibian",
+      "breakpoints": true
     }
   ]
 }

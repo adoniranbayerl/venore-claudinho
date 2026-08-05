@@ -1,10 +1,26 @@
 import type { ReactNode } from "react";
 
+// T2 (docs/implementation-roadmap.md — Fase 5): decisão da marca (modo/tamanho/posição/cor) é
+// design, não conteúdo — sai de contexts/settings (era admin-editável via /admin/settings/
+// appearance) e passa a ser owned pelo próprio tema, mesmo raciocínio de AGENTS.md §3 pra
+// cor/proporção de escala. size/scrolledSize continuam número (não viram var() de theme.css)
+// porque PlatformBrand precisa deles em cálculo de aspect-ratio/scale em JS, não só CSS; mode/
+// position são decisão estrutural de render (texto vs. máscara SVG vs. <img>), não expressável
+// como valor CSS. Fica em código de tema (manifest.ts), não em theme.css, pelos mesmos motivos.
+export type BrandAesthetics = {
+  mode: HeaderBrandMode;
+  size: number;
+  scrolledSize: number;
+  position: HeaderBrandPosition;
+  color: string;
+};
+
 export type ThemeManifest = {
   key: string; // kebab-case, único, estável — mesmo padrão de PluginManifest.key
   name: string;
   version: string;
   themeContractVersion: string; // versão do contrato que o tema foi construído contra
+  brandAesthetics: BrandAesthetics;
 };
 
 export type ActiveThemeState = {
@@ -81,10 +97,18 @@ export type HeaderBrand = {
 };
 
 export type HeaderSlotProps = {
-  // brand vem de contexts/settings (composição em resolveThemeSlotProps, não do tema) —
-  // sobrevive a troca de tema, ao contrário de FooterSlotProps.brand que segue só com `name`.
+  // brand.name/logoUrl/scrolledLogoUrl vêm de contexts/settings (conteúdo, composição em
+  // resolveThemeSlotProps) — sobrevivem a troca de tema, ao contrário de FooterSlotProps.brand
+  // que segue só com `name`. mode/size/scrolledSize/position são estética, vêm do próprio tema
+  // ativo (ThemeManifest.brandAesthetics, T2 — docs/implementation-roadmap.md Fase 5), não de
+  // settings.
   brand: HeaderBrand;
   userbarEnabled: boolean;
+  // T4 (docs/implementation-roadmap.md — Fase 5): comportamento de header configurável pelo admin
+  // (contexts/settings, header.sticky/header.scrollShrink), hoje só respeitado pelo Venore Slime —
+  // outro tema pode ignorar (extensão aditiva do contrato, mesmo critério de `user` abaixo).
+  stickyEnabled: boolean;
+  scrollShrinkEnabled: boolean;
   // header-nav: navegação própria do Header, distinta de main-nav/admin-nav (que vivem no
   // SidebarLeft) — opcional, lista vazia = tema não renderiza nada aqui.
   headerNavItems: NavItem[];
@@ -172,3 +196,39 @@ export type ThemeShellProps = {
   breadcrumbs: BreadcrumbItem[];
   breadcrumbsJsonLd: Record<string, unknown> | null;
 };
+
+// T3 (docs/implementation-roadmap.md — Fase 5, fundação): paleta como DADO em runtime, não CSS
+// estático — decisão confirmada com o usuário. Vocabulário deliberadamente restrito aos tokens de
+// "hue de marca" de theme.css (primary/accent + seus -foreground + ring): trocar só esses cinco
+// já muda a percepção de cor do app sem arriscar contraste dos tokens neutros (background/card/
+// muted/border), que continuam vindo só do theme.css do tema ativo. `light`/`dark` cobrem os dois
+// blocos que theme.css declara ([data-theme] / [data-theme].dark) — uma paleta pode sobrescrever
+// só um dos dois. Cada tema declara seu próprio catálogo (ThemeRegistryEntry.colorPalettes,
+// src/themes/registry.ts) porque os valores partem da paleta base daquele theme.css específico;
+// hoje só venore-slime tem catálogo (Fase 5 pede validação visual só nele), outros temas ficam
+// com [].
+// secondary/background/foreground entraram pro vocabulário pelo pedido de cor personalizada desta
+// sessão (platform/theme-engine/custom-color-palette.ts) — os presets de catálogo (ex: venore-
+// slime/color-palettes.ts) continuam usando só o subconjunto original (primary/accent/ring).
+export type PaletteColorToken =
+  | "primary"
+  | "primary-foreground"
+  | "secondary"
+  | "secondary-foreground"
+  | "background"
+  | "foreground"
+  | "accent"
+  | "accent-foreground"
+  | "ring";
+export type PaletteColorTokens = Partial<Record<PaletteColorToken, string>>;
+export type ColorPalette = {
+  id: string;
+  name: string;
+  light: PaletteColorTokens;
+  dark: PaletteColorTokens;
+};
+
+// paletteId "default" (sem paleta ativada, fallback) nunca aparece em ColorPalette.id — ele
+// significa "usar theme.css como está, sem override runtime nenhum" (mesmo princípio de
+// ActiveThemeState.activatedAt null = fallback nunca ativado explicitamente).
+export type ActiveColorPaletteState = { paletteId: string; activatedAt: Date | null };

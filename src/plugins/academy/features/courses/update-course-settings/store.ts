@@ -16,14 +16,12 @@ export async function findCourseBySlug(slug: string): Promise<CourseRecord | nul
 export async function applyCourseSettings(input: {
   id: string;
   slug?: string;
-  selfEnrollmentEnabled: boolean;
   publiclyListed: boolean;
   coverMediaId?: string | null;
 }): Promise<CourseRecord> {
   const [row] = await db
     .update(courses)
     .set({
-      selfEnrollmentEnabled: input.selfEnrollmentEnabled,
       publiclyListed: input.publiclyListed,
       ...(input.slug !== undefined && { slug: input.slug }),
       ...(input.coverMediaId !== undefined && { coverMediaId: input.coverMediaId }),

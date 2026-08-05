@@ -8,6 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { EmptyState } from "@/components/empty-state";
 import { AssignRoleForm } from "./assign-role-form";
 import { RemoveRoleButton } from "./remove-role-button";
+import { RenameRoleForm } from "./rename-role-form";
 import { RolePermissionsEditor } from "./role-permissions-editor";
 import { PermissionMatrixTable } from "./permission-matrix-table";
 import type { PermissionGroupView } from "./permission-catalog";
@@ -90,6 +91,16 @@ function RolePanel({ role, groups }: { role: RoleMatrixRole; groups: PermissionG
 
   return (
     <div className="space-y-4">
+      <div>
+        <h4 className="text-xs font-medium text-muted-foreground">Nome de exibição</h4>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Como o papel aparece nas telas — o identificador interno (<code className="text-foreground">{role.key}</code>) não muda.
+        </p>
+        <div className="mt-2">
+          <RenameRoleForm roleId={role.id} name={role.name} />
+        </div>
+      </div>
+
       <div>
         <h4 className="text-xs font-medium text-muted-foreground">Permissões</h4>
         {role.isSuperadmin ? (

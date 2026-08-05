@@ -13,13 +13,11 @@ const initialState: CourseActionState = { error: null };
 export function CourseSettingsForm({
   courseId,
   slug,
-  selfEnrollmentEnabled,
   publiclyListed,
   coverMedia,
 }: {
   courseId: string;
   slug: string;
-  selfEnrollmentEnabled: boolean;
   publiclyListed: boolean;
   coverMedia: PickableMedia | null;
 }) {
@@ -33,16 +31,6 @@ export function CourseSettingsForm({
       <label className="flex flex-col gap-1 text-sm text-muted-foreground">
         Endereço da página do curso
         <Input name="slug" defaultValue={slug} required />
-      </label>
-
-      <label className="flex items-center gap-2 text-sm text-muted-foreground">
-        <input
-          type="checkbox"
-          name="selfEnrollmentEnabled"
-          defaultChecked={selfEnrollmentEnabled}
-          className="rounded-sm outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring"
-        />
-        Permitir matrícula automática
       </label>
 
       <label className="flex items-center gap-2 text-sm text-muted-foreground">

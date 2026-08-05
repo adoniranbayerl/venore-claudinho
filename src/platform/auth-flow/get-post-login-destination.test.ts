@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getCurrentUser = vi.fn();
+const getCurrentUserRegistrationStatus = vi.fn();
 
 vi.mock("@/contexts/auth", () => ({
   getCurrentUser: (...args: unknown[]) => getCurrentUser(...args),
+  getCurrentUserRegistrationStatus: (...args: unknown[]) => getCurrentUserRegistrationStatus(...args),
 }));
 
 const getUserContext = vi.fn();
@@ -17,6 +19,8 @@ vi.mock("@/contexts/rbac", () => ({
 describe("getPostLoginDestination", () => {
   beforeEach(() => {
     getCurrentUser.mockReset();
+    getCurrentUserRegistrationStatus.mockReset();
+    getCurrentUserRegistrationStatus.mockResolvedValue({ success: true, data: null });
     getUserContext.mockReset();
     superadminExists.mockReset();
   });
@@ -35,6 +39,16 @@ describe("getPostLoginDestination", () => {
 
     const { getPostLoginDestination } = await import("./get-post-login-destination");
     expect(await getPostLoginDestination()).toBe("/setup");
+    expect(getUserContext).not.toHaveBeenCalled();
+  });
+
+  it("goes to /pending-approval when the user's registration is pending", async () => {
+    getCurrentUser.mockResolvedValue({ success: true, data: { id: "user-1" } });
+    superadminExists.mockResolvedValue({ success: true, data: true });
+    getCurrentUserRegistrationStatus.mockResolvedValue({ success: true, data: "pending" });
+
+    const { getPostLoginDestination } = await import("./get-post-login-destination");
+    expect(await getPostLoginDestination()).toBe("/pending-approval");
     expect(getUserContext).not.toHaveBeenCalled();
   });
 

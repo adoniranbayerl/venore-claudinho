@@ -8,7 +8,7 @@ describe("unpublishCourse (integração)", () => {
     const teacher = await seedUser();
     const course = await seedCourse(teacher.id);
     await seedLessons(course.id, 1, teacher.id);
-    const published = await publishCourse({ id: course.id, actorId: teacher.id });
+    const published = await publishCourse({ id: course.id, status: "public", actorId: teacher.id });
     expect(published.success).toBe(true);
 
     const result = await unpublishCourse({ id: course.id, actorId: teacher.id });

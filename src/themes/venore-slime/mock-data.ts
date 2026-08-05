@@ -36,6 +36,10 @@ export const venoreSlimeMockProps: {
       scrolledLogoUrl: "/brand/brand-logo-scrolled.png",
     },
     userbarEnabled: true,
+    // Sobrescrito de verdade por getHeaderBehavior() em resolve-theme-slot-props.ts (T4) — valor
+    // aqui só existe pra este objeto tipar como HeaderSlotProps completo.
+    stickyEnabled: true,
+    scrollShrinkEnabled: true,
     headerNavItems: [],
   },
   footer: {

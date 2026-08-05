@@ -10,13 +10,15 @@ export async function findLessonById(id: string): Promise<LessonRecord | null> {
 
 export async function updateLesson(
   id: string,
-  input: { cmsEntryId?: string; videoUrl?: string; coverMediaId?: string | null },
+  input: { title?: string; body?: string | null; videoUrl?: string | null; coverMediaId?: string | null },
 ): Promise<LessonRecord> {
-  const { coverMediaId, ...rest } = input;
+  const { coverMediaId, body, videoUrl, ...rest } = input;
   const [row] = await db
     .update(lessons)
     .set({
       ...rest,
+      ...(body !== undefined && { body }),
+      ...(videoUrl !== undefined && { videoUrl }),
       ...(coverMediaId !== undefined && { coverMediaId }),
       updatedAt: sql`now()`,
     })

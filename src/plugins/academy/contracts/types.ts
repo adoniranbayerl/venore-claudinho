@@ -1,4 +1,14 @@
-export type CourseStatus = "draft" | "published";
+// Modelo próprio da Academy — não reaproveita EntryStatus do CMS (draft/scheduled/published/
+// archived, com agendamento, ver contexts/cms/contracts/types.ts). Sem agendamento aqui, e o eixo
+// semântico é diferente: quem pode acessar, não "quando fica visível".
+// - draft: curso/aula visível só pra autor, editores, moderadores e admin (nunca pro aluno).
+// - restricted: aluno vê e mantém progresso se já matriculado; matrícula só por admin/moderador
+//   (enroll-self recusa — ver features/enrollments/enroll-self/service.ts).
+// - public: qualquer aluno pode se matricular sozinho (enroll-self liberado).
+export type AcademyStatus = "draft" | "restricted" | "public";
+
+export type CourseStatus = AcademyStatus;
+export type LessonStatus = AcademyStatus;
 
 export type CourseRecord = {
   id: string;
@@ -7,7 +17,6 @@ export type CourseRecord = {
   slug: string;
   status: CourseStatus;
   createdBy: string;
-  selfEnrollmentEnabled: boolean;
   publiclyListed: boolean;
   coverMediaId: string | null;
   createdAt: Date;
@@ -17,12 +26,30 @@ export type CourseRecord = {
 export type LessonRecord = {
   id: string;
   courseId: string;
-  cmsEntryId: string;
+  title: string;
+  // DEPRECATED — texto da aula vive em LessonSectionRecord (page builder do CMS) desde esta
+  // sessão, ver database/schema/index.ts. Sem novo consumidor.
+  body: string | null;
   videoUrl: string | null;
   position: number;
   coverMediaId: string | null;
+  // Independente do status do curso: uma aula "draft" fica fora da trilha/progresso mesmo num
+  // curso restricted/public (ainda sendo escrita); "public" é a única aula visível sem matrícula
+  // (amostra grátis) — ver AcademyLessonPage. "restricted" é o padrão de aula normal.
+  status: LessonStatus;
   createdAt: Date;
   updatedAt: Date;
+};
+
+// Material digital anexo à aula (pedido desta sessão) — ver comentário em database/schema/
+// index.ts. mediaId validado via contexts/media.getMediaAsset() na aplicação, sem FK cross-schema.
+export type LessonMaterialRecord = {
+  id: string;
+  lessonId: string;
+  mediaId: string;
+  label: string;
+  position: number;
+  createdAt: Date;
 };
 
 export type LessonSectionRecord = {
@@ -36,6 +63,22 @@ export type LessonSectionRecord = {
   updatedAt: Date;
 };
 
+// Exemplo sonoro/visual embutido no conteúdo da aula — ver comentário em database/schema/
+// index.ts. audioMediaId/sheetMediaId validados via contexts/media.getMediaAsset() na aplicação,
+// sem FK cross-schema; notationData é notação ABC renderizada via abcjs. Pelo menos um dos três é
+// garantido não-nulo pelo check do banco.
+export type LessonExampleRecord = {
+  id: string;
+  lessonId: string;
+  title: string;
+  audioMediaId: string | null;
+  sheetMediaId: string | null;
+  notationData: string | null;
+  captionText: string;
+  position: number;
+  createdAt: Date;
+};
+
 export type LessonRequirementsRecord = {
   lessonId: string;
   readTextEnabled: boolean;
@@ -43,7 +86,54 @@ export type LessonRequirementsRecord = {
   quizEnabled: boolean;
   quizPassThresholdPercent: number | null;
   quizMaxAttempts: number | null;
+  activityEnabled: boolean;
   updatedAt: Date;
+};
+
+// "text" | "audio" | "image" | "pdf" — formato de entrega esperado da atividade. "none": sem
+// entrega nenhuma, o professor deixou a atividade como "faça e marque como concluída" (pedido
+// desta sessão) — submitLessonActivity grava contentText/mediaId nulos os dois, sem exigir nada.
+export type DeliverableFormat = "text" | "audio" | "image" | "pdf" | "none";
+
+// Atividade prática da aula — ver comentário em database/schema/index.ts.
+export type LessonActivityRecord = {
+  id: string;
+  lessonId: string;
+  title: string;
+  instructionsText: string;
+  deliverableFormat: DeliverableFormat;
+  position: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+// "pending": entregue, ainda sem revisão. "approved": professor aceitou. "needs_revision":
+// professor pediu reenvio — reviewFeedback carrega o motivo. "rejected": professor reprovou a
+// entrega (pedido desta sessão: "preciso de um botão para reprovado") — trava o requisito da
+// aula exatamente como "needs_revision" (aluno pode reenviar e ser reavaliado), diferindo só no
+// rótulo/registro pro professor: reprovação é uma avaliação negativa explícita, não um simples
+// pedido de ajuste. Nenhuma revisão é definitiva — o professor sempre pode reavaliar uma entrega
+// já revisada (reportado nesta sessão como "não consigo alterar minha decisão": não havia bloqueio
+// real no service, só falta de clareza na UI de que reavaliar é possível).
+export type SubmissionReviewStatus = "pending" | "approved" | "needs_revision" | "rejected";
+
+// Entrega do aluno pra uma LessonActivityRecord — ver comentário em database/schema/index.ts.
+// contentText só quando deliverableFormat = "text"; mediaId (contexts/media) pros outros
+// formatos, sem FK cross-schema, validado na aplicação.
+export type LessonActivitySubmissionRecord = {
+  id: string;
+  activityId: string;
+  actorId: string;
+  contentText: string | null;
+  mediaId: string | null;
+  reviewStatus: SubmissionReviewStatus;
+  reviewFeedback: string | null;
+  // Nota de 0 a 10 dada pelo professor — independente de reviewStatus, nunca preenchida em
+  // deliverableFormat "none".
+  reviewScore: number | null;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  submittedAt: Date;
 };
 
 export type QuizQuestionRecord = {

@@ -13,19 +13,37 @@ import { HeaderScrollSentinel } from "./HeaderScrollSentinel";
 // `group-data-[scrolled=true]/header:` nos descendentes), nunca via prop `isScrolled` recomputada
 // em React. Único lugar que ainda recebe um `isScrolled` boolean de verdade é PlatformBrand,
 // porque esse componente também é usado fora do header (preview estático em
-// admin/settings/appearance/_components/brand-settings-form.tsx, dois painéis lado a lado sem
+// admin/settings/brand/_components/brand-settings-form.tsx, dois painéis lado a lado sem
 // scroll real nenhum) — o valor passado aqui é só o baseline SSR; dentro do header de verdade ele
 // é sempre sobrescrito pelas classes group-data (ver comentário em PlatformBrand.tsx).
-export function HeaderSlot({ brand, userbarEnabled, headerNavItems, user, canAccessAdmin, onSignOut }: HeaderSlotProps) {
+//
+// T4 (docs/implementation-roadmap.md — Fase 5): stickyEnabled/scrollShrinkEnabled vêm de
+// contexts/settings (header.sticky/header.scrollShrink, platform/header-behavior). Quando
+// scrollShrinkEnabled é false, HeaderScrollSentinel nem monta — sem ele `data-scrolled` nunca
+// sai de "false", então as classes `data-[scrolled=true]:...` simplesmente não casam nunca; não
+// precisa de um segundo jogo de classes "sem encolher" pra manter.
+export function HeaderSlot({
+  brand,
+  userbarEnabled,
+  stickyEnabled,
+  scrollShrinkEnabled,
+  headerNavItems,
+  user,
+  canAccessAdmin,
+  onSignOut,
+}: HeaderSlotProps) {
   return (
     <>
-      <HeaderScrollSentinel />
+      {scrollShrinkEnabled && <HeaderScrollSentinel />}
       <header
         id="site-header"
         data-scrolled="false"
         className={
-          "group/header sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b border-header-border-subtle bg-card px-4 text-foreground ui-motion-emphasis sm:px-6 md:h-24 lg:h-28 " +
-          "data-[scrolled=true]:h-16 data-[scrolled=true]:border-primary data-[scrolled=true]:bg-primary data-[scrolled=true]:text-primary-foreground data-[scrolled=true]:shadow-header " +
+          "group/header z-40 flex h-16 items-center justify-between gap-4 border-b border-header-border-subtle bg-card px-4 text-foreground ui-motion-emphasis sm:px-6 md:h-24 lg:h-28 " +
+          (stickyEnabled ? "sticky top-0 " : "") +
+          (scrollShrinkEnabled
+            ? "data-[scrolled=true]:h-16 data-[scrolled=true]:border-primary data-[scrolled=true]:bg-primary data-[scrolled=true]:text-primary-foreground data-[scrolled=true]:shadow-header "
+            : "") +
           (brand.position === "center" ? "relative" : "")
         }
       >

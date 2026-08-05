@@ -10,15 +10,19 @@ export function toLessonProgressView(input: {
   textRead: boolean;
   videoWatched: boolean;
   quizAttempts: QuizAttemptRecord[];
+  activityIds: string[];
+  submittedActivityIds: Set<string>;
 }): LessonProgressView {
-  const { lesson, locked, completed, requirements, textRead, videoWatched, quizAttempts } = input;
+  const { lesson, locked, completed, requirements, textRead, videoWatched, quizAttempts, activityIds, submittedActivityIds } = input;
   const bestScore = quizAttempts.length > 0 ? Math.max(...quizAttempts.map((a) => a.score)) : null;
   const bestGrade = bestScore !== null ? deriveQuizGrade(bestScore) : null;
+  const activitiesSubmittedCount = activityIds.filter((id) => submittedActivityIds.has(id)).length;
 
   return {
     lessonId: lesson.id,
     position: lesson.position,
-    cmsEntryId: lesson.cmsEntryId,
+    title: lesson.title,
+    body: lesson.body,
     videoUrl: lesson.videoUrl,
     locked,
     completed,
@@ -33,6 +37,10 @@ export function toLessonProgressView(input: {
       quizMaxAttempts: requirements?.quizMaxAttempts ?? null,
       quizBestScore: bestScore,
       quizBestGrade: bestGrade,
+      activityEnabled: requirements?.activityEnabled ?? false,
+      activitiesTotal: activityIds.length,
+      activitiesSubmittedCount,
+      activitiesSubmitted: activitiesSubmittedCount === activityIds.length,
     },
   };
 }

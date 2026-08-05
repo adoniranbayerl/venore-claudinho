@@ -12,7 +12,6 @@ export async function insertCourse(input: {
   title: string;
   description?: string;
   slug: string;
-  selfEnrollmentEnabled?: boolean;
   publiclyListed?: boolean;
   coverMediaId?: string;
   createdBy: string;
@@ -24,7 +23,6 @@ export async function insertCourse(input: {
       description: input.description ?? null,
       slug: input.slug,
       createdBy: input.createdBy,
-      ...(input.selfEnrollmentEnabled !== undefined && { selfEnrollmentEnabled: input.selfEnrollmentEnabled }),
       ...(input.publiclyListed !== undefined && { publiclyListed: input.publiclyListed }),
       ...(input.coverMediaId !== undefined && { coverMediaId: input.coverMediaId }),
     })

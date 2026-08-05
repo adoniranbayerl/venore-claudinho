@@ -5,16 +5,10 @@ vi.mock("@/observability", () => ({
   endOperation: vi.fn(),
 }));
 
-const getEntry = vi.fn();
-
-vi.mock("@/contexts/cms", () => ({
-  getEntry: (...args: unknown[]) => getEntry(...args),
-}));
-
-const getMedia = vi.fn();
+const getMediaAsset = vi.fn();
 
 vi.mock("@/contexts/media", () => ({
-  getMedia: (...args: unknown[]) => getMedia(...args),
+  getMediaAsset: (...args: unknown[]) => getMediaAsset(...args),
 }));
 
 const findLessonById = vi.fn();
@@ -28,16 +22,19 @@ vi.mock("./store", () => ({
 const existingLesson = {
   id: "lesson-1",
   courseId: "course-1",
-  cmsEntryId: "entry-1",
+  title: "Aula 1",
+  body: null,
   videoUrl: null,
   position: 1,
+  coverMediaId: null,
+  status: "restricted",
   createdAt: new Date(),
   updatedAt: new Date(),
 };
 
 describe("updateLessonService", () => {
   beforeEach(() => {
-    getEntry.mockReset();
+    getMediaAsset.mockReset();
     findLessonById.mockReset();
     updateLesson.mockReset();
   });
@@ -55,38 +52,42 @@ describe("updateLessonService", () => {
     expect(updateLesson).not.toHaveBeenCalled();
   });
 
-  it("fails when the new cmsEntryId does not reference an existing entry", async () => {
+  it("fails when coverMediaId does not reference an existing media asset", async () => {
     findLessonById.mockResolvedValue(existingLesson);
-    getEntry.mockResolvedValue({ success: true, data: null });
+    getMediaAsset.mockResolvedValue({ success: true, data: null });
 
     const { updateLessonService } = await import("./service");
-    const result = await updateLessonService({ id: "lesson-1", cmsEntryId: "missing-entry", actorId: "actor-1" });
+    const result = await updateLessonService({ id: "lesson-1", coverMediaId: "missing-media", actorId: "actor-1" });
 
     expect(result).toEqual({
       success: false,
-      error: { code: "academy.lessons.invalid_cms_entry", message: expect.any(String) },
+      error: { code: "academy.lessons.invalid_cover_media", message: expect.any(String) },
     });
     expect(updateLesson).not.toHaveBeenCalled();
   });
 
-  it("updates the lesson when the new cmsEntryId is valid", async () => {
+  it("updates the lesson title and body", async () => {
     findLessonById.mockResolvedValue(existingLesson);
-    getEntry.mockResolvedValue({ success: true, data: { id: "entry-2" } });
-    updateLesson.mockResolvedValue({ ...existingLesson, cmsEntryId: "entry-2", videoUrl: "https://video" });
+    updateLesson.mockResolvedValue({ ...existingLesson, title: "Novo título", body: "Novo conteúdo" });
 
     const { updateLessonService } = await import("./service");
     const result = await updateLessonService({
       id: "lesson-1",
-      cmsEntryId: "entry-2",
-      videoUrl: "https://video",
+      title: "Novo título",
+      body: "Novo conteúdo",
       actorId: "actor-1",
     });
 
     expect(result.success).toBe(true);
-    expect(updateLesson).toHaveBeenCalledWith("lesson-1", { cmsEntryId: "entry-2", videoUrl: "https://video" });
+    expect(updateLesson).toHaveBeenCalledWith("lesson-1", {
+      title: "Novo título",
+      body: "Novo conteúdo",
+      videoUrl: undefined,
+      coverMediaId: undefined,
+    });
   });
 
-  it("updates videoUrl without revalidating the cmsEntryId when it is unchanged", async () => {
+  it("updates videoUrl without touching title/body", async () => {
     findLessonById.mockResolvedValue(existingLesson);
     updateLesson.mockResolvedValue({ ...existingLesson, videoUrl: "https://video" });
 
@@ -94,6 +95,6 @@ describe("updateLessonService", () => {
     const result = await updateLessonService({ id: "lesson-1", videoUrl: "https://video", actorId: "actor-1" });
 
     expect(result.success).toBe(true);
-    expect(getEntry).not.toHaveBeenCalled();
+    expect(getMediaAsset).not.toHaveBeenCalled();
   });
 });

@@ -6,10 +6,12 @@ vi.mock("@/observability", () => ({
 }));
 
 const findLessonById = vi.fn();
+const countLessonActivities = vi.fn();
 const upsertLessonRequirements = vi.fn();
 
 vi.mock("./store", () => ({
   findLessonById: (...args: unknown[]) => findLessonById(...args),
+  countLessonActivities: (...args: unknown[]) => countLessonActivities(...args),
   upsertLessonRequirements: (...args: unknown[]) => upsertLessonRequirements(...args),
 }));
 
@@ -26,6 +28,7 @@ const lessonWithoutVideo = {
 describe("configureLessonRequirements", () => {
   beforeEach(() => {
     findLessonById.mockReset();
+    countLessonActivities.mockReset();
     upsertLessonRequirements.mockReset();
   });
 
@@ -38,6 +41,7 @@ describe("configureLessonRequirements", () => {
       readTextEnabled: false,
       watchVideoEnabled: false,
       quizEnabled: false,
+      activityEnabled: false,
       actorId: "actor-1",
     });
 
@@ -54,12 +58,34 @@ describe("configureLessonRequirements", () => {
       readTextEnabled: false,
       watchVideoEnabled: true,
       quizEnabled: false,
+      activityEnabled: false,
       actorId: "actor-1",
     });
 
     expect(result).toEqual({
       success: false,
       error: { code: "academy.lessons.missing_video_url", message: expect.any(String) },
+    });
+    expect(upsertLessonRequirements).not.toHaveBeenCalled();
+  });
+
+  it("fails to enable activityEnabled when the lesson has no lesson activity", async () => {
+    findLessonById.mockResolvedValue(lessonWithoutVideo);
+    countLessonActivities.mockResolvedValue(0);
+
+    const { configureLessonRequirements } = await import("./service");
+    const result = await configureLessonRequirements({
+      lessonId: "lesson-1",
+      readTextEnabled: false,
+      watchVideoEnabled: false,
+      quizEnabled: false,
+      activityEnabled: true,
+      actorId: "actor-1",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "academy.lessons.missing_lesson_activity", message: expect.any(String) },
     });
     expect(upsertLessonRequirements).not.toHaveBeenCalled();
   });
@@ -73,11 +99,19 @@ describe("configureLessonRequirements", () => {
       quizEnabled: false,
       quizPassThresholdPercent: null,
       quizMaxAttempts: null,
+      activityEnabled: false,
       updatedAt: new Date(),
     });
 
     const { configureLessonRequirements } = await import("./service");
-    const command = { lessonId: "lesson-1", readTextEnabled: true, watchVideoEnabled: false, quizEnabled: false, actorId: "actor-1" };
+    const command = {
+      lessonId: "lesson-1",
+      readTextEnabled: true,
+      watchVideoEnabled: false,
+      quizEnabled: false,
+      activityEnabled: false,
+      actorId: "actor-1",
+    };
 
     const first = await configureLessonRequirements(command);
     const second = await configureLessonRequirements(command);

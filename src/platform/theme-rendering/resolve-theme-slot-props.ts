@@ -1,8 +1,10 @@
 import { getCurrentUser } from "@/contexts/auth";
 import { getMenuByLocation } from "@/contexts/cms";
 import type { ResolvedMenuItem } from "@/contexts/cms";
-import { getMedia } from "@/contexts/media";
+import { getMediaAsset } from "@/contexts/media";
 import { getBrandConfig } from "@/platform/brand/get-brand-config";
+import { getHeaderBehavior } from "@/platform/header-behavior/get-header-behavior";
+import { resolveBrandAesthetics } from "./resolve-brand-aesthetics";
 import { toSitemapItems } from "./to-sitemap-items";
 import { venoreSlimeMockProps } from "@/themes/venore-slime/mock-data";
 import type { HeaderSlotProps, HeaderUserInfo, FooterSlotProps, SidebarLeftSlotProps, NavMode, MainNavItem, NavGroup } from "@/contexts/themes";
@@ -31,10 +33,13 @@ function toMainNavItems(items: ResolvedMenuItem[]): MainNavItem[] {
 // princípio: resolvido aqui a partir de @/contexts/auth, nunca dentro do próprio tema. main-nav
 // agora vem de contexts/cms (menu "main") em vez do mock; se a leitura falhar, caímos de volta no
 // mock fixo em venoreSlimeMockProps.sidebarLeft.navItems para nunca deixar a sidebar vazia.
-// header.brand e footer.brand vêm de contexts/settings (getBrandConfig) — não é mais mock,
-// sobrevive a troca de tema. footer.sitemapItems vem de contexts/cms (menu de location "sitemap",
-// via to-sitemap-items.ts) — sem menu configurado, fica [] (nunca cai pra mock nem deriva de
-// conteúdo publicado).
+// header.brand e footer.brand: conteúdo (nome/logos) vem de contexts/settings (getBrandConfig,
+// sobrevive a troca de tema); estética (mode/size/scrolledSize/position/color) vem do tema ativo
+// (resolveBrandAesthetics — T2, docs/implementation-roadmap.md Fase 5), não é mais mock nem
+// settings. header.stickyEnabled/scrollShrinkEnabled vêm de contexts/settings via
+// getHeaderBehavior (T4, mesma fase). footer.sitemapItems vem de contexts/cms (menu de location
+// "sitemap", via to-sitemap-items.ts) — sem menu configurado, fica [] (nunca cai pra mock nem
+// deriva de conteúdo publicado).
 export async function resolveThemeSlotProps(sidebarNav: {
   navMode: NavMode;
   adminNavGroups: NavGroup[];
@@ -55,7 +60,7 @@ export async function resolveThemeSlotProps(sidebarNav: {
     // avatarMediaId (escolhido via seletor de mídia) tem prioridade sobre `image` (populado pelo
     // provider OAuth) — mesmo princípio de "tema nunca busca dado sozinho": a resolução mediaId→url
     // acontece aqui, na composição, não dentro do tema.
-    const avatarMedia = currentUser.data.avatarMediaId ? await getMedia({ id: currentUser.data.avatarMediaId }) : null;
+    const avatarMedia = currentUser.data.avatarMediaId ? await getMediaAsset({ id: currentUser.data.avatarMediaId }) : null;
     avatarUrl = avatarMedia?.success ? (avatarMedia.data?.url ?? currentUser.data.image) : currentUser.data.image;
   }
   const user: HeaderUserInfo | null =
@@ -77,10 +82,12 @@ export async function resolveThemeSlotProps(sidebarNav: {
   // cai pro mock) — footer.sitemapItems fica [] e o componente Sitemap não renderiza a seção. Não
   // existe fallback pra "todo conteúdo publicado" aqui de propósito: isso violaria o invariante de
   // contexts/cms de que o sitemap é o que o menu escolheu mostrar, não uma derivação de conteúdo.
-  const [mainMenu, sitemapMenu, brandConfig] = await Promise.all([
+  const aesthetics = await resolveBrandAesthetics();
+  const [mainMenu, sitemapMenu, brandConfig, headerBehavior] = await Promise.all([
     getMenuByLocation({ location: "main" }),
     getMenuByLocation({ location: "sitemap" }),
-    getBrandConfig(),
+    getBrandConfig(aesthetics.mode),
+    getHeaderBehavior(),
   ]);
   const mainNavItems: MainNavItem[] = mainMenu.success ? toMainNavItems(mainMenu.data) : venoreSlimeMockProps.sidebarLeft.navItems;
   const sitemapItems = sitemapMenu.success ? toSitemapItems(sitemapMenu.data) : [];
@@ -91,13 +98,15 @@ export async function resolveThemeSlotProps(sidebarNav: {
       ...venoreSlimeMockProps.header,
       brand: {
         name: brandConfig.siteName,
-        mode: brandConfig.mode,
-        size: brandConfig.size,
-        scrolledSize: brandConfig.scrolledSize,
-        position: brandConfig.position,
+        mode: aesthetics.mode,
+        size: aesthetics.size,
+        scrolledSize: aesthetics.scrolledSize,
+        position: aesthetics.position,
         logoUrl: brandConfig.logoUrl,
         scrolledLogoUrl: brandConfig.scrolledLogoUrl,
       },
+      stickyEnabled: headerBehavior.sticky,
+      scrollShrinkEnabled: headerBehavior.scrollShrink,
       user,
       canAccessAdmin: sidebarNav.canAccessAdmin,
       onSignOut: sidebarNav.onSignOut,
@@ -106,13 +115,13 @@ export async function resolveThemeSlotProps(sidebarNav: {
       ...venoreSlimeMockProps.footer,
       brand: {
         name: brandConfig.siteName,
-        mode: brandConfig.mode,
-        size: brandConfig.size,
-        scrolledSize: brandConfig.scrolledSize,
-        position: brandConfig.position,
+        mode: aesthetics.mode,
+        size: aesthetics.size,
+        scrolledSize: aesthetics.scrolledSize,
+        position: aesthetics.position,
         logoUrl: brandConfig.logoUrl,
         scrolledLogoUrl: brandConfig.scrolledLogoUrl,
-        color: brandConfig.color,
+        color: aesthetics.color,
         description: brandConfig.footerDescription,
       },
       sitemapItems,

@@ -1,4 +1,3 @@
-import { getCachedEntry } from "@/contexts/cms";
 import {
   LessonTrail,
   getCourseProgress,
@@ -30,17 +29,12 @@ export default async function LessonTrailSlot({
     const lessonsResult = await listLessonsByCourse({ courseId: course.id });
     if (!lessonsResult.success) return null;
 
-    const entries = await Promise.all(lessonsResult.data.map((lesson) => getCachedEntry(lesson.cmsEntryId)));
-    const items: LessonTrailItem[] = lessonsResult.data.map((lesson, index) => {
-      const entryResult = entries[index];
-      const title = entryResult.success && entryResult.data ? entryResult.data.title : `Aula ${lesson.position}`;
-      return {
-        id: lesson.id,
-        position: lesson.position,
-        title,
-        state: lesson.id === lessonId ? "current" : "unlocked",
-      };
-    });
+    const items: LessonTrailItem[] = lessonsResult.data.map((lesson) => ({
+      id: lesson.id,
+      position: lesson.position,
+      title: lesson.title,
+      state: lesson.id === lessonId ? "current" : "unlocked",
+    }));
 
     return <LessonTrail courseSlug={course.slug} items={items} />;
   }
@@ -48,10 +42,7 @@ export default async function LessonTrailSlot({
   const progressResult = await getCourseProgress({ courseId: course.id });
   if (!progressResult.success) return null;
 
-  const entries = await Promise.all(progressResult.data.lessons.map((lesson) => getCachedEntry(lesson.cmsEntryId)));
-  const items: LessonTrailItem[] = progressResult.data.lessons.map((lesson, index) => {
-    const entryResult = entries[index];
-    const title = entryResult.success && entryResult.data ? entryResult.data.title : `Aula ${lesson.position}`;
+  const items: LessonTrailItem[] = progressResult.data.lessons.map((lesson) => {
     const state: LessonTrailItem["state"] = lesson.locked
       ? "locked"
       : lesson.completed
@@ -59,7 +50,7 @@ export default async function LessonTrailSlot({
         : lesson.lessonId === lessonId
           ? "current"
           : "unlocked";
-    return { id: lesson.lessonId, position: lesson.position, title, state };
+    return { id: lesson.lessonId, position: lesson.position, title: lesson.title, state };
   });
 
   return <LessonTrail courseSlug={course.slug} items={items} />;

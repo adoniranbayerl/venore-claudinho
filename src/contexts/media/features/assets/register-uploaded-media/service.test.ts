@@ -15,6 +15,7 @@ vi.mock("./store", () => ({
 }));
 
 const baseCommand = {
+  filename: "photo.png",
   pathname: "uuid-1-photo.png",
   url: "https://example.blob.vercel-storage.com/uuid-1-photo.png",
   contentType: "image/png",
@@ -25,6 +26,7 @@ const baseCommand = {
 
 const existingAsset = {
   id: "asset-1",
+  filename: baseCommand.filename,
   pathname: baseCommand.pathname,
   url: baseCommand.url,
   contentType: baseCommand.contentType,

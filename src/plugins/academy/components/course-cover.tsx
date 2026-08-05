@@ -1,9 +1,9 @@
 import { BookOpen } from "lucide-react";
-import { getMedia } from "@/contexts/media";
+import { getMediaAsset } from "@/contexts/media";
 import { cn } from "@/lib/utils";
 
 export async function CourseCover({ coverMediaId, className }: { coverMediaId?: string | null; className?: string }) {
-  const media = coverMediaId ? await getMedia({ id: coverMediaId }) : null;
+  const media = coverMediaId ? await getMediaAsset({ id: coverMediaId }) : null;
   const url = media?.success ? (media.data?.url ?? null) : null;
 
   if (url) {

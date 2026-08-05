@@ -3,7 +3,7 @@ import { FileText } from "lucide-react";
 import { listCategories, listContentTypes, listEntriesForAdmin } from "@/contexts/cms";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { EmptyState } from "@/components/empty-state";
-import { PublishEntryButton } from "../_components/publish-entry-button";
+import { EntriesTable } from "../_components/entries-table";
 
 export default async function CmsEntriesAdminPage() {
   const gate = await getCmsPageData();
@@ -34,7 +34,7 @@ export default async function CmsEntriesAdminPage() {
   ]);
 
   if (!contentTypesResult.success) {
-    return <p className="text-sm text-destructive">Não foi possível carregar os tipos de conteúdo agora. Tente recarregar a página.</p>;
+    return <p className="text-sm text-destructive">Não foi possível carregar as tags agora. Tente recarregar a página.</p>;
   }
   if (!categoriesResult.success) {
     return <p className="text-sm text-destructive">Não foi possível carregar as categorias agora. Tente recarregar a página.</p>;
@@ -47,15 +47,12 @@ export default async function CmsEntriesAdminPage() {
   const categories = categoriesResult.data;
   const entries = entriesResult.data;
 
-  const contentTypeNameById = new Map(contentTypes.map((contentType) => [contentType.id, contentType.name]));
-  const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
-
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Conteúdos</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Todos os conteúdos do site, publicados ou em rascunho.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Todos os conteúdos do site, em qualquer status.</p>
         </div>
         {entries.length > 0 && (
           <Link
@@ -72,7 +69,7 @@ export default async function CmsEntriesAdminPage() {
           <EmptyState
             icon={<FileText className="size-8" strokeWidth={1.5} />}
             title="Nenhum conteúdo ainda"
-            description="Os conteúdos que você criar aqui aparecem nesta lista, publicados ou em rascunho."
+            description="Os conteúdos que você criar aqui aparecem nesta lista, em qualquer status."
             action={
               <Link
                 href="/admin/cms/entries/new"
@@ -83,26 +80,7 @@ export default async function CmsEntriesAdminPage() {
             }
           />
         ) : (
-          <ul className="space-y-2">
-            {entries.map((entry) => (
-              <li key={entry.id} className="flex items-start justify-between gap-4 text-sm text-muted-foreground">
-                <div>
-                  <Link
-                    href={`/admin/cms/entries/${entry.id}`}
-                    className="rounded-sm font-medium text-foreground outline-none ui-motion-base hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {entry.title}
-                  </Link>
-                  <div className="text-xs text-muted-foreground/56">
-                    /{entry.slug} · {entry.status === "published" ? "Publicado" : "Rascunho"} ·{" "}
-                    {contentTypeNameById.get(entry.contentTypeId) ?? "—"}
-                    {entry.categoryId && <> · {categoryNameById.get(entry.categoryId) ?? "—"}</>}
-                  </div>
-                </div>
-                {entry.status === "draft" && <PublishEntryButton entryId={entry.id} />}
-              </li>
-            ))}
-          </ul>
+          <EntriesTable entries={entries} contentTypes={contentTypes} categories={categories} />
         )}
       </section>
     </div>

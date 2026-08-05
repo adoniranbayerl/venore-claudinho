@@ -18,6 +18,7 @@ export { deleteLessonHandler as deleteLesson } from "./features/lessons/delete-l
 export { reorderLessonsHandler as reorderLessons } from "./features/lessons/reorder-lessons/handler";
 export { listLessonsByCourseHandler as listLessonsByCourse } from "./features/lessons/list-lessons-by-course/handler";
 export { getLessonHandler as getLesson } from "./features/lessons/get-lesson/handler";
+export { setLessonStatusHandler as setLessonStatus } from "./features/lessons/set-lesson-status/handler";
 export { configureLessonRequirementsHandler as configureLessonRequirements } from "./features/lessons/configure-lesson-requirements/handler";
 export { getLessonRequirementsHandler as getLessonRequirements } from "./features/lessons/get-lesson-requirements/handler";
 export { addQuizQuestionHandler as addQuizQuestion } from "./features/lessons/add-quiz-question/handler";
@@ -30,8 +31,50 @@ export {
   listQuizQuestionsForStudentHandler as listQuizQuestionsForStudent,
 } from "./features/lessons/list-quiz-questions-for-student/handler";
 export {
+  addLessonMaterialHandler as addLessonMaterial,
+} from "./features/lessons/add-lesson-material/handler";
+export {
+  listLessonMaterialsByLessonHandler as listLessonMaterialsByLesson,
+} from "./features/lessons/list-lesson-materials-by-lesson/handler";
+export {
+  listLessonMaterialsForStudentHandler as listLessonMaterialsForStudent,
+} from "./features/lessons/list-lesson-materials-for-student/handler";
+export {
+  deleteLessonMaterialHandler as deleteLessonMaterial,
+} from "./features/lessons/delete-lesson-material/handler";
+export {
+  addLessonExampleHandler as addLessonExample,
+} from "./features/lessons/add-lesson-example/handler";
+export {
+  listLessonExamplesByLessonHandler as listLessonExamplesByLesson,
+} from "./features/lessons/list-lesson-examples-by-lesson/handler";
+export {
+  listLessonExamplesForStudentHandler as listLessonExamplesForStudent,
+} from "./features/lessons/list-lesson-examples-for-student/handler";
+export {
+  deleteLessonExampleHandler as deleteLessonExample,
+} from "./features/lessons/delete-lesson-example/handler";
+export {
+  addLessonActivityHandler as addLessonActivity,
+} from "./features/lessons/add-lesson-activity/handler";
+export {
+  updateLessonActivityHandler as updateLessonActivity,
+} from "./features/lessons/update-lesson-activity/handler";
+export {
+  deleteLessonActivityHandler as deleteLessonActivity,
+} from "./features/lessons/delete-lesson-activity/handler";
+export {
+  listLessonActivitiesByLessonHandler as listLessonActivitiesByLesson,
+} from "./features/lessons/list-lesson-activities-by-lesson/handler";
+export {
+  listLessonActivitiesForStudentHandler as listLessonActivitiesForStudent,
+} from "./features/lessons/list-lesson-activities-for-student/handler";
+export {
   createLessonSectionHandler as createLessonSection,
 } from "./features/lessons/sections/create-lesson-section/handler";
+export {
+  createLessonTextSectionHandler as createLessonTextSection,
+} from "./features/lessons/sections/create-lesson-text-section/handler";
 export {
   updateLessonSectionHandler as updateLessonSection,
 } from "./features/lessons/sections/update-lesson-section/handler";
@@ -45,16 +88,38 @@ export {
   listLessonSectionsByLessonHandler as listLessonSectionsByLesson,
 } from "./features/lessons/sections/list-lesson-sections-by-lesson/handler";
 export {
+  listLessonSectionsForStudentHandler as listLessonSectionsForStudent,
+} from "./features/lessons/sections/list-lesson-sections-for-student/handler";
+export {
   getLessonSectionHandler as getLessonSection,
 } from "./features/lessons/sections/get-lesson-section/handler";
 export { markTextReadHandler as markTextRead } from "./features/progress/mark-text-read/handler";
 export { markVideoWatchedHandler as markVideoWatched } from "./features/progress/mark-video-watched/handler";
+export {
+  markLessonSectionReadHandler as markLessonSectionRead,
+} from "./features/progress/mark-lesson-section-read/handler";
+export {
+  markLessonMaterialReadHandler as markLessonMaterialRead,
+} from "./features/progress/mark-lesson-material-read/handler";
 export { submitQuizAttemptHandler as submitQuizAttempt } from "./features/progress/submit-quiz-attempt/handler";
 export { getCourseProgressHandler as getCourseProgress } from "./features/progress/get-course-progress/handler";
 export { resetQuizAttemptsHandler as resetQuizAttempts } from "./features/progress/reset-quiz-attempts/handler";
 export {
   listQuizProgressForCourseHandler as listQuizProgressForCourse,
 } from "./features/progress/list-quiz-progress-for-course/handler";
+export {
+  submitLessonActivityHandler as submitLessonActivity,
+} from "./features/progress/submit-lesson-activity/handler";
+export {
+  reviewLessonActivitySubmissionHandler as reviewLessonActivitySubmission,
+} from "./features/progress/review-lesson-activity-submission/handler";
+export {
+  listLessonActivitySubmissionsForActivityHandler as listLessonActivitySubmissionsForActivity,
+} from "./features/progress/list-lesson-activity-submissions-for-activity/handler";
+export {
+  listActivitySubmissionMediaForCourseHandler as listActivitySubmissionMediaForCourse,
+} from "./features/courses/list-activity-submission-media-for-course/handler";
+export { listPublicCoursesHandler as listPublicCourses } from "./features/courses/list-public-courses/handler";
 
 export { enrollSelfHandler as enrollSelf } from "./features/enrollments/enroll-self/handler";
 export { enrollStudentHandler as enrollStudent } from "./features/enrollments/enroll-student/handler";
@@ -99,11 +164,19 @@ export { calculateProgressPercent } from "./shared/progress-percent";
 export { deriveQuizGrade } from "./shared/quiz-grade";
 
 export type {
+  AcademyStatus,
   CourseRecord,
   CourseStatus,
   LessonRecord,
+  LessonStatus,
+  LessonMaterialRecord,
   LessonSectionRecord,
   LessonRequirementsRecord,
+  LessonExampleRecord,
+  DeliverableFormat,
+  LessonActivityRecord,
+  SubmissionReviewStatus,
+  LessonActivitySubmissionRecord,
   QuizAnswer,
   QuizQuestionRecord,
   StudentQuizQuestionRecord,
@@ -114,7 +187,11 @@ export type {
 export type { CreateCourseInput, CreateCourseResult } from "./features/courses/create-course/types";
 export type { ListCoursesResult } from "./features/courses/list-courses/types";
 export type { GetCourseQuery, GetCourseResult } from "./features/courses/get-course/types";
-export type { PublishCourseInput, PublishCourseResult } from "./features/courses/publish-course/types";
+export type {
+  PublishCourseInput,
+  PublishCourseResult,
+  PublishCourseTargetStatus,
+} from "./features/courses/publish-course/types";
 export type { UnpublishCourseInput, UnpublishCourseResult } from "./features/courses/unpublish-course/types";
 export type {
   UpdateCourseSettingsInput,
@@ -138,6 +215,7 @@ export type {
   ListLessonsByCourseResult,
 } from "./features/lessons/list-lessons-by-course/types";
 export type { GetLessonQuery, GetLessonResult } from "./features/lessons/get-lesson/types";
+export type { SetLessonStatusInput, SetLessonStatusResult } from "./features/lessons/set-lesson-status/types";
 export type {
   ConfigureLessonRequirementsInput,
   ConfigureLessonRequirementsResult,
@@ -164,9 +242,61 @@ export type {
   ListQuizQuestionsForStudentResult,
 } from "./features/lessons/list-quiz-questions-for-student/types";
 export type {
+  AddLessonMaterialInput,
+  AddLessonMaterialResult,
+} from "./features/lessons/add-lesson-material/types";
+export type {
+  ListLessonMaterialsByLessonQuery,
+  ListLessonMaterialsByLessonResult,
+} from "./features/lessons/list-lesson-materials-by-lesson/types";
+export type {
+  ListLessonMaterialsForStudentQuery,
+  ListLessonMaterialsForStudentResult,
+  StudentLessonMaterialRecord,
+} from "./features/lessons/list-lesson-materials-for-student/types";
+export type {
+  DeleteLessonMaterialInput,
+  DeleteLessonMaterialResult,
+} from "./features/lessons/delete-lesson-material/types";
+export type { AddLessonExampleInput, AddLessonExampleResult } from "./features/lessons/add-lesson-example/types";
+export type {
+  ListLessonExamplesByLessonQuery,
+  ListLessonExamplesByLessonResult,
+} from "./features/lessons/list-lesson-examples-by-lesson/types";
+export type {
+  ListLessonExamplesForStudentQuery,
+  ListLessonExamplesForStudentResult,
+} from "./features/lessons/list-lesson-examples-for-student/types";
+export type {
+  DeleteLessonExampleInput,
+  DeleteLessonExampleResult,
+} from "./features/lessons/delete-lesson-example/types";
+export type { AddLessonActivityInput, AddLessonActivityResult } from "./features/lessons/add-lesson-activity/types";
+export type {
+  UpdateLessonActivityInput,
+  UpdateLessonActivityResult,
+} from "./features/lessons/update-lesson-activity/types";
+export type {
+  DeleteLessonActivityInput,
+  DeleteLessonActivityResult,
+} from "./features/lessons/delete-lesson-activity/types";
+export type {
+  ListLessonActivitiesByLessonQuery,
+  ListLessonActivitiesByLessonResult,
+} from "./features/lessons/list-lesson-activities-by-lesson/types";
+export type {
+  ListLessonActivitiesForStudentQuery,
+  ListLessonActivitiesForStudentResult,
+  StudentLessonActivityRecord,
+} from "./features/lessons/list-lesson-activities-for-student/types";
+export type {
   CreateLessonSectionInput,
   CreateLessonSectionResult,
 } from "./features/lessons/sections/create-lesson-section/types";
+export type {
+  CreateLessonTextSectionInput,
+  CreateLessonTextSectionResult,
+} from "./features/lessons/sections/create-lesson-text-section/types";
 export type {
   UpdateLessonSectionInput,
   UpdateLessonSectionResult,
@@ -184,11 +314,24 @@ export type {
   ListLessonSectionsByLessonResult,
 } from "./features/lessons/sections/list-lesson-sections-by-lesson/types";
 export type {
+  ListLessonSectionsForStudentQuery,
+  ListLessonSectionsForStudentResult,
+  StudentLessonSectionRecord,
+} from "./features/lessons/sections/list-lesson-sections-for-student/types";
+export type {
   GetLessonSectionQuery,
   GetLessonSectionResult,
 } from "./features/lessons/sections/get-lesson-section/types";
 export type { MarkTextReadInput, MarkTextReadResult } from "./features/progress/mark-text-read/types";
 export type { MarkVideoWatchedInput, MarkVideoWatchedResult } from "./features/progress/mark-video-watched/types";
+export type {
+  MarkLessonSectionReadInput,
+  MarkLessonSectionReadResult,
+} from "./features/progress/mark-lesson-section-read/types";
+export type {
+  MarkLessonMaterialReadInput,
+  MarkLessonMaterialReadResult,
+} from "./features/progress/mark-lesson-material-read/types";
 export type { SubmitQuizAttemptInput, SubmitQuizAttemptResult } from "./features/progress/submit-quiz-attempt/types";
 export type {
   GetCourseProgressInput,
@@ -205,6 +348,19 @@ export type {
   QuizProgressEntryView,
   ListQuizProgressForCourseResult,
 } from "./features/progress/list-quiz-progress-for-course/types";
+export type {
+  SubmitLessonActivityInput,
+  SubmitLessonActivityResult,
+} from "./features/progress/submit-lesson-activity/types";
+export type {
+  ReviewLessonActivitySubmissionInput,
+  ReviewLessonActivitySubmissionResult,
+} from "./features/progress/review-lesson-activity-submission/types";
+export type {
+  ListLessonActivitySubmissionsForActivityQuery,
+  ListLessonActivitySubmissionsForActivityResult,
+  LessonActivitySubmissionView,
+} from "./features/progress/list-lesson-activity-submissions-for-activity/types";
 
 export type { EnrollSelfInput, EnrollSelfResult } from "./features/enrollments/enroll-self/types";
 export type { EnrollStudentInput, EnrollStudentResult } from "./features/enrollments/enroll-student/types";

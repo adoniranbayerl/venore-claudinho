@@ -1,4 +1,4 @@
-import { getCachedEntry, type Block } from "@/contexts/cms";
+import type { Block } from "@/contexts/cms";
 import { getCourseForStudentHandler as getCourseForStudent } from "../features/courses/get-course-for-student/handler";
 import { getCourseProgressHandler as getCourseProgress } from "../features/progress/get-course-progress/handler";
 import { isEnrolledHandler as isEnrolled } from "../features/enrollments/is-enrolled/handler";
@@ -34,12 +34,9 @@ export async function AcademyLessonTrailBlock({ block }: BlockRendererProps) {
     return null;
   }
 
-  const entries = await Promise.all(progressResult.data.lessons.map((lesson) => getCachedEntry(lesson.cmsEntryId)));
-  const items: LessonTrailItem[] = progressResult.data.lessons.map((lesson, index) => {
-    const entryResult = entries[index];
-    const title = entryResult.success && entryResult.data ? entryResult.data.title : `Aula ${lesson.position}`;
+  const items: LessonTrailItem[] = progressResult.data.lessons.map((lesson) => {
     const state: LessonTrailItem["state"] = lesson.locked ? "locked" : lesson.completed ? "completed" : "unlocked";
-    return { id: lesson.lessonId, position: lesson.position, title, state };
+    return { id: lesson.lessonId, position: lesson.position, title: lesson.title, state };
   });
 
   return <LessonTrail courseSlug={course.slug} items={items} />;

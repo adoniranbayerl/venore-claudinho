@@ -16,12 +16,15 @@ export async function updateEntryAction(
   const mediaId = String(formData.get("mediaId") ?? "").trim();
   const categoryId = String(formData.get("categoryId") ?? "").trim();
   const body = String(formData.get("body") ?? "");
+  const visibility = formData.get("visibility") === "authenticated" ? "authenticated" : "public";
 
   const result = await updateEntry({
     id,
     title: String(formData.get("title") ?? ""),
     slug: String(formData.get("slug") ?? ""),
     categoryId: categoryId || null,
+    contentTypeIds: formData.getAll("contentTypeIds").map(String),
+    visibility,
     data: { body },
     mediaId: mediaId || null,
   });

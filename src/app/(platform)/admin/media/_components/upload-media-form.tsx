@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { uploadMediaAction, type MediaActionState } from "../actions";
 
@@ -19,10 +20,16 @@ export function UploadMediaForm() {
         required
         className="rounded-sm text-sm text-muted-foreground outline-none ui-motion-base file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring"
       />
-      <label className="flex items-center gap-2 text-xs text-muted-foreground">
-        <input type="checkbox" name="makePublic" className="size-4 rounded-sm border-border" />
-        Tornar público na biblioteca
-      </label>
+      <Select name="visibility" defaultValue="private">
+        <SelectTrigger className="w-40">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="private">Privado</SelectItem>
+          <SelectItem value="restricted">Restrito</SelectItem>
+          <SelectItem value="public">Público</SelectItem>
+        </SelectContent>
+      </Select>
       <Button type="submit" disabled={pending}>
         {pending ? "Enviando..." : "Enviar"}
       </Button>

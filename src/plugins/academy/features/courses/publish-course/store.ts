@@ -2,23 +2,24 @@ import { count, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import { courses, lessonRequirements, lessons, quizQuestions } from "../../../database/schema";
 import type { CourseRecord } from "../../../contracts/types";
+import type { PublishCourseTargetStatus } from "./types";
 
 export async function findCourseById(id: string): Promise<CourseRecord | null> {
   const [row] = await db.select().from(courses).where(eq(courses.id, id)).limit(1);
   return (row as CourseRecord) ?? null;
 }
 
-export async function markCoursePublished(id: string): Promise<CourseRecord> {
+export async function markCoursePublished(id: string, status: PublishCourseTargetStatus): Promise<CourseRecord> {
   const [row] = await db
     .update(courses)
-    .set({ status: "published", updatedAt: sql`now()` })
+    .set({ status, updatedAt: sql`now()` })
     .where(eq(courses.id, id))
     .returning();
 
   return row as CourseRecord;
 }
 
-export type LessonWithQuizFlag = { id: string; cmsEntryId: string; position: number; quizEnabled: boolean };
+export type LessonWithQuizFlag = { id: string; position: number; quizEnabled: boolean };
 
 // Left join: aula sem lesson_requirements configurado ainda conta pra validação de publish, com
 // quizEnabled tratado como false (mesma leitura default do resto do plugin).
@@ -26,7 +27,6 @@ export async function findLessonsWithQuizFlagByCourse(courseId: string): Promise
   const rows = await db
     .select({
       id: lessons.id,
-      cmsEntryId: lessons.cmsEntryId,
       position: lessons.position,
       quizEnabled: lessonRequirements.quizEnabled,
     })

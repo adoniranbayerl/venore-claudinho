@@ -1,6 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
-import { entries } from "../../../database/schema";
+import { entries, entryContentTypes } from "../../../database/schema";
+import { toEntryRecords } from "../../../database/entry-content-types";
 import type { EntryRecord, EntryStatus } from "../../../contracts/types";
 
 export async function findAllEntries(filters: {
@@ -8,9 +9,18 @@ export async function findAllEntries(filters: {
   categoryId?: string;
   status?: EntryStatus;
 }): Promise<EntryRecord[]> {
-  const conditions = [];
+  // Sempre exclui entries de outro context/plugin (internalOwner não-null, ex: seções de aula do
+  // Academy via page builder — pedido desta sessão) — nunca opcional, /admin/cms/entries não deve
+  // listar essas linhas em hipótese nenhuma (ver comentário em EntryRecord.internalOwner).
+  const conditions = [isNull(entries.internalOwner)];
   if (filters.contentTypeId) {
-    conditions.push(eq(entries.contentTypeId, filters.contentTypeId));
+    const contentTypeId = filters.contentTypeId;
+    conditions.push(
+      inArray(
+        entries.id,
+        db.select({ id: entryContentTypes.entryId }).from(entryContentTypes).where(eq(entryContentTypes.contentTypeId, contentTypeId)),
+      ),
+    );
   }
   if (filters.categoryId) {
     conditions.push(eq(entries.categoryId, filters.categoryId));
@@ -24,5 +34,5 @@ export async function findAllEntries(filters: {
     .from(entries)
     .where(conditions.length > 0 ? and(...conditions) : undefined);
 
-  return rows as EntryRecord[];
+  return toEntryRecords(rows);
 }

@@ -1,7 +1,6 @@
 import { cache } from "react";
 import type { BreadcrumbSegmentDefinition } from "@/platform/breadcrumbs/types";
 import { staticBreadcrumbSegment, dynamicBreadcrumbSegment } from "@/platform/breadcrumbs/define-segment";
-import { getCachedEntry } from "@/contexts/cms";
 import { getCourseForStudentHandler } from "./features/courses/get-course-for-student/handler";
 import { getCourseHandler } from "./features/courses/get-course/handler";
 import { getLessonHandler } from "./features/lessons/get-lesson/handler";
@@ -19,9 +18,7 @@ export const getCachedLesson = cache((id: string) => getLessonHandler({ id }));
 
 async function resolveLessonEntryTitle(lessonId: string): Promise<string | null> {
   const lessonResult = await getCachedLesson(lessonId);
-  if (!lessonResult.success || !lessonResult.data) return null;
-  const entryResult = await getCachedEntry(lessonResult.data.cmsEntryId);
-  return entryResult.success && entryResult.data ? entryResult.data.title : null;
+  return lessonResult.success && lessonResult.data ? lessonResult.data.title : null;
 }
 
 export const academyBreadcrumbSegments: BreadcrumbSegmentDefinition[] = [

@@ -6,9 +6,9 @@ import {
   createCategory,
   deleteCategory,
   updateCategory,
-  updateMediaCategory,
-  updateMediaVisibility,
-  uploadMedia,
+  updateMediaAssetCategory,
+  updateMediaAssetVisibility,
+  uploadMediaAsset,
   type MediaVisibility,
 } from "@/contexts/media";
 import { deleteMediaSafely } from "@/platform/media-lifecycle/delete-media-safely";
@@ -16,6 +16,10 @@ import { collectMediaUsage } from "@/platform/media-usage/media-usage-registry";
 import type { MediaUsageReference } from "@/platform/media-usage/types";
 
 export type MediaActionState = { error: string | null };
+
+function parseVisibility(value: FormDataEntryValue | null): MediaVisibility {
+  return value === "public" || value === "restricted" ? value : "private";
+}
 
 // Mesmo padrão de removeRoleAction (/admin/rbac/actions.ts): erro do handler é devolvido de
 // verdade via useActionState, nunca descartado silenciosamente (docs/venore-docks.md).
@@ -29,11 +33,11 @@ export async function uploadMediaAction(
   }
 
   const data = Buffer.from(await file.arrayBuffer());
-  const visibility = formData.get("makePublic") === "on" ? "public" : "private";
+  const visibility = parseVisibility(formData.get("visibility"));
 
-  const result = await uploadMedia({
+  const result = await uploadMediaAsset({
     filename: file.name,
-    mimeType: file.type || "application/octet-stream",
+    contentType: file.type || "application/octet-stream",
     size: file.size,
     data,
     visibility,
@@ -54,7 +58,7 @@ export async function getMediaUsageSummaryAction(id: string): Promise<MediaUsage
 }
 
 // Exclusão passa por platform/media-lifecycle/delete-media-safely.ts, não por
-// contexts/media.deleteMedia direto — é o ponto de composição que já checa uso em cms/brand/
+// contexts/media.deleteMediaAsset direto — é o ponto de composição que já checa uso em cms/brand/
 // academy antes de apagar (docs/venore-docks.md, regra 12/14). `confirmed` chega como "true"
 // depois que o usuário já viu a contagem de locais afetados (getMediaUsageSummaryAction) e
 // confirmou no client — sem isso, deleteMediaSafely recusa apagar mídia em uso.
@@ -80,9 +84,9 @@ export async function updateMediaVisibilityAction(
   formData: FormData,
 ): Promise<MediaActionState> {
   const id = String(formData.get("id") ?? "");
-  const visibility = formData.get("visibility") === "public" ? "public" : "private";
+  const visibility = parseVisibility(formData.get("visibility"));
 
-  const result = await updateMediaVisibility({ id, visibility: visibility as MediaVisibility });
+  const result = await updateMediaAssetVisibility({ id, visibility });
   if (!result.success) {
     return { error: result.error.message };
   }
@@ -100,7 +104,7 @@ export async function updateMediaCategoryAction(
   const rawCategoryId = String(formData.get("categoryId") ?? "");
   const categoryId = rawCategoryId.length === 0 ? null : rawCategoryId;
 
-  const result = await updateMediaCategory({ id, categoryId });
+  const result = await updateMediaAssetCategory({ id, categoryId });
   if (!result.success) {
     return { error: result.error.message };
   }

@@ -15,12 +15,14 @@ export async function createEntryAction(
   const mediaId = String(formData.get("mediaId") ?? "").trim();
   const categoryId = String(formData.get("categoryId") ?? "").trim();
   const body = String(formData.get("body") ?? "");
+  const visibility = formData.get("visibility") === "authenticated" ? "authenticated" : "public";
 
   const result = await createEntry({
-    contentTypeId: String(formData.get("contentTypeId") ?? ""),
+    contentTypeIds: formData.getAll("contentTypeIds").map(String),
     categoryId: categoryId || undefined,
     title: String(formData.get("title") ?? ""),
     slug: String(formData.get("slug") ?? ""),
+    visibility,
     data: { body },
     mediaId: mediaId || undefined,
   });

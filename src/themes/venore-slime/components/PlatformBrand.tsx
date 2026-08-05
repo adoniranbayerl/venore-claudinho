@@ -10,7 +10,7 @@ const BRAND_ASPECT_RATIO = "100 / 68";
 
 // `isScrolled` continua um boolean prop de verdade (não lê nenhum estado de scroll sozinho) porque
 // este componente também é renderizado fora de qualquer header reativo, no preview estático de
-// admin/settings/appearance/_components/brand-settings-form.tsx (dois painéis lado a lado, um
+// admin/settings/brand/_components/brand-settings-form.tsx (dois painéis lado a lado, um
 // forçado em cada estado, sem scroll real). Dentro do HeaderSlot de verdade, porém, o valor do
 // prop é só o baseline SSR (sempre `false`) — a reatividade de verdade vem das classes
 // `group-data-[scrolled=.../header:` abaixo, que têm especificidade maior (classe + seletor de

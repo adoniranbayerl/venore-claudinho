@@ -17,7 +17,7 @@ function stripDesignAgnosticSections(css: string): string {
       // técnica padrão de acessibilidade (prefers-reduced-motion): os literais aqui (0.01ms, 1,
       // auto) são a constante da técnica, não um token de marca — não vêm de tema em nenhum
       // design system.
-      .replace(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\n\}\n/, "")
+      .replace(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\r?\n\}\r?\n/, "")
       // referências a variável são sempre permitidas — o que sobra depois é que não pode
       // conter valor de design cru. var(...) aqui nunca aninha outro var(...) com vírgula de
       // fallback neste arquivo, então uma passada não-gulosa é suficiente.

@@ -6,14 +6,15 @@ export type AcademyStudentActor = {
 
 export type AcademyStudentPageGate =
   | { granted: true; actor: AcademyStudentActor }
-  | { granted: false; reason: "unauthenticated" };
+  | { granted: false; reason: "unauthenticated" | "plugin_disabled" };
 
 export type AcademyCourseAccessCourse = {
   id: string;
   slug: string;
   title: string;
   description: string | null;
-  selfEnrollmentEnabled: boolean;
+  status: "restricted" | "public";
+  coverMediaId: string | null;
 };
 
 // Camada de acesso por curso, além do gate de seção (AcademyStudentPageGate): matrícula,

@@ -18,6 +18,7 @@ vi.mock("@/contexts/rbac", () => ({
 
 type FakeRow = {
   id: string;
+  filename: string;
   pathname: string;
   url: string;
   contentType: string;
@@ -74,6 +75,7 @@ describe("upload pipeline — caminho principal com InMemoryStorageAdapter", () 
     const checksum = computeSha256Hex(fileBytes);
 
     const first = await registerUploadedMediaHandler({
+      filename: "relatório final.pdf",
       pathname: stored.key,
       url: stored.url,
       contentType: ticket.data.contentType,
@@ -88,6 +90,7 @@ describe("upload pipeline — caminho principal com InMemoryStorageAdapter", () 
     // Simula a segunda chamada idempotente (onUploadCompleted em produção, ou um retry do
     // browser) — mesmo pathname, não pode criar um segundo registro.
     const second = await registerUploadedMediaHandler({
+      filename: "relatório final.pdf",
       pathname: stored.key,
       url: stored.url,
       contentType: ticket.data.contentType,

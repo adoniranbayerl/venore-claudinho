@@ -1,4 +1,4 @@
-import { deleteMedia } from "@/contexts/media";
+import { deleteMediaAsset } from "@/contexts/media";
 import type { OperationResult } from "@/shared/types";
 import { collectMediaUsage } from "@/platform/media-usage/media-usage-registry";
 
@@ -32,5 +32,5 @@ export async function deleteMediaSafely(input: DeleteMediaSafelyInput): Promise<
     };
   }
 
-  return deleteMedia({ id: input.id });
+  return deleteMediaAsset({ id: input.id });
 }

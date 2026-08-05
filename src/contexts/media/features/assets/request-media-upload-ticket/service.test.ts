@@ -44,12 +44,12 @@ describe("requestMediaUploadTicket", () => {
     expect(result.success).toBe(false);
   });
 
-  it("sanitizes the filename and prefixes it with a random uuid", async () => {
+  it("sanitizes the filename, prefixes it with a random uuid, and puts it in the type folder", async () => {
     const { requestMediaUploadTicket } = await import("./service");
     const result = await requestMediaUploadTicket({ filename: "my photo (final)!.png", contentType: "image/png", size: 1024, actorId: "actor-1" });
     expect(result.success).toBe(true);
     if (!result.success) return;
-    expect(result.data.pathname).toMatch(/^[0-9a-f-]{36}-my_photo__final__\.png$/);
+    expect(result.data.pathname).toMatch(/^Imagens\/[0-9a-f-]{36}-my_photo__final__\.png$/);
     expect(result.data.contentType).toBe("image/png");
   });
 });

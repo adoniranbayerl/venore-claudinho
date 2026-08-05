@@ -6,7 +6,8 @@ export type GetCourseProgressInput = Omit<GetCourseProgressQuery, "actorId">;
 export type LessonProgressView = {
   lessonId: string;
   position: number;
-  cmsEntryId: string;
+  title: string;
+  body: string | null;
   videoUrl: string | null;
   locked: boolean;
   completed: boolean;
@@ -22,6 +23,10 @@ export type LessonProgressView = {
     quizBestScore: number | null;
     // Nota de 0 a 10 derivada de quizBestScore (deriveQuizGrade), só para exibição no histórico do aluno.
     quizBestGrade: number | null;
+    activityEnabled: boolean;
+    activitiesTotal: number;
+    activitiesSubmittedCount: number;
+    activitiesSubmitted: boolean;
   };
 };
 

@@ -1,11 +1,11 @@
 import { cache } from "react";
 import type { BreadcrumbSegmentDefinition } from "@/platform/breadcrumbs/types";
 import { staticBreadcrumbSegment, dynamicBreadcrumbSegment } from "@/platform/breadcrumbs/define-segment";
-import { getMediaHandler } from "./features/files/get-media/handler";
+import { getMediaAssetHandler } from "./features/assets/get-media-asset/handler";
 
 // Mesmo raciocínio de contexts/cms/breadcrumbs.ts: id como string primitiva pra cache() do React
 // dedupar entre a página de detalhe e o próprio breadcrumb no mesmo request.
-export const getCachedMedia = cache(async (id: string) => getMediaHandler({ id }));
+export const getCachedMedia = cache(async (id: string) => getMediaAssetHandler({ id }));
 
 export const mediaBreadcrumbSegments: BreadcrumbSegmentDefinition[] = [
   staticBreadcrumbSegment({ key: "media.library", segments: ["admin", "media"], label: "Mídia" }),

@@ -22,6 +22,8 @@ const baseProps: HeaderSlotProps = {
     scrolledLogoUrl: "/brand/brand-logo-scrolled.png",
   },
   userbarEnabled: true,
+  stickyEnabled: true,
+  scrollShrinkEnabled: true,
   headerNavItems: [{ key: "home", label: "Home", href: "/" }],
   user: null,
   canAccessAdmin: false,
@@ -81,5 +83,18 @@ describe("HeaderSlot — máquina de estados de scroll", () => {
     expect(html).not.toContain("Entrar");
     expect(html).toContain("Ada Lovelace");
     expect(html).toContain("group-data-[scrolled=true]/header:hover:bg-primary-foreground/10");
+  });
+
+  it("T4: com stickyEnabled=false, não aplica sticky/top-0", () => {
+    const html = renderToStaticMarkup(<HeaderSlot {...baseProps} stickyEnabled={false} />);
+
+    expect(html).not.toContain("sticky");
+  });
+
+  it("T4: com scrollShrinkEnabled=false, não monta HeaderScrollSentinel nem carrega as classes data-[scrolled=true]", () => {
+    const html = renderToStaticMarkup(<HeaderSlot {...baseProps} scrollShrinkEnabled={false} />);
+
+    expect(html).not.toContain("data-[scrolled=true]:bg-primary");
+    expect(html).not.toContain("h-0 w-0 overflow-visible");
   });
 });

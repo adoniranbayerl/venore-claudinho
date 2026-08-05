@@ -1,5 +1,6 @@
-import { getMedia } from "@/contexts/media";
+import { getMediaAsset } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
+import { invalidateCache } from "../../../../../infrastructure/cache/memory-cache";
 import { findEntryByCategoryAndSlug, insertEntry } from "./store";
 import type { CreateEntryCommand, CreateEntryResult } from "./types";
 
@@ -23,7 +24,7 @@ export async function createEntry(command: CreateEntryCommand): Promise<CreateEn
   }
 
   if (command.mediaId) {
-    const media = await getMedia({ id: command.mediaId });
+    const media = await getMediaAsset({ id: command.mediaId });
     if (!media.success || !media.data) {
       const error = {
         code: "cms.entries.invalid_media",
@@ -35,16 +36,22 @@ export async function createEntry(command: CreateEntryCommand): Promise<CreateEn
   }
 
   const entry = await insertEntry({
-    contentTypeId: command.contentTypeId,
+    contentTypeIds: command.contentTypeIds,
     categoryId: command.categoryId,
     title: command.title,
     slug: command.slug,
+    visibility: command.visibility,
     data: command.data,
     mediaId: command.mediaId,
+    internalOwner: command.internalOwner,
     authorId: command.actorId,
   });
 
-  // Entry nasce "draft" — não afeta a lista pública de published, sem invalidação de cache aqui.
+  // Entry nasce "draft" — não afeta a lista pública de published. listContentTypes cacheia
+  // entryCount por tag (Fase 3/C8) junto do catálogo, então toda entry nova precisa invalidar
+  // essa chave mesmo sem publicar nada (docs/venore-docks.md — Cache).
+  invalidateCache("cms:content-types");
+
   endOperation(handle, { success: true });
   return { success: true, data: entry };
 }

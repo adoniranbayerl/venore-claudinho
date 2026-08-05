@@ -1,0 +1,293 @@
+"use client";
+
+import { useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
+import Link from "next/link";
+import { Check, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+
+// Preferência de leitura (pedido desta sessão: "opção pra aumentar o texto levemente, pra alunos
+// com dificuldade de visão") — mesmo padrão de color-mode (AGENTS.md, "nav-mode vs color-mode"):
+// vive em localStorage, client-only, não afeta a decisão de servidor sobre o que renderizar.
+// useSyncExternalStore (não useState+useEffect) — ler localStorage é sincronizar com um external
+// store, e setState direto dentro de um effect dispara render em cascata (regra
+// react-hooks/set-state-in-effect do eslint deste projeto). O evento custom existe porque o
+// evento nativo "storage" só dispara em OUTRAS abas, nunca na aba que fez o write.
+const TEXT_SCALE_STORAGE_KEY = "academy-large-text";
+const TEXT_SCALE_EVENT = "academy-large-text-change";
+
+function getTextScaleSnapshot(): boolean {
+  return window.localStorage.getItem(TEXT_SCALE_STORAGE_KEY) === "1";
+}
+
+function getTextScaleServerSnapshot(): boolean {
+  return false;
+}
+
+function subscribeToTextScale(callback: () => void) {
+  window.addEventListener(TEXT_SCALE_EVENT, callback);
+  window.addEventListener("storage", callback);
+  return () => {
+    window.removeEventListener(TEXT_SCALE_EVENT, callback);
+    window.removeEventListener("storage", callback);
+  };
+}
+
+function useLargeText() {
+  const large = useSyncExternalStore(subscribeToTextScale, getTextScaleSnapshot, getTextScaleServerSnapshot);
+
+  function toggle() {
+    window.localStorage.setItem(TEXT_SCALE_STORAGE_KEY, large ? "0" : "1");
+    window.dispatchEvent(new Event(TEXT_SCALE_EVENT));
+  }
+
+  return { large, toggle };
+}
+
+type ActionState = { error: string | null };
+
+// "server": chama a Server Action de verdade (mesmo round-trip que existia no botão dedicado
+// antes) — usado no modo live. "local": só feedback no client, sem persistir nada (modo preview,
+// onde marcar como lida já é simulação — ver preview-mark-button.tsx, reaproveitado só nas linhas
+// de material, que continuam com estado próprio por serem vários itens independentes).
+export type ReadMarkAction =
+  | { kind: "server"; action: (prevState: ActionState, formData: FormData) => Promise<ActionState>; fields: Record<string, string> }
+  | { kind: "local" };
+
+export type LessonStepReadMark = {
+  mark: ReadMarkAction;
+  // Verdade do servidor no momento do render (sempre false em modo "none"/free-sample, que não
+  // rastreia nada). Combinada com o estado local otimista abaixo pra decidir o que mostrar.
+  completed: boolean;
+  actionLabel: string;
+  doneLabel: string;
+  // Só etapas de leitura pedem confirmação ao avançar sem marcar (pedido desta sessão) — vídeo
+  // fica de fora de propósito, não faz parte do pedido original.
+  confirmBeforeAdvance?: boolean;
+};
+
+export type LessonFlowStep = {
+  id: string;
+  kicker: string;
+  content: ReactNode;
+  readMark?: LessonStepReadMark;
+};
+
+// Aula real é composta por vídeo + seções + material + quiz (Fase 7) — antes tudo abria de uma
+// vez num acordeão, cada tipo com sua própria cor de fundo. Aqui vira um fluxo guiado, uma etapa
+// por vez. O controle de "marcar como lida/assistido" (botão ao final + dialog de confirmação)
+// mora TODO aqui, numa única fonte de estado (`locallyRead`) — antes o botão embutido no
+// conteúdo de cada etapa (server-rendered) e o dialog desta tela liam de lugares diferentes, e um
+// marcar via dialog não refletia no botão (bug reportado nesta sessão: aula marcada, botão ainda
+// dizia "marcar como lida"). Content agora só traz o CORPO da etapa, nunca o botão de conclusão.
+export function LessonStepFlow({
+  steps,
+  courseHref,
+  nextLessonHref,
+}: {
+  steps: LessonFlowStep[];
+  // Pra onde o aluno vai quando chega na última etapa — sem isso, "Avançar" só ficava desabilitado
+  // no fim da aula e a pessoa não tinha como continuar (bug reportado nesta sessão). null/undefined
+  // em nextLessonHref = esta é a última aula do curso, ou o modo atual (preview/amostra grátis)
+  // não tem uma "próxima aula" com sentido — só "Voltar ao curso" aparece nesse caso.
+  courseHref: string;
+  nextLessonHref?: string | null;
+}) {
+  const [index, setIndex] = useState(0);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [locallyRead, setLocallyRead] = useState<Set<string>>(new Set());
+  const [pending, startTransition] = useTransition();
+  const { large: largeText, toggle: toggleLargeText } = useLargeText();
+
+  if (steps.length === 0) return null;
+
+  const current = steps[Math.min(index, steps.length - 1)];
+  const isFirst = index === 0;
+  const isLast = index === steps.length - 1;
+  const isCurrentRead = current.readMark ? current.readMark.completed || locallyRead.has(current.id) : false;
+  const needsConfirm = !!current.readMark?.confirmBeforeAdvance && !isCurrentRead;
+
+  function goNext() {
+    setIndex((value) => Math.min(value + 1, steps.length - 1));
+  }
+
+  function performMark(step: LessonFlowStep, onDone?: () => void) {
+    const readMark = step.readMark;
+    if (!readMark) return;
+
+    if (readMark.mark.kind === "local") {
+      setLocallyRead((prev) => new Set(prev).add(step.id));
+      toast.success("Marcado.");
+      onDone?.();
+      return;
+    }
+
+    const mark = readMark.mark;
+    startTransition(async () => {
+      const formData = new FormData();
+      Object.entries(mark.fields).forEach(([key, value]) => formData.set(key, value));
+      const result = await mark.action({ error: null }, formData);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      // Otimista: não espera a revalidação do servidor pra refletir na tela — quando ela
+      // completar, `readMark.completed` também vira true, mas o usuário já vê o resultado agora.
+      setLocallyRead((prev) => new Set(prev).add(step.id));
+      toast.success("Marcado.");
+      onDone?.();
+    });
+  }
+
+  function handleAdvanceClick() {
+    if (needsConfirm) {
+      setDialogOpen(true);
+      return;
+    }
+    goNext();
+  }
+
+  return (
+    <div className="space-y-5">
+      {steps.length > 1 && (
+        <div role="tablist" aria-label="Etapas da aula" className="flex items-center gap-1.5">
+          {steps.map((step, i) => (
+            <button
+              key={step.id}
+              type="button"
+              role="tab"
+              aria-selected={i === index}
+              title={step.kicker}
+              onClick={() => setIndex(i)}
+              className={cn(
+                "h-1 flex-1 rounded-full outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring",
+                i < index && "bg-primary/50",
+                i === index && "bg-primary",
+                i > index && "bg-border hover:bg-ring",
+              )}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold tracking-caps text-primary uppercase">
+          {steps.length > 1 ? `Etapa ${index + 1} de ${steps.length} · ${current.kicker}` : current.kicker}
+        </span>
+        <button
+          type="button"
+          onClick={toggleLargeText}
+          aria-pressed={largeText}
+          title={largeText ? "Diminuir texto" : "Aumentar texto"}
+          className="inline-flex items-center gap-1 rounded-sm px-1.5 py-1 text-[11px] font-medium text-muted-foreground outline-none ui-motion-base hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {largeText ? <ZoomOut className="size-3.5" aria-hidden="true" /> : <ZoomIn className="size-3.5" aria-hidden="true" />}
+          {largeText ? "Texto normal" : "Aumentar texto"}
+        </button>
+      </div>
+
+      {/* key força remontagem completa ao trocar de etapa — evita qualquer estado local de um
+          componente dentro do conteúdo (ex: formulário de quiz) vazar pra etapa seguinte. zoom
+          (não uma classe text-lg) porque precisa escalar TUDO dentro do conteúdo — parágrafos,
+          títulos, legendas de partitura — sem que cada bloco do page builder precise saber sobre
+          essa preferência. */}
+      <div key={current.id} className="space-y-4" style={largeText ? { zoom: 1.15 } : undefined}>
+        {current.content}
+
+        {current.readMark &&
+          (isCurrentRead ? (
+            <div className="flex justify-center border-t border-border pt-5">
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-success">
+                <Check className="size-4" aria-hidden="true" /> {current.readMark.doneLabel}
+              </span>
+            </div>
+          ) : (
+            <div className="flex justify-center border-t border-border pt-5">
+              <Button type="button" size="lg" disabled={pending} onClick={() => performMark(current)}>
+                {current.readMark.actionLabel}
+              </Button>
+            </div>
+          ))}
+      </div>
+
+      {/* Antes só aparecia com mais de 1 etapa, e "Avançar" virava um beco sem saída ao chegar na
+          última (desabilitado, sem alternativa nenhuma) — agora esta barra sempre existe quando a
+          etapa atual é a última, pra sempre sobrar um jeito de sair da aula (voltar ao curso ou
+          seguir pra próxima), mesmo numa aula de etapa única. */}
+      {(steps.length > 1 || isLast) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+          {steps.length > 1 ? (
+            <Button type="button" variant="outline" disabled={isFirst} onClick={() => setIndex((value) => value - 1)}>
+              <ChevronLeft className="size-4" aria-hidden="true" />
+              Anterior
+            </Button>
+          ) : (
+            <span />
+          )}
+
+          {steps.length > 1 && (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {index + 1}/{steps.length}
+            </span>
+          )}
+
+          {isLast ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button asChild variant="outline">
+                <Link href={courseHref}>Voltar ao curso</Link>
+              </Button>
+              {nextLessonHref && (
+                <Button asChild>
+                  <Link href={nextLessonHref}>
+                    Próxima aula
+                    <ChevronRight className="size-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+              )}
+            </div>
+          ) : (
+            <Button type="button" variant="outline" onClick={handleAdvanceClick}>
+              Avançar
+              <ChevronRight className="size-4" aria-hidden="true" />
+            </Button>
+          )}
+        </div>
+      )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Marcar como lida?</DialogTitle>
+            <DialogDescription>Você ainda não marcou esta leitura como concluída.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setDialogOpen(false);
+                goNext();
+              }}
+            >
+              Avançar sem marcar
+            </Button>
+            <Button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                performMark(current, () => {
+                  setDialogOpen(false);
+                  goNext();
+                })
+              }
+            >
+              Marcar como lida
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

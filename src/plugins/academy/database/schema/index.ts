@@ -17,13 +17,15 @@ export const courses = academySchema.table(
     // Gerado do título na criação (slugify), editável depois — usado nas rotas públicas de aluno
     // em vez do id (item 2 do pedido da sessão de publish-course/slug/embed).
     slug: text("slug").notNull(),
-    // "draft" | "published" — ver contracts/types.ts (CourseStatus).
+    // "draft" | "restricted" | "public" — ver contracts/types.ts (CourseStatus/AcademyStatus).
+    // Substitui o antigo "draft" | "published" + coluna self_enrollment_enabled (sessão A3):
+    // restricted/public já carregam a regra de auto-matrícula, então o boolean separado virou
+    // redundante — publiclyListed continua sendo o único eixo independente (visibilidade na
+    // listagem, não quem pode acessar).
     status: text("status").notNull().default("draft"),
     createdBy: text("created_by").notNull(),
-    // Independentes um do outro (plano da sessão de matrícula): selfEnrollmentEnabled controla se
-    // o botão "matricular-se" existe; publiclyListed controla só a listagem
-    // (list-courses-for-student) — acesso direto por URL não depende de publiclyListed.
-    selfEnrollmentEnabled: boolean("self_enrollment_enabled").notNull().default(true),
+    // Controla só a listagem (list-courses-for-student) — acesso direto por URL não depende
+    // disso, só do status (draft nunca resolve via getCourseForStudent).
     publiclyListed: boolean("publicly_listed").notNull().default(true),
     // Aponta pro id de media.files (contexts/media) — nunca uma URL gravada aqui, sem FK
     // cross-schema pelo mesmo motivo de createdBy (comentário acima): validado via
@@ -44,28 +46,37 @@ export const lessons = academySchema.table(
     courseId: text("course_id")
       .notNull()
       .references(() => courses.id, { onDelete: "cascade" }),
-    // Sem FK pra cms.entries pelo mesmo motivo de createdBy acima — validado via
-    // contexts/cms.getEntry() na aplicação (regra 7).
-    // DEPRECATED (modelo de seções, sessão T1 — ver docs/venore-docks.md): a aula passa a ser uma
-    // sequência de lessonSections, cada uma com seu próprio cmsEntryId/videoUrl. Estas duas
-    // colunas continuam aqui só porque todo consumidor atual (progress, blocks, telas) ainda lê
-    // delas; a migração desses consumidores é T2/T3. Nenhum código NOVO deve ler cmsEntryId ou
-    // videoUrl daqui — leia de lessonSections.
-    cmsEntryId: text("cms_entry_id").notNull(),
+    // title/videoUrl continuam flat (form simples, sem page builder) — "body" abaixo é
+    // DEPRECATED de novo: o texto da aula passou a viver em lessonSections (ver abaixo), cada
+    // seção uma entry oculta do CMS editada no page builder (pedido desta sessão — "cada seção
+    // pode ser tratada como um conteúdo, só não aparece no CMS"). body fica sem novo consumidor,
+    // mantido só pra não quebrar leituras antigas até uma sessão futura decidir dropar a coluna.
+    title: text("title").notNull(),
+    body: text("body"),
     videoUrl: text("video_url"),
     position: integer("position").notNull(),
     // Mesma regra de courses.coverMediaId acima: id de media.files, validado via getMedia() na
     // aplicação, sem FK cross-schema.
     coverMediaId: text("cover_media_id"),
+    // "draft" | "restricted" | "public" — ver contracts/types.ts (LessonStatus). Default
+    // "restricted" (não "draft"): diferente de curso, aula sempre nasceu imediatamente visível
+    // dentro do curso que a contém — introduzir esconder-por-padrão aqui quebraria esse hábito e
+    // criaria curso "publicado" sem nenhuma aula visível (publish-course não filtra por status de
+    // aula ao validar "pelo menos uma aula"). "draft" continua existindo como estado explícito
+    // (professor reescrevendo uma aula já publicada sem tirar o curso do ar).
+    status: text("status").notNull().default("restricted"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (lesson) => [uniqueIndex("lessons_course_position_idx").on(lesson.courseId, lesson.position)],
 );
 
-// Aba da aula: texto (cms entry), vídeo, ou os dois — nunca os dois nulos (check abaixo). Sem
-// enum de "tipo" de propósito: nullable + check já exclui o estado inválido sem precisar de um
-// terceiro campo redundante com os outros dois.
+// Seção da aula: texto (via cms entry, sempre oculta de /admin/cms/entries — internalOwner
+// "academy" em contexts/cms/database/schema/index.ts), vídeo, ou os dois — nunca os dois nulos
+// (check abaixo). Sem enum de "tipo" de propósito: nullable + check já exclui o estado inválido
+// sem precisar de um terceiro campo redundante com os outros dois. Pedido desta sessão: "cada
+// seção pode ser tratada como um conteúdo" — a entry por trás de cmsEntryId é uma entry de
+// verdade (page builder funciona normal), só invisível na listagem editorial.
 export const lessonSections = academySchema.table(
   "lesson_sections",
   {
@@ -77,8 +88,8 @@ export const lessonSections = academySchema.table(
       .references(() => lessons.id, { onDelete: "cascade" }),
     position: integer("position").notNull(),
     title: text("title").notNull(),
-    // Sem FK pra cms.entries pelo mesmo motivo de lessons.cmsEntryId acima — validado via
-    // contexts/cms.getEntry() na aplicação.
+    // Sem FK pra cms.entries (schema separado por domínio) — validado via
+    // contexts/cms.getEntry()/createEntry() na aplicação (create-lesson-text-section/service.ts).
     cmsEntryId: text("cms_entry_id"),
     videoUrl: text("video_url"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -91,6 +102,73 @@ export const lessonSections = academySchema.table(
 );
 
 // 1:1 com lessons — lessonId é a própria PK, upsert em configure-lesson-requirements.
+// Material digital anexo à aula (slides, apostila, planilha etc.) — pedido desta sessão: a aula
+// precisava de um jeito de disponibilizar arquivo baixável além do texto (lessons.body) e vídeo
+// (lessons.videoUrl). mediaId sem FK cross-schema pelo mesmo motivo de lessons.coverMediaId acima
+// (validado via contexts/media.getMediaAsset() na aplicação). Múltiplos materiais por aula, cada
+// um com rótulo próprio (ex: "Slides da aula 3") e posição pra ordenar a lista.
+export const lessonMaterials = academySchema.table(
+  "lesson_materials",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    lessonId: text("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    mediaId: text("media_id").notNull(),
+    label: text("label").notNull(),
+    position: integer("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("lesson_materials_lesson_position_idx").on(table.lessonId, table.position)],
+);
+
+// Exemplo sonoro/visual embutido no conteúdo da aula, em uma de duas formas — nunca as duas ao
+// mesmo tempo, ver check abaixo: (1) audioMediaId/sheetMediaId, um par de arquivo estático
+// enviado por upload (áudio + imagem de partitura), sempre como um par numa única linha — nunca
+// duas tabelas separadas — pra impedir o áudio e a partitura de um mesmo exemplo dessincronizarem
+// (pedido do curso de teoria musical: as notas do áudio e da partitura têm que ser exatamente as
+// mesmas); (2) notationData, notação ABC (string, ver https://abcnotation.com) renderizada e
+// tocada no client via abcjs — aqui o sincronismo é estrutural por natureza (um source de verdade
+// gera visual E áudio), então nem faz sentido guardar mediaId nenhum junto. Diferente de
+// lessonMaterials (anexo pra download, lista solta no fim da aula): lessonExamples é renderizado
+// inline, perto do trecho de texto que ele ilustra, por isso tem captionText obrigatório
+// (descrição textual do que se ouve/vê — acessibilidade, ex: "sequência C4, D4, E4 em
+// semínimas") em vez de um label curto. audioMediaId/sheetMediaId apontam pra media.files
+// (contexts/media), sem FK cross-schema pelo mesmo motivo de lessons.coverMediaId acima —
+// validado via contexts/media.getMediaAsset() na aplicação.
+export const lessonExamples = academySchema.table(
+  "lesson_examples",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    lessonId: text("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    audioMediaId: text("audio_media_id"),
+    sheetMediaId: text("sheet_media_id"),
+    // Notação ABC (pedido desta sessão: "escrever partitura e mostrar pro aluno, que ele possa
+    // clicar na nota e ouvir ela") — texto plano gerado pelo NotationEditor (admin, editor visual
+    // nota-a-nota) e consumido pelo InteractiveNotation (aluno) via abcjs, a mesma lib nos dois
+    // lados. Formato fixo: L:1/8 sempre no header (ver notation-abc.ts), então os tokens de
+    // duração são sempre relativos a colcheia.
+    notationData: text("notation_data"),
+    captionText: text("caption_text").notNull(),
+    position: integer("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("lesson_examples_lesson_position_idx").on(table.lessonId, table.position),
+    check(
+      "lesson_examples_media_check",
+      sql`${table.audioMediaId} is not null or ${table.sheetMediaId} is not null or ${table.notationData} is not null`,
+    ),
+  ],
+);
+
 export const lessonRequirements = academySchema.table("lesson_requirements", {
   lessonId: text("lesson_id")
     .primaryKey()
@@ -100,6 +178,10 @@ export const lessonRequirements = academySchema.table("lesson_requirements", {
   quizEnabled: boolean("quiz_enabled").notNull().default(false),
   quizPassThresholdPercent: integer("quiz_pass_threshold_percent"),
   quizMaxAttempts: integer("quiz_max_attempts"),
+  // Trilha só considera concluída quando toda lessonActivity da aula tem submissão com
+  // reviewStatus != "needs_revision" (regra fica no service de progresso, não aqui) — mesmo
+  // padrão de quizEnabled: o flag liga o gate, a tabela de submissão carrega o estado.
+  activityEnabled: boolean("activity_enabled").notNull().default(false),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -146,6 +228,45 @@ export const lessonVideoCompletions = academySchema.table(
   (table) => [uniqueIndex("lesson_video_completions_lesson_actor_idx").on(table.lessonId, table.actorId)],
 );
 
+// Progresso granular por seção (pedido desta sessão: acordion com "marcar como lida" por
+// seção, não mais um único botão pra aula inteira). Quando readTextEnabled está ligado e todas
+// as seções da aula ficam marcadas, mark-lesson-section-read também grava em
+// lessonTextCompletions (cascata) — lesson-chain.ts/loadLessonChain continuam lendo só essa
+// tabela, sem precisar saber que o "texto" agora é composto de seções.
+export const lessonSectionCompletions = academySchema.table(
+  "lesson_section_completions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    sectionId: text("section_id")
+      .notNull()
+      .references(() => lessonSections.id, { onDelete: "cascade" }),
+    actorId: text("actor_id").notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("lesson_section_completions_section_actor_idx").on(table.sectionId, table.actorId)],
+);
+
+// Progresso granular por material (pedido desta sessão) — "marcar como lido" por item de
+// material complementar. Diferente de lessonSectionCompletions, não faz cascata pra nenhum
+// requirement da aula: material é complementar/opcional por definição, nunca bloqueou a trilha
+// (lesson-chain.ts não tem noção de "material"), então isso é só registro de leitura do aluno.
+export const lessonMaterialCompletions = academySchema.table(
+  "lesson_material_completions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    materialId: text("material_id")
+      .notNull()
+      .references(() => lessonMaterials.id, { onDelete: "cascade" }),
+    actorId: text("actor_id").notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("lesson_material_completions_material_actor_idx").on(table.materialId, table.actorId)],
+);
+
 export const quizAttempts = academySchema.table(
   "quiz_attempts",
   {
@@ -172,6 +293,73 @@ export const quizAttempts = academySchema.table(
       .on(table.lessonId, table.actorId, table.attemptNumber)
       .where(sql`${table.invalidatedAt} is null`),
   ],
+);
+
+// Atividade prática da aula (tarefa que o aluno executa e entrega — ex: gravar um trecho
+// cantado, fotografar uma partitura manuscrita). Metadado da tarefa em si; a entrega do aluno
+// vive em lessonActivitySubmissions, mesma separação definição/execução de quizQuestions vs
+// quizAttempts. deliverableFormat é texto solto (não enum de banco), mesma escolha já feita em
+// courses.status/lessons.status acima — validado na camada de aplicação via
+// contracts/types.ts (DeliverableFormat).
+export const lessonActivities = academySchema.table(
+  "lesson_activities",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    lessonId: text("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    instructionsText: text("instructions_text").notNull(),
+    deliverableFormat: text("deliverable_format").notNull(),
+    position: integer("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("lesson_activities_lesson_position_idx").on(table.lessonId, table.position)],
+);
+
+// Entrega do aluno pra uma lessonActivity. contentText só quando deliverableFormat = "text";
+// mediaId (media.files) pros outros formatos; os dois nulos quando deliverableFormat = "none"
+// (pedido desta sessão: professor pode deixar a atividade sem exigir entrega nenhuma, aluno só
+// marca como concluída). Essa regra depende de uma coluna de OUTRA tabela (lessonActivities.
+// deliverableFormat), então não dá pra expressar como check() aqui — validado em
+// submit-lesson-activity/service.ts, não no banco (mesma regra de "sem FK cross-schema" das
+// colunas *MediaId acima). Reenvio SOBRESCREVE a entrega anterior em vez de acumular histórico
+// (unique index em activityId+actorId) — diferente de quizAttempts, que guarda toda tentativa com
+// nota: aqui não existe pontuação por tentativa, só "a entrega atual e seu status de revisão",
+// então não há motivo pra manter versões antigas. reviewStatus/reviewFeedback/reviewScore/
+// reviewedBy/reviewedAt cobrem o professor aprovar ou pedir revisão (com nota e apontamentos) —
+// nullable porque toda entrega nasce "pending" sem nenhuma revisão ainda, EXCETO
+// deliverableFormat "none": aí o próprio submit-lesson-activity/service.ts já grava "approved"
+// na hora (pedido desta sessão — "marcar como concluída" não deveria depender de aprovação do
+// professor, é auto-suficiente).
+export const lessonActivitySubmissions = academySchema.table(
+  "lesson_activity_submissions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    activityId: text("activity_id")
+      .notNull()
+      .references(() => lessonActivities.id, { onDelete: "cascade" }),
+    actorId: text("actor_id").notNull(),
+    contentText: text("content_text"),
+    mediaId: text("media_id"),
+    reviewStatus: text("review_status").notNull().default("pending"),
+    reviewFeedback: text("review_feedback"),
+    // Nota de 0 a 10 dada pelo professor na revisão (pedido desta sessão: "como professor eu
+    // devo poder dar nota e apontar correções") — independente de reviewStatus, um approved pode
+    // ou não ter nota, um needs_revision idem. Nunca preenchida em deliverableFormat "none" (não
+    // há o que notar numa atividade sem entrega). Reseta pra null a cada reenvio (upsert), igual
+    // reviewFeedback — nota velha não pode sobreviver a um conteúdo novo ainda não revisado.
+    reviewScore: integer("review_score"),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("lesson_activity_submissions_activity_actor_idx").on(table.activityId, table.actorId)],
 );
 
 export const enrollments = academySchema.table(

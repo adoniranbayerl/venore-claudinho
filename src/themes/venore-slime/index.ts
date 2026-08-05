@@ -1,4 +1,5 @@
 export { venoreSlimeManifest } from "./manifest";
+export { VENORE_SLIME_COLOR_PALETTES } from "./color-palettes";
 export { Shell } from "./components/Shell";
 export { HeaderSlot } from "./components/HeaderSlot";
 export { FooterSlot } from "./components/FooterSlot";

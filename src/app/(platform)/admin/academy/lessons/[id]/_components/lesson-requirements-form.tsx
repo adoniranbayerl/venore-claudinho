@@ -10,16 +10,19 @@ const initialState: LessonActionState = { error: null };
 export function LessonRequirementsForm({
   lessonId,
   hasVideoUrl,
+  hasLessonActivity,
   requirements,
 }: {
   lessonId: string;
   hasVideoUrl: boolean;
+  hasLessonActivity: boolean;
   requirements: {
     readTextEnabled: boolean;
     watchVideoEnabled: boolean;
     quizEnabled: boolean;
     quizPassThresholdPercent: number | null;
     quizMaxAttempts: number | null;
+    activityEnabled: boolean;
   } | null;
 }) {
   const [state, formAction, pending] = useActionState(configureLessonRequirementsAction, initialState);
@@ -54,6 +57,17 @@ export function LessonRequirementsForm({
           onChange={(event) => setQuizEnabled(event.target.checked)}
         />
         Exigir quiz
+      </label>
+
+      <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        <input
+          type="checkbox"
+          name="activityEnabled"
+          defaultChecked={requirements?.activityEnabled ?? false}
+          disabled={!hasLessonActivity}
+        />
+        Exigir atividade prática
+        {!hasLessonActivity && <span className="text-xs text-muted-foreground/56">(a aula não tem atividade cadastrada)</span>}
       </label>
 
       {quizEnabled && (

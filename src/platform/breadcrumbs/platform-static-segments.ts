@@ -7,11 +7,6 @@ import { staticBreadcrumbSegment } from "./define-segment";
 export const platformBreadcrumbSegments: BreadcrumbSegmentDefinition[] = [
   staticBreadcrumbSegment({ key: "platform.home", segments: [], label: "Início", href: "/" }),
   staticBreadcrumbSegment({ key: "platform.account", segments: ["account"], label: "Minha conta" }),
-  staticBreadcrumbSegment({
-    key: "platform.pending-approval",
-    segments: ["pending-approval"],
-    label: "Aguardando aprovação",
-  }),
   staticBreadcrumbSegment({ key: "platform.unauthorized", segments: ["unauthorized"], label: "Acesso não autorizado" }),
   staticBreadcrumbSegment({ key: "platform.admin.dashboard", segments: ["admin"], label: "Dashboard" }),
   staticBreadcrumbSegment({ key: "platform.admin.plugins", segments: ["admin", "plugins"], label: "Plugins" }),

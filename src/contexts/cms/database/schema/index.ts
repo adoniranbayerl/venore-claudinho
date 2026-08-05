@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import { boolean, check, integer, jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, check, integer, jsonb, pgSchema, primaryKey, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "@/contexts/auth/database/schema";
 
 export const cmsSchema = pgSchema("cms");
@@ -35,20 +35,37 @@ export const entries = cmsSchema.table(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    contentTypeId: text("content_type_id")
-      .notNull()
-      .references(() => contentTypes.id, { onDelete: "restrict" }),
     categoryId: text("category_id").references(() => categories.id, { onDelete: "set null" }),
     title: text("title").notNull(),
     slug: text("slug").notNull(),
-    // "draft" | "published" — ver contracts/types.ts.
+    // "draft" | "scheduled" | "published" | "archived" — ver contracts/types.ts (EntryStatus).
+    // "scheduled" espera scheduledPublishAt; scheduledArchiveAt pode estar presente em
+    // "scheduled" ou "published" (agendamento de publicação e de arquivamento são independentes
+    // um do outro — docs/implementation-roadmap.md, Fase 2/C5). Varredura que faz a transição
+    // automática mora em cms/scheduling.ts, não aqui.
     status: text("status").notNull().default("draft"),
+    scheduledPublishAt: timestamp("scheduled_publish_at", { withTimezone: true }),
+    scheduledArchiveAt: timestamp("scheduled_archive_at", { withTimezone: true }),
+    // "public" (qualquer visitante) | "authenticated" (só logado) — ver contracts/types.ts
+    // (EntryVisibility). Enforced na leitura pública (get-published-entry-by-slug e a rota que a
+    // consome), nunca em list-entries-for-admin (tela de admin já é gated por permission).
+    visibility: text("visibility").notNull().default("public"),
+    // Contador de acesso (Fase 3/C9 — docs/implementation-roadmap.md): incrementado em lote pela
+    // varredura de cms/view-tracking.ts, nunca por UPDATE síncrono por request (mesmo motivo do
+    // buffer de log em observability — AGENTS.md §2, "log síncrono por chamada").
+    viewCount: integer("view_count").notNull().default(0),
     // Conteúdo livre por content type — sem fieldsSchema nesta v1 (docs/venore-docks.md — CMS ainda não cobre page-builder).
     data: jsonb("data").notNull().default({}),
     // Sem FK: cross-schema FK entre contexts violaria o isolamento de schema por domínio
     // (docs/venore-docks.md — Schema do Postgres por domínio). Validado na aplicação via
     // contexts/media (regra 10 de composição), não no banco.
     mediaId: text("media_id"),
+    // Marca uma entry criada por outro context/plugin como implementação (ex: "academy", pra
+    // seção de texto de aula via page builder — pedido desta sessão) — nunca aparece em
+    // /admin/cms/entries (list-entries-for-admin filtra internalOwner IS NULL incondicionalmente,
+    // docs/venore-docks.md), mas continua uma entry de verdade: página/composição/builder
+    // funcionam normalmente, só some da listagem editorial. null == entry autoral comum do CMS.
+    internalOwner: text("internal_owner"),
     authorId: text("author_id")
       .notNull()
       .references(() => users.id),
@@ -62,10 +79,32 @@ export const entries = cmsSchema.table(
     // (categoryId, slug). NULL != NULL num índice único do Postgres, então este índice sozinho já
     // não colide entre entries sem categoria; o segundo cobre a unicidade isolada desse caso.
     uniqueIndex("entries_category_slug_idx").on(entry.categoryId, entry.slug),
+    check("entries_status_valid", sql`${entry.status} IN ('draft', 'scheduled', 'published', 'archived')`),
+    check("entries_visibility_valid", sql`${entry.visibility} IN ('public', 'authenticated')`),
     uniqueIndex("entries_null_category_slug_idx")
       .on(entry.slug)
       .where(sql`${entry.categoryId} is null`),
   ],
+);
+
+// Tag (N:N — decisão registrada em docs/implementation-roadmap.md, Fase 2/#2): um conteúdo pode
+// ter mais de uma tag, então a associação migrou de entries.content_type_id (FK notNull, 1:1)
+// pra esta tabela de junção. O nome da tabela `content_types` (e da própria variável acima)
+// ainda é o nome físico antigo — o rename de vocabulário pra "tag" na tela/rota/permission fica
+// pra Fase 3 (junto do rename CMS → "Editorial"), pra não duplicar o mesmo trabalho de relabeling
+// em duas sessões; aqui só a relação de cardinalidade mudou.
+export const entryContentTypes = cmsSchema.table(
+  "entry_content_types",
+  {
+    entryId: text("entry_id")
+      .notNull()
+      .references(() => entries.id, { onDelete: "cascade" }),
+    contentTypeId: text("content_type_id")
+      .notNull()
+      .references(() => contentTypes.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.entryId, table.contentTypeId] })],
 );
 
 // Menu define O QUE APARECE na navegação — nunca é derivado de "todo conteúdo publicado"

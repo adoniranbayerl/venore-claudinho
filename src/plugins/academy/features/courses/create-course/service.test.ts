@@ -45,7 +45,6 @@ describe("createCourse", () => {
       title: "Intro",
       description: undefined,
       slug: "intro",
-      selfEnrollmentEnabled: undefined,
       publiclyListed: undefined,
       createdBy: "actor-1",
     });

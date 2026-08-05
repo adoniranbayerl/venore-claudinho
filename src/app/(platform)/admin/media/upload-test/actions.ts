@@ -12,6 +12,7 @@ export async function requestUploadTicketAction(input: {
 }
 
 export async function confirmUploadAction(input: {
+  filename: string;
   pathname: string;
   url: string;
   contentType: string;

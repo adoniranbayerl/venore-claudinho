@@ -1,8 +1,8 @@
-import { getMedia } from "@/contexts/media";
+import { getMediaAsset } from "@/contexts/media";
 import { getSetting } from "@/contexts/settings";
 import { BRAND_SETTING_KEYS } from "./get-brand-config";
 
-export type BrandMediaSelection = { id: string; filename: string; url: string; mimeType: string } | null;
+export type BrandMediaSelection = { id: string; filename: string; url: string; contentType: string } | null;
 
 export type BrandMediaSelections = {
   logo: BrandMediaSelection;
@@ -16,15 +16,15 @@ async function resolveSelection(key: string): Promise<BrandMediaSelection> {
     return null;
   }
 
-  const media = await getMedia({ id: setting.data.value });
+  const media = await getMediaAsset({ id: setting.data.value });
   if (!media.success || !media.data) {
     return null;
   }
 
-  return { id: media.data.id, filename: media.data.filename, url: media.data.url, mimeType: media.data.mimeType };
+  return { id: media.data.id, filename: media.data.filename, url: media.data.url, contentType: media.data.contentType };
 }
 
-// Só pro form de admin (/admin/settings/appearance) montar o `initialMedia` do MediaPickerField —
+// Só pro form de admin (/admin/settings/brand) montar o `initialMedia` do MediaPickerField —
 // getBrandConfig() já resolve pra URL final (caminho quente do header), este aqui resolve pro
 // registro completo que o picker precisa pra exibir a seleção atual.
 export async function getBrandMediaSelections(): Promise<BrandMediaSelections> {

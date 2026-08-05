@@ -1,4 +1,5 @@
 export { createContentTypeHandler as createContentType } from "./features/content-types/create-content-type/handler";
+export { getOrCreateReservedContentType } from "./get-or-create-reserved-content-type";
 export { listContentTypesHandler as listContentTypes } from "./features/content-types/list-content-types/handler";
 export { createCategoryHandler as createCategory } from "./features/categories/create-category/handler";
 export { listCategoriesHandler as listCategories } from "./features/categories/list-categories/handler";
@@ -12,6 +13,9 @@ export {
   getEntryCompositionHandler as getEntryComposition,
 } from "./features/entries/get-entry-composition/handler";
 export { publishEntryHandler as publishEntry } from "./features/entries/publish-entry/handler";
+export { scheduleEntryHandler as scheduleEntry } from "./features/entries/schedule-entry/handler";
+export { archiveEntryHandler as archiveEntry } from "./features/entries/archive-entry/handler";
+export { deleteEntryHandler as deleteEntry } from "./features/entries/delete-entry/handler";
 export { listEntriesHandler as listEntries } from "./features/entries/list-entries/handler";
 export { listEntriesForAdminHandler as listEntriesForAdmin } from "./features/entries/list-entries-for-admin/handler";
 export { getEntryHandler as getEntry } from "./features/entries/get-entry/handler";
@@ -38,6 +42,17 @@ export { getMenuByLocationHandler as getMenuByLocation } from "./features/menus/
 // correspondência mais longa). Sem correspondência, devolve lista vazia — nunca cai pro main-nav.
 export { getContextualMenuHandler as getContextualMenu } from "./features/menus/get-contextual-menu/handler";
 
+// Import só pelo efeito colateral: dispara o auto-start da varredura de agendamento (Fase 2/C5)
+// na primeira vez que qualquer coisa importar o barrel do cms — mesmo mecanismo de
+// observability/operation-log.ts importar ./flush (retention/flush também se auto-iniciam assim,
+// não por um instrumentation.ts central).
+import "./scheduling";
+
+// Contador de acesso (Fase 3/C9) — leitura pública sem authorizeActor, chamado pelas páginas
+// públicas depois do gate de visibilidade (C7). Só acumula em memória; grava em lote (ver
+// view-tracking.ts).
+export { recordEntryView } from "./view-tracking";
+
 export { cmsAdminNavigationItems } from "./admin-navigation";
 export { cmsBreadcrumbSegments, getCachedEntry, getCachedMenuTree } from "./breadcrumbs";
 
@@ -46,6 +61,7 @@ export type {
   CategoryRecord,
   EntryRecord,
   EntryStatus,
+  EntryVisibility,
   MenuRecord,
   MenuItemRecord,
   MenuLocation,
@@ -53,7 +69,7 @@ export type {
 } from "./contracts/types";
 export type { ResolvedMenuItem, AdminResolvedMenuItem, AdminMenuItemStatus } from "./menu-resolution";
 export { MAX_MENU_ITEM_DEPTH } from "./menu-tree";
-export { getEntryBody } from "./contracts/entry-body";
+export { getEntryBody, getEntryComposition as extractEntryComposition } from "./contracts/entry-body";
 export type { Block, Area, Composition } from "./contracts/block";
 export { blockSchema, areaSchema, compositionSchema } from "./contracts/block";
 export { validateComposition } from "./validate-composition";
@@ -87,6 +103,9 @@ export type {
   GetEntryCompositionResult,
 } from "./features/entries/get-entry-composition/types";
 export type { PublishEntryInput, PublishEntryResult } from "./features/entries/publish-entry/types";
+export type { ScheduleEntryInput, ScheduleEntryResult } from "./features/entries/schedule-entry/types";
+export type { ArchiveEntryInput, ArchiveEntryResult } from "./features/entries/archive-entry/types";
+export type { DeleteEntryInput, DeleteEntryResult } from "./features/entries/delete-entry/types";
 export type { ListEntriesQuery, ListEntriesResult } from "./features/entries/list-entries/types";
 export type {
   ListEntriesForAdminQuery,

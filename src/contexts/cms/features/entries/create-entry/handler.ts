@@ -3,10 +3,10 @@ import { createEntry } from "./service";
 import type { CreateEntryInput, CreateEntryResult } from "./types";
 
 export async function createEntryHandler(input: CreateEntryInput): Promise<CreateEntryResult> {
-  if (input.contentTypeId.trim().length === 0) {
+  if (input.contentTypeIds.length === 0) {
     return {
       success: false,
-      error: { code: "cms.entries.invalid_content_type", message: "contentTypeId não pode ser vazio." },
+      error: { code: "cms.entries.invalid_content_type", message: "Selecione ao menos uma tag." },
     };
   }
 

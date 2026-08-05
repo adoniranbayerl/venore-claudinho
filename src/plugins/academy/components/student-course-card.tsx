@@ -19,7 +19,7 @@ export function StudentCourseCard({
 }) {
   const badge = course.enrolled
     ? { label: "Matriculado", variant: "default" as const }
-    : course.selfEnrollmentEnabled
+    : course.status === "public"
       ? { label: "Matrícula disponível", variant: "secondary" as const }
       : { label: "Acesso restrito", variant: "outline" as const };
 

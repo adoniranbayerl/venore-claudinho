@@ -3,7 +3,8 @@ import type { LessonRecord } from "../../../contracts/types";
 
 export type CreateLessonCommand = {
   courseId: string;
-  cmsEntryId: string;
+  title: string;
+  body?: string;
   videoUrl?: string;
   coverMediaId?: string;
   actorId: string;

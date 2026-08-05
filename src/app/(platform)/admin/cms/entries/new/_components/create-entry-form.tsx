@@ -39,20 +39,29 @@ export function CreateEntryForm({
       <AutoSlugField name="slug" sourceValue={title} label="Endereço da página" />
 
       <div>
-        <label className="block text-xs font-medium text-muted-foreground">Tipo de conteúdo</label>
-        <Select name="contentTypeId" required>
+        <label className="block text-xs font-medium text-muted-foreground">Tags</label>
+        <div className="mt-1 space-y-2 rounded-md border border-border p-3">
+          {contentTypes.map((contentType) => (
+            <label key={contentType.id} className="flex items-center gap-2 text-sm text-foreground">
+              <input type="checkbox" name="contentTypeIds" value={contentType.id} className="size-4" />
+              {contentType.name}
+            </label>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground/56">Selecione ao menos uma. Um conteúdo pode ter mais de uma tag.</p>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-muted-foreground">Privacidade</label>
+        <Select name="visibility" defaultValue="public">
           <SelectTrigger className="mt-1 w-full">
-            <SelectValue placeholder="selecione..." />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {contentTypes.map((contentType) => (
-              <SelectItem key={contentType.id} value={contentType.id}>
-                {contentType.name}
-              </SelectItem>
-            ))}
+            <SelectItem value="public">Aberto (qualquer visitante)</SelectItem>
+            <SelectItem value="authenticated">Fechado (só logados)</SelectItem>
           </SelectContent>
         </Select>
-        <p className="mt-1 text-xs text-muted-foreground/56">Define quais campos esse conteúdo vai ter.</p>
       </div>
 
       <div>

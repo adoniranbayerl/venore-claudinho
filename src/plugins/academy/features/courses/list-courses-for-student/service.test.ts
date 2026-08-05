@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const findPublishedCourses = vi.fn();
+const findVisibleCoursesForStudents = vi.fn();
 const findEnrollmentsByActor = vi.fn();
 
 vi.mock("./store", () => ({
-  findPublishedCourses: (...args: unknown[]) => findPublishedCourses(...args),
+  findVisibleCoursesForStudents: (...args: unknown[]) => findVisibleCoursesForStudents(...args),
   findEnrollmentsByActor: (...args: unknown[]) => findEnrollmentsByActor(...args),
 }));
 
@@ -15,9 +15,8 @@ function course(overrides: Partial<{ id: string; publiclyListed: boolean }> = {}
     id: overrides.id ?? "course-1",
     title: "Intro",
     description: null,
-    status: "published",
+    status: "public",
     createdBy: "actor-1",
-    selfEnrollmentEnabled: true,
     publiclyListed: overrides.publiclyListed ?? true,
     createdAt: fixedDate,
     updatedAt: fixedDate,
@@ -26,12 +25,12 @@ function course(overrides: Partial<{ id: string; publiclyListed: boolean }> = {}
 
 describe("listCoursesForStudent", () => {
   beforeEach(() => {
-    findPublishedCourses.mockReset();
+    findVisibleCoursesForStudents.mockReset();
     findEnrollmentsByActor.mockReset();
   });
 
   it("marks publicly listed, non-enrolled courses as visible and not enrolled", async () => {
-    findPublishedCourses.mockResolvedValue([course()]);
+    findVisibleCoursesForStudents.mockResolvedValue([course()]);
     findEnrollmentsByActor.mockResolvedValue([]);
 
     const { listCoursesForStudent } = await import("./service");
@@ -41,7 +40,7 @@ describe("listCoursesForStudent", () => {
   });
 
   it("marks enrolled courses as enrolled", async () => {
-    findPublishedCourses.mockResolvedValue([course()]);
+    findVisibleCoursesForStudents.mockResolvedValue([course()]);
     findEnrollmentsByActor.mockResolvedValue([{ courseId: "course-1" }]);
 
     const { listCoursesForStudent } = await import("./service");
@@ -51,7 +50,7 @@ describe("listCoursesForStudent", () => {
   });
 
   it("hides a course that is neither enrolled nor publicly listed", async () => {
-    findPublishedCourses.mockResolvedValue([course({ publiclyListed: false })]);
+    findVisibleCoursesForStudents.mockResolvedValue([course({ publiclyListed: false })]);
     findEnrollmentsByActor.mockResolvedValue([]);
 
     const { listCoursesForStudent } = await import("./service");
@@ -61,7 +60,7 @@ describe("listCoursesForStudent", () => {
   });
 
   it("still shows a non-publicly-listed course when the actor is enrolled in it", async () => {
-    findPublishedCourses.mockResolvedValue([course({ publiclyListed: false })]);
+    findVisibleCoursesForStudents.mockResolvedValue([course({ publiclyListed: false })]);
     findEnrollmentsByActor.mockResolvedValue([{ courseId: "course-1" }]);
 
     const { listCoursesForStudent } = await import("./service");

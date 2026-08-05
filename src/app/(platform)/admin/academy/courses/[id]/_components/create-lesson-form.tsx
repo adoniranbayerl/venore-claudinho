@@ -4,25 +4,13 @@ import { useActionState, useState } from "react";
 import { MediaPickerField } from "@/components/media-picker-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { createLessonAction, type CourseActionState } from "../actions";
 
 const initialState: CourseActionState = { error: null };
 
-export function CreateLessonForm({
-  courseId,
-  entries,
-}: {
-  courseId: string;
-  entries: { id: string; title: string; slug: string }[];
-}) {
+export function CreateLessonForm({ courseId }: { courseId: string }) {
   const [state, formAction, pending] = useActionState(createLessonAction, initialState);
   useActionToast({ pending, error: state.error, successMessage: "Aula criada." });
   const [videoUrl, setVideoUrl] = useState("");
@@ -33,22 +21,13 @@ export function CreateLessonForm({
       <input type="hidden" name="courseId" value={courseId} />
 
       <div>
-        <label className="block text-xs font-medium text-muted-foreground">Conteúdo do CMS</label>
-        <Select name="cmsEntryId" required>
-          <SelectTrigger className="mt-1 w-full">
-            <SelectValue placeholder="selecione..." />
-          </SelectTrigger>
-          <SelectContent>
-            {entries.map((entry) => (
-              <SelectItem key={entry.id} value={entry.id}>
-                {entry.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {entries.length === 0 && (
-          <p className="mt-1 text-xs text-muted-foreground/56">Nenhum conteúdo publicado no CMS ainda.</p>
-        )}
+        <label className="block text-xs font-medium text-muted-foreground">Título da aula</label>
+        <Input name="title" required className="mt-1" />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-muted-foreground">Conteúdo (opcional)</label>
+        <Textarea name="body" rows={4} className="mt-1" />
       </div>
 
       <div>

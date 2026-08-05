@@ -1,4 +1,3 @@
-import { getEntry } from "@/contexts/cms";
 import { beginOperation, endOperation } from "@/observability";
 import {
   countQuizQuestionsByLessonIds,
@@ -20,18 +19,11 @@ async function collectPublishProblems(courseId: string): Promise<string[]> {
     return problems;
   }
 
-  const [entryResults, quizCountByLesson] = await Promise.all([
-    Promise.all(lessons.map((lesson) => getEntry({ id: lesson.cmsEntryId }))),
-    countQuizQuestionsByLessonIds(lessons.filter((lesson) => lesson.quizEnabled).map((lesson) => lesson.id)),
-  ]);
+  const quizCountByLesson = await countQuizQuestionsByLessonIds(
+    lessons.filter((lesson) => lesson.quizEnabled).map((lesson) => lesson.id),
+  );
 
-  lessons.forEach((lesson, index) => {
-    const entryResult = entryResults[index];
-    const entry = entryResult.success ? entryResult.data : null;
-    if (!entry || entry.status !== "published") {
-      problems.push(`Aula ${lesson.position}: o conteúdo vinculado não está publicado.`);
-    }
-
+  lessons.forEach((lesson) => {
     if (lesson.quizEnabled && (quizCountByLesson.get(lesson.id) ?? 0) === 0) {
       problems.push(`Aula ${lesson.position}: quiz habilitado sem nenhuma pergunta cadastrada.`);
     }
@@ -64,7 +56,7 @@ export async function publishCourse(command: PublishCourseCommand): Promise<Publ
     return { success: false, error };
   }
 
-  const course = await markCoursePublished(command.id);
+  const course = await markCoursePublished(command.id, command.status);
 
   endOperation(handle, { success: true });
   return { success: true, data: course };

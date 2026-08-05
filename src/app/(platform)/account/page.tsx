@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/contexts/auth";
-import { getMedia } from "@/contexts/media";
+import { getMediaAsset } from "@/contexts/media";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvatarForm } from "./_components/avatar-form";
 
@@ -14,14 +14,14 @@ export default async function AccountPage() {
   }
 
   const user = currentUser.data;
-  const avatarMediaResult = user.avatarMediaId ? await getMedia({ id: user.avatarMediaId }) : null;
+  const avatarMediaResult = user.avatarMediaId ? await getMediaAsset({ id: user.avatarMediaId }) : null;
   const avatarMedia =
     avatarMediaResult?.success && avatarMediaResult.data
       ? {
           id: avatarMediaResult.data.id,
           filename: avatarMediaResult.data.filename,
           url: avatarMediaResult.data.url,
-          mimeType: avatarMediaResult.data.mimeType,
+          contentType: avatarMediaResult.data.contentType,
         }
       : null;
 

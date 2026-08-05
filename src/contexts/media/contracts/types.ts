@@ -1,21 +1,12 @@
-export type MediaVisibility = "private" | "public";
-
-export type MediaRecord = {
-  id: string;
-  filename: string;
-  storageKey: string;
-  mimeType: string;
-  size: number;
-  url: string;
-  uploadedBy: string;
-  visibility: MediaVisibility;
-  categoryId: string | null;
-  createdAt: Date;
-};
+// "public": qualquer ator autenticado vê e usa. "restricted": só o contexto de origem — hoje é
+// só um rótulo administrativo, o enforcement de "só consumível onde foi enviado" ainda não existe
+// (Known Gap, docs/implementation-roadmap.md Fase 4/M3). "private": só dono + media.manage;
+// avatar nasce sempre assim.
+export type MediaVisibility = "public" | "restricted" | "private";
 
 // Categoria de organização de um asset — classificação escolhida pelo admin (ex: "Marketing",
-// "Editorial"), não a classificação técnica de mimeType (MediaAssetCategory, abaixo). Um asset tem
-// no máximo uma (ver database/schema/index.ts, comentário em files.categoryId).
+// "avatars"), não a classificação técnica de mimeType (MediaAssetCategory, abaixo). Um asset tem
+// no máximo uma (ver database/schema/index.ts, comentário em assets.categoryId).
 export type MediaCategory = {
   id: string;
   key: string;
@@ -23,9 +14,12 @@ export type MediaCategory = {
   createdAt: Date;
 };
 
-// Fluxo novo de client-upload direto ao Blob (docs/media/blob-spec.md, seções 3/4).
+// Único sistema de mídia do projeto (docs/implementation-roadmap.md, Fase 4/M1-M3) — `files`
+// (storage local em disco, só funcionava em dev) foi descontinuado, tudo passa por
+// `assets`+Vercel Blob (docs/media/blob-spec.md).
 export type MediaAsset = {
   id: string;
+  filename: string;
   pathname: string;
   url: string;
   contentType: string;
@@ -36,6 +30,7 @@ export type MediaAsset = {
   checksum: string;
   uploadedBy: string;
   visibility: MediaVisibility;
+  categoryId: string | null;
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -48,7 +43,7 @@ export type MediaAllowedTypeRule = {
   maxSizeBytes: number;
 };
 
-// Allowlist (nunca blocklist) — spec seção 5. `image/svg+xml` fica de fora deliberadamente
+// Allowlist (nunca blocklist) — blob-spec seção 5. `image/svg+xml` fica de fora deliberadamente
 // (risco de XSS via script embutido).
 export const MEDIA_ALLOWED_TYPES: Record<string, MediaAllowedTypeRule> = {
   "image/png": { category: "image", maxSizeBytes: 8 * 1024 * 1024 },
@@ -63,6 +58,18 @@ export const MEDIA_ALLOWED_TYPES: Record<string, MediaAllowedTypeRule> = {
   "audio/ogg": { category: "audio", maxSizeBytes: 20 * 1024 * 1024 },
 };
 
-// Limite próprio do upload de avatar (upload-avatar-media) — bem mais restrito que o teto geral
-// de imagem em MEDIA_ALLOWED_TYPES (8 MiB), porque avatar é servido em toda a UI a cada render.
+// Limite próprio do upload de avatar — bem mais restrito que o teto geral de imagem em
+// MEDIA_ALLOWED_TYPES (8 MiB), porque avatar é servido em toda a UI a cada render.
 export const AVATAR_MAX_SIZE_BYTES = 500 * 1024;
+
+// Categoria reservada auto-atribuída pelo upload de avatar (Fase 4/M1 — "pasta" de sistema,
+// primeiro caso concreto de herança de categoria por contexto de upload).
+export const AVATAR_RESERVED_CATEGORY_KEY = "avatars";
+export const AVATAR_RESERVED_CATEGORY_NAME = "Avatares";
+
+// Categoria reservada pra entrega de atividade prática do plugin academy (pedido de sessão:
+// aluno precisa conseguir enviar áudio/imagem/pdf pra uma lessonActivity) — mesmo padrão de
+// AVATAR_RESERVED_CATEGORY_KEY acima. Sempre "private" no upload; a leitura pelo professor não
+// passa pela visibilidade padrão (não tem media.manage), ver getMediaAssetForTrustedReview.
+export const ACTIVITY_SUBMISSION_RESERVED_CATEGORY_KEY = "activity-submissions";
+export const ACTIVITY_SUBMISSION_RESERVED_CATEGORY_NAME = "Entregas de atividade";

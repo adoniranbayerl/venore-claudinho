@@ -1,8 +1,19 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { AutoSlugField } from "@/components/auto-slug-field";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { createCategoryAction, type CmsActionState } from "../actions";
@@ -10,47 +21,52 @@ import { createCategoryAction, type CmsActionState } from "../actions";
 const initialState: CmsActionState = { error: null };
 
 export function CreateCategoryForm() {
+  const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(createCategoryAction, initialState);
   const [name, setName] = useState("");
-  const [open, setOpen] = useState(false);
   useActionToast({ pending, error: state.error, successMessage: "Categoria criada.", onSuccess: () => setOpen(false) });
 
-  if (!open) {
-    return (
-      <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => setOpen(true)}>
-        Nova categoria
-      </Button>
-    );
-  }
-
   return (
-    <form action={formAction} className="mt-3 space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="flex-1">
-          <label className="block text-xs font-medium text-muted-foreground">Nome de exibição</label>
-          <Input
-            name="name"
-            required
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            className="mt-1"
-            placeholder="ex: Eventos"
-          />
-        </div>
-        <div className="flex-1">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <Plus /> Nova categoria
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nova categoria</DialogTitle>
+          <DialogDescription>Agrupa conteúdos relacionados sob um mesmo endereço de página.</DialogDescription>
+        </DialogHeader>
+
+        <form action={formAction} className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground">Nome de exibição</label>
+            <Input
+              name="name"
+              required
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="mt-1"
+              placeholder="ex: Eventos"
+            />
+          </div>
           <AutoSlugField name="key" sourceValue={name} label="Identificador" />
-        </div>
-      </div>
-      <AutoSlugField name="slug" sourceValue={name} label="Endereço da página" />
-      <Input name="description" placeholder="Descrição (opcional)" />
-      <div className="flex gap-2">
-        <Button type="submit" disabled={pending}>
-          Criar categoria
-        </Button>
-        <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-          Cancelar
-        </Button>
-      </div>
-    </form>
+          <AutoSlugField name="slug" sourceValue={name} label="Endereço da página" />
+          <Input name="description" placeholder="Descrição (opcional)" />
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={pending}>
+              Criar categoria
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

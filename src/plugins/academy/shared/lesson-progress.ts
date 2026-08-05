@@ -2,7 +2,13 @@ import { computeLessonChain, type LessonChainFacts, type LessonChainState } from
 import { loadLessonChainRawData, type LessonChainRawData } from "./lesson-chain-store";
 import type { LessonRecord } from "../contracts/types";
 
-export { findLessonRequirements } from "./lesson-progress-store";
+export {
+  findLessonRequirements,
+  findCompletedSectionIds,
+  insertSectionCompletionIfMissing,
+  findCompletedMaterialIds,
+  insertMaterialCompletionIfMissing,
+} from "./lesson-progress-store";
 
 export type LessonChain = LessonChainRawData & { chain: LessonChainState[] };
 
@@ -15,6 +21,7 @@ export async function loadLessonChain(courseId: string, actorId: string): Promis
   const facts: LessonChainFacts[] = raw.lessons.map((lesson) => {
     const requirements = raw.requirementsByLessonId.get(lesson.id) ?? null;
     const attempts = raw.attemptsByLessonId.get(lesson.id) ?? [];
+    const activityIds = raw.activityIdsByLessonId.get(lesson.id) ?? [];
 
     return {
       lessonId: lesson.id,
@@ -24,6 +31,8 @@ export async function loadLessonChain(courseId: string, actorId: string): Promis
       videoWatched: raw.videoCompletedLessonIds.has(lesson.id),
       quizEnabled: requirements?.quizEnabled ?? false,
       quizPassed: attempts.some((attempt) => attempt.passed),
+      activityEnabled: requirements?.activityEnabled ?? false,
+      activitiesSubmitted: activityIds.every((id) => raw.submittedActivityIds.has(id)),
     };
   });
 

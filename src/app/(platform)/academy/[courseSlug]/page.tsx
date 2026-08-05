@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Lock } from "lucide-react";
-import { getEntry } from "@/contexts/cms";
+import { CheckCircle2, Eye, Lock, Unlock } from "lucide-react";
 import { calculateProgressPercent, getCourseProgress, listLessonsByCourse } from "@/plugins/academy";
 import { getAcademyCourseAccess } from "@/platform/academy-student/get-academy-course-access";
-import { Badge } from "@/components/ui/badge";
+import { CourseAgendaCard, type CourseAgendaActivity } from "@/plugins/academy/components/course-agenda-card";
+import { CourseEffectivenessChart, type LessonScoreDatum } from "@/plugins/academy/components/course-effectiveness-chart";
+import { CourseLessonList } from "@/plugins/academy/components/course-lesson-list";
+import { CourseHero } from "@/plugins/academy/components/course-hero";
+import { DonationTeaser, getDonationSettings } from "@/plugins/donations";
+import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 import { EmptyState } from "@/components/empty-state";
-import { Progress } from "@/components/ui/progress";
 import { EnrollSelfButton } from "./_components/enroll-self-button";
 
 export const dynamic = "force-dynamic";
@@ -36,21 +39,18 @@ export default async function AcademyCoursePage({
 
   const { course } = access;
 
-  const header = (
-    <div>
-      <Link href="/academy" className="text-xs font-medium text-muted-foreground/56 hover:underline">
-        ← Cursos
-      </Link>
-      <h1 className="mt-1 text-3xl font-semibold tracking-tight">{course.title}</h1>
-      {course.description && <p className="mt-2 text-sm text-muted-foreground">{course.description}</p>}
-    </div>
-  );
-
   if (access.mode === "restricted") {
     return (
-      <div className="space-y-6">
-        {header}
-        <p className="rounded border border-border bg-muted p-4 text-sm text-muted-foreground">
+      <div className="space-y-4">
+        <CourseHero
+          coverMediaId={course.coverMediaId}
+          title={course.title}
+          description={course.description}
+          backHref="/academy"
+          backLabel="Cursos"
+          badge={{ icon: <Lock className="size-3" aria-hidden="true" />, label: "Acesso restrito" }}
+        />
+        <p className="rounded-panel border border-border bg-muted p-4 text-sm text-muted-foreground">
           Acesso restrito. Este curso não permite matrícula automática — fale com um administrador para ser
           matriculado.
         </p>
@@ -60,8 +60,15 @@ export default async function AcademyCoursePage({
 
   if (access.mode === "enroll-available") {
     return (
-      <div className="space-y-6">
-        {header}
+      <div className="space-y-4">
+        <CourseHero
+          coverMediaId={course.coverMediaId}
+          title={course.title}
+          description={course.description}
+          backHref="/academy"
+          backLabel="Cursos"
+          badge={{ icon: <Unlock className="size-3" aria-hidden="true" />, label: "Matrícula disponível" }}
+        />
         <EnrollSelfButton courseId={course.id} courseSlug={course.slug} />
       </div>
     );
@@ -73,41 +80,45 @@ export default async function AcademyCoursePage({
       return <p className="text-sm text-destructive">Erro ao carregar aulas: {lessonsResult.error.message}</p>;
     }
     const lessons = lessonsResult.data;
-    const entries = await Promise.all(lessons.map((lesson) => getEntry({ id: lesson.cmsEntryId })));
-    const entryTitleByLesson = new Map(
-      lessons.map((lesson, index) => {
-        const entryResult = entries[index];
-        const title = entryResult.success && entryResult.data ? entryResult.data.title : lesson.cmsEntryId;
-        return [lesson.id, title];
-      }),
-    );
 
     return (
-      <div className="space-y-6">
-        {header}
-        <p className="rounded border border-border bg-secondary p-3 text-sm text-secondary-foreground">
+      <div className="space-y-4">
+        <CourseHero
+          coverMediaId={course.coverMediaId}
+          title={course.title}
+          description={course.description}
+          backHref="/academy"
+          backLabel="Cursos"
+          badge={{ icon: <Eye className="size-3" aria-hidden="true" />, label: "Pré-visualização" }}
+        />
+        <p className="rounded-panel border border-border bg-secondary p-3 text-sm text-secondary-foreground">
           Modo de visualização (professor) — todas as aulas aparecem liberadas, sem acompanhamento de progresso.
         </p>
-        <section>
-          <h2 className="text-[11px] font-semibold tracking-caps text-muted-foreground/56 uppercase">Aulas</h2>
+        <section className="rounded-panel border border-border bg-card p-5 sm:p-6">
+          <h2 className="text-sm font-semibold text-foreground">Aulas</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Sua trilha, em ordem</p>
           {lessons.length === 0 ? (
             <EmptyState className="mt-3" title="Nenhuma aula cadastrada" />
           ) : (
-            <ul className="mt-3 space-y-2">
+            <div className="mt-4 overflow-hidden rounded-panel border border-border">
               {lessons.map((lesson) => (
-                <li
+                <div
                   key={lesson.id}
-                  className="flex items-center justify-between rounded-panel border border-border bg-card p-3"
+                  className="flex items-center gap-3.5 border-b border-border px-4 py-3.5 last:border-b-0 ui-motion-base hover:bg-muted/60"
                 >
-                  <span className="text-sm">
-                    {lesson.position}. {entryTitleByLesson.get(lesson.id)}
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full border border-border text-xs font-medium text-muted-foreground tabular-nums">
+                    {lesson.position}
                   </span>
-                  <Link href={`/academy/${course.slug}/${lesson.id}`} className="text-sm font-medium hover:underline">
-                    visualizar
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{lesson.title}</span>
+                  <Link
+                    href={`/academy/${course.slug}/${lesson.id}`}
+                    className="shrink-0 rounded-sm text-sm font-medium text-primary outline-none ui-motion-base hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Visualizar
                   </Link>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </section>
       </div>
@@ -119,84 +130,135 @@ export default async function AcademyCoursePage({
     return <p className="text-sm text-destructive">Erro ao carregar progresso: {progressResult.error.message}</p>;
   }
 
-  const progress = progressResult.data;
-  const entries = await Promise.all(progress.lessons.map((lesson) => getEntry({ id: lesson.cmsEntryId })));
-  const entryTitleByLesson = new Map(
-    progress.lessons.map((lesson, index) => {
-      const entryResult = entries[index];
-      const title = entryResult.success && entryResult.data ? entryResult.data.title : lesson.cmsEntryId;
-      return [lesson.lessonId, title];
-    }),
-  );
+  // Pedido desta sessão: "veja onde ele [Doações] cabe nas nossas páginas... pelo menos na página
+  // de curso" — só aqui na visão completa (aluno matriculado), não em enroll-available/restricted/
+  // preview (chamada de doação não faz sentido antes do aluno ter acesso de verdade ao curso), e
+  // nunca ao final de uma aula (o próprio pedido descartou isso como "forçado"). Mesmo critério de
+  // "configurado" que o block usa (donations-pix-teaser-block.tsx) — replicado aqui porque esta
+  // página é JSX fixo, não composição de CMS, então não dá pra simplesmente soltar o block.
+  const donationsActive = await isPluginActive("donations");
+  const donationSettingsResult = donationsActive ? await getDonationSettings() : null;
+  const donationSettings = donationSettingsResult?.success ? donationSettingsResult.data : null;
+  const showDonationTeaser = Boolean(donationSettings?.pixKey && donationSettings?.recipientName && donationSettings?.recipientCity);
 
+  const progress = progressResult.data;
   const progressPercent = calculateProgressPercent(progress.completedLessons, progress.totalLessons);
+
+  // Cadeia é estritamente linear (computeLessonChain em shared/lesson-chain.ts): no máximo uma
+  // aula fica "unlocked && !completed" por vez — é sempre a próxima ação do aluno.
+  const currentLesson = progress.lessons.find((lesson) => !lesson.locked && !lesson.completed) ?? null;
+
+  const agendaActivities: CourseAgendaActivity[] = [];
+  if (currentLesson) {
+    const { requirements } = currentLesson;
+    if (requirements.readTextEnabled) {
+      agendaActivities.push({ key: "text", label: "Ler o conteúdo da aula", done: requirements.textRead });
+    }
+    if (requirements.watchVideoEnabled) {
+      agendaActivities.push({ key: "video", label: "Assistir o vídeo da aula", done: requirements.videoWatched });
+    }
+    if (requirements.quizEnabled) {
+      agendaActivities.push({ key: "quiz", label: "Responder o quiz da aula", done: requirements.quizPassed });
+    }
+  }
+
+  // "Aproveitamento" só entra aulas com quiz — leitura/vídeo são feito/não-feito, sem nota real
+  // pra plotar (decisão da sessão A4, ver AskUserQuestion). Progresso dessas aulas já aparece na
+  // trilha abaixo.
+  const quizScores: LessonScoreDatum[] = progress.lessons
+    .filter((lesson) => lesson.requirements.quizEnabled)
+    .map((lesson) => ({
+      position: lesson.position,
+      label: `Aula ${lesson.position}`,
+      score: lesson.requirements.quizBestScore ?? 0,
+      status: lesson.requirements.quizBestScore === null ? "not_attempted" : lesson.requirements.quizPassed ? "passed" : "failed",
+    }));
+
+  const gradedLessons = progress.lessons.filter((lesson) => lesson.requirements.quizBestGrade !== null);
+  const averageGrade =
+    gradedLessons.length > 0
+      ? gradedLessons.reduce((sum, lesson) => sum + (lesson.requirements.quizBestGrade ?? 0), 0) / gradedLessons.length
+      : null;
+
+  const stats: string[] =
+    progress.totalLessons > 0
+      ? [
+          `${progress.completedLessons}/${progress.totalLessons} concluídas`,
+          ...(averageGrade !== null ? [`Nota média ${averageGrade.toFixed(1)}`] : []),
+        ]
+      : [];
 
   return (
     <div className="space-y-6">
       {blocked && (
-        <p className="rounded border border-warning-border bg-warning-soft p-3 text-sm text-warning">
+        <p className="rounded-panel border border-warning-border bg-warning-soft p-3 text-sm text-warning">
           A aula que você tentou acessar está bloqueada. Complete as aulas anteriores para liberá-la.
         </p>
       )}
-      {header}
+
+      <CourseHero
+        coverMediaId={course.coverMediaId}
+        title={course.title}
+        description={course.description}
+        backHref="/academy"
+        backLabel="Cursos"
+        stats={stats}
+        badge={{ icon: <CheckCircle2 className="size-3" aria-hidden="true" />, label: "Matriculado" }}
+      />
 
       {progress.totalLessons > 0 && (
-        <div className="space-y-1.5 rounded-panel border border-border bg-card p-4">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-muted-foreground">
-              {progress.completedLessons} de {progress.totalLessons}{" "}
-              {progress.totalLessons === 1 ? "aula concluída" : "aulas concluídas"}
-            </span>
-            <span className="text-muted-foreground/56">{progressPercent}%</span>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Progresso do curso</span>
+            <span className="font-medium text-foreground tabular-nums">{progressPercent}%</span>
           </div>
-          <Progress value={progressPercent} />
-          {progress.completedLessons === 0 && (
-            <p className="text-xs text-muted-foreground/56">Você ainda não começou este curso.</p>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
+          </div>
+        </div>
+      )}
+
+      {progress.lessons.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <CourseAgendaCard
+            courseSlug={course.slug}
+            currentLesson={currentLesson ? { lessonId: currentLesson.lessonId, position: currentLesson.position, title: currentLesson.title } : null}
+            activities={agendaActivities}
+            className={quizScores.length === 0 ? "lg:col-span-2" : undefined}
+          />
+
+          {quizScores.length > 0 && (
+            <div className="rounded-panel border border-border bg-card p-4 sm:p-6">
+              <h3 className="text-lg font-semibold text-foreground">Aproveitamento</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Nota do quiz por aula</p>
+              <div className="mt-4">
+                <CourseEffectivenessChart data={quizScores} />
+              </div>
+            </div>
           )}
         </div>
       )}
 
-      <section>
-        <h2 className="text-[11px] font-semibold tracking-caps text-muted-foreground/56 uppercase">Aulas</h2>
+      <section className="rounded-panel border border-border bg-card p-5 sm:p-6">
+        <h2 className="text-sm font-semibold text-foreground">Aulas</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Sua trilha, em ordem</p>
         {progress.lessons.length === 0 ? (
           <EmptyState className="mt-3" title="Nenhuma aula cadastrada" />
         ) : (
-          <ul className="mt-3 space-y-2">
-            {progress.lessons.map((lesson) => {
-              const title = entryTitleByLesson.get(lesson.lessonId);
-              // locked precisa vencer completed na prioridade do rótulo: uma aula sem
-              // lesson_requirements configurado é "completed" trivialmente mesmo estando
-              // "locked" (cadeia anterior não cumprida) — mesma combinação do bug de bloqueio
-              // corrigido nesta sessão (docs/venore-docks.md). Mostrar "concluída" nesse caso
-              // mentia sobre o estado real da aula.
-              const statusLabel = lesson.locked ? "bloqueada" : lesson.completed ? "concluída" : "liberada";
-              return (
-                <li
-                  key={lesson.lessonId}
-                  className="flex items-center justify-between rounded-panel border border-border bg-card p-3"
-                >
-                  <span className="text-sm">
-                    {lesson.position}. {title}
-                  </span>
-                  {lesson.locked ? (
-                    <Badge variant="outline" className="gap-1">
-                      <Lock className="size-3" />
-                      {statusLabel}
-                    </Badge>
-                  ) : (
-                    <Link
-                      href={`/academy/${course.slug}/${lesson.lessonId}`}
-                      className="text-sm font-medium hover:underline"
-                    >
-                      {statusLabel}
-                    </Link>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+          <div className="mt-4">
+            <CourseLessonList courseSlug={course.slug} lessons={progress.lessons} />
+          </div>
         )}
       </section>
+
+      {showDonationTeaser && donationSettings && (
+        <DonationTeaser
+          title="Gostando do curso?"
+          ctaLabel="Apoiar com uma doação"
+          message={donationSettings.message}
+          suggestedAmounts={donationSettings.suggestedAmounts}
+        />
+      )}
     </div>
   );
 }

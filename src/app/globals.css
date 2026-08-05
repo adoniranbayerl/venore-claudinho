@@ -17,6 +17,7 @@
 @import "../themes/venore-pulse/theme.css";
 @import "../themes/venore-frost/theme.css";
 @import "../themes/menonita-classic/theme.css";
+@import "../themes/aprenda-musica/theme.css";
 
 /* tw-animate-css: os primitivos stock (dialog, select) usam animate-in/fade-in-0/zoom-in-95/
    slide-in-from-* — sem esse import essas classes não geram CSS nenhum (ficam inertes) e os
@@ -85,6 +86,8 @@
   --color-success-foreground: var(--success-foreground);
   --color-success-soft: var(--success-soft);
   --color-success-border: var(--success-border);
+
+  --color-overlay-foreground: var(--overlay-foreground);
 
   --radius-sm: calc(var(--radius) * var(--ui-radius-scale-sm));
   --radius-md: calc(var(--radius) * var(--ui-radius-scale-md));

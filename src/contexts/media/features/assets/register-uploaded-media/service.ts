@@ -28,6 +28,7 @@ export async function registerUploadedMedia(command: RegisterUploadedMediaComman
   }
 
   const inserted = await insertAssetIfAbsent({
+    filename: command.filename,
     pathname: command.pathname,
     url: command.url,
     contentType: command.contentType,

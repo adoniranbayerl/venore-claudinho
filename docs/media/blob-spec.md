@@ -1,7 +1,19 @@
 # Media Subsystem — Vercel Blob Storage Spec
 
-`Status: proposta de desenho — nenhum código, migration ou UI aplicados nesta sessão`
-`Escopo: contratos de tipo, schema e regras. Implementação é trabalho futuro, fora desta sessão.`
+`Status original: proposta de desenho — nenhum código, migration ou UI aplicados nesta sessão`
+`Escopo original: contratos de tipo, schema e regras. Implementação era trabalho futuro.`
+
+**Atualização (docs/implementation-roadmap.md, Fase 4/M1-M3): implementado.** `files`/
+`StorageAdapter`/`LocalStorageAdapter` foram descontinuados — `media.assets`+`StoragePort` é
+agora o único sistema de mídia, com todas as telas (admin/media, avatar, media-picker-field)
+portadas. Diferenças em relação ao desenho original abaixo: `assets` ganhou de volta `filename`
+(nome original, distinto de `pathname`) e `categoryId` (pra não perder a organização por
+categoria/pasta que `files` tinha — seção 3 deste doc não previa nenhum dos dois);
+`MediaVisibility` virou 3 estados (`public`/`restricted`/`private`) em vez de 2, com "restricted"
+ainda sem enforcement de consumo (rótulo administrativo por ora, Known Gap registrado no
+roadmap); `reconcileOrphanUploads` roda via `setInterval` em processo (mesmo padrão de
+`observability/retention.ts`), não como job externo separado. O resto do desenho abaixo
+(StoragePort, adapters, soft delete, permissões) foi implementado como descrito.
 
 ---
 

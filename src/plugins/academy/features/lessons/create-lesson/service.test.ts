@@ -5,16 +5,10 @@ vi.mock("@/observability", () => ({
   endOperation: vi.fn(),
 }));
 
-const getEntry = vi.fn();
-
-vi.mock("@/contexts/cms", () => ({
-  getEntry: (...args: unknown[]) => getEntry(...args),
-}));
-
-const getMedia = vi.fn();
+const getMediaAsset = vi.fn();
 
 vi.mock("@/contexts/media", () => ({
-  getMedia: (...args: unknown[]) => getMedia(...args),
+  getMediaAsset: (...args: unknown[]) => getMediaAsset(...args),
 }));
 
 const findNextPosition = vi.fn();
@@ -27,41 +21,50 @@ vi.mock("./store", () => ({
 
 describe("createLesson", () => {
   beforeEach(() => {
-    getEntry.mockReset();
+    getMediaAsset.mockReset();
     findNextPosition.mockReset();
     insertLesson.mockReset();
   });
 
-  it("fails when the cmsEntryId does not reference an existing published entry", async () => {
-    getEntry.mockResolvedValue({ success: true, data: null });
+  it("fails when coverMediaId does not reference an existing media asset", async () => {
+    getMediaAsset.mockResolvedValue({ success: true, data: null });
 
     const { createLesson } = await import("./service");
-    const result = await createLesson({ courseId: "course-1", cmsEntryId: "missing-entry", actorId: "actor-1" });
+    const result = await createLesson({ courseId: "course-1", title: "Aula 1", coverMediaId: "missing-media", actorId: "actor-1" });
 
     expect(result).toEqual({
       success: false,
-      error: { code: "academy.lessons.invalid_cms_entry", message: expect.any(String) },
+      error: { code: "academy.lessons.invalid_cover_media", message: expect.any(String) },
     });
     expect(insertLesson).not.toHaveBeenCalled();
   });
 
-  it("creates the lesson at the next available position when the cmsEntryId is valid", async () => {
-    getEntry.mockResolvedValue({ success: true, data: { id: "entry-1" } });
+  it("creates the lesson at the next available position", async () => {
     findNextPosition.mockResolvedValue(3);
     insertLesson.mockResolvedValue({
       id: "lesson-1",
       courseId: "course-1",
-      cmsEntryId: "entry-1",
+      title: "Aula 1",
+      body: null,
       videoUrl: null,
       position: 3,
+      coverMediaId: null,
+      status: "restricted",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
     const { createLesson } = await import("./service");
-    const result = await createLesson({ courseId: "course-1", cmsEntryId: "entry-1", actorId: "actor-1" });
+    const result = await createLesson({ courseId: "course-1", title: "Aula 1", actorId: "actor-1" });
 
     expect(result.success).toBe(true);
-    expect(insertLesson).toHaveBeenCalledWith({ courseId: "course-1", cmsEntryId: "entry-1", videoUrl: undefined, position: 3 });
+    expect(insertLesson).toHaveBeenCalledWith({
+      courseId: "course-1",
+      title: "Aula 1",
+      body: undefined,
+      videoUrl: undefined,
+      coverMediaId: undefined,
+      position: 3,
+    });
   });
 });

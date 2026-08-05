@@ -1,6 +1,9 @@
+import { redirect } from "next/navigation";
+import { getCurrentUserRegistrationStatus } from "@/contexts/auth";
 import { resolveActiveTheme } from "@/platform/theme-rendering/resolve-active-theme";
 import { resolveThemeSlotProps } from "@/platform/theme-rendering/resolve-theme-slot-props";
 import { resolveBreadcrumbs } from "@/platform/breadcrumbs/resolve-breadcrumbs";
+import { RouteChangeRefresher } from "@/platform/breadcrumbs/route-change-refresher";
 import { getAdminPageData } from "@/platform/admin-shell/get-admin-page-data";
 import { getVisibleAdminNavGroupsForSidebar } from "@/platform/admin-shell/admin-navigation-registry";
 import { getNavMode } from "@/platform/nav-mode/get-nav-mode";
@@ -28,6 +31,11 @@ export default async function PlatformLayout({
   // é passado sempre vazio, sem tocar em handler/service/store da Academy).
   sidebarContextual: React.ReactNode;
 }) {
+  const registrationStatus = await getCurrentUserRegistrationStatus();
+  if (registrationStatus.success && registrationStatus.data === "pending") {
+    redirect("/pending-approval");
+  }
+
   const { Shell } = await resolveActiveTheme();
 
   const breadcrumbs = await resolveBreadcrumbs();
@@ -50,16 +58,19 @@ export default async function PlatformLayout({
   });
 
   return (
-    <Shell
-      header={props.header}
-      footer={props.footer}
-      sidebarLeft={props.sidebarLeft}
-      sidebarContextualEnabled={sidebarContextual !== null}
-      sidebarContextual={sidebarContextual}
-      breadcrumbs={breadcrumbs.items}
-      breadcrumbsJsonLd={breadcrumbs.jsonLd}
-    >
-      {children}
-    </Shell>
+    <>
+      <RouteChangeRefresher />
+      <Shell
+        header={props.header}
+        footer={props.footer}
+        sidebarLeft={props.sidebarLeft}
+        sidebarContextualEnabled={sidebarContextual !== null}
+        sidebarContextual={sidebarContextual}
+        breadcrumbs={breadcrumbs.items}
+        breadcrumbsJsonLd={breadcrumbs.jsonLd}
+      >
+        {children}
+      </Shell>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createCategory, createContentType, publishEntry } from "@/contexts/cms";
+import { archiveEntry, createCategory, createContentType, deleteEntry, publishEntry, scheduleEntry } from "@/contexts/cms";
 import { resolveBlockDefinition } from "@/platform/page-builder/block-registry";
 
 export type CmsActionState = { error: string | null };
@@ -45,6 +45,46 @@ export async function createCategoryAction(_prevState: CmsActionState, formData:
 
 export async function publishEntryAction(_prevState: CmsActionState, formData: FormData): Promise<CmsActionState> {
   const result = await publishEntry({ id: String(formData.get("id") ?? ""), resolveDefinition: resolveBlockDefinition });
+
+  if (!result.success) {
+    return { error: result.error.message };
+  }
+
+  revalidatePath("/admin/cms");
+  return { error: null };
+}
+
+export async function scheduleEntryAction(_prevState: CmsActionState, formData: FormData): Promise<CmsActionState> {
+  const scheduledPublishAtRaw = String(formData.get("scheduledPublishAt") ?? "");
+  const scheduledArchiveAtRaw = String(formData.get("scheduledArchiveAt") ?? "").trim();
+
+  const result = await scheduleEntry({
+    id: String(formData.get("id") ?? ""),
+    scheduledPublishAt: new Date(scheduledPublishAtRaw),
+    scheduledArchiveAt: scheduledArchiveAtRaw ? new Date(scheduledArchiveAtRaw) : undefined,
+  });
+
+  if (!result.success) {
+    return { error: result.error.message };
+  }
+
+  revalidatePath("/admin/cms");
+  return { error: null };
+}
+
+export async function archiveEntryAction(_prevState: CmsActionState, formData: FormData): Promise<CmsActionState> {
+  const result = await archiveEntry({ id: String(formData.get("id") ?? "") });
+
+  if (!result.success) {
+    return { error: result.error.message };
+  }
+
+  revalidatePath("/admin/cms");
+  return { error: null };
+}
+
+export async function deleteEntryAction(_prevState: CmsActionState, formData: FormData): Promise<CmsActionState> {
+  const result = await deleteEntry({ id: String(formData.get("id") ?? "") });
 
   if (!result.success) {
     return { error: result.error.message };
