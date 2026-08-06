@@ -12,6 +12,13 @@ export type ThemesActionState = { error: string | null };
 
 const THEMES_PATH = "/admin/themes";
 
+// Tema, paleta de cor e comportamento de header são renderizados no root layout (data-theme,
+// paletteOverrideCss) e no Shell, então valem pra toda rota — revalidar só THEMES_PATH deixava
+// as outras páginas servindo o data-theme antigo até essa rota específica ser revisitada (bug:
+// "às vezes, ao trocar de página, volta pro tema anterior"). revalidatePath("/", "layout")
+// invalida o root layout e, por consequência, toda a árvore de rotas abaixo dele.
+const revalidateEverywhere = () => revalidatePath("/", "layout");
+
 // Mesmo padrão de removeRoleAction (/admin/rbac/actions.ts): erro do handler é devolvido de
 // verdade via useActionState, nunca descartado silenciosamente (docs/venore-docks.md).
 export async function activateThemeAction(
@@ -26,7 +33,7 @@ export async function activateThemeAction(
     return { error: result.error.message };
   }
 
-  revalidatePath("/admin/themes");
+  revalidateEverywhere();
   return { error: null };
 }
 
@@ -42,7 +49,7 @@ export async function toggleThemeEnabledAction(
     return { error: result.error.message };
   }
 
-  revalidatePath("/admin/themes");
+  revalidatePath(THEMES_PATH);
   return { error: null };
 }
 
@@ -59,7 +66,7 @@ export async function activateColorPaletteAction(
     return { error: result.error.message };
   }
 
-  revalidatePath(THEMES_PATH);
+  revalidateEverywhere();
   return { error: null };
 }
 
@@ -82,7 +89,7 @@ export async function updateHeaderBehaviorAction(
     }
   }
 
-  revalidatePath(THEMES_PATH);
+  revalidateEverywhere();
   return { error: null };
 }
 
@@ -118,6 +125,6 @@ export async function updateCustomColorPaletteAction(
     return { error: activateResult.error.message };
   }
 
-  revalidatePath(THEMES_PATH);
+  revalidateEverywhere();
   return { error: null };
 }
