@@ -11,4 +11,11 @@ export default defineConfig({
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },
+  // Tabela de tracking própria — sem isso, core e academy caem no mesmo default
+  // ("drizzle"."__drizzle_migrations"), e o algoritmo de migrate() do drizzle-orm só olha o
+  // created_at mais recente da tabela (comparação por cursor único, não por hash por arquivo).
+  // Rodar `db:migrate` (core) antes de `db:migrate:academy` empurra esse cursor pra frente, e
+  // qualquer migration do academy mais antiga que a última do core é pulada em silêncio — mesmo
+  // nunca tendo rodado nesse banco. Bug real encontrado nesta sessão (deploy numa base nova).
+  migrations: { schema: "academy_migrations", table: "__drizzle_migrations" },
 });

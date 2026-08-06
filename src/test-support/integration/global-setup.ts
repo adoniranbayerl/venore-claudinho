@@ -22,9 +22,21 @@ export default async function globalSetup(): Promise<void> {
     // Três migrations separadas, mesmo padrão de produção (db:migrate + db:migrate:academy +
     // db:migrate:birthdays) — core (auth/rbac/cms/settings/observability) e o schema próprio de
     // cada plugin.
+    // migrationsSchema/migrationsTable dedicados pra academy/birthdays (mesmo motivo dos
+    // respectivos drizzle.config.ts): sem isso os três compartilham "drizzle"."__drizzle_migrations",
+    // e o migrate() do drizzle-orm só compara o created_at mais recente da tabela — uma migration
+    // de plugin mais antiga que a migration de core mais recente é pulada em silêncio.
     await migrate(db, { migrationsFolder: CORE_MIGRATIONS_FOLDER });
-    await migrate(db, { migrationsFolder: ACADEMY_MIGRATIONS_FOLDER });
-    await migrate(db, { migrationsFolder: BIRTHDAYS_MIGRATIONS_FOLDER });
+    await migrate(db, {
+      migrationsFolder: ACADEMY_MIGRATIONS_FOLDER,
+      migrationsSchema: "academy_migrations",
+      migrationsTable: "__drizzle_migrations",
+    });
+    await migrate(db, {
+      migrationsFolder: BIRTHDAYS_MIGRATIONS_FOLDER,
+      migrationsSchema: "birthdays_migrations",
+      migrationsTable: "__drizzle_migrations",
+    });
   } finally {
     await pool.end();
   }

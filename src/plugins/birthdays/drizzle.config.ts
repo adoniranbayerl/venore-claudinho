@@ -9,4 +9,7 @@ export default defineConfig({
   out: "./src/plugins/birthdays/migrations",
   dialect: "postgresql",
   dbCredentials: { url: process.env.DATABASE_URL! },
+  // Mesmo racional de src/plugins/academy/drizzle.config.ts: tabela de tracking própria, pra não
+  // compartilhar o cursor de "última migration aplicada" com core (nem com academy).
+  migrations: { schema: "birthdays_migrations", table: "__drizzle_migrations" },
 });
