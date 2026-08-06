@@ -22,18 +22,11 @@ export async function reviewLessonActivitySubmissionHandler(
     };
   }
 
-  if (
-    (input.reviewStatus === "needs_revision" || input.reviewStatus === "rejected") &&
-    (!input.reviewFeedback || input.reviewFeedback.trim().length === 0)
-  ) {
-    return {
-      success: false,
-      error: {
-        code: "academy.lesson_activity_submissions.missing_feedback",
-        message: "reviewFeedback é obrigatório ao pedir revisão ou reprovar.",
-      },
-    };
-  }
+  // reviewFeedback deixou de ser obrigatório em needs_revision/rejected (era exigido aqui antes)
+  // — a página nova por aluno (admin/academy/courses/[id]/enrolled/[studentActorId]) corrige com
+  // nota+status e conversa de verdade (features/messages/), não mais um campo de texto livre
+  // sobrescrito a cada revisão. O painel antigo por atividade (activity-submissions-panel.tsx)
+  // continua exigindo preenchimento, só que client-side (disabled do botão) — nada quebra lá.
 
   if (input.reviewScore !== undefined && (!Number.isInteger(input.reviewScore) || input.reviewScore < 0 || input.reviewScore > 10)) {
     return {

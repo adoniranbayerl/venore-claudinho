@@ -378,3 +378,55 @@ export const enrollments = academySchema.table(
   },
   (table) => [uniqueIndex("enrollments_course_actor_idx").on(table.courseId, table.actorId)],
 );
+
+// Conversa entre aluno e professor por (aula, etapa, aluno) — pedido de sessão: "tirar dúvida" e
+// "viu algo errado" no aluno, "corrigir trabalhos... enviar mensagens dentro dos trabalhos" no
+// professor, unificados no mesmo sistema (uma conversa por etapa, a correção de atividade é só
+// mais uma resposta nela). stepKey espelha LessonFlowStep.id do client (lesson-step-flow.tsx):
+// "video" | "materials" | "examples" | "activity" | "quiz" | um lessonSections.id real — nunca
+// "text-fallback"/"donation" (excluídos de propósito, ver contracts/types.ts). Sem FK pra
+// stepKey: metade do espaço de valores não é linha nenhuma (são chaves sintéticas do client, não
+// registros no banco), mesma razão de actorId/createdBy não terem FK no resto deste schema, só
+// que por "nem sempre existe uma linha" em vez de "é de outro schema". type é fixado na criação
+// (não muda depois): os dois botões do aluno abrem/reaproveitam a MESMA conversa se ela já
+// existir, nunca duas conversas concorrentes por etapa.
+export const lessonMessageThreads = academySchema.table(
+  "lesson_message_threads",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    lessonId: text("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    stepKey: text("step_key").notNull(),
+    studentActorId: text("student_actor_id").notNull(),
+    // "question" (dúvida) | "correction" (viu algo errado).
+    type: text("type").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // Denormalizado a partir de lessonMessages.createdAt, mantido na mesma transação do insert de
+    // mensagem (shared/lesson-messages-store.ts) — evita MAX()/GROUP BY em toda listagem de
+    // inbox só pra ordenar por "conversa mais recente".
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("lesson_message_threads_lesson_step_student_idx").on(table.lessonId, table.stepKey, table.studentActorId)],
+);
+
+// Mensagem dentro de uma conversa — bidirecional (senderRole distingue quem escreveu). readAt é
+// um carimbo só, não dois: marcado por quem NÃO enviou (o professor lê mensagem do aluno, o
+// aluno lê mensagem do professor), então uma coluna cobre os dois sentidos porque cada linha já
+// sabe o remetente.
+export const lessonMessages = academySchema.table("lesson_messages", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  threadId: text("thread_id")
+    .notNull()
+    .references(() => lessonMessageThreads.id, { onDelete: "cascade" }),
+  // "student" | "teacher".
+  senderRole: text("sender_role").notNull(),
+  senderActorId: text("sender_actor_id").notNull(),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  readAt: timestamp("read_at", { withTimezone: true }),
+});

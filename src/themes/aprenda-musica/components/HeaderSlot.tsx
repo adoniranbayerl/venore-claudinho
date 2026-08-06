@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { HeaderSlotProps } from "@/contexts/themes";
 import { cn } from "@/lib/utils";
 import { MobileNavToggleButton } from "../../venore-slime/components/MobileNavToggleButton";
-import { PlatformBrand } from "../../venore-slime/components/PlatformBrand";
 import { UserMenu } from "../../venore-slime/components/UserMenu";
+import { BrandMark } from "./BrandMark";
 
 // Faixa única de altura fixa, sem mecânica de encolher/inverter cor ao rolar (o Venore Slime tinha
 // um HeaderScrollSentinel + troca pra bg-primary; removido de propósito nesta sessão — "poucos
@@ -21,7 +21,7 @@ export function HeaderSlot({ brand, userbarEnabled, stickyEnabled, headerNavItem
       <div className="flex min-w-0 items-center gap-3">
         <MobileNavToggleButton />
         <Link href="/" aria-label={brand.name} className="inline-flex min-w-0 items-center">
-          <PlatformBrand {...brand} isScrolled={false} />
+          <BrandMark name={brand.name} />
         </Link>
       </div>
 

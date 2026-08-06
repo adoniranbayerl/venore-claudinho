@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getCurrentUserRegistrationStatus } from "@/contexts/auth";
 import { resolveActiveTheme } from "@/platform/theme-rendering/resolve-active-theme";
 import { resolveThemeSlotProps } from "@/platform/theme-rendering/resolve-theme-slot-props";
+import { hasSidebarContextualContent } from "@/platform/theme-rendering/has-sidebar-contextual-content";
 import { resolveBreadcrumbs } from "@/platform/breadcrumbs/resolve-breadcrumbs";
+import { BREADCRUMB_PATHNAME_HEADER } from "@/platform/breadcrumbs/pathname-header";
 import { RouteChangeRefresher } from "@/platform/breadcrumbs/route-change-refresher";
 import { getAdminPageData } from "@/platform/admin-shell/get-admin-page-data";
 import { getVisibleAdminNavGroupsForSidebar } from "@/platform/admin-shell/admin-navigation-registry";
@@ -27,8 +30,9 @@ export default async function PlatformLayout({
   children: React.ReactNode;
   // Slot paralelo @sidebarContextual (Next.js parallel routes) — só as rotas que definem um
   // page.tsx dentro de app/(platform)/@sidebarContextual/<segmento> preenchem isso; as demais
-  // caem no default.tsx do slot, que devolve null (item 5 do pedido: preencher o slot que hoje
-  // é passado sempre vazio, sem tocar em handler/service/store da Academy).
+  // caem no default.tsx do slot, que devolve null. `sidebarContextual` em si NUNCA é usado pra
+  // decidir se tem conteúdo (ver has-sidebar-contextual-content.ts pra por quê) — só é renderizado
+  // quando hasSidebarContextualContent(pathname) já disse que sim.
   sidebarContextual: React.ReactNode;
 }) {
   const registrationStatus = await getCurrentUserRegistrationStatus();
@@ -39,6 +43,13 @@ export default async function PlatformLayout({
   const { Shell } = await resolveActiveTheme();
 
   const breadcrumbs = await resolveBreadcrumbs();
+
+  // Mesmo header que resolve-breadcrumbs.ts lê (escrito em src/proxy.ts a cada request, mantido
+  // fresco entre navegações client-side pelo mesmo RouteChangeRefresher abaixo) — nunca o prop
+  // `sidebarContextual` em si, que não reflete com confiança nem "tem conteúdo" nem "é da rota
+  // atual" (ver has-sidebar-contextual-content.ts).
+  const pathname = (await headers()).get(BREADCRUMB_PATHNAME_HEADER);
+  const sidebarContextualEnabled = hasSidebarContextualContent(pathname);
 
   const adminGate = await getAdminPageData();
   const canToggleAdminNav = adminGate.granted;
@@ -64,8 +75,8 @@ export default async function PlatformLayout({
         header={props.header}
         footer={props.footer}
         sidebarLeft={props.sidebarLeft}
-        sidebarContextualEnabled={sidebarContextual !== null}
-        sidebarContextual={sidebarContextual}
+        sidebarContextualEnabled={sidebarContextualEnabled}
+        sidebarContextual={sidebarContextualEnabled ? sidebarContextual : null}
         breadcrumbs={breadcrumbs.items}
         breadcrumbsJsonLd={breadcrumbs.jsonLd}
       >

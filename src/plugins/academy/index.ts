@@ -12,6 +12,13 @@ export {
 export {
   getCourseForStudentHandler as getCourseForStudent,
 } from "./features/courses/get-course-for-student/handler";
+export {
+  exportCourseBundleHandler as exportCourseBundle,
+} from "./features/courses/export-course-bundle/handler";
+export { toExportZip as toCourseBundleZip } from "./features/courses/export-course-bundle/view";
+export {
+  importCourseBundleHandler as importCourseBundle,
+} from "./features/courses/import-course-bundle/handler";
 export { createLessonHandler as createLesson } from "./features/lessons/create-lesson/handler";
 export { updateLessonHandler as updateLesson } from "./features/lessons/update-lesson/handler";
 export { deleteLessonHandler as deleteLesson } from "./features/lessons/delete-lesson/handler";
@@ -117,6 +124,12 @@ export {
   listLessonActivitySubmissionsForActivityHandler as listLessonActivitySubmissionsForActivity,
 } from "./features/progress/list-lesson-activity-submissions-for-activity/handler";
 export {
+  getCourseProgressForStudentHandler as getCourseProgressForStudent,
+} from "./features/progress/get-course-progress-for-student/handler";
+export {
+  listLessonActivitySubmissionsForStudentInCourseHandler as listLessonActivitySubmissionsForStudentInCourse,
+} from "./features/progress/list-lesson-activity-submissions-for-student-in-course/handler";
+export {
   listActivitySubmissionMediaForCourseHandler as listActivitySubmissionMediaForCourse,
 } from "./features/courses/list-activity-submission-media-for-course/handler";
 export { listPublicCoursesHandler as listPublicCourses } from "./features/courses/list-public-courses/handler";
@@ -128,6 +141,21 @@ export {
   listEnrollmentsForCourseHandler as listEnrollmentsForCourse,
 } from "./features/enrollments/list-enrollments-for-course/handler";
 export { isEnrolledHandler as isEnrolled } from "./features/enrollments/is-enrolled/handler";
+
+export { sendStudentMessageHandler as sendStudentMessage } from "./features/messages/send-student-message/handler";
+export { sendTeacherMessageHandler as sendTeacherMessage } from "./features/messages/send-teacher-message/handler";
+export { getMessageThreadHandler as getMessageThread } from "./features/messages/get-message-thread/handler";
+export {
+  getMessageThreadForStudentHandler as getMessageThreadForStudent,
+} from "./features/messages/get-message-thread-for-student/handler";
+export { listMessageThreadsHandler as listMessageThreads } from "./features/messages/list-message-threads/handler";
+export {
+  listMessageThreadsForCourseHandler as listMessageThreadsForCourse,
+} from "./features/messages/list-message-threads-for-course/handler";
+export { markThreadReadHandler as markThreadRead } from "./features/messages/mark-thread-read/handler";
+export {
+  markThreadReadForStudentHandler as markThreadReadForStudent,
+} from "./features/messages/mark-thread-read-for-student/handler";
 
 // Provider de uso de mídia (docs/venore-docks.md — regra 12/14, "Sistema de plugins"): consumido
 // só por platform/media-usage/media-usage-registry.ts, e só quando o plugin está ativo (a checagem
@@ -182,6 +210,10 @@ export type {
   StudentQuizQuestionRecord,
   QuizAttemptRecord,
   EnrollmentRecord,
+  LessonMessageThreadType,
+  LessonMessageSenderRole,
+  LessonMessageThreadRecord,
+  LessonMessageRecord,
 } from "./contracts/types";
 
 export type { CreateCourseInput, CreateCourseResult } from "./features/courses/create-course/types";
@@ -206,6 +238,15 @@ export type {
   GetCourseForStudentQuery,
   GetCourseForStudentResult,
 } from "./features/courses/get-course-for-student/types";
+export type { ExportCourseBundleCommand, ExportCourseBundleResult } from "./features/courses/export-course-bundle/types";
+export type {
+  AcademyImportReport,
+  AcademyImportReportLine,
+  AcademyImportReportLineKind,
+  ImportCourseBundleResult,
+} from "./features/courses/import-course-bundle/types";
+export type { ImportReportOutcome } from "@/contexts/import-export";
+export type { ImportCourseBundleHandlerInput } from "./features/courses/import-course-bundle/handler";
 export type { CreateLessonInput, CreateLessonResult } from "./features/lessons/create-lesson/types";
 export type { UpdateLessonInput, UpdateLessonResult } from "./features/lessons/update-lesson/types";
 export type { DeleteLessonInput, DeleteLessonResult } from "./features/lessons/delete-lesson/types";
@@ -361,6 +402,15 @@ export type {
   ListLessonActivitySubmissionsForActivityResult,
   LessonActivitySubmissionView,
 } from "./features/progress/list-lesson-activity-submissions-for-activity/types";
+export type {
+  GetCourseProgressForStudentInput,
+  GetCourseProgressForStudentResult,
+} from "./features/progress/get-course-progress-for-student/types";
+export type {
+  ListLessonActivitySubmissionsForStudentInCourseQuery,
+  ListLessonActivitySubmissionsForStudentInCourseResult,
+  StudentCourseActivitySubmissionView,
+} from "./features/progress/list-lesson-activity-submissions-for-student-in-course/types";
 
 export type { EnrollSelfInput, EnrollSelfResult } from "./features/enrollments/enroll-self/types";
 export type { EnrollStudentInput, EnrollStudentResult } from "./features/enrollments/enroll-student/types";
@@ -371,3 +421,26 @@ export type {
   ListEnrollmentsForCourseResult,
 } from "./features/enrollments/list-enrollments-for-course/types";
 export type { IsEnrolledInput, IsEnrolledResult } from "./features/enrollments/is-enrolled/types";
+
+export type { SendStudentMessageInput, SendStudentMessageResult } from "./features/messages/send-student-message/types";
+export type { SendTeacherMessageInput, SendTeacherMessageResult } from "./features/messages/send-teacher-message/types";
+export type {
+  GetMessageThreadInput,
+  GetMessageThreadResult,
+  MessageThreadWithMessages,
+} from "./features/messages/get-message-thread/types";
+export type {
+  GetMessageThreadForStudentInput,
+  GetMessageThreadForStudentResult,
+} from "./features/messages/get-message-thread-for-student/types";
+export type { ListMessageThreadsInput, ListMessageThreadsResult } from "./features/messages/list-message-threads/types";
+export type {
+  ListMessageThreadsForCourseQuery,
+  ListMessageThreadsForCourseResult,
+} from "./features/messages/list-message-threads-for-course/types";
+export type { MarkThreadReadInput, MarkThreadReadResult } from "./features/messages/mark-thread-read/types";
+export type {
+  MarkThreadReadForStudentInput,
+  MarkThreadReadForStudentResult,
+} from "./features/messages/mark-thread-read-for-student/types";
+export type { LessonMessageThreadWithContext } from "./shared/lesson-messages-store";

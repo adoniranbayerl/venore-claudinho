@@ -1,16 +1,19 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowRight, BookOpen, GraduationCap, Sparkles, Target, TrendingUp } from "lucide-react";
+import { ArrowRight, BookOpen, GraduationCap, MessageCircle, Sparkles, Target, TrendingUp } from "lucide-react";
 import {
   StudentCourseCard,
   calculateProgressPercent,
   getCourseProgress,
   listCoursesForStudent,
   listLessonsByCourse,
+  listMessageThreads,
   type CourseForStudentView,
   type GetCourseProgressResult,
 } from "@/plugins/academy";
 import { getAcademyStudentPageData } from "@/platform/academy-student/get-academy-student-page-data";
+import { DonationTeaser, getDonationSettings } from "@/plugins/donations";
+import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 import { EmptyState } from "@/components/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,15 +61,30 @@ export default async function AcademyCoursesPage() {
 async function Dashboard({ courses }: { courses: CourseForStudentView[] }) {
   const enrolledCourses = courses.filter((course) => course.enrolled);
 
-  const [lessonCounts, progresses] = await Promise.all([
+  const [lessonCounts, progresses, donationSettings, unreadMessageCount] = await Promise.all([
     Promise.all(courses.map((course) => listLessonsByCourse({ courseId: course.id }))),
     Promise.all(
       courses.map((course) => (course.enrolled ? getCourseProgress({ courseId: course.id }) : Promise.resolve(null))),
     ),
+    resolveDonationSettings(),
+    resolveUnreadMessageCount(),
   ]);
 
   return (
     <div className="space-y-8">
+      {/* Alerta de mensagem nova (pedido desta sessão) — no topo, antes de tudo o mais: é a coisa
+          mais sensível ao tempo da página (resposta do professor esperando o aluno). */}
+      {unreadMessageCount > 0 && (
+        <Link
+          href="/academy/messages"
+          className="flex items-center gap-3 rounded-panel border border-warning-border bg-warning-soft p-3 text-sm text-warning outline-none ui-motion-base hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <MessageCircle className="size-4 shrink-0" aria-hidden="true" />
+          Você tem {unreadMessageCount} {unreadMessageCount === 1 ? "mensagem nova" : "mensagens novas"} do professor.
+          <ArrowRight className="ml-auto size-4 shrink-0" aria-hidden="true" />
+        </Link>
+      )}
+
       {enrolledCourses.length > 0 && <PerformanceSummary courses={courses} progresses={progresses} />}
       <RecommendedCourses courses={courses} />
 
@@ -88,8 +106,39 @@ async function Dashboard({ courses }: { courses: CourseForStudentView[] }) {
           })}
         </div>
       </div>
+
+      {/* Pedido desta sessão: "inclua nas páginas do Academy... seja estratégico" — fica depois do
+          catálogo inteiro, nunca acima (quem chega na página quer ver os cursos primeiro, não uma
+          pedido de doação antes de qualquer conteúdo). Só alcança quem rolou a página inteira. */}
+      {donationSettings && (
+        <DonationTeaser
+          title="Este catálogo é gratuito"
+          ctaLabel="Apoiar com uma doação"
+          message={donationSettings.message}
+          suggestedAmounts={donationSettings.suggestedAmounts}
+        />
+      )}
     </div>
   );
+}
+
+// Mesmo critério "configurado" de academy/[courseSlug]/page.tsx (chave PIX + destinatário
+// preenchidos), replicado aqui pelo mesmo motivo: página JSX fixa, não composição de CMS, não dá
+// pra soltar o block donations.pix-teaser.
+async function resolveDonationSettings() {
+  const donationsActive = await isPluginActive("donations");
+  const result = donationsActive ? await getDonationSettings() : null;
+  const settings = result?.success ? result.data : null;
+  const configured = Boolean(settings?.pixKey && settings?.recipientName && settings?.recipientCity);
+  return configured ? settings : null;
+}
+
+// Inbox inteira (todos os cursos) só pra somar o total — a lista de verdade fica em
+// /academy/messages, este banner é só o alerta.
+async function resolveUnreadMessageCount(): Promise<number> {
+  const result = await listMessageThreads({});
+  if (!result.success) return 0;
+  return result.data.reduce((sum, thread) => sum + thread.unreadCount, 0);
 }
 
 // "Aproveitamento" (pedido desta sessão: dashboard com "lista de todos os cursos matriculados,

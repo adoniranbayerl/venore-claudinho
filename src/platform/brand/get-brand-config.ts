@@ -23,11 +23,11 @@ const KEYS = {
 } as const;
 
 const DEFAULTS = {
-  siteName: "Venore Docks",
+  siteName: "Aprenda Música",
   logoMediaId: "",
   logoScrolledMediaId: "",
   faviconMediaId: "",
-  footerDescription: "Plataforma modular para conteúdo, comunidade e operação.",
+  footerDescription: "Aulas de música com acompanhamento próximo, do primeiro acorde ao seu jeito de tocar.",
 };
 
 const FALLBACK_LOGO_SVG = "/brand/brand-logo.svg";

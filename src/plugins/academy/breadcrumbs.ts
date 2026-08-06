@@ -24,6 +24,11 @@ async function resolveLessonEntryTitle(lessonId: string): Promise<string | null>
 export const academyBreadcrumbSegments: BreadcrumbSegmentDefinition[] = [
   // --- Público (aluno) ---
   staticBreadcrumbSegment({ key: "academy.public.list", segments: ["academy"], label: "Academy" }),
+  staticBreadcrumbSegment({ key: "academy.public.messages", segments: ["academy", "messages"], label: "Mensagens" }),
+  // Vitrine pública (app/(platform)/cursos/page.tsx) — rota irmã de "academy", não aninhada nela
+  // (comentário na própria página: "/academy já é o dashboard do aluno logado"), mas ainda
+  // conteúdo do plugin, não um conceito de platform/.
+  staticBreadcrumbSegment({ key: "academy.public.landing", segments: ["cursos"], label: "Cursos" }),
   dynamicBreadcrumbSegment({
     key: "academy.public.course",
     segments: ["academy", ":courseSlug"],

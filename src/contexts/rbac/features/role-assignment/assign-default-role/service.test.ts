@@ -23,6 +23,12 @@ vi.mock("../../../user-context-cache", () => ({
   invalidateUserContext: (...args: unknown[]) => invalidateUserContext(...args),
 }));
 
+const ensureBaseRbacDataSeeded = vi.fn();
+
+vi.mock("../../../ensure-base-rbac-data", () => ({
+  ensureBaseRbacDataSeeded: (...args: unknown[]) => ensureBaseRbacDataSeeded(...args),
+}));
+
 describe("grantDefaultRoleOnRegistration", () => {
   const originalEnv = process.env.RBAC_DEFAULT_REGISTRATION_ROLE_KEY;
 
@@ -30,6 +36,8 @@ describe("grantDefaultRoleOnRegistration", () => {
     insertUserRole.mockReset();
     findRoleIdByKey.mockReset();
     invalidateUserContext.mockReset();
+    ensureBaseRbacDataSeeded.mockReset();
+    ensureBaseRbacDataSeeded.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -47,6 +55,24 @@ describe("grantDefaultRoleOnRegistration", () => {
     expect(findRoleIdByKey).toHaveBeenCalledWith("member");
     expect(insertUserRole).toHaveBeenCalledWith("user-1", "role-member");
     expect(invalidateUserContext).toHaveBeenCalledWith("user-1");
+    expect(result).toEqual({ success: true, data: undefined });
+  });
+
+  it("self-heals base RBAC data before looking up the role, so it still succeeds on a fresh DB", async () => {
+    delete process.env.RBAC_DEFAULT_REGISTRATION_ROLE_KEY;
+    // Simula uma tabela roles vazia (fresh DB) que só passa a ter a linha "member" depois que
+    // ensureBaseRbacDataSeeded roda.
+    ensureBaseRbacDataSeeded.mockImplementation(async () => {
+      findRoleIdByKey.mockResolvedValue("role-member");
+    });
+    findRoleIdByKey.mockResolvedValue(null);
+    insertUserRole.mockResolvedValue(undefined);
+
+    const { grantDefaultRoleOnRegistration } = await import("./service");
+    const result = await grantDefaultRoleOnRegistration({ userId: "user-1" });
+
+    expect(ensureBaseRbacDataSeeded).toHaveBeenCalledTimes(1);
+    expect(ensureBaseRbacDataSeeded.mock.invocationCallOrder[0]).toBeLessThan(findRoleIdByKey.mock.invocationCallOrder[0]);
     expect(result).toEqual({ success: true, data: undefined });
   });
 

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "npm run db:migrate && npm run db:migrate:academy && npm run db:migrate:birthdays && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -23,7 +24,8 @@
     "db:seed:observability-logs-clear": "node --env-file=.env scripts/seed-observability-logs-clear-permission.mjs",
     "db:seed:observability-audit-view": "node --env-file=.env scripts/seed-observability-audit-view-permission.mjs",
     "db:seed:role-display-names": "node --env-file=.env scripts/seed-role-display-names.mjs",
-    "db:bootstrap-superadmin": "tsx --env-file=.env scripts/bootstrap-superadmin.ts"
+    "db:bootstrap-superadmin": "tsx --env-file=.env scripts/bootstrap-superadmin.ts",
+    "db:reset-academy-students": "node --env-file=.env scripts/reset-academy-student-data.mjs"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

@@ -9,6 +9,10 @@ function tokenMatches(token: string, segmentValue: string): boolean {
   return token.startsWith(":") || token === segmentValue;
 }
 
+function countDynamicTokens(segments: string[]): number {
+  return segments.filter((token) => token.startsWith(":")).length;
+}
+
 function extractParams(definition: BreadcrumbSegmentDefinition, prefix: string[]): Record<string, string> {
   const params: Record<string, string> = {};
   definition.segments.forEach((token, index) => {
@@ -36,11 +40,19 @@ export function matchSegments(pathnameSegments: string[], definitions: Breadcrum
     // Nível de rota sem dono registrado: pulado, não interrompe os níveis seguintes (um segmento
     // dinâmico ainda registrado dois níveis abaixo continua casando pela própria posição/tokens,
     // independente do nível acima ter rótulo ou não).
-    const definition = definitions.find((candidate) => {
+    const candidates = definitions.filter((candidate) => {
       if (candidate.segments.length !== level) return false;
       return candidate.segments.every((token, index) => tokenMatches(token, prefix[index]));
     });
-    if (!definition) continue;
+    if (candidates.length === 0) continue;
+    // Mais de um candidato no mesmo nível só acontece com um wildcard de rota pública (ex: cms
+    // ":slug" cobrindo qualquer coisa em "/") coexistindo com uma rota literal específica (ex:
+    // "academy", "birthdays") — o literal sempre ganha, não importa a ordem de registro (registry.ts
+    // só concatena arrays, não garante "mais específico primeiro"). Empate impossível: dois
+    // registros com o mesmo template já são barrados por assertUniqueBreadcrumbTemplates.
+    const definition = candidates.reduce((best, candidate) =>
+      countDynamicTokens(candidate.segments) < countDynamicTokens(best.segments) ? candidate : best,
+    );
     matches.push({ definition, params: extractParams(definition, prefix) });
   }
 

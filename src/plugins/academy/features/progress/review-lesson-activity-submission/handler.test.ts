@@ -31,15 +31,21 @@ describe("reviewLessonActivitySubmissionHandler", () => {
     expect(authorizeActor).not.toHaveBeenCalled();
   });
 
-  it("requires feedback when rejecting a submission", async () => {
+  // reviewFeedback deixou de ser obrigatório em needs_revision/rejected (sessão que adicionou o
+  // sistema de mensagens, features/messages/) — a página nova por aluno corrige com nota+status e
+  // conversa de verdade, não mais um campo de texto sobrescrito a cada revisão. O painel antigo
+  // por atividade continua exigindo preenchimento, só que client-side.
+  it("rejects a submission without feedback once authorized", async () => {
+    authorizeActor.mockResolvedValue({ authorized: true, actorId: "actor-1" });
+    reviewLessonActivitySubmission.mockResolvedValue({ success: true, data: { id: "submission-1", reviewStatus: "rejected" } });
+
     const { reviewLessonActivitySubmissionHandler } = await import("./handler");
     const result = await reviewLessonActivitySubmissionHandler({ id: "submission-1", reviewStatus: "rejected" });
 
-    expect(result).toEqual({
-      success: false,
-      error: { code: "academy.lesson_activity_submissions.missing_feedback", message: expect.any(String) },
-    });
-    expect(authorizeActor).not.toHaveBeenCalled();
+    expect(result).toEqual({ success: true, data: { id: "submission-1", reviewStatus: "rejected" } });
+    expect(reviewLessonActivitySubmission).toHaveBeenCalledWith(
+      expect.objectContaining({ reviewStatus: "rejected", actorId: "actor-1" }),
+    );
   });
 
   it("rejects a submission once authorized, with feedback", async () => {

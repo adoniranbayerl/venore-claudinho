@@ -2,11 +2,13 @@
 
 import { useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import Link from "next/link";
-import { Check, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Flag, MessageCircle, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { getLessonMessageThreadAction, sendLessonMessageAction, type LessonMessageItem } from "../actions";
 
 // Preferência de leitura (pedido desta sessão: "opção pra aumentar o texto levemente, pra alunos
 // com dificuldade de visão") — mesmo padrão de color-mode (AGENTS.md, "nav-mode vs color-mode"):
@@ -73,6 +75,27 @@ export type LessonFlowStep = {
   kicker: string;
   content: ReactNode;
   readMark?: LessonStepReadMark;
+  // false só na etapa de doação (buildDonationStep em page.tsx) — "dúvida"/"correção" não fazem
+  // sentido ali. Default true (ausente = mensagens permitidas).
+  allowMessages?: boolean;
+  // true só na etapa de doação — pedido desta sessão: "Voltar ao curso"/"Próxima aula" acima do
+  // "Faça uma doação", não abaixo (a etapa final não tem mais nada pra avançar depois dela, então
+  // a navegação de saída faz mais sentido antes do pedido de apoio do que depois). Default false
+  // (ausente = barra de navegação continua depois do conteúdo, como em toda outra etapa).
+  navBeforeContent?: boolean;
+};
+
+// lessonId + threadsByStepKey resolvidos no servidor (page.tsx, só no modo "full" — sem matrícula
+// real não tem pra quem mandar mensagem). threadsByStepKey[stepId] ausente = conversa ainda não
+// começou nessa etapa (dot de não-lida não aparece, histórico abre vazio).
+export type LessonStepMessaging = {
+  lessonId: string;
+  threadsByStepKey: Record<string, { unreadCount: number }>;
+};
+
+const MESSAGE_TYPE_LABEL: Record<"question" | "correction", string> = {
+  question: "Tirar dúvida",
+  correction: "Viu algo errado?",
 };
 
 // Aula real é composta por vídeo + seções + material + quiz (Fase 7) — antes tudo abria de uma
@@ -86,6 +109,7 @@ export function LessonStepFlow({
   steps,
   courseHref,
   nextLessonHref,
+  messaging,
 }: {
   steps: LessonFlowStep[];
   // Pra onde o aluno vai quando chega na última etapa — sem isso, "Avançar" só ficava desabilitado
@@ -94,12 +118,21 @@ export function LessonStepFlow({
   // não tem uma "próxima aula" com sentido — só "Voltar ao curso" aparece nesse caso.
   courseHref: string;
   nextLessonHref?: string | null;
+  // Ausente em preview de professor/amostra grátis (sem matrícula real, ver AcademyLessonPage) —
+  // os dois botões de contato só aparecem quando presente.
+  messaging?: LessonStepMessaging;
 }) {
   const [index, setIndex] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [locallyRead, setLocallyRead] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const { large: largeText, toggle: toggleLargeText } = useLargeText();
+
+  const [messageType, setMessageType] = useState<"question" | "correction" | null>(null);
+  const [messageLoaded, setMessageLoaded] = useState(false);
+  const [messages, setMessages] = useState<LessonMessageItem[]>([]);
+  const [messageBody, setMessageBody] = useState("");
+  const [messagePending, startMessageTransition] = useTransition();
 
   if (steps.length === 0) return null;
 
@@ -108,9 +141,39 @@ export function LessonStepFlow({
   const isLast = index === steps.length - 1;
   const isCurrentRead = current.readMark ? current.readMark.completed || locallyRead.has(current.id) : false;
   const needsConfirm = !!current.readMark?.confirmBeforeAdvance && !isCurrentRead;
+  const canMessage = !!messaging && current.allowMessages !== false;
+  const currentUnread = messaging?.threadsByStepKey[current.id]?.unreadCount ?? 0;
 
   function goNext() {
     setIndex((value) => Math.min(value + 1, steps.length - 1));
+  }
+
+  function openMessageDialog(type: "question" | "correction") {
+    setMessageType(type);
+    setMessageLoaded(false);
+    setMessages([]);
+    setMessageBody("");
+    if (messaging) {
+      startMessageTransition(async () => {
+        const data = await getLessonMessageThreadAction(messaging.lessonId, current.id);
+        setMessages(data);
+        setMessageLoaded(true);
+      });
+    }
+  }
+
+  function handleSendMessage() {
+    const trimmed = messageBody.trim();
+    if (!trimmed || !messaging || !messageType) return;
+    startMessageTransition(async () => {
+      const result = await sendLessonMessageAction(messaging.lessonId, current.id, messageType, trimmed);
+      if (result.error || !result.message) {
+        toast.error(result.error ?? "Não foi possível enviar a mensagem.");
+        return;
+      }
+      setMessages((prev) => [...prev, result.message as LessonMessageItem]);
+      setMessageBody("");
+    });
   }
 
   function performMark(step: LessonFlowStep, onDone?: () => void) {
@@ -148,6 +211,51 @@ export function LessonStepFlow({
     }
     goNext();
   }
+
+  // Antes só aparecia com mais de 1 etapa, e "Avançar" virava um beco sem saída ao chegar na
+  // última (desabilitado, sem alternativa nenhuma) — agora esta barra sempre existe quando a
+  // etapa atual é a última, pra sempre sobrar um jeito de sair da aula (voltar ao curso ou seguir
+  // pra próxima), mesmo numa aula de etapa única. Extraída de dentro do JSX principal pra poder
+  // ser posicionada antes OU depois do conteúdo (current.navBeforeContent, ver comentário no tipo).
+  const navBar = (steps.length > 1 || isLast) && (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+      {steps.length > 1 ? (
+        <Button type="button" variant="outline" disabled={isFirst} onClick={() => setIndex((value) => value - 1)}>
+          <ChevronLeft className="size-4" aria-hidden="true" />
+          Anterior
+        </Button>
+      ) : (
+        <span />
+      )}
+
+      {steps.length > 1 && (
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {index + 1}/{steps.length}
+        </span>
+      )}
+
+      {isLast ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href={courseHref}>Voltar ao curso</Link>
+          </Button>
+          {nextLessonHref && (
+            <Button asChild>
+              <Link href={nextLessonHref}>
+                Próxima aula
+                <ChevronRight className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          )}
+        </div>
+      ) : (
+        <Button type="button" variant="outline" onClick={handleAdvanceClick}>
+          Avançar
+          <ChevronRight className="size-4" aria-hidden="true" />
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-5">
@@ -188,11 +296,30 @@ export function LessonStepFlow({
         </button>
       </div>
 
+      {/* Contato com o professor por etapa (pedido desta sessão) — nunca gate de conclusão, só
+          um jeito de perguntar/reportar sem sair da aula. Ausente na etapa de doação (allowMessages
+          false, ver buildDonationStep em page.tsx). */}
+      {canMessage && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" className="relative" onClick={() => openMessageDialog("question")}>
+            <MessageCircle className="size-3.5" aria-hidden="true" />
+            {MESSAGE_TYPE_LABEL.question}
+            {currentUnread > 0 && <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-primary" aria-hidden="true" />}
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => openMessageDialog("correction")}>
+            <Flag className="size-3.5" aria-hidden="true" />
+            {MESSAGE_TYPE_LABEL.correction}
+          </Button>
+        </div>
+      )}
+
       {/* key força remontagem completa ao trocar de etapa — evita qualquer estado local de um
           componente dentro do conteúdo (ex: formulário de quiz) vazar pra etapa seguinte. zoom
           (não uma classe text-lg) porque precisa escalar TUDO dentro do conteúdo — parágrafos,
           títulos, legendas de partitura — sem que cada bloco do page builder precise saber sobre
           essa preferência. */}
+      {current.navBeforeContent && navBar}
+
       <div key={current.id} className="space-y-4" style={largeText ? { zoom: 1.15 } : undefined}>
         {current.content}
 
@@ -212,49 +339,7 @@ export function LessonStepFlow({
           ))}
       </div>
 
-      {/* Antes só aparecia com mais de 1 etapa, e "Avançar" virava um beco sem saída ao chegar na
-          última (desabilitado, sem alternativa nenhuma) — agora esta barra sempre existe quando a
-          etapa atual é a última, pra sempre sobrar um jeito de sair da aula (voltar ao curso ou
-          seguir pra próxima), mesmo numa aula de etapa única. */}
-      {(steps.length > 1 || isLast) && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-          {steps.length > 1 ? (
-            <Button type="button" variant="outline" disabled={isFirst} onClick={() => setIndex((value) => value - 1)}>
-              <ChevronLeft className="size-4" aria-hidden="true" />
-              Anterior
-            </Button>
-          ) : (
-            <span />
-          )}
-
-          {steps.length > 1 && (
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {index + 1}/{steps.length}
-            </span>
-          )}
-
-          {isLast ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button asChild variant="outline">
-                <Link href={courseHref}>Voltar ao curso</Link>
-              </Button>
-              {nextLessonHref && (
-                <Button asChild>
-                  <Link href={nextLessonHref}>
-                    Próxima aula
-                    <ChevronRight className="size-4" aria-hidden="true" />
-                  </Link>
-                </Button>
-              )}
-            </div>
-          ) : (
-            <Button type="button" variant="outline" onClick={handleAdvanceClick}>
-              Avançar
-              <ChevronRight className="size-4" aria-hidden="true" />
-            </Button>
-          )}
-        </div>
-      )}
+      {!current.navBeforeContent && navBar}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
@@ -284,6 +369,50 @@ export function LessonStepFlow({
               }
             >
               Marcar como lida
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={messageType !== null} onOpenChange={(next) => !next && setMessageType(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{messageType ? MESSAGE_TYPE_LABEL[messageType] : ""}</DialogTitle>
+            <DialogDescription>
+              {messageType === "question"
+                ? "Envie sua dúvida sobre esta etapa — o professor responde por aqui."
+                : "Viu algo errado ou incompleto nesta etapa? Descreva o que encontrou."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-64 space-y-2 overflow-y-auto">
+            {messagePending && !messageLoaded ? (
+              <p className="text-xs text-muted-foreground">Carregando…</p>
+            ) : (
+              messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={cn(
+                    "max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap",
+                    message.senderRole === "student" ? "ml-auto bg-primary text-primary-foreground" : "bg-muted text-foreground",
+                  )}
+                >
+                  {message.body}
+                </div>
+              ))
+            )}
+          </div>
+
+          <Textarea
+            value={messageBody}
+            onChange={(event) => setMessageBody(event.target.value)}
+            placeholder={messageType === "question" ? "Escreva sua dúvida…" : "Descreva o que está errado…"}
+            className="min-h-20 text-sm"
+          />
+
+          <DialogFooter>
+            <Button type="button" disabled={messagePending || messageBody.trim().length === 0} onClick={handleSendMessage}>
+              Enviar
             </Button>
           </DialogFooter>
         </DialogContent>

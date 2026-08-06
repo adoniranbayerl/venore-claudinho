@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookOpen, ChevronRight, Users, Video } from "lucide-react";
+import { BookOpen, ChevronRight, Video } from "lucide-react";
 import { getMediaAsset } from "@/contexts/media";
 import {
   getCachedCourse,
   listActivitySubmissionMediaForCourse,
   listEnrollmentsForCourse,
   listLessonsByCourse,
-  listQuizProgressForCourse,
 } from "@/plugins/academy";
 import { getAcademyPageData } from "@/platform/admin-shell/get-academy-page-data";
 import { Badge } from "@/components/ui/badge";
@@ -17,9 +16,8 @@ import { EmptyState } from "@/components/empty-state";
 import { ClearActivityMediaButton } from "./_components/clear-activity-media-button";
 import { CourseSettingsForm } from "./_components/course-settings-form";
 import { CourseStatusForm } from "./_components/course-status-form";
-import { CreateLessonForm } from "./_components/create-lesson-form";
+import { CreateLessonDialog } from "./_components/create-lesson-dialog";
 import { EnrollStudentForm } from "./_components/enroll-student-form";
-import { ResetQuizAttemptsButton } from "./_components/reset-quiz-attempts-button";
 
 export default async function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -34,11 +32,10 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     );
   }
 
-  const [courseResult, lessonsResult, enrollmentsResult, quizProgressResult, activityMediaResult] = await Promise.all([
+  const [courseResult, lessonsResult, enrollmentsResult, activityMediaResult] = await Promise.all([
     getCachedCourse(id),
     listLessonsByCourse({ courseId: id }),
     listEnrollmentsForCourse({ courseId: id }),
-    listQuizProgressForCourse({ courseId: id }),
     listActivitySubmissionMediaForCourse({ courseId: id }),
   ]);
 
@@ -50,9 +47,6 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   }
   if (!enrollmentsResult.success) {
     return <p className="text-sm text-destructive">Erro ao carregar matrículas: {enrollmentsResult.error.message}</p>;
-  }
-  if (!quizProgressResult.success) {
-    return <p className="text-sm text-destructive">Erro ao carregar progresso de quiz: {quizProgressResult.error.message}</p>;
   }
   if (!activityMediaResult.success) {
     return <p className="text-sm text-destructive">Erro ao carregar mídia das atividades: {activityMediaResult.error.message}</p>;
@@ -77,12 +71,6 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   const lessons = lessonsResult.data;
   const enrollments = enrollmentsResult.data;
   const activityMediaCount = activityMediaResult.data.length;
-  const quizProgressByStudent = new Map<string, typeof quizProgressResult.data>();
-  for (const entry of quizProgressResult.data) {
-    const existing = quizProgressByStudent.get(entry.studentActorId) ?? [];
-    existing.push(entry);
-    quizProgressByStudent.set(entry.studentActorId, existing);
-  }
 
   const STATUS_LABEL: Record<typeof course.status, string> = {
     draft: "Rascunho",
@@ -104,7 +92,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           {STATUS_LABEL[course.status]} · {lessons.length} {lessons.length === 1 ? "aula" : "aulas"}
         </p>
         {course.description && <p className="mt-2 text-sm text-muted-foreground">{course.description}</p>}
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="mt-4 flex flex-wrap items-end gap-3">
           <CourseStatusForm courseId={course.id} status={course.status} />
           {course.status !== "draft" && (
             <Button asChild variant="outline">
@@ -113,20 +101,28 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
               </Link>
             </Button>
           )}
+          <Button asChild variant="outline">
+            <a href={`/api/academy/courses/${course.id}/export`} download>
+              Exportar curso
+            </a>
+          </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-sm">Aulas</CardTitle>
-          {lessons.length > 0 && <span className="text-xs text-muted-foreground/56">{lessons.length}</span>}
+          <div className="flex items-center gap-3">
+            {lessons.length > 0 && <span className="text-xs text-muted-foreground/56">{lessons.length}</span>}
+            <CreateLessonDialog courseId={course.id} />
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {lessons.length === 0 ? (
             <EmptyState
               icon={<BookOpen className="size-8" strokeWidth={1.5} />}
               title="Nenhuma aula cadastrada"
-              description="Preencha o formulário abaixo para criar a primeira aula."
+              description="Use o botão acima para criar a primeira aula."
             />
           ) : (
             <div className="overflow-hidden rounded-panel border border-border">
@@ -160,7 +156,6 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
               ))}
             </div>
           )}
-          <CreateLessonForm courseId={course.id} />
         </CardContent>
       </Card>
 
@@ -177,53 +172,20 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           />
 
           <div>
-            <h3 className="text-[11px] font-semibold tracking-caps text-muted-foreground/56 uppercase">
-              Matriculados ({enrollments.length})
-            </h3>
-            {enrollments.length === 0 ? (
-              <EmptyState
-                className="mt-3"
-                icon={<Users className="size-8" strokeWidth={1.5} />}
-                title="Nenhum aluno matriculado ainda"
-                description="Use o formulário abaixo para matricular um aluno pelo email."
-              />
-            ) : (
-              <ul className="mt-3 space-y-3">
-                {enrollments.map((enrollment) => {
-                  const studentLabel = enrollment.name ?? enrollment.email ?? enrollment.actorId;
-                  const quizProgress = quizProgressByStudent.get(enrollment.actorId) ?? [];
-                  return (
-                    <li key={enrollment.actorId} className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">{studentLabel}</span>
-                      {enrollment.email && enrollment.name && <span className="text-muted-foreground/56"> ({enrollment.email})</span>}
-                      <Badge variant="secondary" className="ml-2">
-                        {enrollment.enrolledBy === "self" ? "auto-matrícula" : "matriculado manualmente"}
-                      </Badge>
-                      {quizProgress.length > 0 && (
-                        <ul className="mt-1 space-y-1 pl-4">
-                          {quizProgress.map((entry) => (
-                            <li key={entry.lessonId} className="flex items-center gap-2 text-xs text-muted-foreground/56">
-                              <span>
-                                Aula {entry.lessonPosition}: {entry.attemptsUsed}/{entry.quizMaxAttempts} tentativas
-                                {entry.exhausted && " · esgotado"}
-                              </span>
-                              {entry.exhausted && (
-                                <ResetQuizAttemptsButton
-                                  courseId={course.id}
-                                  lessonId={entry.lessonId}
-                                  studentActorId={enrollment.actorId}
-                                  studentLabel={studentLabel}
-                                />
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+            <p className="text-sm text-muted-foreground">
+              {enrollments.length} {enrollments.length === 1 ? "aluno matriculado" : "alunos matriculados"}
+              {enrollments.length > 0 && (
+                <>
+                  {" — "}
+                  <Link
+                    href={`/admin/academy/courses/${course.id}/enrolled`}
+                    className="font-medium text-primary outline-none ui-motion-base hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Ver todos →
+                  </Link>
+                </>
+              )}
+            </p>
             <EnrollStudentForm courseId={course.id} />
           </div>
         </CardContent>

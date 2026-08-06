@@ -172,3 +172,28 @@ export type EnrollmentRecord = {
   // "self" ou o actorId de quem matriculou manualmente.
   enrolledBy: string;
 };
+
+// "question" (dúvida) | "correction" (viu algo errado) — ver database/schema/index.ts
+// (lessonMessageThreads) pra por que isso nunca muda depois de criado.
+export type LessonMessageThreadType = "question" | "correction";
+export type LessonMessageSenderRole = "student" | "teacher";
+
+export type LessonMessageThreadRecord = {
+  id: string;
+  lessonId: string;
+  stepKey: string;
+  studentActorId: string;
+  type: LessonMessageThreadType;
+  createdAt: Date;
+  lastMessageAt: Date;
+};
+
+export type LessonMessageRecord = {
+  id: string;
+  threadId: string;
+  senderRole: LessonMessageSenderRole;
+  senderActorId: string;
+  body: string;
+  createdAt: Date;
+  readAt: Date | null;
+};

@@ -5,6 +5,8 @@ import {
   type LessonTrailItem,
 } from "@/plugins/academy";
 import { getAcademyCourseAccess } from "@/platform/academy-student/get-academy-course-access";
+import { DonationTeaser, getDonationSettings } from "@/plugins/donations";
+import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 
 export const dynamic = "force-dynamic";
 
@@ -53,5 +55,36 @@ export default async function LessonTrailSlot({
     return { id: lesson.lessonId, position: lesson.position, title: lesson.title, state };
   });
 
-  return <LessonTrail courseSlug={course.slug} items={items} />;
+  // Doação por baixo da trilha — companheiro quieto e sempre no mesmo lugar na coluna contextual,
+  // nunca bloqueia nem aparece como checkpoint de conclusão. Complementar à etapa de doação dentro
+  // do próprio LessonStepFlow (academy/[courseSlug]/[lessonId]/page.tsx, buildDonationStep): aquela
+  // é uma etapa que o aluno folheia como as outras; esta é visível o tempo todo, sem precisar
+  // navegar até lá. Só no modo "full" (aluno matriculado de verdade) — no preview de professor não
+  // faz sentido pedir doação pelo próprio material que a pessoa está revisando.
+  const donationsActive = await isPluginActive("donations");
+  const donationSettingsResult = donationsActive ? await getDonationSettings() : null;
+  const donationSettings = donationSettingsResult?.success ? donationSettingsResult.data : null;
+  const showDonationTeaser = Boolean(donationSettings?.pixKey && donationSettings?.recipientName && donationSettings?.recipientCity);
+
+  // sticky no wrapper, não só no <nav> interno da LessonTrail (que já é sticky top-8 sozinho) —
+  // bug reportado nesta sessão: com os dois em fluxo normal dentro do mesmo pai, o <nav> colado
+  // tinha espaço pra "andar" até o fundo do pai (que é mais alto que ele, por causa do card de
+  // doação embaixo) e deslizava por cima do card ao rolar. Com o wrapper também sticky no mesmo
+  // top-8, ele gruda primeiro — a partir daí a posição do <nav> filho já bate exatamente com onde
+  // ele grudaria sozinho, então a colagem dele vira um no-op e os dois se movem juntos, sem
+  // sobrepor nada. Não mexe em LessonTrail (componente do plugin academy, reaproveitado em outros
+  // lugares) — o ajuste fica só aqui, na composição desta página.
+  return (
+    <div className="sticky top-8 flex flex-col gap-4">
+      <LessonTrail courseSlug={course.slug} items={items} />
+      {showDonationTeaser && donationSettings && (
+        <DonationTeaser
+          title="Este material é gratuito"
+          ctaLabel="Apoiar com uma doação"
+          message={donationSettings.message}
+          suggestedAmounts={donationSettings.suggestedAmounts}
+        />
+      )}
+    </div>
+  );
 }

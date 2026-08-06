@@ -130,12 +130,16 @@ export default async function AcademyCoursePage({
     return <p className="text-sm text-destructive">Erro ao carregar progresso: {progressResult.error.message}</p>;
   }
 
-  // Pedido desta sessão: "veja onde ele [Doações] cabe nas nossas páginas... pelo menos na página
-  // de curso" — só aqui na visão completa (aluno matriculado), não em enroll-available/restricted/
-  // preview (chamada de doação não faz sentido antes do aluno ter acesso de verdade ao curso), e
-  // nunca ao final de uma aula (o próprio pedido descartou isso como "forçado"). Mesmo critério de
-  // "configurado" que o block usa (donations-pix-teaser-block.tsx) — replicado aqui porque esta
-  // página é JSX fixo, não composição de CMS, então não dá pra simplesmente soltar o block.
+  // Pedido de uma sessão anterior: "veja onde ele [Doações] cabe nas nossas páginas... pelo menos
+  // na página de curso" — só aqui na visão completa (aluno matriculado), não em enroll-available/
+  // restricted/preview (chamada de doação não faz sentido antes do aluno ter acesso de verdade ao
+  // curso). Aquela sessão também tinha descartado colocar isso "ao final de uma aula" por parecer
+  // forçado — decisão revertida a pedido explícito de uma sessão posterior, que pediu uma etapa de
+  // doação dentro do próprio fluxo da aula (ver buildDonationStep em
+  // academy/[courseSlug]/[lessonId]/page.tsx) e um companheiro fixo na coluna contextual (ver
+  // @sidebarContextual/academy/[courseSlug]/[lessonId]/page.tsx). Mesmo critério de "configurado"
+  // que o block usa (donations-pix-teaser-block.tsx) — replicado aqui porque esta página é JSX
+  // fixo, não composição de CMS, então não dá pra simplesmente soltar o block.
   const donationsActive = await isPluginActive("donations");
   const donationSettingsResult = donationsActive ? await getDonationSettings() : null;
   const donationSettings = donationSettingsResult?.success ? donationSettingsResult.data : null;

@@ -50,4 +50,18 @@ describe("matchSegments", () => {
     const matches = matchSegments(["admin"], withoutRoot);
     expect(matches.map((m) => m.definition.key)).toEqual(["admin"]);
   });
+
+  // Bug real: um wildcard de rota pública (ex: cms ":slug") registrado ANTES de rotas literais
+  // (ex: "academy", "birthdays") no array concatenado (registry.ts) não pode "roubar" o nível —
+  // literal sempre ganha, não importa a ordem de registro.
+  it("prefere um segmento literal a um wildcard no mesmo nível, mesmo quando o wildcard vem primeiro no array", () => {
+    const withWildcardFirst = [
+      dynamicBreadcrumbSegment({ key: "cms.public.slug", segments: [":slug"], paramName: "slug", resolveLabel: async () => "Página" }),
+      staticBreadcrumbSegment({ key: "academy.public.list", segments: ["academy"], label: "Academy" }),
+    ];
+
+    const matches = matchSegments(["academy"], withWildcardFirst);
+
+    expect(matches.map((m) => m.definition.key)).toEqual(["academy.public.list"]);
+  });
 });

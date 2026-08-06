@@ -113,6 +113,13 @@
       "when": 1785939840908,
       "tag": "0015_wealthy_doomsday",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786025124854,
+      "tag": "0016_round_wither",
+      "breakpoints": true
     }
   ]
 }

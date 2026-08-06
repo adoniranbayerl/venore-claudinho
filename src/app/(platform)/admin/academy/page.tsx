@@ -3,6 +3,7 @@ import { AdminCourseCard, listCourses, listLessonsByCourse } from "@/plugins/aca
 import { getAcademyPageData } from "@/platform/admin-shell/get-academy-page-data";
 import { EmptyState } from "@/components/empty-state";
 import { CreateCourseDialog } from "./_components/create-course-dialog";
+import { ImportCourseDialog } from "./_components/import-course-dialog";
 
 export default async function AcademyAdminPage() {
   const gate = await getAcademyPageData();
@@ -38,15 +39,25 @@ export default async function AcademyAdminPage() {
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">Academy</h1>
           <p className="mt-1 text-sm text-muted-foreground">Gerencie cursos, aulas e requisitos de conclusão.</p>
         </div>
-        {courses.length > 0 && <CreateCourseDialog />}
+        {courses.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3">
+            <ImportCourseDialog />
+            <CreateCourseDialog />
+          </div>
+        )}
       </div>
 
       {courses.length === 0 ? (
         <EmptyState
           icon={<GraduationCap className="size-8" strokeWidth={1.5} />}
           title="Nenhum curso cadastrado"
-          description="Crie o primeiro curso para começar a montar a trilha de aulas."
-          action={<CreateCourseDialog />}
+          description="Crie o primeiro curso para começar a montar a trilha de aulas, ou importe um curso exportado de outra instalação."
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <ImportCourseDialog />
+              <CreateCourseDialog />
+            </div>
+          }
         />
       ) : (
         <div className="grid gap-3 sm:gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr))]">

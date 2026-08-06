@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { findUserByEmail } from "@/contexts/auth";
 import {
-  configureLessonRequirements,
   createLesson,
   enrollStudent,
   listActivitySubmissionMediaForCourse,
@@ -21,65 +20,36 @@ export type CourseActionState = { error: string | null };
 
 const PLUGIN_DISABLED_ERROR = "O plugin Academy está desabilitado.";
 
+export type CreateLessonActionState = { error: string | null; lessonId: string | null };
+
 // Mesmo padrão de /admin/cms/actions.ts: erro do handler devolvido de verdade via
 // useActionState, nunca descartado silenciosamente (docs/venore-docks.md). Checagem de plugin
 // ativo (Fase 6) repetida em cada Server Action porque ela é invocável direto, sem passar pela
 // página/gate que a lista — authorizeActor sozinho não sabe que o plugin foi desabilitado.
-export async function createLessonAction(_prevState: CourseActionState, formData: FormData): Promise<CourseActionState> {
+//
+// Só título — pedido desta sessão ("form de criação de aulas parece deslocado... resto editado
+// dentro da aula"): body/videoUrl/coverMediaId/requisitos saíram do form de criação (CreateLessonForm),
+// então a composição com configureLessonRequirements que existia aqui não tem mais nenhum campo
+// que a alimente — removida, não código morto mantido "por via das dúvidas". Retorna lessonId
+// (estado maior que só {error}, mesmo precedente de ClearActivityMediaActionState abaixo) pra
+// CreateLessonDialog navegar direto pra página da aula recém-criada.
+export async function createLessonAction(_prevState: CreateLessonActionState, formData: FormData): Promise<CreateLessonActionState> {
   if (!(await isPluginActive("academy"))) {
-    return { error: PLUGIN_DISABLED_ERROR };
+    return { error: PLUGIN_DISABLED_ERROR, lessonId: null };
   }
 
   const courseId = String(formData.get("courseId") ?? "");
-  const videoUrl = String(formData.get("videoUrl") ?? "").trim();
-  const body = String(formData.get("body") ?? "").trim();
 
-  const coverMediaId = String(formData.get("coverMediaId") ?? "").trim();
-
-  const result = await createLesson({
-    courseId,
-    title: String(formData.get("title") ?? ""),
-    body: body || undefined,
-    videoUrl: videoUrl || undefined,
-    coverMediaId: coverMediaId || undefined,
-  });
+  const result = await createLesson({ courseId, title: String(formData.get("title") ?? "") });
 
   if (!result.success) {
-    return { error: result.error.message };
-  }
-
-  // Requisitos são opcionais na criação (mesmo padrão de composição de 2 handlers já usado em
-  // enrollStudentAction): só chama configureLessonRequirements se o professor marcou algum
-  // requisito no form de criação — senão a aula fica sem requisitos, ajustável depois na página
-  // da aula (LessonRequirementsForm).
-  const quizEnabled = formData.get("quizEnabled") === "on";
-  const readTextEnabled = formData.get("readTextEnabled") === "on";
-  const watchVideoEnabled = formData.get("watchVideoEnabled") === "on";
-  if (readTextEnabled || watchVideoEnabled || quizEnabled) {
-    const quizPassThresholdPercent = String(formData.get("quizPassThresholdPercent") ?? "").trim();
-    const quizMaxAttempts = String(formData.get("quizMaxAttempts") ?? "").trim();
-
-    const requirementsResult = await configureLessonRequirements({
-      lessonId: result.data.id,
-      readTextEnabled,
-      watchVideoEnabled,
-      quizEnabled,
-      quizPassThresholdPercent: quizEnabled && quizPassThresholdPercent ? Number(quizPassThresholdPercent) : undefined,
-      quizMaxAttempts: quizEnabled && quizMaxAttempts ? Number(quizMaxAttempts) : undefined,
-      // Sem toggle no form de criação ainda (LessonRequirementsForm, editável depois na página da
-      // aula, é quem cobre activityEnabled hoje) — ver Known Gaps.
-      activityEnabled: false,
-    });
-
-    if (!requirementsResult.success) {
-      return { error: requirementsResult.error.message };
-    }
+    return { error: result.error.message, lessonId: null };
   }
 
   revalidatePath("/admin/academy");
   revalidatePath(`/admin/academy/courses/${courseId}`);
   revalidatePath(`/admin/academy/lessons/${result.data.id}`);
-  return { error: null };
+  return { error: null, lessonId: result.data.id };
 }
 
 // Um único form/action pro seletor de status do curso (CourseStatusForm) em vez de dois botões —
@@ -175,6 +145,7 @@ export async function resetQuizAttemptsAction(
   }
 
   revalidatePath(`/admin/academy/courses/${courseId}`);
+  revalidatePath(`/admin/academy/courses/${courseId}/enrolled/${studentActorId}`);
   return { error: null };
 }
 

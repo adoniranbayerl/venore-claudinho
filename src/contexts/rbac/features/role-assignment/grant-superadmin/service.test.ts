@@ -24,11 +24,19 @@ vi.mock("../../../user-context-cache", () => ({
   invalidateUserContext: (...args: unknown[]) => invalidateUserContext(...args),
 }));
 
+const ensureBaseRbacDataSeeded = vi.fn();
+
+vi.mock("../../../ensure-base-rbac-data", () => ({
+  ensureBaseRbacDataSeeded: (...args: unknown[]) => ensureBaseRbacDataSeeded(...args),
+}));
+
 describe("grantSuperadmin", () => {
   beforeEach(() => {
     insertUserRole.mockReset();
     findRoleIdByKey.mockReset();
     invalidateUserContext.mockReset();
+    ensureBaseRbacDataSeeded.mockReset();
+    ensureBaseRbacDataSeeded.mockResolvedValue(undefined);
   });
 
   it("grants the superadmin role to the given user", async () => {
@@ -41,6 +49,24 @@ describe("grantSuperadmin", () => {
     expect(findRoleIdByKey).toHaveBeenCalledWith("superadmin");
     expect(insertUserRole).toHaveBeenCalledWith("user-1", "role-superadmin");
     expect(invalidateUserContext).toHaveBeenCalledWith("user-1");
+    expect(result).toEqual({ success: true, data: undefined });
+  });
+
+  it("self-heals base RBAC data before looking up the role, so it still succeeds on a fresh DB", async () => {
+    // Simula uma tabela roles vazia (fresh DB) que só passa a ter a linha "superadmin" depois
+    // que ensureBaseRbacDataSeeded roda — prova que a ordem de chamada importa e que o fluxo se
+    // recupera sozinho em vez de falhar com "rbac.roles.superadmin_role_missing".
+    ensureBaseRbacDataSeeded.mockImplementation(async () => {
+      findRoleIdByKey.mockResolvedValue("role-superadmin");
+    });
+    findRoleIdByKey.mockResolvedValue(null);
+    insertUserRole.mockResolvedValue(undefined);
+
+    const { grantSuperadmin } = await import("./service");
+    const result = await grantSuperadmin({ userId: "user-1" });
+
+    expect(ensureBaseRbacDataSeeded).toHaveBeenCalledTimes(1);
+    expect(ensureBaseRbacDataSeeded.mock.invocationCallOrder[0]).toBeLessThan(findRoleIdByKey.mock.invocationCallOrder[0]);
     expect(result).toEqual({ success: true, data: undefined });
   });
 

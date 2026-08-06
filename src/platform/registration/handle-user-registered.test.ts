@@ -22,6 +22,12 @@ vi.mock("@/contexts/settings", () => ({
   getSetting: (...args: unknown[]) => getSetting(...args),
 }));
 
+const registerPlugins = vi.fn();
+
+vi.mock("@/platform/plugin-engine/register-plugins", () => ({
+  registerPlugins: (...args: unknown[]) => registerPlugins(...args),
+}));
+
 describe("handleUserRegistered", () => {
   const user = { id: "user-1", email: "a@b.com", name: "A" };
 
@@ -31,6 +37,8 @@ describe("handleUserRegistered", () => {
     superadminExists.mockReset();
     grantSuperadmin.mockReset();
     getSetting.mockReset();
+    registerPlugins.mockReset();
+    registerPlugins.mockResolvedValue(undefined);
     superadminExists.mockResolvedValue({ success: true, data: true });
   });
 
@@ -111,6 +119,7 @@ describe("handleUserRegistered", () => {
     expect(provisionUser).not.toHaveBeenCalled();
     expect(grantDefaultRoleOnRegistration).not.toHaveBeenCalled();
     expect(getSetting).not.toHaveBeenCalled();
+    expect(registerPlugins).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ success: true, data: undefined });
   });
 

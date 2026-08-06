@@ -1,4 +1,5 @@
 import { beginOperation, endOperation, recordAuditEvent } from "@/observability";
+import { ensureBaseRbacDataSeeded } from "../../../ensure-base-rbac-data";
 import { invalidateUserContext } from "../../../user-context-cache";
 import { insertUserRole } from "../assign-role-to-user/store";
 import { findRoleIdByKey } from "../assign-default-role/store";
@@ -11,6 +12,7 @@ export async function grantSuperadmin(command: GrantSuperadminInput): Promise<Gr
     kind: "write",
   });
 
+  await ensureBaseRbacDataSeeded();
   const roleId = await findRoleIdByKey("superadmin");
   if (!roleId) {
     const error = {

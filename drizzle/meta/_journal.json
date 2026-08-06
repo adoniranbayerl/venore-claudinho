@@ -190,6 +190,34 @@
       "when": 1785852333029,
       "tag": "0026_flimsy_amphibian",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1786020066216,
+      "tag": "0027_seed_base_role_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1786020072483,
+      "tag": "0028_seed_example_content",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1786024879812,
+      "tag": "0029_clear_mock_taxonomy",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1786024882235,
+      "tag": "0030_aprenda_musica_navigation_and_content",
+      "breakpoints": true
     }
   ]
 }

@@ -266,7 +266,12 @@ async function RowBlock({ block, renderBlocks }: BlockRendererProps) {
   return (
     <div className={cn("grid", resolveRowGridClasses(block.data, columns), gap, align, surface)}>
       {areas.map(({ key, content }) => (
-        <div key={key}>{content}</div>
+        // space-y-4: cada coluna nunca tinha espaçamento próprio entre os blocos empilhados
+        // dentro dela (bug — heading/texto/botão renderizavam colados). Mesmo passo de
+        // SECTION_PADDING_Y_CLASSES/RICHTEXT_CLASSES já usado no resto do page-builder.
+        <div key={key} className="space-y-4">
+          {content}
+        </div>
       ))}
     </div>
   );
@@ -570,7 +575,12 @@ async function SectionBlock({ block, renderBlocks }: BlockRendererProps) {
 
   return (
     <section className={cn(background, paddingY, paddingX)}>
-      <div className={cn("mx-auto w-full space-y-4", maxWidth)}>
+      {/* space-y-6 (não -4): uma seção empilha blocos estruturalmente distintos (um heading, um
+          card-grid inteiro, um botão) — pede mais respiro que o ritmo interno de uma coluna de
+          row (RowBlock, mais acima) ou de parágrafos do mesmo texto corrido (RICHTEXT_CLASSES,
+          space-y-3). Hierarquia de espaçamento do sistema: 3 (mesmo parágrafo) < 4 (mesma
+          coluna/cluster) < 6 (blocos distintos de uma seção). */}
+      <div className={cn("mx-auto w-full space-y-6", maxWidth)}>
         {(title || IconComponent) && (
           <IconTitleRow icon={IconComponent} align={titleAlign} iconClassName="size-6 text-foreground">
             {title && <h2 className="text-2xl font-semibold text-foreground">{title}</h2>}

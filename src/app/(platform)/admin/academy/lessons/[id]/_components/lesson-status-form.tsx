@@ -27,7 +27,7 @@ export function LessonStatusForm({
   useActionToast({ pending, error: state.error, successMessage: "Status da aula atualizado." });
 
   return (
-    <form action={formAction} className="flex flex-wrap items-center gap-2">
+    <form action={formAction} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="id" value={lessonId} />
       <input type="hidden" name="courseId" value={courseId} />
       <label className="flex flex-col gap-1 text-sm text-muted-foreground">

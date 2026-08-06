@@ -54,7 +54,13 @@ import "./scheduling";
 export { recordEntryView } from "./view-tracking";
 
 export { cmsAdminNavigationItems } from "./admin-navigation";
-export { cmsBreadcrumbSegments, getCachedEntry, getCachedMenuTree } from "./breadcrumbs";
+export {
+  cmsBreadcrumbSegments,
+  getCachedEntry,
+  getCachedMenuTree,
+  getCachedCategoryBySlug,
+  getCachedPublishedEntryBySlug,
+} from "./breadcrumbs";
 
 export type {
   ContentTypeRecord,

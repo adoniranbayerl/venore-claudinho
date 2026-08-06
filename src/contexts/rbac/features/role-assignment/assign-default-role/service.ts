@@ -1,4 +1,5 @@
 import { beginOperation, endOperation } from "@/observability";
+import { ensureBaseRbacDataSeeded } from "../../../ensure-base-rbac-data";
 import { invalidateUserContext } from "../../../user-context-cache";
 import { insertUserRole } from "../assign-role-to-user/store";
 import { findRoleIdByKey } from "./store";
@@ -16,6 +17,7 @@ export async function grantDefaultRoleOnRegistration(command: GrantDefaultRoleIn
     kind: "write",
   });
 
+  await ensureBaseRbacDataSeeded();
   const roleKey = defaultRegistrationRoleKey();
   const roleId = await findRoleIdByKey(roleKey);
   if (!roleId) {

@@ -1,5 +1,11 @@
 export { importExportAdminNavigationItems } from "./admin-navigation";
 
+// Genéricos o bastante (não amarrados a ExportManifest/CMS) pra outro context/plugin reaproveitar
+// o mesmo envelope .zip e o mesmo remap de `data.mediaId` em composição sem duplicar a lógica —
+// ver academy/features/courses/{export,import}-course-bundle.
+export { buildExportZip, parseExportZip, type ZipFileEntry } from "./zip-codec";
+export { remapCompositionMediaIds } from "./composition-media-refs";
+
 export { exportSiteBundleHandler as exportSiteBundle } from "./features/export-site/export-site-bundle/handler";
 export { toExportZip } from "./features/export-site/export-site-bundle/view";
 export type { ExportSiteBundleData, ExportSiteBundleResult } from "./features/export-site/export-site-bundle/types";

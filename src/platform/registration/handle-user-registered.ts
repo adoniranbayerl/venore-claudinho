@@ -1,6 +1,7 @@
 import { provisionUser } from "@/contexts/auth";
 import { grantDefaultRoleOnRegistration, grantSuperadmin, superadminExists } from "@/contexts/rbac";
 import { getSetting } from "@/contexts/settings";
+import { registerPlugins } from "@/platform/plugin-engine/register-plugins";
 import type { OperationResult } from "@/shared/types";
 
 export type UserRegisteredInput = {
@@ -28,6 +29,11 @@ async function isApprovalRequired(): Promise<boolean> {
 // nem auth nem rbac podem importar um do outro para fechar este fluxo. auth.config.ts (evento
 // createUser do Auth.js) chama esta função em vez de conhecer rbac diretamente.
 export async function handleUserRegistered(user: UserRegisteredInput): Promise<OperationResult<void>> {
+  // Garante settings default de plugin ativo (contexts/settings) antes do primeiro acesso — hoje
+  // registerPlugins() só roda lazy em algumas páginas admin, nunca no bootstrap de fato.
+  // Idempotente e cacheado 30s (register-plugins.ts) — seguro chamar em todo registro.
+  await registerPlugins();
+
   // Bootstrap de superadmin (docs/venore-docks.md — Autenticação / Bootstrap de superadmin):
   // se ninguém no sistema tem o papel superadmin ainda, o próximo usuário a se registrar pula
   // pending e o papel padrão — independente da setting de aprovação estar ligada.

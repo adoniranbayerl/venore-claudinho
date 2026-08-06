@@ -2,12 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  getMessageThread,
   markLessonMaterialRead,
   markLessonSectionRead,
   markTextRead,
+  markThreadRead,
   markVideoWatched,
+  sendStudentMessage,
   submitLessonActivity,
   submitQuizAttempt,
+  type LessonMessageThreadType,
 } from "@/plugins/academy";
 import { uploadActivitySubmissionMediaAsset } from "@/contexts/media";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
@@ -222,6 +226,56 @@ export async function submitLessonActivityFileAction(
       contentText: result.data.contentText,
       mediaUrl: uploadResult.data.url,
       mediaFilename: uploadResult.data.filename,
+    },
+  };
+}
+
+export type LessonMessageItem = { id: string; senderRole: "student" | "teacher"; body: string; createdAt: string };
+
+// Mesmo padrão "de dados" das actions de submissão/revisão no admin (courses/[id]/enrolled/
+// [studentActorId]/actions.ts) — chamadas via startTransition no client, não presas a um <form>
+// fixo. markThreadRead é disparado junto (não é erro se não houver nada pra marcar) porque abrir
+// o diálogo já É "ler" as respostas do professor, mesmo raciocínio do lado admin.
+export async function getLessonMessageThreadAction(lessonId: string, stepKey: string): Promise<LessonMessageItem[]> {
+  if (!(await isPluginActive("academy"))) return [];
+
+  const result = await getMessageThread({ lessonId, stepKey });
+  if (!result.success) return [];
+
+  if (result.data.thread) {
+    await markThreadRead({ threadId: result.data.thread.id });
+  }
+
+  return result.data.messages.map((message) => ({
+    id: message.id,
+    senderRole: message.senderRole,
+    body: message.body,
+    createdAt: message.createdAt.toISOString(),
+  }));
+}
+
+export async function sendLessonMessageAction(
+  lessonId: string,
+  stepKey: string,
+  type: LessonMessageThreadType,
+  body: string,
+): Promise<{ error: string | null; message: LessonMessageItem | null }> {
+  if (!(await isPluginActive("academy"))) {
+    return { error: PLUGIN_DISABLED_ERROR, message: null };
+  }
+
+  const result = await sendStudentMessage({ lessonId, stepKey, type, body });
+  if (!result.success) {
+    return { error: result.error.message, message: null };
+  }
+
+  return {
+    error: null,
+    message: {
+      id: result.data.message.id,
+      senderRole: result.data.message.senderRole,
+      body: result.data.message.body,
+      createdAt: result.data.message.createdAt.toISOString(),
     },
   };
 }

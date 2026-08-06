@@ -14,6 +14,7 @@ import {
   listLessonMaterialsForStudent,
   listLessonSectionsByLesson,
   listLessonSectionsForStudent,
+  listMessageThreads,
   listQuizQuestionsByLesson,
   listQuizQuestionsForStudent,
 } from "@/plugins/academy";
@@ -29,6 +30,9 @@ import type {
 import { getEntryComposition, type Composition } from "@/contexts/cms";
 import { getMediaAsset } from "@/contexts/media";
 import { getAcademyCourseAccess } from "@/platform/academy-student/get-academy-course-access";
+import { buildDonationPixCode, getDonationSettings, type DonationPixCode, type DonationSettings } from "@/plugins/donations";
+import { DonationWidget } from "@/plugins/donations/components/donation-widget";
+import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 import { BlockRenderer } from "@/components/page-builder/block-renderer";
 import { LessonVideoEmbed } from "./_components/lesson-video-embed";
 import { QuizForm } from "./_components/quiz-form";
@@ -133,7 +137,7 @@ function buildVideoStep(url: string, readMark?: LessonStepReadMark): LessonFlowS
     kicker: "Vídeo",
     readMark,
     content: (
-      <div className="overflow-hidden rounded-lg border border-border">
+      <div key="video" className="overflow-hidden rounded-lg border border-border">
         <LessonVideoEmbed url={url} />
       </div>
     ),
@@ -146,7 +150,7 @@ function buildSectionStep(section: SectionItem, readMark?: LessonStepReadMark): 
     kicker: "Leitura",
     readMark,
     content: (
-      <div className="space-y-4">
+      <div key={section.id} className="space-y-4">
         <h2 className="text-sm font-semibold text-foreground">{section.title}</h2>
         <article className="prose max-w-none text-sm">
           <BlockRenderer blocks={section.composition} mode="published" />
@@ -161,8 +165,12 @@ function buildTextFallbackStep(readMark: LessonStepReadMark): LessonFlowStep {
     id: "text-fallback",
     kicker: "Leitura",
     readMark,
+    // "text-fallback" nunca é um stepKey válido pro sistema de mensagens (shared/lesson-messages-
+    // store.ts) — é um caso legado (aula com readTextEnabled mas zero seções autoradas), não vale
+    // dar um ponto de contato a uma etapa que tende a ser substituída por seções de verdade.
+    allowMessages: false,
     content: (
-      <p className="text-center text-sm text-muted-foreground">
+      <p key="text-fallback" className="text-center text-sm text-muted-foreground">
         Marque esta aula como lida para acompanhar seu progresso.
       </p>
     ),
@@ -178,7 +186,9 @@ function buildMaterialsStep(
   return {
     id: "materials",
     kicker: "Material complementar",
-    content: <LessonMaterialsList courseSlug={courseSlug} lessonId={lessonId} materials={materials} progressMode={progressMode} />,
+    content: (
+      <LessonMaterialsList key="materials" courseSlug={courseSlug} lessonId={lessonId} materials={materials} progressMode={progressMode} />
+    ),
   };
 }
 
@@ -186,7 +196,7 @@ function buildExamplesStep(examples: LessonExampleStepItem[]): LessonFlowStep {
   return {
     id: "examples",
     kicker: "Exemplo sonoro",
-    content: <LessonExamplesList examples={examples} />,
+    content: <LessonExamplesList key="examples" examples={examples} />,
   };
 }
 
@@ -195,9 +205,9 @@ function buildActivityStep(courseSlug: string, lessonId: string, activities: Act
     id: "activity",
     kicker: "Atividade prática",
     content: interactive ? (
-      <ActivitiesList courseSlug={courseSlug} lessonId={lessonId} activities={activities} />
+      <ActivitiesList key="activity" courseSlug={courseSlug} lessonId={lessonId} activities={activities} />
     ) : (
-      <div className="space-y-3">
+      <div key="activity" className="space-y-3">
         {activities.map((activity) => (
           <div key={activity.id} className="rounded-md border border-border px-3.5 py-3">
             <p className="text-sm font-medium text-foreground">{activity.title}</p>
@@ -212,12 +222,39 @@ function buildActivityStep(courseSlug: string, lessonId: string, activities: Act
   };
 }
 
+// Etapa dedicada à doação, ao final da sequência — pedido explícito desta sessão ("entre as
+// etapas da lesson, crie uma etapa sobre a doação... com um pequeno texto falando que o material é
+// gratuito"). Sem `readMark`: nunca bloqueia avançar, é só mais uma etapa que o aluno folheia como
+// as outras (Anterior/Avançar). Isso reverte, de propósito e a pedido do usuário, a decisão da
+// sessão anterior de nunca colocar doação "ao final de uma aula" (comentário em
+// academy/[courseSlug]/page.tsx) — mantida como estava lá porque descreve por que aquele
+// texto ficou daquele jeito, não porque ainda vale aqui.
+function buildDonationStep(settings: DonationSettings, code: DonationPixCode): LessonFlowStep {
+  return {
+    id: "donation",
+    kicker: "Apoie",
+    allowMessages: false,
+    // Pedido desta sessão: "Voltar ao curso"/"Próxima aula" acima do "Faça uma doação", não
+    // abaixo (ver LessonFlowStep.navBeforeContent em lesson-step-flow.tsx).
+    navBeforeContent: true,
+    content: (
+      <div key="donation" className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Este material é gratuito para professores e autodidatas. Se esta aula te ajudou, considere apoiar quem
+          produz o conteúdo.
+        </p>
+        <DonationWidget title={settings.title} message={settings.message} suggestedAmounts={settings.suggestedAmounts} initialCode={code} />
+      </div>
+    ),
+  };
+}
+
 function buildQuizStep(content: ReactNode, badge: ReactNode): LessonFlowStep {
   return {
     id: "quiz",
     kicker: "Quiz",
     content: (
-      <div className="space-y-3">
+      <div key="quiz" className="space-y-3">
         {badge}
         {content}
       </div>
@@ -574,6 +611,36 @@ export default async function AcademyLessonPage({
     steps.push(buildQuizStep(quizContent, lesson.requirements.quizPassed ? <DoneBadge label="Concluída" /> : null));
   }
 
+  // Mesmo critério "configurado" de academy/[courseSlug]/page.tsx (chave PIX + destinatário
+  // preenchidos) e mesmo escopo "só modo full" do slot @sidebarContextual — só aluno matriculado
+  // de verdade, nunca preview de professor nem amostra grátis. Código PIX gerado uma vez aqui
+  // (primeiro valor sugerido, igual /donations) — o widget troca o próprio código ao escolher
+  // outro valor, sem precisar de round-trip nesta página.
+  const donationsActive = await isPluginActive("donations");
+  const donationSettingsResult = donationsActive ? await getDonationSettings() : null;
+  const donationSettings = donationSettingsResult?.success ? donationSettingsResult.data : null;
+  const donationsConfigured = Boolean(
+    donationSettings?.pixKey && donationSettings?.recipientName && donationSettings?.recipientCity,
+  );
+  if (donationsConfigured && donationSettings) {
+    const donationCodeResult = await buildDonationPixCode({ amount: donationSettings.suggestedAmounts[0] ?? null });
+    if (donationCodeResult.success) {
+      steps.push(buildDonationStep(donationSettings, donationCodeResult.data));
+    }
+  }
+
+  // Só no modo "full" (aqui) — preview de professor e amostra grátis não têm matrícula real, sem
+  // "pra quem" mandar a mensagem. threadsByStepKey só carrega unreadCount (LessonStepFlow só
+  // precisa disso pro pontinho no botão) — histórico completo é lazy, via getLessonMessageThreadAction
+  // quando o aluno abre o diálogo de uma etapa específica.
+  const messageThreadsResult = await listMessageThreads({ lessonId });
+  const messaging = {
+    lessonId,
+    threadsByStepKey: messageThreadsResult.success
+      ? Object.fromEntries(messageThreadsResult.data.map((thread) => [thread.stepKey, { unreadCount: thread.unreadCount }]))
+      : {},
+  };
+
   return (
     <div className="space-y-6">
       {blocked && (
@@ -582,7 +649,7 @@ export default async function AcademyLessonPage({
         </p>
       )}
       <LessonHeaderCard backHref={`/academy/${course.slug}`} title={lesson.title} />
-      <LessonStepFlow steps={steps} courseHref={`/academy/${course.slug}`} nextLessonHref={nextLessonHref} />
+      <LessonStepFlow steps={steps} courseHref={`/academy/${course.slug}`} nextLessonHref={nextLessonHref} messaging={messaging} />
     </div>
   );
 }
