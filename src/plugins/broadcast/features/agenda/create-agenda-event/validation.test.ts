@@ -1,0 +1,28 @@
+import { describe, expect, it } from "vitest";
+import { validateCreateAgendaEventInput } from "./validation";
+
+describe("validateCreateAgendaEventInput", () => {
+  it("accepts a valid agenda, title and date", () => {
+    expect(
+      validateCreateAgendaEventInput({ agendaId: "a1", title: "Reunião geral", startAt: new Date("2026-09-01T14:00:00Z") }),
+    ).toBeNull();
+  });
+
+  it("rejects a missing agendaId", () => {
+    expect(validateCreateAgendaEventInput({ agendaId: "", title: "Reunião", startAt: new Date() })?.code).toBe(
+      "broadcast.create-agenda-event.invalid_agenda",
+    );
+  });
+
+  it("rejects an empty title", () => {
+    expect(validateCreateAgendaEventInput({ agendaId: "a1", title: "  ", startAt: new Date() })?.code).toBe(
+      "broadcast.create-agenda-event.invalid_title",
+    );
+  });
+
+  it("rejects an invalid date", () => {
+    expect(validateCreateAgendaEventInput({ agendaId: "a1", title: "Evento", startAt: new Date("not-a-date") })?.code).toBe(
+      "broadcast.create-agenda-event.invalid_date",
+    );
+  });
+});

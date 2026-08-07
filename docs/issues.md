@@ -64,6 +64,118 @@ de fora, e (quando aplicável) de que depende para ser retomado.
   têm cobertura). Se entrar em escopo depois, não copiar esse parser sem revisão — pelo menos
   trocar por um parser de CSV de verdade (aspas/escape) e cobrir com teste.
 
+## Plugin `broadcast` (Broadcast Studio — switcher de cenas em camadas pra TV)
+
+Sessão implementou o plugin completo (schema, playlist dual-source com scan de pasta + itens de
+`media.assets`, streaming com Range request, realtime via SSE/pub-sub em memória, view de saída
+standalone pra TV com layers/transições, painel admin). O que ficou deliberadamente fora:
+
+- **Editor de layer é guiado por tipo (RESOLVIDO — não é mais JSON cru).** Primeira versão expunha
+  `config`/`drawerVariant` como textarea de JSON livre; usuário sinalizou "tá mto confuso, não tão
+  dev". Reescrito: `_components/scenes-section.tsx` tem um `<Select>` de tipo que revela só os
+  campos daquele tipo (`video` → escolher playlist por nome; `text` → texto + input de cor nativo;
+  `image` → `MediaPickerField`, o mesmo componente usado em Academy/CMS; etc), presets de posição
+  (botões "Tela cheia"/"Rodapé"/...) além dos 4 números de ajuste fino, e uma caixa de marcar pra
+  ativar a variante de "gaveta" em vez de JSON. `actions.ts` (`buildLayerConfigFromFields`/
+  `buildDrawerVariantFromFields`) monta o `config` a partir desses campos nomeados. Ainda falta um
+  editor visual de arrastar/redimensionar (fast-follow real, não crítico — os presets cobrem os
+  casos mais comuns).
+- **Editar cena/layer (RESOLVIDO).** `EditSceneDialog`/`EditLayerDialog` em `scenes-section.tsx`
+  reusam os mesmos campos guiados do formulário de criar (via `LayerTypeFields` compartilhado),
+  pré-preenchidos com os valores atuais. O tipo de uma layer continua imutável na edição (exclui e
+  recria pra trocar) — decisão deliberada, não um gap.
+- **Sem reordenação de playlist/cena/layer via UI** (drag-and-drop). As colunas `order`/`zIndex`
+  existem no schema e são respeitadas na renderização — dá pra editar o número direto no diálogo de
+  editar cena, só não há arrastar-e-soltar.
+- **Lista de tipos de layer simplificada — RESOLVIDO (2ª rodada).** Pedido explícito: "simplifica
+  tudo, não preciso de tantas opções". `clock`/`lower-third`/`custom-html` foram removidos (o
+  primeiro virou `info`, superset com clima; os outros dois eram redundantes com `text` + preset de
+  posição) — nenhum resquício de "renderiza só texto escapado" continua existindo, porque o tipo
+  que fazia isso (`custom-html`) foi removido, não só restrito. Migration `0001` remapeia dados
+  existentes (`clock`→`info`, `lower-third`/`custom-html`→`text`) — nenhuma linha antiga quebrou.
+  Lista final: `video` (agora playlist mista vídeo/imagem/site), `text`, `image`, `info`
+  (relógio+clima), `news`, `agenda` — os três últimos sem nenhum campo manual, resolvidos sozinhos
+  a partir de `broadcast.region` e da agenda interna.
+- **Playlist mista (vídeo/imagem/site) + esconder/mostrar item — RESOLVIDO.** `playlist_items`
+  ganhou `sourceType: "webpage"` (guarda `url`, sem arquivo) e `hidden` (esconde da reprodução sem
+  apagar o cadastro). "kind" (vídeo vs. imagem) nunca é uma coluna — é derivado em
+  `get-output-state` a partir da extensão (local) ou do `contentType` resolvido via
+  `getMediaAsset` (media-asset), pra não duplicar fonte de verdade. O scan de pasta já descobre
+  imagem junto com vídeo (mesma allowlist de extensão, ampliada).
+- **Clima e notícias por região — RESOLVIDO, com ressalvas.** `broadcast.region` (cidade, texto
+  livre) alimenta duas fontes externas cacheadas em `runtime/region-weather.ts` (Open-Meteo,
+  geocoding + forecast, sem chave) e `runtime/region-news.ts` (NewsData.io, precisa de
+  `NEWSDATA_API_KEY` no `.env` — sem a chave, a camada "Notícias" fica vazia sem erro, não quebra a
+  página). Ambas degradam pra `null`/`[]` em qualquer falha (região não configurada, API fora do
+  ar, timeout) — a camada "info" nunca perde o relógio por causa do clima ter falhado.
+  **Correção pós-sessão:** a implementação original usava o parâmetro `region` da NewsData.io (é o
+  que a documentação pública deles indica pra filtrar por cidade/estado) — na prática, esse
+  parâmetro retorna `403 Access Denied` no plano free ("upgrade your plan or contact support"),
+  descoberto só testando direto contra a API com a chave real. Trocado por `q` (busca livre, usa só
+  o primeiro pedaço do texto de `broadcast.region` antes da vírgula — ex: "Curitiba, PR" vira
+  "Curitiba"), que funciona no free tier e devolve resultado com imagem. Lição: `EMPTY_RESULT_CACHE_TTL_SECONDS`/
+  `FAILURE_CACHE_TTL_SECONDS` (60s) foram adicionados nos dois resolvers depois disso — resultado
+  vazio/falho não fica preso no cache pelo TTL cheio (15-20min) mais, senão um erro de configuração
+  já corrigido continua "invisível" até o cache expirar sozinho.
+- **Agenda interna — RESOLVIDO, escopo propositalmente mínimo, virou múltiplas agendas na 3ª
+  rodada.** Título + data/hora + descrição opcional, sem recorrência, sem convidados, sem
+  categoria — exatamente o pedido ("nossa própria agenda interna"), não um calendário genérico.
+  Uma instalação tem N agendas nomeadas (`broadcast_agendas`: semanal, mensal, faculdade,
+  colégio...), cada uma com `displaySeconds` próprio; a camada "Agenda" alterna entre as que têm
+  pelo menos um evento futuro (`get-output-state` → `resolveAgendaRotation`, agenda vazia não entra
+  no rodízio pra não desperdiçar tempo de tela).
+- **3ª rodada — "3 views" (playlist principal + coluna de agenda + aviso rápido) — RESOLVIDO.**
+  Pedido: coluna direita 20% com logo + rodízio de agendas ("UX premium"); playlist principal
+  (esquerda) tocando vídeo/imagem/site/notícias juntos; "lower third" só pra avisos rápidos,
+  invisível por padrão, sobrepondo tudo quando ativo. Implementado como:
+  - **Notícias mescladas na playlist principal** (não mais uma camada própria obrigatória):
+    **[5ª rodada]** virou um item de playlist de verdade (`sourceType: "news"`, feature
+    `add-news-playlist-item`), não mais um checkbox `layers.config.includeNews` — pedido direto:
+    "o componente notícia deve aparecer na playlist para ser manipulado" (reordenar/remover como
+    qualquer outro item). `durationSeconds` do item é o teto do **bloco inteiro** (todas as
+    manchetes rodando, default 30s — `DEFAULT_NEWS_BLOCK_DURATION_SECONDS`), não por manchete; o
+    rodízio interno de manchetes dentro do bloco é um timer separado e mais rápido
+    (`NEWS_ARTICLE_ROTATION_MS = 6000` em `layer-renderer.tsx`, componente `NewsCardRotator`
+    compartilhado com a camada `news` isolada). Itens `webpage` ganharam default próprio de 60s
+    (`DEFAULT_WEBPAGE_SLIDE_DURATION_SECONDS`, vs. 15s de imagem) — precisa de mais tempo pra ler
+    a página. O card de notícia também mudou de imagem full-bleed + título pequeno sobreposto pra
+    banner de imagem menor no topo + título grande + `description` (novo campo em
+    `RegionNewsArticle`, mapeado do `description` que a NewsData.io já devolvia sem ser usado).
+  - **Painel de agenda "premium"**: logo da marca (`getBrandConfig("png")`, resolvido em
+    `get-output-state` só quando há camada `agenda` na cena) + cards por evento (badge de
+    data/mês, destaque de cor pro evento de hoje) + pontos indicando posição no rodízio + fade
+    entre trocas de agenda. Presets de posição "Coluna esquerda (80%)"/"Coluna direita (20%)"
+    adicionados em `scenes-section.tsx` pra montar o layout descrito com um clique cada.
+  - **Aviso rápido (`alert`)**: tabela `broadcast_alerts` (mensagem + `expiresAt`, sem fila — um
+    novo aviso publicado sempre substitui o anterior, mesmo que ainda não tenha expirado).
+    Controle fica na aba Saídas (`QuickAlertPanel`: mensagem + duração em segundos + "Publicar"/
+    "Remover agora"), porque é global (não por cena/saída) e é uma ação de controle ao vivo, mesmo
+    lugar de trocar cena/abrir gaveta. Na view de saída, a camada `alert` **ignora a geometria
+    configurada** — `LayerRenderer` a trata num caminho separado (`position: fixed`, z-index
+    9999), só existe como layer pra o operador decidir *em quais cenas* o aviso pode aparecer, não
+    *onde* ele aparece (isso é sempre rodapé, sempre por cima).
+- **Risco não verificado: `infrastructure/cache/memory-cache.ts` pode sofrer o mesmo bug do
+  `output-bus.ts` (módulo duplicado entre Server Action/Route Handler/Server Component).** Usado
+  pelos resolvers de clima/notícias (TTL 15-20min) — se as chamadas vierem de camadas de bundle
+  diferentes, o cache nunca "pega" (sempre miss, refaz a chamada externa toda vez) em vez de servir
+  dado errado — não é um bug de correção, só de custo/rate-limit da API de notícias. Não
+  investigado a fundo nesta sessão porque `get-output-state` é chamado só de Server
+  Component/Route Handler (nunca Server Action), cenário onde o bug do `output-bus` não foi
+  reproduzido. [NÃO VERIFICADO] se esses dois tipos de camada de fato compartilham módulo aqui.
+- **Pub/sub de output (`runtime/output-bus.ts`) é em memória, assume processo Node único.** Bate
+  com o requisito confirmado nesta sessão (servidor local, rede local) — se o deploy algum dia
+  virar multi-instância/serverless, precisa virar Redis pub/sub ou equivalente. **Nota de
+  implementação:** o estado precisou ser guardado em `globalThis`, não numa variável de módulo
+  comum — bug real encontrado em produção: Server Actions e o Route Handler de SSE acabam em
+  "camadas" de bundle diferentes no Next.js, cada uma com sua própria cópia avaliada do módulo, e
+  eventos publicados numa nunca chegavam na outra (sintoma: painel atualiza o banco, TV só reflete
+  depois de F5). `globalThis` é o único objeto garantido compartilhado entre as camadas dentro do
+  mesmo processo.
+- **Fonte de vídeo "local" (pasta do filesystem) só funciona em servidor self-hosted com disco
+  persistente** — não funciona em serverless (Vercel). Fonte "media-asset" (Blob) funciona nos
+  dois cenários. Decisão confirmada com o usuário no início da sessão, não uma limitação
+  descoberta depois.
+
 
 
 ######

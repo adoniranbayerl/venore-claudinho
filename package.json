@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "npm run db:migrate && npm run db:migrate:academy && npm run db:migrate:birthdays && next build",
+    "vercel-build": "npm run db:migrate && npm run db:migrate:academy && npm run db:migrate:birthdays && npm run db:migrate:broadcast && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -17,6 +17,8 @@
     "db:migrate:academy": "drizzle-kit migrate --config=src/plugins/academy/drizzle.config.ts",
     "db:generate:birthdays": "drizzle-kit generate --config=src/plugins/birthdays/drizzle.config.ts",
     "db:migrate:birthdays": "drizzle-kit migrate --config=src/plugins/birthdays/drizzle.config.ts",
+    "db:generate:broadcast": "drizzle-kit generate --config=src/plugins/broadcast/drizzle.config.ts",
+    "db:migrate:broadcast": "drizzle-kit migrate --config=src/plugins/broadcast/drizzle.config.ts",
     "db:seed:admin-access": "node --env-file=.env scripts/seed-admin-access-permission.mjs",
     "db:seed:media-manage": "node --env-file=.env scripts/seed-media-manage-permission.mjs",
     "db:seed:cms-menus-manage": "node --env-file=.env scripts/seed-cms-menus-permission.mjs",

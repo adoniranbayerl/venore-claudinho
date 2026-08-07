@@ -1,0 +1,170 @@
+import { sql } from "drizzle-orm";
+import { boolean, check, integer, jsonb, pgSchema, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+
+export const broadcastSchema = pgSchema("broadcast");
+
+export const broadcastScenes = broadcastSchema.table(
+  "scenes",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    key: text("key").notNull(),
+    name: text("name").notNull(),
+    order: integer("order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("broadcast_scenes_key_idx").on(table.key)],
+);
+
+// x/y/width/height guardados como percentual (real, 0-100), não pixel — ver contracts/types.ts.
+// config (jsonb) carrega o payload específico de cada type ("text" guarda a string, etc.) —
+// schema livre de propósito, cada layer type interpreta o próprio formato dentro de service.ts,
+// não no banco.
+//
+// Lista de tipos simplificada (era video/text/clock/lower-third/image/custom-html): "clock" virou
+// "info" (relógio + clima, mesmo tipo, mais informação, zero campo extra pro operador);
+// "lower-third"/"custom-html" foram removidos por serem redundantes com "text" + um preset de
+// posição — feedback direto do usuário pedindo menos opções. "news"/"agenda" são novos, também
+// sem nenhum campo manual (resolvidos a partir de broadcast.region e da agenda interna).
+export const broadcastLayers = broadcastSchema.table(
+  "layers",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    sceneId: text("scene_id")
+      .notNull()
+      .references(() => broadcastScenes.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    name: text("name").notNull(),
+    x: real("x").notNull().default(0),
+    y: real("y").notNull().default(0),
+    width: real("width").notNull().default(100),
+    height: real("height").notNull().default(100),
+    zIndex: integer("z_index").notNull().default(0),
+    config: jsonb("config").notNull().default({}),
+    visible: boolean("visible").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("broadcast_layers_type_check", sql`${table.type} in ('video','text','image','info','news','agenda','alert')`),
+  ],
+);
+
+// folderPath é relativo à raiz configurada em contexts/settings (broadcast.rootFolder), nunca um
+// path absoluto vindo de fora — o scan (Fase 2) resolve e valida contra a raiz antes de gravar.
+export const broadcastPlaylists = broadcastSchema.table("playlists", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
+  folderPath: text("folder_path"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// mediaAssetId é texto solto, sem FK pra media.assets: um plugin não pode importar
+// contexts/media/database/schema (regra 7/8 do AGENTS.md — vale pra leitura e escrita). Resolução
+// de URL/metadata de um item "media-asset" sempre passa por @/contexts/media (getMediaAsset).
+//
+// "kind" (vídeo/imagem/site) não é uma coluna própria — é derivado em get-output-state a partir da
+// extensão (local) ou do contentType (media-asset); só "webpage" é inequívoco pelo sourceType.
+// Isso evita uma terceira fonte de verdade sobre o tipo do arquivo (extensão/contentType já são a
+// fonte real). durationSeconds é usado só quando o item resolve pra "imagem" ou é "webpage" —
+// vídeo usa a duração natural do próprio arquivo (onEnded).
+export const broadcastPlaylistItems = broadcastSchema.table(
+  "playlist_items",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    playlistId: text("playlist_id")
+      .notNull()
+      .references(() => broadcastPlaylists.id, { onDelete: "cascade" }),
+    order: integer("order").notNull().default(0),
+    title: text("title"),
+    sourceType: text("source_type").notNull(),
+    relativePath: text("relative_path"),
+    mediaAssetId: text("media_asset_id"),
+    url: text("url"),
+    durationSeconds: real("duration_seconds"),
+    hidden: boolean("hidden").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("broadcast_playlist_items_source_type_check", sql`${table.sourceType} in ('local','media-asset','webpage','news')`),
+    // Exatamente um de relativePath/mediaAssetId/url preenchido, de acordo com sourceType — impede
+    // linha ambígua ou órfã direto no banco. "news" não referencia arquivo/URL nenhum: é um marcador
+    // de posição no rodízio da playlist, os artigos vêm de runtime/region-news.ts (mesma fonte da
+    // layer "news" standalone) — durationSeconds aqui é o teto do bloco inteiro (todas as manchetes
+    // juntas), não por manchete.
+    check(
+      "broadcast_playlist_items_source_shape_check",
+      sql`(${table.sourceType} = 'local' AND ${table.relativePath} IS NOT NULL AND ${table.mediaAssetId} IS NULL AND ${table.url} IS NULL)
+        OR (${table.sourceType} = 'media-asset' AND ${table.mediaAssetId} IS NOT NULL AND ${table.relativePath} IS NULL AND ${table.url} IS NULL)
+        OR (${table.sourceType} = 'webpage' AND ${table.url} IS NOT NULL AND ${table.relativePath} IS NULL AND ${table.mediaAssetId} IS NULL)
+        OR (${table.sourceType} = 'news' AND ${table.relativePath} IS NULL AND ${table.mediaAssetId} IS NULL AND ${table.url} IS NULL)`,
+    ),
+  ],
+);
+
+// Agenda interna do plugin — vira múltiplas agendas nomeadas (2ª rodada: "quero poder criar
+// agendas que vão ficar rodando aqui" — semanal, mensal, da faculdade, do colégio...) que a layer
+// "agenda" alterna, cada uma ficando `displaySeconds` na tela antes de trocar pra próxima. Não é
+// um calendário genérico reaproveitável por outro context/plugin — vive só aqui de propósito.
+// backgroundColor é hex (#rrggbb), escolhido pelo operador via <input type="color"> — null cai no
+// preto padrão do painel (mesmo racional de layers.config.color na layer "text": cor por instância
+// escolhida em runtime, não um token de design fixo no código).
+export const broadcastAgendas = broadcastSchema.table("agendas", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
+  displaySeconds: integer("display_seconds").notNull().default(20),
+  order: integer("order").notNull().default(0),
+  backgroundColor: text("background_color"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Eventos simples (título + data, descrição opcional), sem recorrência nem convidados — sempre
+// pertencem a uma agenda nomeada (broadcastAgendas), nunca soltos.
+export const broadcastAgendaEvents = broadcastSchema.table("agenda_events", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  agendaId: text("agenda_id")
+    .notNull()
+    .references(() => broadcastAgendas.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Aviso rápido (lower-third/alerta) — no máximo um "ativo" por vez (o mais recente com expiresAt
+// no futuro). Criado com uma duração; expira sozinho, sem precisar de ação manual pra sumir. Lido
+// pela layer "alert", que ignora a geometria configurada e sempre sobrepõe tudo quando há um
+// aviso ativo (pedido explícito: "quando não houver não aparece, quando houver sobrepõe tudo").
+export const broadcastAlerts = broadcastSchema.table("alerts", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  message: text("message").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Uma linha por "saída" (URL exibida na TV). token é o único mecanismo de acesso à view de saída
+// (sem sessão/RBAC — ver contracts/types.ts) — gerado em create-output/store.ts como um slug do
+// nome (curto, fácil de digitar num controle remoto de TV), não mais um UUID; o $defaultFn aqui é
+// só uma rede de segurança caso algum insert futuro esqueça de passar token explicitamente.
+export const broadcastOutputs = broadcastSchema.table(
+  "outputs",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(),
+    token: text("token")
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID()),
+    currentSceneId: text("current_scene_id").references(() => broadcastScenes.id, { onDelete: "set null" }),
+    currentPlaylistItemId: text("current_playlist_item_id").references(() => broadcastPlaylistItems.id, {
+      onDelete: "set null",
+    }),
+    drawerOpen: boolean("drawer_open").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("broadcast_outputs_token_idx").on(table.token)],
+);
