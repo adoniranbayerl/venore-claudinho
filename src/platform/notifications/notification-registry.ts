@@ -1,15 +1,20 @@
-import { getMessageAlert } from "@/plugins/academy";
+import { getActivityReviewAlert, getMessageAlert } from "@/plugins/academy";
 import { registerPlugins } from "../plugin-engine/register-plugins";
-import type { MessageAlert } from "./types";
+import type { NotificationAlert } from "./types";
 
 // Providers de plugin, indexados pela key do manifesto — mesmo padrão de
 // platform/media-usage/media-usage-registry.ts (PLUGIN_PROVIDERS). Só entram na consulta se o
 // plugin estiver ativo agora: plugin desabilitado nunca deveria acender um alerta pra uma página
-// que também está desabilitada.
-const PLUGIN_PROVIDERS: Record<string, () => Promise<MessageAlert>> = {
+// que também está desabilitada. Dentro do provider academy, atividade avaliada vence mensagem não-
+// lida quando as duas existem (mesma regra de "primeiro não-nulo vence" do laço abaixo, só que
+// aplicada às duas fontes de alerta do próprio plugin) — pedido desta sessão: nota/comentário
+// precisa acender o mesmo badge que já existia pra mensagem.
+const PLUGIN_PROVIDERS: Record<string, () => Promise<NotificationAlert>> = {
   academy: async () => {
-    const result = await getMessageAlert();
-    return result.success ? result.data : null;
+    const activityAlert = await getActivityReviewAlert();
+    if (activityAlert.success && activityAlert.data) return activityAlert.data;
+    const messageAlert = await getMessageAlert();
+    return messageAlert.success ? messageAlert.data : null;
   },
 };
 
@@ -18,7 +23,7 @@ const PLUGIN_PROVIDERS: Record<string, () => Promise<MessageAlert>> = {
 // rendering não pode importar um plugin diretamente (boundary), e um segundo provider (ex: outro
 // plugin com mensagens próprias) só precisaria entrar neste mapa. Primeiro alerta não-nulo vence —
 // não soma contagens de plugins diferentes, cada um tem seu próprio destino (href).
-export async function collectNotificationAlert(): Promise<MessageAlert> {
+export async function collectNotificationAlert(): Promise<NotificationAlert> {
   const pluginReport = await registerPlugins();
   const activePluginKeys = new Set(
     pluginReport.entries.filter((entry) => entry.status === "active").map((entry) => entry.key),

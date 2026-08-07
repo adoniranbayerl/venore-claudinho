@@ -29,7 +29,7 @@ describe("getMessageAlert", () => {
 
     const result = await getMessageAlert({ actorId: "teacher-1", isTeacher: true });
 
-    expect(result).toEqual({ success: true, data: { count: 3, href: "/admin/academy/messages" } });
+    expect(result).toEqual({ success: true, data: { count: 3, href: "/admin/academy/messages", label: "3 novas mensagens" } });
   });
 
   it("retorna null quando aluno não tem nenhuma thread não-lida", async () => {
@@ -50,7 +50,7 @@ describe("getMessageAlert", () => {
 
     expect(result).toEqual({
       success: true,
-      data: { count: 3, href: "/academy/piano/lesson-2?openThread=quiz&openThreadType=correction" },
+      data: { count: 3, href: "/academy/piano/lesson-2?openThread=quiz&openThreadType=correction", label: "3 novas mensagens" },
     });
   });
 });

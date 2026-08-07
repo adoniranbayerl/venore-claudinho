@@ -133,6 +133,8 @@ export type LessonActivitySubmissionRecord = {
   reviewScore: number | null;
   reviewedBy: string | null;
   reviewedAt: Date | null;
+  // Aluno já viu a revisão atual — ver comentário em database/schema/index.ts.
+  reviewSeenAt: Date | null;
   submittedAt: Date;
 };
 

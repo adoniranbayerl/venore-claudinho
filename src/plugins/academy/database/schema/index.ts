@@ -357,6 +357,14 @@ export const lessonActivitySubmissions = academySchema.table(
     reviewScore: integer("review_score"),
     reviewedBy: text("reviewed_by"),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    // Aluno "viu" a revisão atual — null enquanto reviewedAt é null (nada pra ver ainda) e sempre
+    // que o professor revisa de novo (pedido desta sessão: "aluno recebe atualização de nota e
+    // comentário, precisa receber notificação" — reviewedAt IS NOT NULL AND reviewSeenAt IS NULL é
+    // a condição de "alerta não visto" em shared/activity-review-store.ts). Marcado quando a etapa
+    // de atividade mostra a entrega já revisada (activity-form.tsx via markActivityReviewSeenAction),
+    // mesmo raciocínio de lessonMessages.readAt, só que uma coluna em vez de linha própria porque
+    // aqui não há histórico de revisões, só a atual (reenvio já reseta review inteiro, ver acima).
+    reviewSeenAt: timestamp("review_seen_at", { withTimezone: true }),
     submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("lesson_activity_submissions_activity_actor_idx").on(table.activityId, table.actorId)],

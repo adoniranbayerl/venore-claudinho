@@ -5,7 +5,12 @@ import { Check, Clock, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { submitLessonActivityAction, submitLessonActivityFileAction, type SubmitActivityActionState } from "../actions";
+import {
+  markActivityReviewSeenAction,
+  submitLessonActivityAction,
+  submitLessonActivityFileAction,
+  type SubmitActivityActionState,
+} from "../actions";
 import { ActivityGateContext } from "./lesson-step-flow";
 
 const initialState: SubmitActivityActionState = { error: null, submission: null };
@@ -18,6 +23,20 @@ function useReportActivityGate(activityId: string, complete: boolean) {
   useEffect(() => {
     report?.(activityId, complete);
   }, [report, activityId, complete]);
+}
+
+// Dispara assim que a etapa mostra uma entrega já revisada pelo professor — silencia o alerta do
+// header pra essa atividade (pedido desta sessão: "aluno recebe atualização de nota e comentário,
+// precisa receber notificação"; este é o lado inverso, marcar como visto depois que ele já viu).
+// Usa o reviewStatus vindo do servidor (submission inicial da página), não o `current` sobrescrito
+// por uma ação recém-disparada — reenvio já reseta pra "pending" no próprio banco, então nunca
+// diverge. reviewStatus muda a cada nova revisão do professor (reviewSeenAt reabre pra null), o
+// que reexecuta o effect; chamar de novo numa entrega já vista é um no-op silencioso no server.
+function useMarkActivityReviewSeen(activityId: string, reviewStatus: string | undefined) {
+  useEffect(() => {
+    if (!reviewStatus || reviewStatus === "pending") return;
+    void markActivityReviewSeenAction(activityId);
+  }, [activityId, reviewStatus]);
 }
 
 export type ActivityStepItem = {
@@ -242,6 +261,7 @@ function SingleActivityCard({
   // clique e trava sozinha (ver NoneSubmissionForm) — pedido desta sessão: "botões não deveriam
   // estar mais habilitados uma vez que foi entregue".
   const isLocked = activity.submission?.reviewStatus === "approved";
+  useMarkActivityReviewSeen(activity.id, activity.submission?.reviewStatus);
 
   return (
     <div className="space-y-3 rounded-md border border-border px-3.5 py-3">

@@ -118,11 +118,14 @@ export type HeaderSlotProps = {
   user: HeaderUserInfo | null;
   canAccessAdmin: boolean;
   onSignOut: () => Promise<void>;
-  // Alerta de mensagem não lida, ao lado do user-nav (pedido desta sessão: "bolinha de pulse e um
-  // texto 'Nova mensagem'"). Extensão aditiva do contrato, mesmo critério de `user` acima — hoje só
-  // o plugin Academy popula isso (platform/notifications/notification-registry.ts), mas o campo em
-  // si é genérico (não amarrado a "academy" no tipo). null/undefined = nada pra mostrar.
-  messageAlert?: { count: number; href: string } | null;
+  // Alerta de notificação (mensagem não lida OU atividade avaliada), ao lado do user-nav (pedido
+  // desta sessão: "bolinha de pulse e um texto 'Nova mensagem'", depois estendido pra nota/
+  // comentário de atividade). Extensão aditiva do contrato, mesmo critério de `user` acima — hoje
+  // só o plugin Academy popula isso (platform/notifications/notification-registry.ts), mas o campo
+  // em si é genérico (não amarrado a "academy" no tipo). `label` já vem pronto de quem produziu o
+  // alerta (o tema não decide o texto, só renderiza — mesmo alerta pode ser sobre mensagem ou nota).
+  // null/undefined = nada pra mostrar.
+  messageAlert?: { count: number; href: string; label: string } | null;
 };
 
 // Mesma forma de HeaderBrand (permite renderizar a marca no footer com o PlatformBrand real, não

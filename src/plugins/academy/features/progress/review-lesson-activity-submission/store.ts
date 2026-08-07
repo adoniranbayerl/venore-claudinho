@@ -20,6 +20,9 @@ export async function updateSubmissionReview(
       reviewScore: input.reviewScore,
       reviewedBy: input.reviewedBy,
       reviewedAt: sql`now()`,
+      // Toda revisão nova reabre o alerta pro aluno (ver reviewSeenAt em database/schema/index.ts)
+      // — mesmo reaprovando com o mesmo status de antes, o professor pode ter mudado nota/feedback.
+      reviewSeenAt: null,
     })
     .where(eq(lessonActivitySubmissions.id, id))
     .returning();

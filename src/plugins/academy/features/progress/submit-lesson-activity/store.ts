@@ -35,6 +35,7 @@ export async function upsertLessonActivitySubmission(input: {
     reviewScore: null,
     reviewedBy: null,
     reviewedAt: null,
+    reviewSeenAt: null,
     submittedAt: new Date(),
   };
 

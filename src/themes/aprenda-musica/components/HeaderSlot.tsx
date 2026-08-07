@@ -52,9 +52,11 @@ export function HeaderSlot({
         user ? (
           <div className="flex items-center gap-2">
             {messageAlert && (
-              // Alerta de mensagem não lida ao lado do user-nav — mesmo dado/mesma regra do Venore
-              // Slime (ver comentário em ../../venore-slime/components/HeaderSlot.tsx), só que
-              // com o visual "poucos efeitos" deste tema em vez das classes group-data-scrolled.
+              // Alerta de notificação (mensagem não lida ou atividade avaliada) ao lado do
+              // user-nav — mesmo dado/mesma regra do Venore Slime (ver comentário em
+              // ../../venore-slime/components/HeaderSlot.tsx), só que com o visual "poucos
+              // efeitos" deste tema em vez das classes group-data-scrolled. Tema só renderiza o
+              // `label`, já resolvido por quem produziu o alerta.
               <Link
                 href={messageAlert.href}
                 className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground ui-motion-base outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:px-2.5"
@@ -63,9 +65,7 @@ export function HeaderSlot({
                   <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
                   <span className="relative inline-flex size-2 rounded-full bg-primary" />
                 </span>
-                <span className="hidden sm:inline">
-                  {messageAlert.count > 1 ? `${messageAlert.count} novas mensagens` : "Nova mensagem"}
-                </span>
+                <span className="hidden sm:inline">{messageAlert.label}</span>
               </Link>
             )}
             <UserMenu user={user} canAccessAdmin={canAccessAdmin} onSignOut={onSignOut} />

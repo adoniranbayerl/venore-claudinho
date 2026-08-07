@@ -121,6 +121,12 @@ export {
   reviewLessonActivitySubmissionHandler as reviewLessonActivitySubmission,
 } from "./features/progress/review-lesson-activity-submission/handler";
 export {
+  getActivityReviewAlertHandler as getActivityReviewAlert,
+} from "./features/progress/get-activity-review-alert/handler";
+export {
+  markActivityReviewSeenHandler as markActivityReviewSeen,
+} from "./features/progress/mark-activity-review-seen/handler";
+export {
   listLessonActivitySubmissionsForActivityHandler as listLessonActivitySubmissionsForActivity,
 } from "./features/progress/list-lesson-activity-submissions-for-activity/handler";
 export {
@@ -401,6 +407,15 @@ export type {
   ReviewLessonActivitySubmissionInput,
   ReviewLessonActivitySubmissionResult,
 } from "./features/progress/review-lesson-activity-submission/types";
+export type {
+  ActivityReviewAlert,
+  GetActivityReviewAlertInput,
+  GetActivityReviewAlertResult,
+} from "./features/progress/get-activity-review-alert/types";
+export type {
+  MarkActivityReviewSeenInput,
+  MarkActivityReviewSeenResult,
+} from "./features/progress/mark-activity-review-seen/types";
 export type {
   ListLessonActivitySubmissionsForActivityQuery,
   ListLessonActivitySubmissionsForActivityResult,

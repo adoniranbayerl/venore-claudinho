@@ -12,7 +12,8 @@ export async function getMessageAlert(input: GetMessageAlertInput): Promise<GetM
     const threads = await findAllThreads();
     const totalUnread = threads.reduce((sum, thread) => sum + thread.unreadCount, 0);
     if (totalUnread === 0) return { success: true, data: null };
-    return { success: true, data: { count: totalUnread, href: "/admin/academy/messages" } };
+    const label = totalUnread > 1 ? `${totalUnread} novas mensagens` : "Nova mensagem";
+    return { success: true, data: { count: totalUnread, href: "/admin/academy/messages", label } };
   }
 
   const threads = await findThreadsByStudent(input.actorId);
@@ -23,5 +24,6 @@ export async function getMessageAlert(input: GetMessageAlertInput): Promise<GetM
   // findThreadsByStudent já ordena por lastMessageAt desc — a primeira não-lida é a mais recente.
   const mostRecent = unreadThreads[0];
   const href = `/academy/${mostRecent.courseSlug}/${mostRecent.lessonId}?openThread=${mostRecent.stepKey}&openThreadType=${mostRecent.type}`;
-  return { success: true, data: { count: totalUnread, href } };
+  const label = totalUnread > 1 ? `${totalUnread} novas mensagens` : "Nova mensagem";
+  return { success: true, data: { count: totalUnread, href, label } };
 }

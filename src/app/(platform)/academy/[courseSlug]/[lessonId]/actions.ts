@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import {
   getMessageThread,
+  markActivityReviewSeen,
   markLessonMaterialRead,
   markLessonSectionRead,
   markTextRead,
@@ -228,6 +229,15 @@ export async function submitLessonActivityFileAction(
       mediaFilename: uploadResult.data.filename,
     },
   };
+}
+
+// Disparada pelo client quando a etapa de atividade mostra uma entrega já revisada (activity-
+// form.tsx) — mesmo raciocínio de markThreadRead em getLessonMessageThreadAction: exibir a nota/
+// feedback já É "ver" a revisão. Silenciosa de propósito (sem LessonActionState/toast): é um
+// side-effect de exibição, não uma ação que o aluno pediu.
+export async function markActivityReviewSeenAction(activityId: string): Promise<void> {
+  if (!(await isPluginActive("academy"))) return;
+  await markActivityReviewSeen({ activityId });
 }
 
 export type LessonMessageItem = { id: string; senderRole: "student" | "teacher"; body: string; createdAt: string };
