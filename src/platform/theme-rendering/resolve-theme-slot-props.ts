@@ -4,6 +4,7 @@ import type { ResolvedMenuItem } from "@/contexts/cms";
 import { getMediaAsset } from "@/contexts/media";
 import { getBrandConfig } from "@/platform/brand/get-brand-config";
 import { getHeaderBehavior } from "@/platform/header-behavior/get-header-behavior";
+import { collectNotificationAlert } from "@/platform/notifications/notification-registry";
 import { resolveBrandAesthetics } from "./resolve-brand-aesthetics";
 import { toSitemapItems } from "./to-sitemap-items";
 import { venoreSlimeMockProps } from "@/themes/venore-slime/mock-data";
@@ -83,11 +84,14 @@ export async function resolveThemeSlotProps(sidebarNav: {
   // existe fallback pra "todo conteúdo publicado" aqui de propósito: isso violaria o invariante de
   // contexts/cms de que o sitemap é o que o menu escolheu mostrar, não uma derivação de conteúdo.
   const aesthetics = await resolveBrandAesthetics();
-  const [mainMenu, sitemapMenu, brandConfig, headerBehavior] = await Promise.all([
+  // messageAlert só é consultado pra quem está logado — visitante anônimo nunca tem thread nenhuma
+  // (getMessageAlert já devolveria null de qualquer forma, mas evita a query à toa).
+  const [mainMenu, sitemapMenu, brandConfig, headerBehavior, messageAlert] = await Promise.all([
     getMenuByLocation({ location: "main" }),
     getMenuByLocation({ location: "sitemap" }),
     getBrandConfig(aesthetics.mode),
     getHeaderBehavior(),
+    user ? collectNotificationAlert() : Promise.resolve(null),
   ]);
   const mainNavItems: MainNavItem[] = mainMenu.success ? toMainNavItems(mainMenu.data) : venoreSlimeMockProps.sidebarLeft.navItems;
   const sitemapItems = sitemapMenu.success ? toSitemapItems(sitemapMenu.data) : [];
@@ -110,6 +114,7 @@ export async function resolveThemeSlotProps(sidebarNav: {
       user,
       canAccessAdmin: sidebarNav.canAccessAdmin,
       onSignOut: sidebarNav.onSignOut,
+      messageAlert,
     },
     footer: {
       ...venoreSlimeMockProps.footer,

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
+import { createContext, useEffect, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import Link from "next/link";
-import { Check, ChevronLeft, ChevronRight, Flag, MessageCircle, ZoomIn, ZoomOut } from "lucide-react";
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Flag, ListChecks, MessageCircle, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -83,7 +83,20 @@ export type LessonFlowStep = {
   // a navegação de saída faz mais sentido antes do pedido de apoio do que depois). Default false
   // (ausente = barra de navegação continua depois do conteúdo, como em toda outra etapa).
   navBeforeContent?: boolean;
+  // Só a etapa "activity" em modo interativo preenche isto (pedido desta sessão: "não podemos
+  // seguir sem que tudo seja marcado como concluído"). totalCount vem de activities.length;
+  // initiallyCompleteIds das entregas que já existem no servidor no momento do render (mesmo
+  // critério que já bloqueia a PRÓXIMA aula em shared/lesson-chain.ts: entrega existe, não
+  // precisa estar aprovada). ActivitiesList (activity-form.tsx) reporta as entregas feitas DEPOIS
+  // via ActivityGateContext, logo abaixo.
+  activityGate?: { totalCount: number; initiallyCompleteIds: string[] };
 };
+
+// Ponte entre ActivitiesList (dentro de current.content, uma etapa por vez) e LessonStepFlow (dono
+// do botão "Avançar") — só existe enquanto a etapa atual tiver activityGate (ver Provider mais
+// abaixo). Null fora desse contexto: componentes de atividade em modo preview/amostra grátis não
+// têm gate nenhum pra reportar.
+export const ActivityGateContext = createContext<((activityId: string, complete: boolean) => void) | null>(null);
 
 // lessonId + threadsByStepKey resolvidos no servidor (page.tsx, só no modo "full" — sem matrícula
 // real não tem pra quem mandar mensagem). threadsByStepKey[stepId] ausente = conversa ainda não
@@ -110,6 +123,8 @@ export function LessonStepFlow({
   courseHref,
   nextLessonHref,
   messaging,
+  initialStepId,
+  autoOpenMessage,
 }: {
   steps: LessonFlowStep[];
   // Pra onde o aluno vai quando chega na última etapa — sem isso, "Avançar" só ficava desabilitado
@@ -121,8 +136,19 @@ export function LessonStepFlow({
   // Ausente em preview de professor/amostra grátis (sem matrícula real, ver AcademyLessonPage) —
   // os dois botões de contato só aparecem quando presente.
   messaging?: LessonStepMessaging;
+  // Vem do query param ?openThread= (deep link do alerta de mensagem/inbox — pedido desta sessão:
+  // "preciso estar na etapa pra ver a resposta do professor"). id de step que não existe nesta
+  // aula cai pro comportamento default (primeira etapa).
+  initialStepId?: string;
+  // Junto com initialStepId: abre o dialog de mensagem certo assim que a etapa carrega, em vez de
+  // exigir mais um clique em "Tirar dúvida"/"Viu algo errado?".
+  autoOpenMessage?: "question" | "correction";
 }) {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => {
+    if (!initialStepId) return 0;
+    const found = steps.findIndex((step) => step.id === initialStepId);
+    return found >= 0 ? found : 0;
+  });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [locallyRead, setLocallyRead] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
@@ -134,6 +160,25 @@ export function LessonStepFlow({
   const [messageBody, setMessageBody] = useState("");
   const [messagePending, startMessageTransition] = useTransition();
 
+  const [activityCompletion, setActivityCompletion] = useState<Record<string, boolean>>(() => {
+    const step = steps.find((item) => item.activityGate);
+    if (!step?.activityGate) return {};
+    return Object.fromEntries(step.activityGate.initiallyCompleteIds.map((id) => [id, true]));
+  });
+
+  // Roda uma vez, só quando a aula chega via deep link de mensagem (ver initialStepId/autoOpenMessage
+  // acima) — abrir o dialog não deve repetir a cada navegação manual entre etapas. Antes do early
+  // return de `steps.length === 0` logo abaixo (hooks não podem ser condicionais), por isso
+  // recalcula a etapa/permissão localmente em vez de reusar `current`/`canMessage`.
+  useEffect(() => {
+    if (!autoOpenMessage || steps.length === 0) return;
+    const step = steps[Math.min(index, steps.length - 1)];
+    if (!!messaging && step.allowMessages !== false) {
+      openMessageDialog(autoOpenMessage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (steps.length === 0) return null;
 
   const current = steps[Math.min(index, steps.length - 1)];
@@ -143,6 +188,11 @@ export function LessonStepFlow({
   const needsConfirm = !!current.readMark?.confirmBeforeAdvance && !isCurrentRead;
   const canMessage = !!messaging && current.allowMessages !== false;
   const currentUnread = messaging?.threadsByStepKey[current.id]?.unreadCount ?? 0;
+  const activityGateBlocked =
+    !!current.activityGate &&
+    current.activityGate.totalCount > Object.values(activityCompletion).filter(Boolean).length;
+  const activityStepIndex = steps.findIndex((step) => step.id === "activity");
+  const quizStepIndex = steps.findIndex((step) => step.id === "quiz");
 
   function goNext() {
     setIndex((value) => Math.min(value + 1, steps.length - 1));
@@ -249,10 +299,15 @@ export function LessonStepFlow({
           )}
         </div>
       ) : (
-        <Button type="button" variant="outline" onClick={handleAdvanceClick}>
-          Avançar
-          <ChevronRight className="size-4" aria-hidden="true" />
-        </Button>
+        <div className="flex flex-col items-end gap-1.5">
+          <Button type="button" variant="outline" disabled={activityGateBlocked} onClick={handleAdvanceClick}>
+            Avançar
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </Button>
+          {activityGateBlocked && (
+            <p className="text-xs text-muted-foreground">Marque todas as atividades como concluídas para avançar.</p>
+          )}
+        </div>
       )}
     </div>
   );
@@ -277,6 +332,27 @@ export function LessonStepFlow({
               )}
             />
           ))}
+        </div>
+      )}
+
+      {/* Atalho pra Atividades/Avaliação sem precisar clicar "Avançar" várias vezes — pedido desta
+          sessão ("uma forma em que o aluno possa acessar diretamente as Atividades e o Quiz"). As
+          abas acima já permitem pular etapa clicando, mas são finas demais pra serem óbvias; estes
+          botões só aparecem quando a etapa existe e não é a atual. */}
+      {(activityStepIndex >= 0 || quizStepIndex >= 0) && (
+        <div className="flex flex-wrap gap-2">
+          {activityStepIndex >= 0 && activityStepIndex !== index && (
+            <Button type="button" variant="outline" size="sm" onClick={() => setIndex(activityStepIndex)}>
+              <ListChecks className="size-3.5" aria-hidden="true" />
+              Ir para Atividades
+            </Button>
+          )}
+          {quizStepIndex >= 0 && quizStepIndex !== index && (
+            <Button type="button" variant="outline" size="sm" onClick={() => setIndex(quizStepIndex)}>
+              <CheckCircle2 className="size-3.5" aria-hidden="true" />
+              Ir para Avaliação
+            </Button>
+          )}
         </div>
       )}
 
@@ -321,7 +397,17 @@ export function LessonStepFlow({
       {current.navBeforeContent && navBar}
 
       <div key={current.id} className="space-y-4" style={largeText ? { zoom: 1.15 } : undefined}>
-        {current.content}
+        {current.activityGate ? (
+          <ActivityGateContext.Provider
+            value={(activityId, complete) =>
+              setActivityCompletion((prev) => (prev[activityId] === complete ? prev : { ...prev, [activityId]: complete }))
+            }
+          >
+            {current.content}
+          </ActivityGateContext.Provider>
+        ) : (
+          current.content
+        )}
 
         {current.readMark &&
           (isCurrentRead ? (

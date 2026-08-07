@@ -204,6 +204,11 @@ function buildActivityStep(courseSlug: string, lessonId: string, activities: Act
   return {
     id: "activity",
     kicker: "Atividade prática",
+    // Só em modo interativo (aluno matriculado) — preview de professor não tem "Avançar" travado
+    // por nada, é só uma leitura das instruções (ver ramo `interactive ? ... : ...` do content).
+    activityGate: interactive
+      ? { totalCount: activities.length, initiallyCompleteIds: activities.filter((activity) => activity.submission !== null).map((activity) => activity.id) }
+      : undefined,
     content: interactive ? (
       <ActivitiesList key="activity" courseSlug={courseSlug} lessonId={lessonId} activities={activities} />
     ) : (
@@ -273,8 +278,11 @@ function buildDonationStep(settings: DonationSettings, code: DonationPixCode): L
 
 function buildQuizStep(content: ReactNode, badge: ReactNode): LessonFlowStep {
   return {
+    // id continua "quiz" (não "avaliacao") — é a chave usada pelo sistema de mensagens
+    // (lesson_message_threads.stepKey) e não deve mudar só porque o rótulo visível mudou (pedido
+    // desta sessão: "quiz" → "Avaliação" na UI, sem tocar em dado já gravado).
     id: "quiz",
-    kicker: "Quiz",
+    kicker: "Avaliação",
     content: (
       <div key="quiz" className="space-y-3">
         {badge}
@@ -363,10 +371,14 @@ export default async function AcademyLessonPage({
   searchParams,
 }: {
   params: Promise<{ courseSlug: string; lessonId: string }>;
-  searchParams: Promise<{ blocked?: string }>;
+  // openThread/openThreadType vêm do alerta de mensagem (badge no user-nav) e da inbox
+  // (/academy/messages) — deep link direto pra etapa certa com o dialog já aberto (pedido desta
+  // sessão: "eu preciso estar na etapa pra ver a resposta do professor").
+  searchParams: Promise<{ blocked?: string; openThread?: string; openThreadType?: string }>;
 }) {
   const { courseSlug, lessonId } = await params;
-  const { blocked } = await searchParams;
+  const { blocked, openThread, openThreadType } = await searchParams;
+  const autoOpenMessage = openThreadType === "question" || openThreadType === "correction" ? openThreadType : undefined;
   const access = await getAcademyCourseAccess(courseSlug);
 
   if (access.mode === "unauthenticated") {
@@ -569,7 +581,7 @@ export default async function AcademyLessonPage({
 
   const quizContent = lesson.requirements.quizPassed ? (
     <div className="space-y-0.5">
-      <p className="text-sm text-muted-foreground">Você já passou neste quiz.</p>
+      <p className="text-sm text-muted-foreground">Você já passou nesta avaliação.</p>
       {lesson.requirements.quizBestGrade !== null && (
         <p className="text-xs text-muted-foreground/56">
           Nota: {lesson.requirements.quizBestGrade.toFixed(1)} ({lesson.requirements.quizBestScore}% de acerto)
@@ -577,9 +589,15 @@ export default async function AcademyLessonPage({
       )}
     </div>
   ) : !quizResult.success ? (
-    <p className="text-sm text-destructive">Erro ao carregar o quiz: {quizResult.error.message}</p>
+    <p className="text-sm text-destructive">Erro ao carregar a avaliação: {quizResult.error.message}</p>
   ) : (
-    <QuizForm courseSlug={course.slug} lessonId={lessonId} questions={quizResult.data} attemptsExhausted={attemptsExhausted} />
+    <QuizForm
+      courseSlug={course.slug}
+      lessonId={lessonId}
+      questions={quizResult.data}
+      attemptsExhausted={attemptsExhausted}
+      courseHref={`/academy/${course.slug}`}
+    />
   );
 
   const steps: LessonFlowStep[] = [];
@@ -663,7 +681,14 @@ export default async function AcademyLessonPage({
         </p>
       )}
       <LessonHeaderCard backHref={`/academy/${course.slug}`} title={lesson.title} />
-      <LessonStepFlow steps={steps} courseHref={`/academy/${course.slug}`} nextLessonHref={nextLessonHref} messaging={messaging} />
+      <LessonStepFlow
+        steps={steps}
+        courseHref={`/academy/${course.slug}`}
+        nextLessonHref={nextLessonHref}
+        messaging={messaging}
+        initialStepId={openThread}
+        autoOpenMessage={autoOpenMessage}
+      />
     </div>
   );
 }

@@ -15,7 +15,12 @@ export function InteractiveNotation({ abc, className }: { abc: string; className
     if (!containerRef.current) return;
 
     const tunes = renderAbc(containerRef.current, abc, {
-      responsive: "resize",
+      // Sem "responsive: resize" de propósito: esse modo desenha a partitura assumindo ~740px de
+      // largura e depois encolhe o SVG inteiro (viewBox) pra caber no container via CSS — em tela
+      // de celular (~320-380px) isso reduzia a notação a menos da metade do tamanho, ilegível
+      // (bug reportado nesta sessão: "partituras muito pequenas no mobile"). Sem essa opção o
+      // abcjs desenha em tamanho fixo/legível e o `overflow-x-auto` do className (já aplicado
+      // pelos dois callers) rola horizontalmente quando a partitura não cabe.
       // Sem isso, abcjs cai no "old behavior" (selectTypes undefined): a nota entra na lista de
       // selecionáveis internamente, mas o elemento SVG nasce com selectable=false e nunca dispara
       // clickListener de verdade — bug reportado nesta sessão ("não toca áudio quando clica").

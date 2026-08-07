@@ -23,6 +23,19 @@ export const academyManifest: PluginManifest = {
       order: 10,
       requiredPermission: "academy.courses.manage",
     },
+    // Página dedicada de mensagens (pedido desta sessão: "talvez seja bom ter uma página
+    // específica com todas as mensagens") — mesma permissão do item acima, só uma rota diferente.
+    {
+      key: "academy.messages",
+      label: "Mensagens",
+      href: "/admin/academy/messages",
+      icon: "message-circle",
+      groupKey: "plugins",
+      groupLabel: "Plugins",
+      groupOrder: 30,
+      order: 11,
+      requiredPermission: "academy.courses.manage",
+    },
   ],
   blocks: [
     { key: "academy.course.list", label: "Academy — Lista de cursos" },

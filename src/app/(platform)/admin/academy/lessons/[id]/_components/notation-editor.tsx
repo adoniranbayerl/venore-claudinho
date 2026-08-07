@@ -42,7 +42,9 @@ export function NotationEditor({ name }: { name: string }) {
       previewRef.current.innerHTML = "";
       return;
     }
-    renderAbc(previewRef.current, abc, { responsive: "resize" });
+    // Sem "responsive: resize": ver comentário em src/components/interactive-notation.tsx — esse
+    // modo encolhia a partitura pra caber no container, ficando ilegível no mobile.
+    renderAbc(previewRef.current, abc);
   }, [abc, tokens.length]);
 
   function addNote(pitch: PitchLetter, octave: number) {

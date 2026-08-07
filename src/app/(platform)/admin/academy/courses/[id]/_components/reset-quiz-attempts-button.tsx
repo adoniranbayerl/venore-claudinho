@@ -25,7 +25,7 @@ export function ResetQuizAttemptsButton({
     <form
       action={formAction}
       onSubmit={(event) => {
-        if (!window.confirm(`Resetar tentativas de quiz de ${studentLabel} nesta aula?`)) {
+        if (!window.confirm(`Resetar tentativas de avaliação de ${studentLabel} nesta aula?`)) {
           event.preventDefault();
         }
       }}

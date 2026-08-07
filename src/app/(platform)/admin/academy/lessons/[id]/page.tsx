@@ -61,7 +61,7 @@ export default async function LessonDetailPage({ params }: { params: Promise<{ i
     return <p className="text-sm text-destructive">Não foi possível carregar os requisitos desta aula agora. Tente recarregar a página.</p>;
   }
   if (!questionsResult.success) {
-    return <p className="text-sm text-destructive">Não foi possível carregar as perguntas do quiz agora. Tente recarregar a página.</p>;
+    return <p className="text-sm text-destructive">Não foi possível carregar as perguntas da avaliação agora. Tente recarregar a página.</p>;
   }
   if (!materialsResult.success) {
     return <p className="text-sm text-destructive">Não foi possível carregar os materiais desta aula agora. Tente recarregar a página.</p>;
@@ -175,7 +175,7 @@ export default async function LessonDetailPage({ params }: { params: Promise<{ i
               <ClipboardCheck aria-hidden="true" /> Atividade
             </TabsTrigger>
             <TabsTrigger value="requisitos" className="shrink-0">
-              <ListChecks aria-hidden="true" /> Requisitos &amp; quiz
+              <ListChecks aria-hidden="true" /> Requisitos &amp; avaliação
             </TabsTrigger>
           </TabsList>
         </div>
@@ -263,14 +263,14 @@ export default async function LessonDetailPage({ params }: { params: Promise<{ i
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Perguntas do quiz</CardTitle>
+              <CardTitle className="text-sm">Perguntas da avaliação</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {questions.length === 0 ? (
                 <EmptyState
                   icon={<HelpCircle className="size-8" strokeWidth={1.5} />}
                   title="Nenhuma pergunta cadastrada"
-                  description="Adicione a primeira pergunta do quiz abaixo."
+                  description="Adicione a primeira pergunta da avaliação abaixo."
                 />
               ) : (
                 <ul className="space-y-2">

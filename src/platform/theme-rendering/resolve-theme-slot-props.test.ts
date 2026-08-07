@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getCurrentUser = vi.fn();
 const getMenuByLocation = vi.fn();
+const collectNotificationAlert = vi.fn();
 
 vi.mock("@/contexts/auth", () => ({
   getCurrentUser: (...args: unknown[]) => getCurrentUser(...args),
@@ -9,6 +10,13 @@ vi.mock("@/contexts/auth", () => ({
 
 vi.mock("@/contexts/cms", () => ({
   getMenuByLocation: (...args: unknown[]) => getMenuByLocation(...args),
+}));
+
+// Sem isso, um `user` não-nulo faria resolveThemeSlotProps chamar o registry de verdade
+// (platform/notifications/notification-registry.ts → @/plugins/academy → banco), quebrando a regra
+// de teste unitário sem banco real (AGENTS.md §5).
+vi.mock("@/platform/notifications/notification-registry", () => ({
+  collectNotificationAlert: (...args: unknown[]) => collectNotificationAlert(...args),
 }));
 
 function sidebarNavInput(
@@ -37,6 +45,8 @@ describe("resolveThemeSlotProps", () => {
     getCurrentUser.mockReset();
     getMenuByLocation.mockReset();
     getMenuByLocation.mockResolvedValue({ success: true, data: [] });
+    collectNotificationAlert.mockReset();
+    collectNotificationAlert.mockResolvedValue(null);
   });
 
   it("resolves header.user as null when there is no authenticated user", async () => {

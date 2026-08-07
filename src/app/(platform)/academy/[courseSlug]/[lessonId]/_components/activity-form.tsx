@@ -1,13 +1,24 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useContext, useEffect } from "react";
 import { Check, Clock, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { submitLessonActivityAction, submitLessonActivityFileAction, type SubmitActivityActionState } from "../actions";
+import { ActivityGateContext } from "./lesson-step-flow";
 
 const initialState: SubmitActivityActionState = { error: null, submission: null };
+
+// Reporta ao LessonStepFlow (via ActivityGateContext) sempre que a entrega desta atividade aparece
+// ou some — é o que libera/trava o botão "Avançar" na etapa de atividades (pedido desta sessão).
+// report é null fora dessa etapa (preview de professor, que nem usa ActivitiesList), vira no-op.
+function useReportActivityGate(activityId: string, complete: boolean) {
+  const report = useContext(ActivityGateContext);
+  useEffect(() => {
+    report?.(activityId, complete);
+  }, [report, activityId, complete]);
+}
 
 export type ActivityStepItem = {
   id: string;
@@ -101,6 +112,7 @@ function TextSubmissionForm({
   const [state, formAction, pending] = useActionState(submitLessonActivityAction, initialState);
   useActionToast({ pending, error: state.error, successMessage: state.submission ? "Atividade enviada." : null });
   const current = state.submission ?? submission;
+  useReportActivityGate(activity.id, current !== null);
 
   return (
     <>
@@ -138,6 +150,7 @@ function NoneSubmissionForm({
   const [state, formAction, pending] = useActionState(submitLessonActivityAction, initialState);
   useActionToast({ pending, error: state.error, successMessage: state.submission ? "Atividade marcada como concluída." : null });
   const current = state.submission ?? submission;
+  useReportActivityGate(activity.id, current !== null);
 
   return (
     <form action={formAction}>
@@ -175,6 +188,7 @@ function FileSubmissionForm({
   const [state, formAction, pending] = useActionState(submitLessonActivityFileAction, initialState);
   useActionToast({ pending, error: state.error, successMessage: state.submission ? "Arquivo enviado." : null });
   const current = state.submission ?? submission;
+  useReportActivityGate(activity.id, current !== null);
 
   return (
     <>

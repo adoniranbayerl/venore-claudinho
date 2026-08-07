@@ -31,6 +31,7 @@ export function HeaderSlot({
   user,
   canAccessAdmin,
   onSignOut,
+  messageAlert,
 }: HeaderSlotProps) {
   return (
     <>
@@ -77,7 +78,27 @@ export function HeaderSlot({
 
         {userbarEnabled ? (
           user ? (
-            <UserMenu user={user} canAccessAdmin={canAccessAdmin} onSignOut={onSignOut} />
+            <div className="flex items-center gap-2">
+              {messageAlert && (
+                // Alerta de mensagem não lida (pedido desta sessão: "bolinha de pulse e um texto
+                // 'Nova mensagem', do lado do user-nav") — link direto pro destino já resolvido
+                // pelo registry (deep link pra etapa da aula, ou pra /admin/academy/messages no
+                // caso do professor; ver platform/notifications/notification-registry.ts).
+                <Link
+                  href={messageAlert.href}
+                  className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-xs font-medium text-muted-foreground ui-motion-base outline-none hover:bg-accent/14 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:px-2.5 group-data-[scrolled=true]/header:text-primary-foreground group-data-[scrolled=true]/header:hover:bg-primary-foreground/10"
+                >
+                  <span className="relative flex size-2">
+                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75 group-data-[scrolled=true]/header:bg-primary-foreground" />
+                    <span className="relative inline-flex size-2 rounded-full bg-primary group-data-[scrolled=true]/header:bg-primary-foreground" />
+                  </span>
+                  <span className="hidden sm:inline">
+                    {messageAlert.count > 1 ? `${messageAlert.count} novas mensagens` : "Nova mensagem"}
+                  </span>
+                </Link>
+              )}
+              <UserMenu user={user} canAccessAdmin={canAccessAdmin} onSignOut={onSignOut} />
+            </div>
           ) : (
             <Link
               href="/login"

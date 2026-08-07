@@ -152,6 +152,10 @@ export { listMessageThreadsHandler as listMessageThreads } from "./features/mess
 export {
   listMessageThreadsForCourseHandler as listMessageThreadsForCourse,
 } from "./features/messages/list-message-threads-for-course/handler";
+export {
+  listAllMessageThreadsHandler as listAllMessageThreads,
+} from "./features/messages/list-all-message-threads/handler";
+export { getMessageAlertHandler as getMessageAlert } from "./features/messages/get-message-alert/handler";
 export { markThreadReadHandler as markThreadRead } from "./features/messages/mark-thread-read/handler";
 export {
   markThreadReadForStudentHandler as markThreadReadForStudent,
@@ -438,6 +442,8 @@ export type {
   ListMessageThreadsForCourseQuery,
   ListMessageThreadsForCourseResult,
 } from "./features/messages/list-message-threads-for-course/types";
+export type { ListAllMessageThreadsResult } from "./features/messages/list-all-message-threads/types";
+export type { GetMessageAlertInput, GetMessageAlertResult, MessageAlert } from "./features/messages/get-message-alert/types";
 export type { MarkThreadReadInput, MarkThreadReadResult } from "./features/messages/mark-thread-read/types";
 export type {
   MarkThreadReadForStudentInput,

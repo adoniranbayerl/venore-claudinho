@@ -149,7 +149,7 @@ export default async function CourseEnrolledStudentPage({
                       {lesson.requirements.quizEnabled && (
                         <div className="mt-1.5 flex items-center gap-2 pl-5 text-xs text-muted-foreground/56">
                           <span>
-                            Quiz: {lesson.requirements.quizAttemptsUsed}/{lesson.requirements.quizMaxAttempts ?? "∞"} tentativas
+                            Avaliação: {lesson.requirements.quizAttemptsUsed}/{lesson.requirements.quizMaxAttempts ?? "∞"} tentativas
                             {lesson.requirements.quizBestScore !== null && ` · ${lesson.requirements.quizBestScore}% de acerto`}
                             {quizExhausted && " · esgotado"}
                           </span>

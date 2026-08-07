@@ -18,7 +18,7 @@ const FIXED_STEP_LABELS: Record<string, string> = {
   materials: "Material complementar",
   examples: "Exemplo sonoro",
   activity: "Atividade prática",
-  quiz: "Quiz",
+  quiz: "Avaliação",
 };
 const FIXED_STEP_KEYS = new Set(Object.keys(FIXED_STEP_LABELS));
 
@@ -196,6 +196,46 @@ export async function findThreadsByCourseAndStudent(
     .innerJoin(courses, eq(lessons.courseId, courses.id))
     .leftJoin(lessonSections, eq(lessonMessageThreads.stepKey, lessonSections.id))
     .where(and(eq(lessons.courseId, courseId), eq(lessonMessageThreads.studentActorId, studentActorId)))
+    .orderBy(desc(lessonMessageThreads.lastMessageAt));
+
+  const unreadByThread = await countUnreadMessagesByThread(
+    rows.map((row) => row.thread.id),
+    "student",
+  );
+
+  return rows.map((row) => ({
+    ...(row.thread as LessonMessageThreadRecord),
+    lessonTitle: row.lessonTitle,
+    lessonPosition: row.lessonPosition,
+    courseId: row.courseId,
+    courseTitle: row.courseTitle,
+    courseSlug: row.courseSlug,
+    stepLabel: resolveStepLabel(row.thread.stepKey, row.sectionTitle),
+    unreadCount: unreadByThread.get(row.thread.id) ?? 0,
+  }));
+}
+
+// Página dedicada de mensagens do professor (pedido desta sessão: "talvez seja bom ter uma página
+// específica com todas as mensagens") — todas as conversas de TODOS os cursos/alunos, sem filtro,
+// com contagem de não-lida a partir do ALUNO (mesmo critério de findThreadsByCourseAndStudent:
+// professor precisa saber o que chegou dele). Também alimenta o alerta do header (get-message-alert)
+// pro papel de professor — qualquer ator com academy.courses.manage vê tudo, sem filtrar por
+// "curso que ele criou" (mesma regra de list-message-threads-for-course/handler.ts).
+export async function findAllThreads(): Promise<LessonMessageThreadWithContext[]> {
+  const rows = await db
+    .select({
+      thread: lessonMessageThreads,
+      lessonTitle: lessons.title,
+      lessonPosition: lessons.position,
+      courseId: courses.id,
+      courseTitle: courses.title,
+      courseSlug: courses.slug,
+      sectionTitle: lessonSections.title,
+    })
+    .from(lessonMessageThreads)
+    .innerJoin(lessons, eq(lessonMessageThreads.lessonId, lessons.id))
+    .innerJoin(courses, eq(lessons.courseId, courses.id))
+    .leftJoin(lessonSections, eq(lessonMessageThreads.stepKey, lessonSections.id))
     .orderBy(desc(lessonMessageThreads.lastMessageAt));
 
   const unreadByThread = await countUnreadMessagesByThread(

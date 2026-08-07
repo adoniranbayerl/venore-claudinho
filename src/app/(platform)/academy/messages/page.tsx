@@ -10,11 +10,12 @@ export const dynamic = "force-dynamic";
 
 const TYPE_LABEL: Record<"question" | "correction", string> = { question: "Dúvida", correction: "Correção" };
 
-// Caixa de mensagens do aluno (pedido desta sessão) — todas as conversas, de qualquer curso,
-// ordenadas por atividade recente (listMessageThreads sem lessonId = inbox inteira). Link volta
-// pra aula (não pra etapa exata — o aluno reabre a conversa certa clicando no mesmo botão de
-// contato de lá, a conversa é a mesma pela chave lessonId+stepKey); deep-link direto pra etapa
-// fica de fora de propósito, simplificação aceitável pro alcance desta sessão.
+// Caixa de mensagens do aluno — todas as conversas, de qualquer curso, ordenadas por atividade
+// recente (listMessageThreads sem lessonId = inbox inteira). Link vai direto pra etapa certa da
+// aula, com o dialog de mensagem já aberto (?openThread=stepKey&openThreadType=type, lido por
+// LessonStepFlow em .../[lessonId]/_components/lesson-step-flow.tsx) — pedido desta sessão: "eu
+// preciso estar na etapa pra ver a resposta do professor... encaminhe diretamente para a página e
+// abra a mensagem". Reverte a simplificação de uma sessão anterior (deep-link ficava de fora).
 export default async function AcademyMessagesPage() {
   const gate = await getAcademyStudentPageData();
 
@@ -50,7 +51,7 @@ export default async function AcademyMessagesPage() {
           {threads.map((thread) => (
             <Link
               key={thread.id}
-              href={`/academy/${thread.courseSlug}/${thread.lessonId}`}
+              href={`/academy/${thread.courseSlug}/${thread.lessonId}?openThread=${thread.stepKey}&openThreadType=${thread.type}`}
               className="group flex items-center gap-3.5 border-b border-border px-4 py-3.5 outline-none ui-motion-base last:border-b-0 hover:bg-muted/60 focus-visible:bg-muted/60"
             >
               <div className="min-w-0 flex-1">

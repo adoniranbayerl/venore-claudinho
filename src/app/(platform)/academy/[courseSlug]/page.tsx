@@ -170,7 +170,7 @@ export default async function AcademyCoursePage({
       agendaActivities.push({ key: "video", label: "Assistir o vídeo da aula", done: requirements.videoWatched });
     }
     if (requirements.quizEnabled) {
-      agendaActivities.push({ key: "quiz", label: "Responder o quiz da aula", done: requirements.quizPassed });
+      agendaActivities.push({ key: "quiz", label: "Responder a avaliação da aula", done: requirements.quizPassed });
     }
   }
 
@@ -242,7 +242,7 @@ export default async function AcademyCoursePage({
           {quizScores.length > 0 && (
             <div className="rounded-panel border border-border bg-card p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-foreground">Aproveitamento</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Nota do quiz por aula</p>
+              <p className="mt-1 text-sm text-muted-foreground">Nota da avaliação por aula</p>
               <div className="mt-4">
                 <CourseEffectivenessChart data={quizScores} />
               </div>

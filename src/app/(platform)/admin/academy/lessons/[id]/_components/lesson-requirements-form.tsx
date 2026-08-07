@@ -56,7 +56,7 @@ export function LessonRequirementsForm({
           checked={quizEnabled}
           onChange={(event) => setQuizEnabled(event.target.checked)}
         />
-        Exigir quiz
+        Exigir avaliação
       </label>
 
       <label className="flex items-center gap-2 text-sm text-muted-foreground">

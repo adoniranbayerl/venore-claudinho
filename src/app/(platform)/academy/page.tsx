@@ -228,7 +228,7 @@ function PerformanceSummary({
           </span>
           <div>
             <p className="text-2xl font-semibold text-foreground tabular-nums">{averageGrade !== null ? averageGrade.toFixed(1) : "—"}</p>
-            <p className="text-xs text-muted-foreground">Nota média nos quizzes</p>
+            <p className="text-xs text-muted-foreground">Nota média nas avaliações</p>
           </div>
         </CardContent>
       </Card>
