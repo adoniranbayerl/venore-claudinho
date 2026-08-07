@@ -43,6 +43,9 @@ export default async function LessonTrailSlot({
       ctaLabel={donationSettings.academyCtaLabel}
       message={donationSettings.message}
       suggestedAmounts={donationSettings.suggestedAmounts}
+      subtitleWithAmount={donationSettings.academyTeaserSubtitleWithAmount}
+      subtitleNoAmount={donationSettings.academyTeaserSubtitleNoAmount}
+      copy={donationSettings}
     />
   );
 

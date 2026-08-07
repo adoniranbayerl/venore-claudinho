@@ -1,44 +1,12 @@
-import { MAX_PIX_KEY_LENGTH, MAX_RECIPIENT_CITY_LENGTH, MAX_RECIPIENT_NAME_LENGTH } from "./settings";
+import { DONATIONS_SETTINGS, MAX_PIX_KEY_LENGTH, MAX_RECIPIENT_CITY_LENGTH, MAX_RECIPIENT_NAME_LENGTH, type DonationSettingsValues } from "./settings";
 
-export type DonationSettingsFormInput = {
-  pixKey: string;
-  recipientName: string;
-  recipientCity: string;
-  suggestedAmounts: string;
-  title: string;
-  message: string;
-  academyCatalogTitle: string;
-  academyCourseTitle: string;
-  academySidebarTitle: string;
-  academyCtaLabel: string;
-  academyLessonIntro: string;
-};
-
-export type ParsedDonationSettingsInput = {
-  pixKey: string;
-  recipientName: string;
-  recipientCity: string;
-  suggestedAmounts: number[];
-  title: string;
-  message: string;
-  academyCatalogTitle: string;
-  academyCourseTitle: string;
-  academySidebarTitle: string;
-  academyCtaLabel: string;
-  academyLessonIntro: string;
-};
-
-// (code, label) pra cada campo de texto do Academy — todos exigem não-vazio pelo mesmo motivo do
-// "title" abaixo: viram cabeçalho/botão/parágrafo direto na UI, vazio quebraria o layout.
-const ACADEMY_TEXT_FIELDS = [
-  ["academyCatalogTitle", "donations.invalid_academy_catalog_title", "O título no catálogo"] as const,
-  ["academyCourseTitle", "donations.invalid_academy_course_title", "O título na página do curso"] as const,
-  ["academySidebarTitle", "donations.invalid_academy_sidebar_title", "O título na barra lateral"] as const,
-  ["academyCtaLabel", "donations.invalid_academy_cta_label", "O texto do botão"] as const,
-  ["academyLessonIntro", "donations.invalid_academy_lesson_intro", "O texto da etapa de doação na aula"] as const,
-];
+// FormData só entrega string — inclusive suggestedAmounts (número[] só depois de parseado aqui).
+export type DonationSettingsFormInput = Record<keyof DonationSettingsValues, string>;
+export type ParsedDonationSettingsInput = DonationSettingsValues;
 
 export type DonationSettingsValidationError = { code: string; message: string };
+
+type StringSettingKey = Exclude<keyof DonationSettingsValues, "suggestedAmounts">;
 
 function parseSuggestedAmounts(raw: string): number[] | null {
   const amounts = raw
@@ -53,6 +21,21 @@ function parseSuggestedAmounts(raw: string): number[] | null {
 
   return amounts;
 }
+
+// Campos com validação própria (limite de tamanho do BR Code, parsing numérico) ou sem
+// obrigatoriedade (message pode ficar vazio) — todo o resto de shared/settings.ts é texto livre
+// que só precisa não vir vazio, porque vira cabeçalho/botão/placeholder/parágrafo direto na UI
+// (pedido desta sessão: "nenhum texto deve ser hardcoded nos widgets", então a lista só cresce).
+// O label do erro reaproveita o mesmo DONATIONS_SETTINGS[field].label que já alimenta o formulário
+// admin — uma fonte só, sem lista duplicada de labels aqui.
+const BESPOKE_FIELDS = new Set<keyof DonationSettingsValues>([
+  "pixKey",
+  "recipientName",
+  "recipientCity",
+  "suggestedAmounts",
+  "message",
+]);
+const REQUIRED_TEXT_FIELDS = (Object.keys(DONATIONS_SETTINGS) as StringSettingKey[]).filter((field) => !BESPOKE_FIELDS.has(field));
 
 // Validação pura (sem authorizeActor) — a permission de escrita é a de contexts/settings
 // (setSetting exige "settings.manage" internamente, mesmo padrão que
@@ -109,35 +92,21 @@ export function validateDonationSettingsInput(
     };
   }
 
-  const title = input.title.trim();
-  if (title.length === 0) {
-    return { error: { code: "donations.invalid_title", message: "O título não pode ser vazio." } };
-  }
-
   const message = input.message.trim();
 
-  const academyText: Record<string, string> = {};
-  for (const [field, code, label] of ACADEMY_TEXT_FIELDS) {
+  const data = { pixKey, recipientName, recipientCity, suggestedAmounts, message } as ParsedDonationSettingsInput;
+  // Cast pontual: `field` percorre REQUIRED_TEXT_FIELDS (nunca "suggestedAmounts", o único campo
+  // não-string), mas o filtro em runtime não estreita o tipo estático de `field`, então a escrita
+  // indexada exigiria satisfazer todo tipo possível de valor ao mesmo tempo sem este cast.
+  const textFields = data as unknown as Record<StringSettingKey, string>;
+
+  for (const field of REQUIRED_TEXT_FIELDS) {
     const value = input[field].trim();
     if (value.length === 0) {
-      return { error: { code, message: `${label} não pode ser vazio.` } };
+      return { error: { code: `donations.invalid_${field}`, message: `${DONATIONS_SETTINGS[field].label} não pode ser vazio.` } };
     }
-    academyText[field] = value;
+    textFields[field] = value;
   }
 
-  return {
-    error: null,
-    data: {
-      pixKey,
-      recipientName,
-      recipientCity,
-      suggestedAmounts,
-      title,
-      message,
-      ...(academyText as Pick<
-        ParsedDonationSettingsInput,
-        "academyCatalogTitle" | "academyCourseTitle" | "academySidebarTitle" | "academyCtaLabel" | "academyLessonIntro"
-      >),
-    },
-  };
+  return { error: null, data };
 }

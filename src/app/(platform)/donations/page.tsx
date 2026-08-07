@@ -42,6 +42,7 @@ export default async function DonationsPublicPage() {
         message={settingsResult.data.message}
         suggestedAmounts={settingsResult.data.suggestedAmounts}
         initialCode={codeResult.data}
+        copy={settingsResult.data}
       />
     </div>
   );

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { generateDonationPixCodeAction } from "../actions";
-import type { DonationPixCode } from "../contracts/types";
+import { DONATIONS_SETTINGS } from "../shared/settings";
+import type { DonationPixCode, DonationWidgetCopy } from "../contracts/types";
 
 type DonationWidgetProps = {
   title: string;
@@ -17,6 +18,28 @@ type DonationWidgetProps = {
   // "donations.pix-widget" quando embutido num espaço apertado (sidebar, banner). Só ajusta
   // tamanho/densidade visual, nunca esconde funcionalidade.
   compact?: boolean;
+  // Opcional pra não quebrar quem já usa este componente sem passar o prop — mas todo chamador
+  // real (páginas, blocks) já tem o DonationSettings inteiro à mão e deve passá-lo aqui (pedido
+  // desta sessão: "nenhum texto deve ser hardcoded nos widgets").
+  copy?: DonationWidgetCopy;
+};
+
+// Default local (não settings.manage-gated) só pro caso de alguém instanciar o componente sem
+// `copy` — mesmos valores de DONATIONS_SETTINGS (../shared/settings.ts), única fonte de verdade,
+// nunca duplicados aqui como literais soltos.
+export const DEFAULT_WIDGET_COPY: DonationWidgetCopy = {
+  customAmountLabel: DONATIONS_SETTINGS.customAmountLabel.defaultValue,
+  customAmountPlaceholder: DONATIONS_SETTINGS.customAmountPlaceholder.defaultValue,
+  customAmountSubmitLabel: DONATIONS_SETTINGS.customAmountSubmitLabel.defaultValue,
+  customAmountError: DONATIONS_SETTINGS.customAmountError.defaultValue,
+  qrUpdatedLabel: DONATIONS_SETTINGS.qrUpdatedLabel.defaultValue,
+  freeAmountLabelCompact: DONATIONS_SETTINGS.freeAmountLabelCompact.defaultValue,
+  freeAmountLabelFull: DONATIONS_SETTINGS.freeAmountLabelFull.defaultValue,
+  copiedLabel: DONATIONS_SETTINGS.copiedLabel.defaultValue,
+  copyLabelCompact: DONATIONS_SETTINGS.copyLabelCompact.defaultValue,
+  copyLabelFull: DONATIONS_SETTINGS.copyLabelFull.defaultValue,
+  closeLabel: DONATIONS_SETTINGS.closeLabel.defaultValue,
+  loadingLabel: DONATIONS_SETTINGS.loadingLabel.defaultValue,
 };
 
 // Quanto tempo o QR fica com o destaque "acabou de mudar" depois de uma regeneração — só feedback
@@ -32,7 +55,14 @@ export function formatCurrency(amount: number): string {
 // embutido em páginas CMS — a interação (escolher valor -> regenerar QR) é a mesma nos dois
 // lugares, só a moldura ao redor muda. Chama a Server Action do próprio plugin (../actions.ts)
 // porque é o único ponto de entrada compartilhado entre a página e o block (ver comentário lá).
-export function DonationWidget({ title, message, suggestedAmounts, initialCode, compact = false }: DonationWidgetProps) {
+export function DonationWidget({
+  title,
+  message,
+  suggestedAmounts,
+  initialCode,
+  compact = false,
+  copy = DEFAULT_WIDGET_COPY,
+}: DonationWidgetProps) {
   const [code, setCode] = useState(initialCode);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(initialCode.amount);
   // Campo de valor próprio some por padrão — só abre quando a pessoa pede (revisão de UX: usuário
@@ -85,7 +115,7 @@ export function DonationWidget({ title, message, suggestedAmounts, initialCode, 
     event.preventDefault();
     const parsed = Number(customAmount.replace(",", "."));
     if (!Number.isFinite(parsed) || parsed <= 0) {
-      setError("Digite um valor válido, maior que zero.");
+      setError(copy.customAmountError);
       return;
     }
     regenerate(parsed);
@@ -140,7 +170,7 @@ export function DonationWidget({ title, message, suggestedAmounts, initialCode, 
             onClick={handleChooseCustomAmount}
             className={compact ? "text-sm font-semibold" : "text-base font-semibold"}
           >
-            Escolha o valor
+            {copy.customAmountLabel}
           </Button>
         </div>
       )}
@@ -151,14 +181,14 @@ export function DonationWidget({ title, message, suggestedAmounts, initialCode, 
             ref={customAmountInputRef}
             type="text"
             inputMode="decimal"
-            placeholder="Digite o valor (R$)"
+            placeholder={copy.customAmountPlaceholder}
             value={customAmount}
             onChange={(event) => setCustomAmount(event.target.value)}
             disabled={isPending}
             className={compact ? "text-sm" : "h-11 text-base"}
           />
           <Button type="submit" size={amountButtonSize} disabled={isPending}>
-            Gerar
+            {copy.customAmountSubmitLabel}
           </Button>
         </form>
       )}
@@ -182,18 +212,16 @@ export function DonationWidget({ title, message, suggestedAmounts, initialCode, 
           // mesmo plugin monta (shared/pix-br-code.ts) — não é HTML de usuário.
           dangerouslySetInnerHTML={{ __html: code.qrSvg }}
         />
-        {justUpdated && !isPending && (
-          <p className="text-xs font-medium text-primary">Código atualizado — escaneie novamente</p>
-        )}
+        {justUpdated && !isPending && <p className="text-xs font-medium text-primary">{copy.qrUpdatedLabel}</p>}
         <p className={cn("text-center font-medium text-foreground", compact ? "text-sm" : "text-base")}>
           {code.amount != null ? (
             <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 font-semibold text-primary">
               {formatCurrency(code.amount)}
             </span>
           ) : compact ? (
-            "Valor livre"
+            copy.freeAmountLabelCompact
           ) : (
-            "Valor livre — informe o quanto quiser doar no app do seu banco."
+            copy.freeAmountLabelFull
           )}
         </p>
         <Button
@@ -204,7 +232,7 @@ export function DonationWidget({ title, message, suggestedAmounts, initialCode, 
           className={cn("w-full gap-2", qrMaxWidthClass, copied && "bg-success text-success-foreground hover:bg-success")}
         >
           {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-          {copied ? "Copiado!" : compact ? "Copiar código" : "Copiar código Pix Copia e Cola"}
+          {copied ? copy.copiedLabel : compact ? copy.copyLabelCompact : copy.copyLabelFull}
         </Button>
       </div>
     </div>

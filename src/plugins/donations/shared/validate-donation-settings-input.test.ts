@@ -1,18 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { validateDonationSettingsInput, type DonationSettingsFormInput } from "./validate-donation-settings-input";
+import { DONATIONS_SETTINGS } from "./settings";
 
+// Deriva o input válido a partir dos próprios defaults de DONATIONS_SETTINGS (mesma fonte que o
+// código de produção usa) — qualquer campo novo entra automaticamente, sem precisar lembrar de
+// atualizar este objeto a cada settings novo. pixKey/recipientName/recipientCity não têm default
+// real (ficam "" até o admin configurar), então são sobrescritos aqui pra passar na validação.
 const validInput: DonationSettingsFormInput = {
+  ...(Object.fromEntries(
+    Object.entries(DONATIONS_SETTINGS).map(([field, def]) => [
+      field,
+      field === "suggestedAmounts" ? (def.defaultValue as unknown as number[]).join(", ") : (def.defaultValue as string),
+    ]),
+  ) as DonationSettingsFormInput),
   pixKey: "doacoes@example.org",
   recipientName: "Instituto Exemplo",
   recipientCity: "Curitiba",
-  suggestedAmounts: "20, 50, 100",
-  title: "Faça uma doação",
-  message: "Obrigado por doar.",
-  academyCatalogTitle: "Este catálogo é gratuito",
-  academyCourseTitle: "Gostando do curso?",
-  academySidebarTitle: "Este material é gratuito",
-  academyCtaLabel: "Apoiar com uma doação",
-  academyLessonIntro: "Este material é gratuito para professores e autodidatas.",
 };
 
 describe("validateDonationSettingsInput", () => {
@@ -69,10 +72,15 @@ describe("validateDonationSettingsInput", () => {
 
   it("rejects an empty Academy text field", () => {
     const result = validateDonationSettingsInput({ ...validInput, academyCatalogTitle: "  " });
-    expect(result.error?.code).toBe("donations.invalid_academy_catalog_title");
+    expect(result.error?.code).toBe("donations.invalid_academyCatalogTitle");
   });
 
-  it("trims Academy text fields", () => {
+  it("rejects an empty widget copy field", () => {
+    const result = validateDonationSettingsInput({ ...validInput, copyLabelFull: "  " });
+    expect(result.error?.code).toBe("donations.invalid_copyLabelFull");
+  });
+
+  it("trims text fields", () => {
     const result = validateDonationSettingsInput({ ...validInput, academyCtaLabel: "  Apoiar agora  " });
     expect(result.error).toBeNull();
     if (result.error === null) {

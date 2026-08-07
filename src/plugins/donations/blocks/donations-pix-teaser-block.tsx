@@ -40,6 +40,9 @@ export async function DonationsPixTeaserBlock({ block, mode }: BlockRendererProp
       ctaLabel={ctaLabel}
       message={settingsResult.success ? settingsResult.data.message : undefined}
       suggestedAmounts={settingsResult.success ? settingsResult.data.suggestedAmounts : []}
+      subtitleWithAmount={settingsResult.success ? settingsResult.data.academyTeaserSubtitleWithAmount : undefined}
+      subtitleNoAmount={settingsResult.success ? settingsResult.data.academyTeaserSubtitleNoAmount : undefined}
+      copy={settingsResult.success ? settingsResult.data : undefined}
     />
   );
 }

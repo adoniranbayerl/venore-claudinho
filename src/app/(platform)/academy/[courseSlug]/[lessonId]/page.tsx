@@ -259,7 +259,13 @@ function buildDonationStep(settings: DonationSettings, code: DonationPixCode): L
     content: (
       <div key="donation" className="space-y-4">
         <p className="text-sm text-muted-foreground">{settings.academyLessonIntro}</p>
-        <DonationWidget title={settings.title} message={settings.message} suggestedAmounts={settings.suggestedAmounts} initialCode={code} />
+        <DonationWidget
+          title={settings.title}
+          message={settings.message}
+          suggestedAmounts={settings.suggestedAmounts}
+          initialCode={code}
+          copy={settings}
+        />
       </div>
     ),
   };

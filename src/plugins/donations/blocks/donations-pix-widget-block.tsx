@@ -48,6 +48,7 @@ export async function DonationsPixWidgetBlock({ block, mode }: BlockRendererProp
       suggestedAmounts={settingsResult.data.suggestedAmounts}
       initialCode={codeResult.data}
       compact={compact}
+      copy={settingsResult.data}
     />
   );
 }

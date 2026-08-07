@@ -116,6 +116,9 @@ async function Dashboard({ courses }: { courses: CourseForStudentView[] }) {
           ctaLabel={donationSettings.academyCtaLabel}
           message={donationSettings.message}
           suggestedAmounts={donationSettings.suggestedAmounts}
+          subtitleWithAmount={donationSettings.academyTeaserSubtitleWithAmount}
+          subtitleNoAmount={donationSettings.academyTeaserSubtitleNoAmount}
+          copy={donationSettings}
         />
       )}
     </div>

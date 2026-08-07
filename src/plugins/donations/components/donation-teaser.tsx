@@ -4,14 +4,24 @@ import { useState } from "react";
 import { HandCoins, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { generateDonationPixCodeAction } from "../actions";
-import { DonationWidget, formatCurrency } from "./donation-widget";
-import type { DonationPixCode } from "../contracts/types";
+import { DEFAULT_WIDGET_COPY, DonationWidget, formatCurrency } from "./donation-widget";
+import type { DonationPixCode, DonationWidgetCopy } from "../contracts/types";
 
 type DonationTeaserProps = {
   title: string;
   ctaLabel: string;
   message?: string;
   suggestedAmounts: number[];
+  // Linha abaixo do título — texto inteiro editável, não só um prefixo. Dois templates porque a
+  // frase muda de estrutura conforme existe ou não um valor sugerido (não dá pra cobrir os dois
+  // casos com um só template + interpolação); "{amount}" é o único token substituído (valor
+  // formatado, ex: "R$ 5,00" — o resto do texto é livre). Ambos opcionais pra não quebrar quem já
+  // usa este componente sem passar o prop (donations-pix-teaser-block.tsx, block de CMS genérico).
+  subtitleWithAmount?: string;
+  subtitleNoAmount?: string;
+  // Cobre tanto o texto próprio deste componente ("Fechar"/"Carregando...") quanto o repasse pro
+  // DonationWidget que aparece ao expandir — mesmo objeto, mesmo motivo de donation-widget.tsx.
+  copy?: DonationWidgetCopy;
 };
 
 // Selo/chamada pra embutir em qualquer página sem competir por espaço com o conteúdo ao redor —
@@ -19,7 +29,15 @@ type DonationTeaserProps = {
 // nenhum até a pessoa pedir. Clicar em "Doar agora" busca o código PIX na hora (mesma Server
 // Action que o widget completo usa pra regenerar por valor, ver ../actions.ts) e expande pro
 // DonationWidget compacto embaixo — nunca navega pra /donations, mesma regra do widget completo.
-export function DonationTeaser({ title, ctaLabel, message, suggestedAmounts }: DonationTeaserProps) {
+export function DonationTeaser({
+  title,
+  ctaLabel,
+  message,
+  suggestedAmounts,
+  subtitleWithAmount = "Contribua com a partir de {amount}",
+  subtitleNoAmount = "Contribua com o valor que você quiser",
+  copy = DEFAULT_WIDGET_COPY,
+}: DonationTeaserProps) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [code, setCode] = useState<DonationPixCode | null>(null);
@@ -48,20 +66,22 @@ export function DonationTeaser({ title, ctaLabel, message, suggestedAmounts }: D
   if (expanded && code) {
     return (
       <div className="space-y-2">
-        <DonationWidget title={title} message={message} suggestedAmounts={suggestedAmounts} initialCode={code} compact />
+        <DonationWidget title={title} message={message} suggestedAmounts={suggestedAmounts} initialCode={code} compact copy={copy} />
         <button
           type="button"
           onClick={() => setExpanded(false)}
           className="flex w-full items-center justify-center gap-1 text-xs text-muted-foreground ui-motion-base hover:text-foreground"
         >
           <X className="size-3" />
-          Fechar
+          {copy.closeLabel}
         </button>
       </div>
     );
   }
 
-  const amountHint = suggestedAmounts[0] ? `a partir de ${formatCurrency(suggestedAmounts[0])}` : "o valor que você quiser";
+  const subtitle = suggestedAmounts[0]
+    ? subtitleWithAmount.replace("{amount}", formatCurrency(suggestedAmounts[0]))
+    : subtitleNoAmount;
 
   return (
     <div className="relative overflow-hidden rounded-panel border border-primary/20 bg-gradient-to-br from-primary/15 via-accent/10 to-transparent p-4">
@@ -69,7 +89,7 @@ export function DonationTeaser({ title, ctaLabel, message, suggestedAmounts }: D
         <HandCoins className="size-6 shrink-0 text-primary" />
         <div className="min-w-0">
           <p className="line-clamp-2 leading-tight font-semibold text-foreground">{title}</p>
-          <p className="text-xs text-muted-foreground">Contribua com {amountHint}</p>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
         </div>
       </div>
 
@@ -88,7 +108,7 @@ export function DonationTeaser({ title, ctaLabel, message, suggestedAmounts }: D
         />
         <Button type="button" onClick={handleExpand} disabled={loading} className="relative m-px flex-1 gap-2">
           <Sparkles className="size-4" />
-          {loading ? "Carregando..." : ctaLabel}
+          {loading ? copy.loadingLabel : ctaLabel}
         </Button>
       </div>
     </div>
