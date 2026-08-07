@@ -229,6 +229,25 @@ function buildActivityStep(courseSlug: string, lessonId: string, activities: Act
 // sessão anterior de nunca colocar doação "ao final de uma aula" (comentário em
 // academy/[courseSlug]/page.tsx) — mantida como estava lá porque descreve por que aquele
 // texto ficou daquele jeito, não porque ainda vale aqui.
+// Compartilhado entre o modo "full" (aluno matriculado) e "preview" (professor revisando o
+// próprio curso) — pedido desta sessão: professor também deve ver a etapa ao conferir a aula,
+// não só quem está matriculado de verdade. Segue sem aparecer pra "amostra grátis"
+// (FreeSampleLessonView), que nem chama esta função.
+async function resolveDonationStep(): Promise<LessonFlowStep | null> {
+  const donationsActive = await isPluginActive("donations");
+  const donationSettingsResult = donationsActive ? await getDonationSettings() : null;
+  const donationSettings = donationSettingsResult?.success ? donationSettingsResult.data : null;
+  const donationsConfigured = Boolean(
+    donationSettings?.pixKey && donationSettings?.recipientName && donationSettings?.recipientCity,
+  );
+  if (!donationsConfigured || !donationSettings) {
+    return null;
+  }
+
+  const donationCodeResult = await buildDonationPixCode({ amount: donationSettings.suggestedAmounts[0] ?? null });
+  return donationCodeResult.success ? buildDonationStep(donationSettings, donationCodeResult.data) : null;
+}
+
 function buildDonationStep(settings: DonationSettings, code: DonationPixCode): LessonFlowStep {
   return {
     id: "donation",
@@ -239,10 +258,7 @@ function buildDonationStep(settings: DonationSettings, code: DonationPixCode): L
     navBeforeContent: true,
     content: (
       <div key="donation" className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Este material é gratuito para professores e autodidatas. Se esta aula te ajudou, considere apoiar quem
-          produz o conteúdo.
-        </p>
+        <p className="text-sm text-muted-foreground">{settings.academyLessonIntro}</p>
         <DonationWidget title={settings.title} message={settings.message} suggestedAmounts={settings.suggestedAmounts} initialCode={code} />
       </div>
     ),
@@ -474,6 +490,8 @@ export default async function AcademyLessonPage({
         ),
       );
     }
+    const previewDonationStep = await resolveDonationStep();
+    if (previewDonationStep) steps.push(previewDonationStep);
 
     return (
       <div className="space-y-6">
@@ -612,24 +630,14 @@ export default async function AcademyLessonPage({
   }
 
   // Mesmo critério "configurado" de academy/[courseSlug]/page.tsx (chave PIX + destinatário
-  // preenchidos) e mesmo escopo "só modo full" do slot @sidebarContextual — só aluno matriculado
-  // de verdade, nunca preview de professor nem amostra grátis. Código PIX gerado uma vez aqui
-  // (primeiro valor sugerido, igual /donations) — o widget troca o próprio código ao escolher
-  // outro valor, sem precisar de round-trip nesta página.
-  const donationsActive = await isPluginActive("donations");
-  const donationSettingsResult = donationsActive ? await getDonationSettings() : null;
-  const donationSettings = donationSettingsResult?.success ? donationSettingsResult.data : null;
-  const donationsConfigured = Boolean(
-    donationSettings?.pixKey && donationSettings?.recipientName && donationSettings?.recipientCity,
-  );
-  if (donationsConfigured && donationSettings) {
-    const donationCodeResult = await buildDonationPixCode({ amount: donationSettings.suggestedAmounts[0] ?? null });
-    if (donationCodeResult.success) {
-      steps.push(buildDonationStep(donationSettings, donationCodeResult.data));
-    }
-  }
+  // preenchidos). Também entra no modo "preview" (ver resolveDonationStep, chamado lá em cima
+  // nesta mesma função) — só a amostra grátis (FreeSampleLessonView) fica de fora. Código PIX
+  // gerado uma vez aqui (primeiro valor sugerido, igual /donations) — o widget troca o próprio
+  // código ao escolher outro valor, sem precisar de round-trip nesta página.
+  const donationStep = await resolveDonationStep();
+  if (donationStep) steps.push(donationStep);
 
-  // Só no modo "full" (aqui) — preview de professor e amostra grátis não têm matrícula real, sem
+  // Amostra grátis (FreeSampleLessonView) não chama resolveDonationStep — sem matrícula real nem
   // "pra quem" mandar a mensagem. threadsByStepKey só carrega unreadCount (LessonStepFlow só
   // precisa disso pro pontinho no botão) — histórico completo é lazy, via getLessonMessageThreadAction
   // quando o aluno abre o diálogo de uma etapa específica.

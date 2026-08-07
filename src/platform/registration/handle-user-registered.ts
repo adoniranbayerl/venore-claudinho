@@ -16,12 +16,17 @@ export const REGISTRATION_APPROVAL_REQUIRED_SETTING_KEY = "auth.registration_app
 // registrado no bootstrap — mesmo padrão de FALLBACK_ACTIVE_THEME em
 // contexts/themes/features/active-theme/get-active-theme/service.ts: setting ausente ou erro na
 // leitura cai no mesmo comportamento de hoje (aprovação exigida).
+//
+// Valor é um boolean real (não string "true"/"false"): a coluna jsonb já é parseada uma vez pelo
+// driver node-postgres e de novo pelo mapFromDriverValue do drizzle, então uma string "false"
+// volta como o boolean `false` na segunda leitura — comparar contra string nunca bateria (bug:
+// a opção nunca desligava, sempre caía no fallback "aprovação exigida").
 async function isApprovalRequired(): Promise<boolean> {
   const result = await getSetting({ key: REGISTRATION_APPROVAL_REQUIRED_SETTING_KEY });
-  if (!result.success || !result.data || typeof result.data.value !== "string") {
+  if (!result.success || !result.data || typeof result.data.value !== "boolean") {
     return true;
   }
-  return result.data.value !== "false";
+  return result.data.value;
 }
 
 // Ponto de composição fora de auth e rbac (docs/venore-docks.md — regra 12): a hierarquia

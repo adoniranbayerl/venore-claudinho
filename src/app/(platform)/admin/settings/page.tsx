@@ -22,7 +22,7 @@ export default async function SettingsAdminPage() {
 
   // Mesmo fallback de handle-user-registered.ts: setting ausente ou com valor inesperado = aprovação exigida.
   const record = settingResult.data;
-  const approvalRequired = !record || typeof record.value !== "string" ? true : record.value !== "false";
+  const approvalRequired = !record || typeof record.value !== "boolean" ? true : record.value;
 
   return (
     <div className="space-y-8">

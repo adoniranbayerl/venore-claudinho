@@ -16,7 +16,7 @@ export async function updateRegistrationApprovalAction(
 
   const result = await setSetting({
     key: REGISTRATION_APPROVAL_REQUIRED_SETTING_KEY,
-    value: enabled ? "true" : "false",
+    value: enabled,
   });
 
   if (!result.success) {

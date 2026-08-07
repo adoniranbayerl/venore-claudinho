@@ -39,6 +39,25 @@ export default async function AcademyCoursePage({
 
   const { course } = access;
 
+  // Pedido de uma sessão anterior: "veja onde ele [Doações] cabe nas nossas páginas... pelo menos
+  // na página de curso" — só a partir daqui (curso já visível de verdade: matriculado ou professor
+  // revisando), não em enroll-available/restricted (chamada de doação não faz sentido antes do
+  // aluno sequer ter acesso ao curso). Mesmo critério de "configurado" que o block usa
+  // (donations-pix-teaser-block.tsx) — replicado aqui porque esta página é JSX fixo, não
+  // composição de CMS, então não dá pra simplesmente soltar o block.
+  const donationsActive = await isPluginActive("donations");
+  const donationSettingsResult = donationsActive ? await getDonationSettings() : null;
+  const donationSettings = donationSettingsResult?.success ? donationSettingsResult.data : null;
+  const showDonationTeaser = Boolean(donationSettings?.pixKey && donationSettings?.recipientName && donationSettings?.recipientCity);
+  const donationTeaser = showDonationTeaser && donationSettings && (
+    <DonationTeaser
+      title={donationSettings.academyCourseTitle}
+      ctaLabel={donationSettings.academyCtaLabel}
+      message={donationSettings.message}
+      suggestedAmounts={donationSettings.suggestedAmounts}
+    />
+  );
+
   if (access.mode === "restricted") {
     return (
       <div className="space-y-4">
@@ -121,6 +140,7 @@ export default async function AcademyCoursePage({
             </div>
           )}
         </section>
+        {donationTeaser}
       </div>
     );
   }
@@ -129,21 +149,6 @@ export default async function AcademyCoursePage({
   if (!progressResult.success) {
     return <p className="text-sm text-destructive">Erro ao carregar progresso: {progressResult.error.message}</p>;
   }
-
-  // Pedido de uma sessão anterior: "veja onde ele [Doações] cabe nas nossas páginas... pelo menos
-  // na página de curso" — só aqui na visão completa (aluno matriculado), não em enroll-available/
-  // restricted/preview (chamada de doação não faz sentido antes do aluno ter acesso de verdade ao
-  // curso). Aquela sessão também tinha descartado colocar isso "ao final de uma aula" por parecer
-  // forçado — decisão revertida a pedido explícito de uma sessão posterior, que pediu uma etapa de
-  // doação dentro do próprio fluxo da aula (ver buildDonationStep em
-  // academy/[courseSlug]/[lessonId]/page.tsx) e um companheiro fixo na coluna contextual (ver
-  // @sidebarContextual/academy/[courseSlug]/[lessonId]/page.tsx). Mesmo critério de "configurado"
-  // que o block usa (donations-pix-teaser-block.tsx) — replicado aqui porque esta página é JSX
-  // fixo, não composição de CMS, então não dá pra simplesmente soltar o block.
-  const donationsActive = await isPluginActive("donations");
-  const donationSettingsResult = donationsActive ? await getDonationSettings() : null;
-  const donationSettings = donationSettingsResult?.success ? donationSettingsResult.data : null;
-  const showDonationTeaser = Boolean(donationSettings?.pixKey && donationSettings?.recipientName && donationSettings?.recipientCity);
 
   const progress = progressResult.data;
   const progressPercent = calculateProgressPercent(progress.completedLessons, progress.totalLessons);
@@ -255,14 +260,7 @@ export default async function AcademyCoursePage({
         )}
       </section>
 
-      {showDonationTeaser && donationSettings && (
-        <DonationTeaser
-          title="Gostando do curso?"
-          ctaLabel="Apoiar com uma doação"
-          message={donationSettings.message}
-          suggestedAmounts={donationSettings.suggestedAmounts}
-        />
-      )}
+      {donationTeaser}
     </div>
   );
 }

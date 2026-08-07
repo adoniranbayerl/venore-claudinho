@@ -7,6 +7,11 @@ export type DonationSettingsFormInput = {
   suggestedAmounts: string;
   title: string;
   message: string;
+  academyCatalogTitle: string;
+  academyCourseTitle: string;
+  academySidebarTitle: string;
+  academyCtaLabel: string;
+  academyLessonIntro: string;
 };
 
 export type ParsedDonationSettingsInput = {
@@ -16,7 +21,22 @@ export type ParsedDonationSettingsInput = {
   suggestedAmounts: number[];
   title: string;
   message: string;
+  academyCatalogTitle: string;
+  academyCourseTitle: string;
+  academySidebarTitle: string;
+  academyCtaLabel: string;
+  academyLessonIntro: string;
 };
+
+// (code, label) pra cada campo de texto do Academy — todos exigem não-vazio pelo mesmo motivo do
+// "title" abaixo: viram cabeçalho/botão/parágrafo direto na UI, vazio quebraria o layout.
+const ACADEMY_TEXT_FIELDS = [
+  ["academyCatalogTitle", "donations.invalid_academy_catalog_title", "O título no catálogo"] as const,
+  ["academyCourseTitle", "donations.invalid_academy_course_title", "O título na página do curso"] as const,
+  ["academySidebarTitle", "donations.invalid_academy_sidebar_title", "O título na barra lateral"] as const,
+  ["academyCtaLabel", "donations.invalid_academy_cta_label", "O texto do botão"] as const,
+  ["academyLessonIntro", "donations.invalid_academy_lesson_intro", "O texto da etapa de doação na aula"] as const,
+];
 
 export type DonationSettingsValidationError = { code: string; message: string };
 
@@ -96,5 +116,28 @@ export function validateDonationSettingsInput(
 
   const message = input.message.trim();
 
-  return { error: null, data: { pixKey, recipientName, recipientCity, suggestedAmounts, title, message } };
+  const academyText: Record<string, string> = {};
+  for (const [field, code, label] of ACADEMY_TEXT_FIELDS) {
+    const value = input[field].trim();
+    if (value.length === 0) {
+      return { error: { code, message: `${label} não pode ser vazio.` } };
+    }
+    academyText[field] = value;
+  }
+
+  return {
+    error: null,
+    data: {
+      pixKey,
+      recipientName,
+      recipientCity,
+      suggestedAmounts,
+      title,
+      message,
+      ...(academyText as Pick<
+        ParsedDonationSettingsInput,
+        "academyCatalogTitle" | "academyCourseTitle" | "academySidebarTitle" | "academyCtaLabel" | "academyLessonIntro"
+      >),
+    },
+  };
 }

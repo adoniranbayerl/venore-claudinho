@@ -26,6 +26,11 @@ export async function updateDonationSettingsAction(
     suggestedAmounts: String(formData.get("suggestedAmounts") ?? ""),
     title: String(formData.get("title") ?? ""),
     message: String(formData.get("message") ?? ""),
+    academyCatalogTitle: String(formData.get("academyCatalogTitle") ?? ""),
+    academyCourseTitle: String(formData.get("academyCourseTitle") ?? ""),
+    academySidebarTitle: String(formData.get("academySidebarTitle") ?? ""),
+    academyCtaLabel: String(formData.get("academyCtaLabel") ?? ""),
+    academyLessonIntro: String(formData.get("academyLessonIntro") ?? ""),
   };
 
   const validation = validateDonationSettingsInput(input);
@@ -40,6 +45,11 @@ export async function updateDonationSettingsAction(
     [DONATIONS_SETTINGS.suggestedAmounts.key, validation.data.suggestedAmounts],
     [DONATIONS_SETTINGS.title.key, validation.data.title],
     [DONATIONS_SETTINGS.message.key, validation.data.message],
+    [DONATIONS_SETTINGS.academyCatalogTitle.key, validation.data.academyCatalogTitle],
+    [DONATIONS_SETTINGS.academyCourseTitle.key, validation.data.academyCourseTitle],
+    [DONATIONS_SETTINGS.academySidebarTitle.key, validation.data.academySidebarTitle],
+    [DONATIONS_SETTINGS.academyCtaLabel.key, validation.data.academyCtaLabel],
+    [DONATIONS_SETTINGS.academyLessonIntro.key, validation.data.academyLessonIntro],
   ];
 
   // Cada chave é independente (contexts/settings não tem transação multi-chave) — mesmo padrão de

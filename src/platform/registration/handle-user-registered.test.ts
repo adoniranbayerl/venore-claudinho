@@ -60,8 +60,8 @@ describe("handleUserRegistered", () => {
     expect(result).toEqual({ success: true, data: undefined });
   });
 
-  it("marks the user as pending (via auth) when the setting is explicitly \"true\"", async () => {
-    getSetting.mockResolvedValue({ success: true, data: { key: "auth.registration_approval_required", value: "true", updatedAt: new Date() } });
+  it("marks the user as pending (via auth) when the setting is explicitly true", async () => {
+    getSetting.mockResolvedValue({ success: true, data: { key: "auth.registration_approval_required", value: true, updatedAt: new Date() } });
     provisionUser.mockResolvedValue({ success: true, data: undefined });
 
     const { handleUserRegistered } = await import("./handle-user-registered");
@@ -73,7 +73,7 @@ describe("handleUserRegistered", () => {
   });
 
   it("grants the default role (via rbac) when the setting is \"false\" and a superadmin already exists, without touching auth", async () => {
-    getSetting.mockResolvedValue({ success: true, data: { key: "auth.registration_approval_required", value: "false", updatedAt: new Date() } });
+    getSetting.mockResolvedValue({ success: true, data: { key: "auth.registration_approval_required", value: false, updatedAt: new Date() } });
     grantDefaultRoleOnRegistration.mockResolvedValue({ success: true, data: undefined });
 
     const { handleUserRegistered } = await import("./handle-user-registered");
@@ -97,7 +97,7 @@ describe("handleUserRegistered", () => {
   });
 
   it("propagates the error when granting the default role fails", async () => {
-    getSetting.mockResolvedValue({ success: true, data: { key: "auth.registration_approval_required", value: "false", updatedAt: new Date() } });
+    getSetting.mockResolvedValue({ success: true, data: { key: "auth.registration_approval_required", value: false, updatedAt: new Date() } });
     const error = { code: "rbac.roles.not_found", message: "não encontrado" };
     grantDefaultRoleOnRegistration.mockResolvedValue({ success: false, error });
 
@@ -124,7 +124,7 @@ describe("handleUserRegistered", () => {
   });
 
   it("grants superadmin directly, skipping the default role, when no superadmin exists yet (approval disabled)", async () => {
-    getSetting.mockResolvedValue({ success: true, data: { key: "auth.registration_approval_required", value: "false", updatedAt: new Date() } });
+    getSetting.mockResolvedValue({ success: true, data: { key: "auth.registration_approval_required", value: false, updatedAt: new Date() } });
     superadminExists.mockResolvedValue({ success: true, data: false });
     grantSuperadmin.mockResolvedValue({ success: true, data: undefined });
 

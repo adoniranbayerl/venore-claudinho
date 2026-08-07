@@ -16,6 +16,37 @@ export const DONATIONS_SETTINGS = {
     defaultValue: "Sua doação ajuda a manter nosso trabalho. Escolha um valor ou digite o quanto quiser doar.",
     label: "Mensagem",
   },
+  // Textos dos widgets embutidos no Academy (catálogo, página de curso, barra lateral da aula,
+  // etapa de doação dentro da aula) — pedido explícito de uma sessão posterior: essas quatro
+  // superfícies não são composição de CMS (docs/venore-docks.md/AGENTS.md, "esta página é JSX
+  // fixo"), então o texto ficava hardcoded direto no JSX sem forma de editar. Aqui viram settings
+  // como title/message acima, na mesma tela /admin/donations.
+  academyCatalogTitle: {
+    key: "donations.academyCatalogTitle",
+    defaultValue: "Este catálogo é gratuito",
+    label: "Academy — título no catálogo de cursos",
+  },
+  academyCourseTitle: {
+    key: "donations.academyCourseTitle",
+    defaultValue: "Gostando do curso?",
+    label: "Academy — título na página do curso",
+  },
+  academySidebarTitle: {
+    key: "donations.academySidebarTitle",
+    defaultValue: "Este material é gratuito",
+    label: "Academy — título na barra lateral da aula",
+  },
+  academyCtaLabel: {
+    key: "donations.academyCtaLabel",
+    defaultValue: "Apoiar com uma doação",
+    label: "Academy — texto do botão",
+  },
+  academyLessonIntro: {
+    key: "donations.academyLessonIntro",
+    defaultValue:
+      "Este material é gratuito para professores e autodidatas. Se esta aula te ajudou, considere apoiar quem produz o conteúdo.",
+    label: "Academy — texto da etapa de doação na aula",
+  },
 } as const;
 
 export type DonationSettingsValues = {
@@ -25,6 +56,11 @@ export type DonationSettingsValues = {
   suggestedAmounts: number[];
   title: string;
   message: string;
+  academyCatalogTitle: string;
+  academyCourseTitle: string;
+  academySidebarTitle: string;
+  academyCtaLabel: string;
+  academyLessonIntro: string;
 };
 
 export const DEFAULT_DONATION_SETTINGS: DonationSettingsValues = {
@@ -34,6 +70,11 @@ export const DEFAULT_DONATION_SETTINGS: DonationSettingsValues = {
   suggestedAmounts: [...DONATIONS_SETTINGS.suggestedAmounts.defaultValue],
   title: DONATIONS_SETTINGS.title.defaultValue,
   message: DONATIONS_SETTINGS.message.defaultValue,
+  academyCatalogTitle: DONATIONS_SETTINGS.academyCatalogTitle.defaultValue,
+  academyCourseTitle: DONATIONS_SETTINGS.academyCourseTitle.defaultValue,
+  academySidebarTitle: DONATIONS_SETTINGS.academySidebarTitle.defaultValue,
+  academyCtaLabel: DONATIONS_SETTINGS.academyCtaLabel.defaultValue,
+  academyLessonIntro: DONATIONS_SETTINGS.academyLessonIntro.defaultValue,
 };
 
 // Limites do próprio formato EMV (campos "26 01", "59" e "60" do BR Code, ver shared/pix-br-

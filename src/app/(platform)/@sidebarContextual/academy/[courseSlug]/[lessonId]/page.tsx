@@ -27,6 +27,25 @@ export default async function LessonTrailSlot({
 
   const { course } = access;
 
+  // Doação por baixo da trilha — companheiro quieto e sempre no mesmo lugar na coluna contextual,
+  // nunca bloqueia nem aparece como checkpoint de conclusão. Complementar à etapa de doação dentro
+  // do próprio LessonStepFlow (academy/[courseSlug]/[lessonId]/page.tsx, buildDonationStep): aquela
+  // é uma etapa que o aluno folheia como as outras; esta é visível o tempo todo, sem precisar
+  // navegar até lá. Entra tanto no modo "full" (aluno matriculado) quanto "preview" (professor
+  // revisando o próprio curso) — mesmo critério das outras duas superfícies de doação do academy.
+  const donationsActive = await isPluginActive("donations");
+  const donationSettingsResult = donationsActive ? await getDonationSettings() : null;
+  const donationSettings = donationSettingsResult?.success ? donationSettingsResult.data : null;
+  const showDonationTeaser = Boolean(donationSettings?.pixKey && donationSettings?.recipientName && donationSettings?.recipientCity);
+  const donationTeaser = showDonationTeaser && donationSettings && (
+    <DonationTeaser
+      title={donationSettings.academySidebarTitle}
+      ctaLabel={donationSettings.academyCtaLabel}
+      message={donationSettings.message}
+      suggestedAmounts={donationSettings.suggestedAmounts}
+    />
+  );
+
   if (access.mode === "preview") {
     const lessonsResult = await listLessonsByCourse({ courseId: course.id });
     if (!lessonsResult.success) return null;
@@ -38,7 +57,12 @@ export default async function LessonTrailSlot({
       state: lesson.id === lessonId ? "current" : "unlocked",
     }));
 
-    return <LessonTrail courseSlug={course.slug} items={items} />;
+    return (
+      <div className="sticky top-8 flex flex-col gap-4">
+        <LessonTrail courseSlug={course.slug} items={items} />
+        {donationTeaser}
+      </div>
+    );
   }
 
   const progressResult = await getCourseProgress({ courseId: course.id });
@@ -55,17 +79,6 @@ export default async function LessonTrailSlot({
     return { id: lesson.lessonId, position: lesson.position, title: lesson.title, state };
   });
 
-  // Doação por baixo da trilha — companheiro quieto e sempre no mesmo lugar na coluna contextual,
-  // nunca bloqueia nem aparece como checkpoint de conclusão. Complementar à etapa de doação dentro
-  // do próprio LessonStepFlow (academy/[courseSlug]/[lessonId]/page.tsx, buildDonationStep): aquela
-  // é uma etapa que o aluno folheia como as outras; esta é visível o tempo todo, sem precisar
-  // navegar até lá. Só no modo "full" (aluno matriculado de verdade) — no preview de professor não
-  // faz sentido pedir doação pelo próprio material que a pessoa está revisando.
-  const donationsActive = await isPluginActive("donations");
-  const donationSettingsResult = donationsActive ? await getDonationSettings() : null;
-  const donationSettings = donationSettingsResult?.success ? donationSettingsResult.data : null;
-  const showDonationTeaser = Boolean(donationSettings?.pixKey && donationSettings?.recipientName && donationSettings?.recipientCity);
-
   // sticky no wrapper, não só no <nav> interno da LessonTrail (que já é sticky top-8 sozinho) —
   // bug reportado nesta sessão: com os dois em fluxo normal dentro do mesmo pai, o <nav> colado
   // tinha espaço pra "andar" até o fundo do pai (que é mais alto que ele, por causa do card de
@@ -77,14 +90,7 @@ export default async function LessonTrailSlot({
   return (
     <div className="sticky top-8 flex flex-col gap-4">
       <LessonTrail courseSlug={course.slug} items={items} />
-      {showDonationTeaser && donationSettings && (
-        <DonationTeaser
-          title="Este material é gratuito"
-          ctaLabel="Apoiar com uma doação"
-          message={donationSettings.message}
-          suggestedAmounts={donationSettings.suggestedAmounts}
-        />
-      )}
+      {donationTeaser}
     </div>
   );
 }

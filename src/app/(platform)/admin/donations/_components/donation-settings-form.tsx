@@ -49,6 +49,39 @@ export function DonationSettingsForm({ settings }: { settings: DonationSettings 
         <Textarea name="message" defaultValue={settings.message} rows={3} />
       </label>
 
+      <div className="sm:col-span-2">
+        <h2 className="text-sm font-semibold text-foreground">Textos no Academy</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Título e botão dos widgets de doação embutidos no catálogo, na página de curso, na barra lateral e no
+          fluxo da aula.
+        </p>
+      </div>
+
+      <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+        Título no catálogo
+        <Input name="academyCatalogTitle" defaultValue={settings.academyCatalogTitle} />
+      </label>
+
+      <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+        Título na página do curso
+        <Input name="academyCourseTitle" defaultValue={settings.academyCourseTitle} />
+      </label>
+
+      <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+        Título na barra lateral da aula
+        <Input name="academySidebarTitle" defaultValue={settings.academySidebarTitle} />
+      </label>
+
+      <label className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+        Texto do botão
+        <Input name="academyCtaLabel" defaultValue={settings.academyCtaLabel} />
+      </label>
+
+      <label className="flex flex-col gap-1.5 text-sm text-muted-foreground sm:col-span-2">
+        Texto da etapa de doação na aula
+        <Textarea name="academyLessonIntro" defaultValue={settings.academyLessonIntro} rows={2} />
+      </label>
+
       <Button type="submit" disabled={pending} className="sm:col-span-2">
         Salvar configuração
       </Button>

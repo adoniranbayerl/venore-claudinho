@@ -8,6 +8,11 @@ const validInput: DonationSettingsFormInput = {
   suggestedAmounts: "20, 50, 100",
   title: "Faça uma doação",
   message: "Obrigado por doar.",
+  academyCatalogTitle: "Este catálogo é gratuito",
+  academyCourseTitle: "Gostando do curso?",
+  academySidebarTitle: "Este material é gratuito",
+  academyCtaLabel: "Apoiar com uma doação",
+  academyLessonIntro: "Este material é gratuito para professores e autodidatas.",
 };
 
 describe("validateDonationSettingsInput", () => {
@@ -60,5 +65,18 @@ describe("validateDonationSettingsInput", () => {
   it("rejects an empty title", () => {
     const result = validateDonationSettingsInput({ ...validInput, title: "  " });
     expect(result.error?.code).toBe("donations.invalid_title");
+  });
+
+  it("rejects an empty Academy text field", () => {
+    const result = validateDonationSettingsInput({ ...validInput, academyCatalogTitle: "  " });
+    expect(result.error?.code).toBe("donations.invalid_academy_catalog_title");
+  });
+
+  it("trims Academy text fields", () => {
+    const result = validateDonationSettingsInput({ ...validInput, academyCtaLabel: "  Apoiar agora  " });
+    expect(result.error).toBeNull();
+    if (result.error === null) {
+      expect(result.data.academyCtaLabel).toBe("Apoiar agora");
+    }
   });
 });

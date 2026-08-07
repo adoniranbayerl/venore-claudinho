@@ -112,8 +112,8 @@ async function Dashboard({ courses }: { courses: CourseForStudentView[] }) {
           pedido de doação antes de qualquer conteúdo). Só alcança quem rolou a página inteira. */}
       {donationSettings && (
         <DonationTeaser
-          title="Este catálogo é gratuito"
-          ctaLabel="Apoiar com uma doação"
+          title={donationSettings.academyCatalogTitle}
+          ctaLabel={donationSettings.academyCtaLabel}
           message={donationSettings.message}
           suggestedAmounts={donationSettings.suggestedAmounts}
         />
