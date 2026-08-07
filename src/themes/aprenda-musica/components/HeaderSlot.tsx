@@ -10,7 +10,16 @@ import { BrandMark } from "./BrandMark";
 // efeitos"). `scrollShrinkEnabled` do contrato é aceito mas não usado (mesmo precedente do Venore
 // Pulse ignorando campos que não fazem sentido pro design); `stickyEnabled` continua respeitado
 // porque é a única variação de comportamento que sobra aqui.
-export function HeaderSlot({ brand, userbarEnabled, stickyEnabled, headerNavItems, user, canAccessAdmin, onSignOut }: HeaderSlotProps) {
+export function HeaderSlot({
+  brand,
+  userbarEnabled,
+  stickyEnabled,
+  headerNavItems,
+  user,
+  canAccessAdmin,
+  onSignOut,
+  messageAlert,
+}: HeaderSlotProps) {
   return (
     <header
       className={cn(
@@ -41,7 +50,26 @@ export function HeaderSlot({ brand, userbarEnabled, stickyEnabled, headerNavItem
 
       {userbarEnabled ? (
         user ? (
-          <UserMenu user={user} canAccessAdmin={canAccessAdmin} onSignOut={onSignOut} />
+          <div className="flex items-center gap-2">
+            {messageAlert && (
+              // Alerta de mensagem não lida ao lado do user-nav — mesmo dado/mesma regra do Venore
+              // Slime (ver comentário em ../../venore-slime/components/HeaderSlot.tsx), só que
+              // com o visual "poucos efeitos" deste tema em vez das classes group-data-scrolled.
+              <Link
+                href={messageAlert.href}
+                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground ui-motion-base outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:px-2.5"
+              >
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+                  <span className="relative inline-flex size-2 rounded-full bg-primary" />
+                </span>
+                <span className="hidden sm:inline">
+                  {messageAlert.count > 1 ? `${messageAlert.count} novas mensagens` : "Nova mensagem"}
+                </span>
+              </Link>
+            )}
+            <UserMenu user={user} canAccessAdmin={canAccessAdmin} onSignOut={onSignOut} />
+          </div>
         ) : (
           <Link
             href="/login"
