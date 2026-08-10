@@ -30,13 +30,27 @@ export async function resolveRegionNews(): Promise<RegionNewsArticle[]> {
   const apiKey = process.env.NEWSDATA_API_KEY;
   if (!apiKey) return [];
 
-  const regionSetting = await getSetting({ key: BROADCAST_SETTINGS.region.key });
+  const [regionSetting, excludeKeywordsSetting] = await Promise.all([
+    getSetting({ key: BROADCAST_SETTINGS.region.key }),
+    getSetting({ key: BROADCAST_SETTINGS.newsExcludeKeywords.key }),
+  ]);
   const region = regionSetting.success && typeof regionSetting.data?.value === "string" ? regionSetting.data.value : "";
   if (!region.trim()) return [];
 
+  const excludeKeywords = (
+    excludeKeywordsSetting.success && typeof excludeKeywordsSetting.data?.value === "string" ? excludeKeywordsSetting.data.value : ""
+  )
+    .split(",")
+    .map((keyword) => keyword.trim().toLowerCase())
+    .filter((keyword) => keyword.length > 0);
+
+  // Cache guarda a resposta CRUA da API (sem aplicar exclusão) — chave não inclui excludeKeywords
+  // de propósito: o filtro roda por fora, no fim da função, tanto no caminho de cache-hit quanto
+  // no fresh-fetch, pra uma mudança na lista de palavras-chave valer no próximo request, sem
+  // esperar o cache de 20min expirar nem duplicar a chamada externa por combinação de filtro.
   const cacheKey = `broadcast:news:${region.toLowerCase()}`;
   const cached = getCache<CachedEnvelope<RegionNewsArticle[]>>(cacheKey);
-  if (cached) return cached.value;
+  if (cached) return filterExcludedArticles(cached.value, excludeKeywords);
 
   let articles: RegionNewsArticle[] = [];
   try {
@@ -72,5 +86,13 @@ export async function resolveRegionNews(): Promise<RegionNewsArticle[]> {
 
   const ttl = articles.length > 0 ? NEWS_CACHE_TTL_SECONDS : EMPTY_RESULT_CACHE_TTL_SECONDS;
   setCache<CachedEnvelope<RegionNewsArticle[]>>(cacheKey, { value: articles }, ttl);
-  return articles;
+  return filterExcludedArticles(articles, excludeKeywords);
+}
+
+// Curadoria simples (broadcast.newsExcludeKeywords, tela de Configurações) — qualquer manchete
+// cujo título contenha uma das palavras-chave (case-insensitive) é descartada. Roda sempre depois
+// do cache, nunca antes de gravar nele (ver comentário acima da leitura do cache).
+function filterExcludedArticles(articles: RegionNewsArticle[], excludeKeywords: string[]): RegionNewsArticle[] {
+  if (excludeKeywords.length === 0) return articles;
+  return articles.filter((article) => !excludeKeywords.some((keyword) => article.title.toLowerCase().includes(keyword)));
 }

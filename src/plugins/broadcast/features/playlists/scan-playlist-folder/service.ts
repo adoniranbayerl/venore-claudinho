@@ -1,17 +1,9 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
-import { getSetting } from "@/contexts/settings";
-import { beginOperation, endOperation } from "@/observability";
-import { BROADCAST_SETTINGS } from "../../../shared/settings";
+import { BROADCAST_ROOT_FOLDER } from "../../../shared/settings";
 import { resolveWithinRoot, toStoredRelativePath } from "../../../shared/sandboxed-path";
 import { isVideoExtension } from "../../../shared/video-extensions";
-import {
-  deletePlaylistItemsByIds,
-  findLocalPlaylistItemsByPlaylistId,
-  findMaxPlaylistItemOrder,
-  findPlaylistById,
-  insertLocalPlaylistItems,
-} from "./store";
+import { findLocalPlaylistItemsByPlaylistId, findPlaylistById } from "./store";
 import type { ScanPlaylistFolderCommand, ScanPlaylistFolderResult } from "./types";
 
 // Descobre só vídeo — imagem tem seu próprio fluxo dedicado (biblioteca de mídia, via
@@ -40,6 +32,11 @@ async function listStreamableFilesRecursively(dir: string): Promise<string[]> {
   return files;
 }
 
+// Só leitura — não insere nem apaga nada (era assim antes: "escanear" adicionava/removia tudo
+// automaticamente; feedback direto: "quero poder escolher o que entra... e o que não entra").
+// Devolve o que a pasta tem e a playlist não (toAdd) e o que a playlist tem e a pasta não mais
+// (toRemove); a inserção de fato acontece em add-scanned-playlist-items, com a lista que o
+// operador escolheu.
 export async function scanPlaylistFolder(command: ScanPlaylistFolderCommand): Promise<ScanPlaylistFolderResult> {
   const playlist = await findPlaylistById(command.playlistId);
   if (!playlist) {
@@ -58,19 +55,7 @@ export async function scanPlaylistFolder(command: ScanPlaylistFolderCommand): Pr
     };
   }
 
-  const rootSetting = await getSetting({ key: BROADCAST_SETTINGS.rootFolder.key });
-  const rootFolder = rootSetting.success && typeof rootSetting.data?.value === "string" ? rootSetting.data.value : "";
-  if (!rootFolder.trim()) {
-    return {
-      success: false,
-      error: {
-        code: "broadcast.scan-playlist-folder.root_not_configured",
-        message: "A pasta raiz de vídeos (broadcast.rootFolder) ainda não foi configurada.",
-      },
-    };
-  }
-
-  const targetDir = resolveWithinRoot(rootFolder, playlist.folderPath);
+  const targetDir = resolveWithinRoot(BROADCAST_ROOT_FOLDER, playlist.folderPath);
   if (!targetDir) {
     return {
       success: false,
@@ -94,36 +79,15 @@ export async function scanPlaylistFolder(command: ScanPlaylistFolderCommand): Pr
     };
   }
 
-  const discoveredRelativePaths = new Set(discoveredFiles.map((filePath) => toStoredRelativePath(rootFolder, filePath)));
+  const discoveredRelativePaths = new Set(discoveredFiles.map((filePath) => toStoredRelativePath(BROADCAST_ROOT_FOLDER, filePath)));
 
   const existingItems = await findLocalPlaylistItemsByPlaylistId(command.playlistId);
   const existingRelativePaths = new Set(existingItems.map((item) => item.relativePath));
 
-  const toRemove = existingItems.filter((item) => !discoveredRelativePaths.has(item.relativePath as string));
+  const toRemove = existingItems
+    .filter((item) => !discoveredRelativePaths.has(item.relativePath as string))
+    .map((item) => ({ id: item.id, relativePath: item.relativePath as string }));
   const toAdd = [...discoveredRelativePaths].filter((relativePath) => !existingRelativePaths.has(relativePath));
 
-  const handle = beginOperation({
-    useCase: "broadcast.scan-playlist-folder",
-    actor: { id: command.actorId, type: "user" },
-    kind: "write",
-  });
-
-  if (toRemove.length > 0) {
-    await deletePlaylistItemsByIds(toRemove.map((item) => item.id));
-  }
-
-  if (toAdd.length > 0) {
-    let nextOrder = (await findMaxPlaylistItemOrder(command.playlistId)) + 1;
-    await insertLocalPlaylistItems(
-      toAdd.map((relativePath) => ({
-        playlistId: command.playlistId,
-        order: nextOrder++,
-        title: null,
-        relativePath,
-      })),
-    );
-  }
-
-  endOperation(handle, { success: true });
-  return { success: true, data: { added: toAdd.length, removed: toRemove.length } };
+  return { success: true, data: { toAdd, toRemove } };
 }

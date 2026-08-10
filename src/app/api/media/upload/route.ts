@@ -1,6 +1,6 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
-import { validateMediaUploadCandidate } from "@/contexts/media";
+import { assertTypeAllowedForDirectUpload, validateMediaUploadCandidate } from "@/contexts/media";
 import { registerUploadedMediaHandler } from "@/contexts/media/features/assets/register-uploaded-media/handler";
 import { authorizeActor } from "@/contexts/rbac";
 import { checkRateLimit } from "@/infrastructure/rate-limit";
@@ -82,6 +82,12 @@ export async function POST(request: Request): Promise<NextResponse> {
         if (!validation.success) {
           logUploadRouteFailure(authz.actorId, validation.error.code, validation.error.message);
           throw new LoggedUploadError(validation.error.message, 400);
+        }
+
+        const directUploadCheck = assertTypeAllowedForDirectUpload(payload.contentType);
+        if (!directUploadCheck.success) {
+          logUploadRouteFailure(authz.actorId, directUploadCheck.error.code, directUploadCheck.error.message);
+          throw new LoggedUploadError(directUploadCheck.error.message, 400);
         }
 
         return {

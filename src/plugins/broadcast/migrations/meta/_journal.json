@@ -36,6 +36,20 @@
       "when": 1786134935358,
       "tag": "0004_flashy_riptide",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786376684923,
+      "tag": "0005_harsh_surge",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786396912211,
+      "tag": "0006_simple_union_jack",
+      "breakpoints": true
     }
   ]
 }

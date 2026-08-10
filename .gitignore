@@ -39,6 +39,11 @@ yarn-error.log*
 # media (driver local de contexts/media, dev)
 /public/uploads/
 
+# broadcast plugin — vídeos são específicos de cada deploy/servidor, nunca devem ir pro Git
+# (arquivos grandes). .gitkeep preserva a pasta vazia num clone novo.
+/public/broadcast/videos/*
+!/public/broadcast/videos/.gitkeep
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

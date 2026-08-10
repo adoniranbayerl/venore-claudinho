@@ -8,7 +8,7 @@ import type { BroadcastOutputEvent } from "../contracts/types";
 type Subscriber = (event: BroadcastOutputEvent) => void;
 
 // Guardado em globalThis, não numa variável de módulo comum — bug real observado: uma server
-// action (setOutputScene/setOutputDrawer) e a rota SSE (app/api/broadcast/output/[token]/events)
+// action (setOutputPlaylist/setOutputDrawer) e a rota SSE (app/api/broadcast/output/[token]/events)
 // ficam em "camadas" de bundle diferentes no Next.js (Server Action vs. Route Handler), e cada
 // camada pode acabar com sua PRÓPRIA cópia avaliada deste módulo — duas Maps diferentes, uma
 // nunca vendo os subscribers da outra, evento publicado nunca chega no SSE. globalThis é o único

@@ -18,3 +18,11 @@ export function resolveWithinRoot(root: string, relativePath: string): string | 
 export function toStoredRelativePath(root: string, absolutePath: string): string {
   return path.relative(path.resolve(root), absolutePath).split(path.sep).join("/");
 }
+
+// Tira "/" no fim de um folderPath de playlist antes de gravar/comparar — bug real observado:
+// "videos/" (barra sobrando, fácil de digitar sem querer no formulário) quebra qualquer checagem
+// de prefixo tipo `relativePath.startsWith(`${folderPath}/`)` (vira "videos//", nunca bate com
+// nada), mesmo o arquivo existindo de verdade no disco.
+export function normalizePlaylistFolderPath(folderPath: string): string {
+  return folderPath.replace(/\/+$/, "");
+}

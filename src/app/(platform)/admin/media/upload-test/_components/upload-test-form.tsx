@@ -3,6 +3,7 @@
 import { upload } from "@vercel/blob/client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { computeFileChecksum } from "@/lib/compute-file-checksum";
 import { confirmUploadAction, requestUploadTicketAction } from "../actions";
 
 type Status =
@@ -12,13 +13,6 @@ type Status =
   | { step: "confirming" }
   | { step: "done"; assetId: string; url: string }
   | { step: "error"; message: string };
-
-async function computeChecksum(file: File): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 // Página de teste mínima do pipeline de upload (docs/media/blob-spec.md) — não é a UI da
 // biblioteca de mídia (sem listagem, sem picker); só exercita o caminho ponta a ponta:
@@ -45,7 +39,7 @@ export function UploadTestForm() {
         return;
       }
 
-      const checksum = await computeChecksum(file);
+      const checksum = await computeFileChecksum(file);
 
       setStatus({ step: "uploading" });
       const blob = await upload(ticket.data.pathname, file, {

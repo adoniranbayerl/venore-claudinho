@@ -8,6 +8,27 @@ function sanitizeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9.\-_]/g, "_");
 }
 
+// Tipos que exigem sanitização de bytes (hoje só SVG, ver sanitize-svg-buffer.ts) nunca podem
+// passar pelo fluxo de upload direto ao Blob (ticket + confirm): nesse fluxo o servidor nunca vê
+// os bytes antes do arquivo já estar público no storage (blob-spec seção 9), então não há onde
+// sanitizar. Só entram pelo upload server-buffered (uploadMediaAsset e afins). Checado nos três
+// pontos de entrada do fluxo direto: requestMediaUploadTicket (abaixo), onBeforeGenerateToken
+// (route.ts) e registerUploadedMedia (handler.ts).
+const TYPES_REQUIRING_BUFFERED_UPLOAD = new Set(["image/svg+xml"]);
+
+export function assertTypeAllowedForDirectUpload(contentType: string): OperationResult<true> {
+  if (TYPES_REQUIRING_BUFFERED_UPLOAD.has(contentType)) {
+    return {
+      success: false,
+      error: {
+        code: "media.upload.requires_buffered_upload",
+        message: `O tipo "${contentType}" precisa ser enviado pelo formulário de upload direto, não pelo upload em duas etapas.`,
+      },
+    };
+  }
+  return { success: true, data: true };
+}
+
 // Reaproveitada tanto pelo passo inicial (requestMediaUploadTicket) quanto pela revalidação
 // dentro de onBeforeGenerateToken no route handler (blob-spec seção 5 — o limite é checado duas
 // vezes: no ticket e de novo quando o upload é confirmado).
@@ -56,6 +77,12 @@ export async function requestMediaUploadTicket(
   if (!validation.success) {
     endOperation(handle, validation);
     return validation;
+  }
+
+  const directUploadCheck = assertTypeAllowedForDirectUpload(command.contentType);
+  if (!directUploadCheck.success) {
+    endOperation(handle, directUploadCheck);
+    return directUploadCheck;
   }
 
   const pathname = `${resolveMediaStorageFolder(command.contentType)}/${crypto.randomUUID()}-${sanitizeFilename(command.filename)}`;

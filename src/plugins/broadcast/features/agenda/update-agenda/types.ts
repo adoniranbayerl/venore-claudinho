@@ -6,6 +6,7 @@ export type UpdateAgendaCommand = {
   name: string;
   displaySeconds: number;
   backgroundColor?: string | null;
+  logoMediaAssetId?: string | null;
   actorId: string;
 };
 

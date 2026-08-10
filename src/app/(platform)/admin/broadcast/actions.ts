@@ -4,30 +4,31 @@ import { revalidatePath } from "next/cache";
 import {
   addMediaAssetPlaylistItem,
   addNewsPlaylistItem,
+  addScannedPlaylistItems,
   addWebpagePlaylistItem,
   clearAlert,
   createAgenda,
   createAgendaEvent,
-  createLayer,
   createOutput,
   createPlaylist,
-  createScene,
   deleteAgenda,
   deleteAgendaEvent,
-  deleteLayer,
+  deleteOutput,
+  deletePlaylist,
   deletePlaylistItem,
-  deleteScene,
   publishAlert,
+  reorderAgendas,
+  reorderPlaylistItems,
   scanPlaylistFolder,
+  setAgendaOutputs,
   setOutputDrawer,
-  setOutputScene,
+  setOutputFooter,
+  setOutputPlaylist,
   togglePlaylistItemVisibility,
   updateAgenda,
-  updateLayer,
-  updateScene,
-  BROADCAST_LAYER_TYPES,
+  updateAgendaEvent,
+  updatePlaylistItem,
   BROADCAST_SETTINGS,
-  type BroadcastLayerType,
 } from "@/plugins/broadcast";
 import { getSetting, setSetting } from "@/contexts/settings";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
@@ -55,80 +56,63 @@ function optionalNumber(formData: FormData, field: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-// Constrói layers.config a partir de campos nomeados e guiados por tipo (um <select>/<input> por
-// dado que a layer realmente precisa), em vez do operador escrever JSON à mão — cada `case` aqui
-// espelha exatamente os campos que layer-renderer.tsx (view de saída) lê de volta. Usado por
-// createLayerAction e updateLayerAction (o form de edição reenvia o mesmo `type`, mesmo ele sendo
-// imutável em updateLayer — só serve pra esta função saber quais campos ler de volta).
-// "info"/"news"/"agenda" não têm campo nenhum — são resolvidos a partir de broadcast.region e da
-// agenda interna, zero configuração manual por camada (pedido explícito de simplificação).
-function buildLayerConfigFromFields(type: BroadcastLayerType, formData: FormData): Record<string, unknown> {
-  switch (type) {
-    case "video": {
-      const playlistId = requireString(formData, "playlistId");
-      return playlistId ? { playlistId } : {};
-    }
-    case "text": {
-      const config: Record<string, unknown> = {};
-      const text = requireString(formData, "text");
-      const color = requireString(formData, "color");
-      if (text) config.text = text;
-      if (color) config.color = color;
-      return config;
-    }
-    case "image": {
-      const mediaAssetId = requireString(formData, "mediaAssetId");
-      return mediaAssetId ? { mediaAssetId } : {};
-    }
-    case "info":
-    case "news":
-    case "agenda":
-    case "alert":
-      return {};
-    default:
-      return {};
-  }
-}
-
-// drawerEnabled=true + os 4 campos numéricos viram layers.config.drawerVariant (lido por
-// resolveLayerGeometry na view de saída) — o operador nunca escreve JSON, só marca a caixa e
-// ajusta os 4 números que aparecem.
-function buildDrawerVariantFromFields(formData: FormData): Record<string, number> | null {
-  if (formData.get("drawerEnabled") !== "true") return null;
-
-  const variant: Record<string, number> = {};
-  for (const [field, formField] of [
-    ["x", "drawerX"],
-    ["y", "drawerY"],
-    ["width", "drawerWidth"],
-    ["height", "drawerHeight"],
-  ] as const) {
-    const raw = formData.get(formField);
-    if (raw === null || raw === "") continue;
-    const value = Number(raw);
-    if (Number.isFinite(value)) variant[field] = value;
-  }
-
-  return Object.keys(variant).length > 0 ? variant : null;
-}
-
 export async function createPlaylistAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
   if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
 
-  const result = await createPlaylist({
-    name: requireString(formData, "name"),
-    folderPath: requireString(formData, "folderPath") || undefined,
-  });
+  const result = await createPlaylist({ name: requireString(formData, "name") });
   if (!result.success) return { error: result.error.message };
 
   revalidatePath(returnTo);
   return { error: null };
 }
 
-export async function scanPlaylistFolderAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+export async function deletePlaylistAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
   if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
 
+  const result = await deletePlaylist({ playlistId: requireString(formData, "playlistId") });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
+// Estado próprio (não o BroadcastActionState genérico) — o scan agora é só uma prévia de leitura
+// (pedido: "quero poder escolher o que entra... e o que não entra"), então a ação precisa devolver
+// os candidatos pro client renderizar os checkboxes, não só sucesso/erro. Sem revalidatePath aqui
+// de propósito: nada foi gravado ainda.
+export type ScanPlaylistFolderState = {
+  error: string | null;
+  toAdd: string[];
+  toRemove: { id: string; relativePath: string }[];
+};
+
+export async function scanPlaylistFolderAction(
+  _prevState: ScanPlaylistFolderState,
+  formData: FormData,
+): Promise<ScanPlaylistFolderState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR, toAdd: [], toRemove: [] };
+
   const result = await scanPlaylistFolder({ playlistId: requireString(formData, "playlistId") });
+  if (!result.success) return { error: result.error.message, toAdd: [], toRemove: [] };
+
+  return { error: null, toAdd: result.data.toAdd, toRemove: result.data.toRemove };
+}
+
+export async function addScannedPlaylistItemsAction(
+  _prevState: BroadcastActionState,
+  formData: FormData,
+): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const playlistId = requireString(formData, "playlistId");
+  let relativePaths: string[];
+  try {
+    relativePaths = JSON.parse(String(formData.get("relativePaths") ?? "[]"));
+  } catch {
+    return { error: "Seleção de vídeos inválida." };
+  }
+
+  const result = await addScannedPlaylistItems({ playlistId, relativePaths });
   if (!result.success) return { error: result.error.message };
 
   revalidatePath(returnTo);
@@ -164,6 +148,24 @@ export async function addWebpagePlaylistItemAction(
     url: requireString(formData, "url"),
     title: requireString(formData, "title") || undefined,
     durationSeconds: optionalNumber(formData, "durationSeconds"),
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
+export async function updatePlaylistItemAction(
+  _prevState: BroadcastActionState,
+  formData: FormData,
+): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await updatePlaylistItem({
+    itemId: requireString(formData, "itemId"),
+    title: requireString(formData, "title") || undefined,
+    durationSeconds: optionalNumber(formData, "durationSeconds"),
+    url: requireString(formData, "url") || undefined,
   });
   if (!result.success) return { error: result.error.message };
 
@@ -214,128 +216,52 @@ export async function deletePlaylistItemAction(_prevState: BroadcastActionState,
   return { error: null };
 }
 
-export async function createSceneAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+// Botões "mover pra cima/baixo" reenviam a lista inteira já reordenada (JSON) — mesmo padrão de
+// academy (reorderLessonSectionsAction): mais simples e mais robusto (funciona em qualquer
+// dispositivo/teclado, sem depender de drag-and-drop) que manter uma lib de arrastar-soltar só
+// pra isto.
+export async function reorderPlaylistItemsAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
   if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
 
-  const result = await createScene({ key: requireString(formData, "key"), name: requireString(formData, "name") });
-  if (!result.success) return { error: result.error.message };
-
-  revalidatePath(returnTo);
-  return { error: null };
-}
-
-export async function updateSceneAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
-  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
-
-  const result = await updateScene({
-    sceneId: requireString(formData, "sceneId"),
-    name: requireString(formData, "name"),
-    order: requireNumber(formData, "order", 0),
-  });
-  if (!result.success) return { error: result.error.message };
-
-  revalidatePath(returnTo);
-  return { error: null };
-}
-
-export async function deleteSceneAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
-  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
-
-  const result = await deleteScene({ sceneId: requireString(formData, "sceneId") });
-  if (!result.success) return { error: result.error.message };
-
-  revalidatePath(returnTo);
-  return { error: null };
-}
-
-export async function createLayerAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
-  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
-
-  const type = requireString(formData, "type");
-  if (!BROADCAST_LAYER_TYPES.includes(type as BroadcastLayerType)) {
-    return { error: `Tipo de camada desconhecido: "${type}".` };
-  }
-  const layerType = type as BroadcastLayerType;
-
-  const config = buildLayerConfigFromFields(layerType, formData);
-  const drawerVariant = buildDrawerVariantFromFields(formData);
-  if (drawerVariant) config.drawerVariant = drawerVariant;
-
-  const result = await createLayer({
-    sceneId: requireString(formData, "sceneId"),
-    type: layerType,
-    name: requireString(formData, "name"),
-    x: requireNumber(formData, "x", 0),
-    y: requireNumber(formData, "y", 0),
-    width: requireNumber(formData, "width", 100),
-    height: requireNumber(formData, "height", 100),
-    zIndex: requireNumber(formData, "zIndex", 0),
-    config,
-    visible: formData.get("visible") === "true",
-  });
-  if (!result.success) return { error: result.error.message };
-
-  revalidatePath(returnTo);
-  return { error: null };
-}
-
-export async function updateLayerAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
-  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
-
-  const type = requireString(formData, "type");
-  if (!BROADCAST_LAYER_TYPES.includes(type as BroadcastLayerType)) {
-    return { error: `Tipo de camada desconhecido: "${type}".` };
+  const playlistId = requireString(formData, "playlistId");
+  let itemIds: string[];
+  try {
+    itemIds = JSON.parse(String(formData.get("itemIds") ?? "[]"));
+  } catch {
+    return { error: "Ordem de itens inválida." };
   }
 
-  const config = buildLayerConfigFromFields(type as BroadcastLayerType, formData);
-  const drawerVariant = buildDrawerVariantFromFields(formData);
-  if (drawerVariant) config.drawerVariant = drawerVariant;
-
-  const result = await updateLayer({
-    layerId: requireString(formData, "layerId"),
-    name: requireString(formData, "name"),
-    x: requireNumber(formData, "x", 0),
-    y: requireNumber(formData, "y", 0),
-    width: requireNumber(formData, "width", 100),
-    height: requireNumber(formData, "height", 100),
-    zIndex: requireNumber(formData, "zIndex", 0),
-    config,
-    visible: formData.get("visible") === "true",
-  });
+  const result = await reorderPlaylistItems({ playlistId, itemIds });
   if (!result.success) return { error: result.error.message };
 
   revalidatePath(returnTo);
   return { error: null };
 }
 
-export async function deleteLayerAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
-  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
-
-  const result = await deleteLayer({ layerId: requireString(formData, "layerId") });
-  if (!result.success) return { error: result.error.message };
-
-  revalidatePath(returnTo);
-  return { error: null };
-}
-
+// Cria a saída já com sua cena padrão de 3 camadas fixas provisionada (vídeo tocando a playlist
+// escolhida + agenda + aviso rápido) — ver create-output/store.ts. Nenhuma configuração manual de
+// cena/camada existe mais nesta tela (pedido explícito: "você já define isso").
 export async function createOutputAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
   if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
 
-  const result = await createOutput({ name: requireString(formData, "name") });
+  const result = await createOutput({
+    name: requireString(formData, "name"),
+    playlistId: requireString(formData, "playlistId"),
+  });
   if (!result.success) return { error: result.error.message };
 
   revalidatePath(returnTo);
   return { error: null };
 }
 
-export async function setOutputSceneAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+// Troca qual playlist a camada de vídeo da saída toca — único jeito de mudar "o que passa" depois
+// que a saída já foi criada, já que não existe mais tela de cenas/camadas.
+export async function setOutputPlaylistAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
   if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
 
-  // "none" é o sentinel do <Select> em outputs-section.tsx (Radix Select não aceita value="").
-  const sceneId = requireString(formData, "sceneId");
-  const result = await setOutputScene({
+  const result = await setOutputPlaylist({
     outputId: requireString(formData, "outputId"),
-    sceneId: sceneId && sceneId !== "none" ? sceneId : null,
+    playlistId: requireString(formData, "playlistId"),
   });
   if (!result.success) return { error: result.error.message };
 
@@ -356,6 +282,29 @@ export async function setOutputDrawerAction(_prevState: BroadcastActionState, fo
   return { error: null };
 }
 
+export async function setOutputFooterAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await setOutputFooter({
+    outputId: requireString(formData, "outputId"),
+    footerOpen: formData.get("footerOpen") === "true",
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
+export async function deleteOutputAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await deleteOutput({ outputId: requireString(formData, "outputId") });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
 export async function createAgendaAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
   if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
 
@@ -363,6 +312,7 @@ export async function createAgendaAction(_prevState: BroadcastActionState, formD
     name: requireString(formData, "name"),
     displaySeconds: optionalNumber(formData, "displaySeconds") ?? undefined,
     backgroundColor: requireString(formData, "backgroundColor") || undefined,
+    logoMediaAssetId: requireString(formData, "logoMediaAssetId") || undefined,
   });
   if (!result.success) return { error: result.error.message };
 
@@ -378,7 +328,46 @@ export async function updateAgendaAction(_prevState: BroadcastActionState, formD
     name: requireString(formData, "name"),
     displaySeconds: requireNumber(formData, "displaySeconds", 20),
     backgroundColor: requireString(formData, "backgroundColor") || undefined,
+    logoMediaAssetId: requireString(formData, "logoMediaAssetId") || undefined,
   });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
+// Mesmo padrão de reorderPlaylistItemsAction — botões mover pra cima/baixo, lista inteira via JSON.
+export async function reorderAgendasAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  let agendaIds: string[];
+  try {
+    agendaIds = JSON.parse(String(formData.get("agendaIds") ?? "[]"));
+  } catch {
+    return { error: "Ordem de agendas inválida." };
+  }
+
+  const result = await reorderAgendas({ agendaIds });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
+// Substitui o conjunto inteiro de saídas vinculadas a esta agenda (checkboxes, todas resubmetidas
+// via JSON) — vazio é um valor válido ("aparece em todas as saídas", ver comentário no schema).
+export async function setAgendaOutputsAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const agendaId = requireString(formData, "agendaId");
+  let outputIds: string[];
+  try {
+    outputIds = JSON.parse(String(formData.get("outputIds") ?? "[]"));
+  } catch {
+    return { error: "Seleção de saídas inválida." };
+  }
+
+  const result = await setAgendaOutputs({ agendaId, outputIds });
   if (!result.success) return { error: result.error.message };
 
   revalidatePath(returnTo);
@@ -406,6 +395,26 @@ export async function createAgendaEventAction(_prevState: BroadcastActionState, 
     title: requireString(formData, "title"),
     description: requireString(formData, "description") || undefined,
     startAt,
+    coverMediaAssetId: requireString(formData, "coverMediaAssetId") || undefined,
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
+export async function updateAgendaEventAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const startAtRaw = requireString(formData, "startAt");
+  const startAt = new Date(startAtRaw);
+
+  const result = await updateAgendaEvent({
+    eventId: requireString(formData, "eventId"),
+    title: requireString(formData, "title"),
+    description: requireString(formData, "description") || undefined,
+    startAt,
+    coverMediaAssetId: requireString(formData, "coverMediaAssetId") || undefined,
   });
   if (!result.success) return { error: result.error.message };
 
@@ -452,19 +461,6 @@ export async function clearAlertAction(): Promise<BroadcastActionState> {
 // Passam por contexts/settings direto (setSetting), gateado por settings.manage — mesmo padrão de
 // updateBirthdaysAppearanceAction (admin/birthdays/appearance/actions.ts). Ver comentário no
 // manifest.ts sobre por que não existe uma permission "broadcast.settings" própria.
-export async function updateBroadcastRootFolderAction(
-  _prevState: BroadcastActionState,
-  formData: FormData,
-): Promise<BroadcastActionState> {
-  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
-
-  const result = await setSetting({ key: BROADCAST_SETTINGS.rootFolder.key, value: requireString(formData, "rootFolder") });
-  if (!result.success) return { error: result.error.message };
-
-  revalidatePath(returnTo);
-  return { error: null };
-}
-
 export async function updateBroadcastRegionAction(
   _prevState: BroadcastActionState,
   formData: FormData,
@@ -478,12 +474,46 @@ export async function updateBroadcastRegionAction(
   return { error: null };
 }
 
-export async function getBroadcastRootFolder(): Promise<string> {
-  const result = await getSetting({ key: BROADCAST_SETTINGS.rootFolder.key });
-  return result.success && typeof result.data?.value === "string" ? result.data.value : "";
+export async function updateBroadcastBrandColorAction(
+  _prevState: BroadcastActionState,
+  formData: FormData,
+): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await setSetting({ key: BROADCAST_SETTINGS.brandColor.key, value: requireString(formData, "brandColor") });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
+export async function updateBroadcastNewsExcludeKeywordsAction(
+  _prevState: BroadcastActionState,
+  formData: FormData,
+): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await setSetting({
+    key: BROADCAST_SETTINGS.newsExcludeKeywords.key,
+    value: requireString(formData, "newsExcludeKeywords"),
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
 }
 
 export async function getBroadcastRegion(): Promise<string> {
   const result = await getSetting({ key: BROADCAST_SETTINGS.region.key });
+  return result.success && typeof result.data?.value === "string" ? result.data.value : "";
+}
+
+export async function getBroadcastBrandColor(): Promise<string> {
+  const result = await getSetting({ key: BROADCAST_SETTINGS.brandColor.key });
+  return result.success && typeof result.data?.value === "string" ? result.data.value : BROADCAST_SETTINGS.brandColor.defaultValue;
+}
+
+export async function getBroadcastNewsExcludeKeywords(): Promise<string> {
+  const result = await getSetting({ key: BROADCAST_SETTINGS.newsExcludeKeywords.key });
   return result.success && typeof result.data?.value === "string" ? result.data.value : "";
 }

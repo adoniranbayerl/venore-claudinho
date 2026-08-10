@@ -3,7 +3,6 @@ import type { BroadcastPlaylistRecord } from "../../../contracts/types";
 
 export type CreatePlaylistCommand = {
   name: string;
-  folderPath?: string | null;
   actorId: string;
 };
 

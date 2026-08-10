@@ -4,6 +4,7 @@ import { storagePort } from "@/infrastructure/storage";
 import { computeSha256Hex } from "@/infrastructure/storage/checksum";
 import { validateMediaUploadCandidate } from "../request-media-upload-ticket/service";
 import { resolveMediaStorageFolder } from "../../../resolve-media-storage-folder";
+import { sanitizeSvgBuffer } from "../../../sanitize-svg-buffer";
 import { insertAsset } from "./store";
 import type { UploadMediaAssetCommand, UploadMediaAssetResult } from "./types";
 
@@ -31,9 +32,23 @@ export async function uploadMediaAsset(command: UploadMediaAssetCommand): Promis
     return validation;
   }
 
+  // SVG pode carregar script embutido — sanitiza os bytes antes de gravar no storage (nunca o
+  // que o client mandou como recebido). Só é possível aqui porque este caminho é
+  // server-buffered (o servidor já tem os bytes em memória); ver assertTypeAllowedForDirectUpload
+  // pra por que isso não é feito no fluxo de upload direto ao Blob.
+  let dataToStore = command.data;
+  if (command.contentType === "image/svg+xml") {
+    const sanitized = sanitizeSvgBuffer(command.data);
+    if (!sanitized.success) {
+      endOperation(handle, sanitized);
+      return sanitized;
+    }
+    dataToStore = sanitized.data;
+  }
+
   const pathname = `${resolveMediaStorageFolder(command.contentType)}/${crypto.randomUUID()}-${sanitizeFilename(command.filename)}`;
-  const stored = await storagePort.store({ key: pathname, data: command.data, contentType: command.contentType });
-  const checksum = computeSha256Hex(command.data);
+  const stored = await storagePort.store({ key: pathname, data: dataToStore, contentType: command.contentType });
+  const checksum = computeSha256Hex(dataToStore);
 
   const asset = await insertAsset({
     filename: command.filename,

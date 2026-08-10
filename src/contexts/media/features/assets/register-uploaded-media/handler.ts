@@ -1,5 +1,5 @@
 import { authorizeActor } from "@/contexts/rbac";
-import { validateMediaUploadCandidate } from "../request-media-upload-ticket/service";
+import { assertTypeAllowedForDirectUpload, validateMediaUploadCandidate } from "../request-media-upload-ticket/service";
 import { registerUploadedMedia } from "./service";
 import type { RegisterUploadedMediaCommand, RegisterUploadedMediaResult } from "./types";
 
@@ -34,6 +34,15 @@ export async function registerUploadedMediaHandler(command: RegisterUploadedMedi
   const validation = validateMediaUploadCandidate({ contentType: command.contentType, size: command.size });
   if (!validation.success) {
     return validation;
+  }
+
+  // Defesa em profundidade: mesmo que requestMediaUploadTicket/onBeforeGenerateToken já
+  // rejeitem SVG antes de emitir o ticket, este handler é o segundo chamador legítimo do fluxo
+  // direto ao Blob (webhook onUploadCompleted) e não deve confiar cegamente que o contentType
+  // reportado nunca chegou até aqui por outro caminho.
+  const directUploadCheck = assertTypeAllowedForDirectUpload(command.contentType);
+  if (!directUploadCheck.success) {
+    return directUploadCheck;
   }
 
   return registerUploadedMedia(command);

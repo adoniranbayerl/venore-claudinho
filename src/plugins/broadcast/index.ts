@@ -25,6 +25,8 @@ export {
   addMediaAssetPlaylistItemHandler as addMediaAssetPlaylistItem,
 } from "./features/playlists/add-media-asset-playlist-item/handler";
 export { deletePlaylistItemHandler as deletePlaylistItem } from "./features/playlists/delete-playlist-item/handler";
+export { deletePlaylistHandler as deletePlaylist } from "./features/playlists/delete-playlist/handler";
+export type { DeletePlaylistInput, DeletePlaylistResult } from "./features/playlists/delete-playlist/types";
 export { scanPlaylistFolderHandler as scanPlaylistFolder } from "./features/playlists/scan-playlist-folder/handler";
 // Sem authorizeActor (ver o próprio handler) — só a rota de stream (app/api/broadcast/stream)
 // chama isto, nunca uma action de UI autenticada por sessão de admin.
@@ -61,6 +63,27 @@ export type {
   AddNewsPlaylistItemResult,
 } from "./features/playlists/add-news-playlist-item/types";
 export {
+  updatePlaylistItemHandler as updatePlaylistItem,
+} from "./features/playlists/update-playlist-item/handler";
+export type {
+  UpdatePlaylistItemInput,
+  UpdatePlaylistItemResult,
+} from "./features/playlists/update-playlist-item/types";
+export {
+  reorderPlaylistItemsHandler as reorderPlaylistItems,
+} from "./features/playlists/reorder-playlist-items/handler";
+export type {
+  ReorderPlaylistItemsInput,
+  ReorderPlaylistItemsResult,
+} from "./features/playlists/reorder-playlist-items/types";
+export {
+  addScannedPlaylistItemsHandler as addScannedPlaylistItems,
+} from "./features/playlists/add-scanned-playlist-items/handler";
+export type {
+  AddScannedPlaylistItemsInput,
+  AddScannedPlaylistItemsResult,
+} from "./features/playlists/add-scanned-playlist-items/types";
+export {
   togglePlaylistItemVisibilityHandler as togglePlaylistItemVisibility,
 } from "./features/playlists/toggle-playlist-item-visibility/handler";
 export type {
@@ -70,6 +93,8 @@ export type {
 export type {
   ScanPlaylistFolderInput,
   ScanPlaylistFolderResult,
+  ScanPlaylistFolderPreview,
+  ScanPlaylistFolderMissingItem,
 } from "./features/playlists/scan-playlist-folder/types";
 export type {
   ResolveStreamableItem,
@@ -82,40 +107,38 @@ export type {
 // app/api/birthdays/import-template/route.ts).
 export { parseRangeHeader } from "./shared/range-header";
 
-export { createSceneHandler as createScene } from "./features/scenes/create-scene/handler";
+// create/update/delete de cena e camada não são mais expostos (pedido explícito: "não vamos
+// precisar configurar manualmente as camadas, você já define isso") — toda saída nasce com sua
+// cena padrão de 3 camadas fixas (vídeo/agenda/aviso) já provisionada, ver create-output/store.ts.
+// list-scenes/list-layers continuam existindo só pra leitura (page.tsx resolve qual playlist cada
+// saída está tocando a partir da camada de vídeo da sua cena).
 export { listScenesHandler as listScenes } from "./features/scenes/list-scenes/handler";
-export { updateSceneHandler as updateScene } from "./features/scenes/update-scene/handler";
-export { deleteSceneHandler as deleteScene } from "./features/scenes/delete-scene/handler";
-
-export type { CreateSceneInput, CreateSceneResult } from "./features/scenes/create-scene/types";
 export type { ListScenesResult } from "./features/scenes/list-scenes/types";
-export type { UpdateSceneInput, UpdateSceneResult } from "./features/scenes/update-scene/types";
-export type { DeleteSceneInput, DeleteSceneResult } from "./features/scenes/delete-scene/types";
 
-export { createLayerHandler as createLayer } from "./features/layers/create-layer/handler";
 export { listLayersHandler as listLayers } from "./features/layers/list-layers/handler";
-export { updateLayerHandler as updateLayer } from "./features/layers/update-layer/handler";
-export { deleteLayerHandler as deleteLayer } from "./features/layers/delete-layer/handler";
-
-export type { CreateLayerInput, CreateLayerResult } from "./features/layers/create-layer/types";
 export type { ListLayersQuery, ListLayersResult } from "./features/layers/list-layers/types";
-export type { UpdateLayerInput, UpdateLayerResult } from "./features/layers/update-layer/types";
-export type { DeleteLayerInput, DeleteLayerResult } from "./features/layers/delete-layer/types";
 
 export { createOutputHandler as createOutput } from "./features/outputs/create-output/handler";
 export { listOutputsHandler as listOutputs } from "./features/outputs/list-outputs/handler";
-export { setOutputSceneHandler as setOutputScene } from "./features/outputs/set-output-scene/handler";
+export { setOutputPlaylistHandler as setOutputPlaylist } from "./features/outputs/set-output-playlist/handler";
+// drawerOpen agora significa "a coluna de agenda está aberta" (ver layer-renderer.tsx) — o nome do
+// campo/handler ficou de propósito, só o significado mudou.
 export { setOutputDrawerHandler as setOutputDrawer } from "./features/outputs/set-output-drawer/handler";
+export { setOutputFooterHandler as setOutputFooter } from "./features/outputs/set-output-footer/handler";
+export { deleteOutputHandler as deleteOutput } from "./features/outputs/delete-output/handler";
+export type { DeleteOutputInput, DeleteOutputResult } from "./features/outputs/delete-output/types";
 // Sem authorizeActor (ver o próprio handler) — acesso por token, chamado pela página de saída
 // (server component) e pela rota SSE, nunca por uma action de UI autenticada por sessão de admin.
 export { getOutputStateHandler as getOutputState } from "./features/outputs/get-output-state/handler";
 
 export type { CreateOutputInput, CreateOutputResult } from "./features/outputs/create-output/types";
 export type { ListOutputsResult } from "./features/outputs/list-outputs/types";
-export type { SetOutputSceneInput, SetOutputSceneResult } from "./features/outputs/set-output-scene/types";
+export type { SetOutputPlaylistInput, SetOutputPlaylistResult } from "./features/outputs/set-output-playlist/types";
 export type { SetOutputDrawerInput, SetOutputDrawerResult } from "./features/outputs/set-output-drawer/types";
+export type { SetOutputFooterInput, SetOutputFooterResult } from "./features/outputs/set-output-footer/types";
 export type {
   AgendaRotationEntry,
+  AgendaRotationEvent,
   BroadcastOutputState,
   GetOutputStateQuery,
   GetOutputStateResult,
@@ -135,17 +158,27 @@ export { subscribeToOutputEvents } from "./runtime/output-bus";
 
 export { createAgendaHandler as createAgenda } from "./features/agenda/create-agenda/handler";
 export { updateAgendaHandler as updateAgenda } from "./features/agenda/update-agenda/handler";
+export { reorderAgendasHandler as reorderAgendas } from "./features/agenda/reorder-agendas/handler";
 export { listAgendasHandler as listAgendas } from "./features/agenda/list-agendas/handler";
 export { deleteAgendaHandler as deleteAgenda } from "./features/agenda/delete-agenda/handler";
 export { createAgendaEventHandler as createAgendaEvent } from "./features/agenda/create-agenda-event/handler";
+export { updateAgendaEventHandler as updateAgendaEvent } from "./features/agenda/update-agenda-event/handler";
 export { listAgendaEventsHandler as listAgendaEvents } from "./features/agenda/list-agenda-events/handler";
 export { deleteAgendaEventHandler as deleteAgendaEvent } from "./features/agenda/delete-agenda-event/handler";
+// Vínculo agenda↔saída — só broadcast.manage (não broadcast.agenda.manage: escolher em quais
+// telas uma agenda aparece é decisão de quem administra as saídas, não do editor de conteúdo).
+export { setAgendaOutputsHandler as setAgendaOutputs } from "./features/agenda/set-agenda-outputs/handler";
+export { listAgendaOutputsHandler as listAgendaOutputs } from "./features/agenda/list-agenda-outputs/handler";
 
 export type { CreateAgendaInput, CreateAgendaResult } from "./features/agenda/create-agenda/types";
 export type { UpdateAgendaInput, UpdateAgendaResult } from "./features/agenda/update-agenda/types";
+export type { ReorderAgendasInput, ReorderAgendasResult } from "./features/agenda/reorder-agendas/types";
 export type { ListAgendasResult } from "./features/agenda/list-agendas/types";
+export type { SetAgendaOutputsInput, SetAgendaOutputsResult } from "./features/agenda/set-agenda-outputs/types";
+export type { ListAgendaOutputsResult } from "./features/agenda/list-agenda-outputs/types";
 export type { DeleteAgendaInput, DeleteAgendaResult } from "./features/agenda/delete-agenda/types";
 export type { CreateAgendaEventInput, CreateAgendaEventResult } from "./features/agenda/create-agenda-event/types";
+export type { UpdateAgendaEventInput, UpdateAgendaEventResult } from "./features/agenda/update-agenda-event/types";
 export type { ListAgendaEventsResult } from "./features/agenda/list-agenda-events/types";
 export type { DeleteAgendaEventInput, DeleteAgendaEventResult } from "./features/agenda/delete-agenda-event/types";
 

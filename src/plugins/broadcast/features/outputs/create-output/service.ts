@@ -1,5 +1,5 @@
 import { beginOperation, endOperation } from "@/observability";
-import { insertOutput } from "./store";
+import { createOutputWithDefaultScene } from "./store";
 import type { CreateOutputCommand, CreateOutputResult } from "./types";
 
 export async function createOutput(command: CreateOutputCommand): Promise<CreateOutputResult> {
@@ -9,7 +9,7 @@ export async function createOutput(command: CreateOutputCommand): Promise<Create
     kind: "write",
   });
 
-  const record = await insertOutput({ name: command.name.trim() });
+  const record = await createOutputWithDefaultScene({ name: command.name.trim(), playlistId: command.playlistId });
 
   endOperation(handle, { success: true });
   return { success: true, data: record };

@@ -6,6 +6,7 @@ export type CreateAgendaEventCommand = {
   title: string;
   description?: string | null;
   startAt: Date;
+  coverMediaAssetId?: string | null;
   actorId: string;
 };
 

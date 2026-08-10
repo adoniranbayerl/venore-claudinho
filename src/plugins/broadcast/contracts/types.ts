@@ -88,6 +88,9 @@ export type BroadcastAgendaRecord = {
   order: number;
   // Hex (#rrggbb) escolhido pelo operador — null usa o fundo padrão do painel (ver layer-renderer.tsx).
   backgroundColor: string | null;
+  // Logo própria da agenda (id cru — resolução de URL só em get-output-state, via getMediaAsset).
+  // null cai na logo padrão da plataforma (brandLogoUrl).
+  logoMediaAssetId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -98,6 +101,8 @@ export type BroadcastAgendaEventRecord = {
   title: string;
   description: string | null;
   startAt: Date;
+  // Imagem de capa opcional (id cru) — sem ela, o card do evento renderiza igual a antes.
+  coverMediaAssetId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -110,10 +115,15 @@ export type BroadcastAlertRecord = {
   createdAt: Date;
 };
 
-// Um "canal" de agenda com seus próximos eventos já resolvidos — deliberadamente aqui em
+// Evento com a URL de capa já resolvida (coverMediaAssetId -> coverUrl, via getMediaAsset) —
+// mesmo racional de PlaylistItemSummary: client component de view de saída não resolve mídia
+// sozinho, só recebe a URL pronta.
+export type AgendaRotationEvent = BroadcastAgendaEventRecord & { coverUrl: string | null };
+
+// Um "canal" de agenda com seus próximos eventos e logo já resolvidos — deliberadamente aqui em
 // contracts/, não em features/outputs/get-output-state/types.ts, mesmo racional de
 // PlaylistItemSummary abaixo (client component de view de saída não pode tocar o barrel inteiro).
-export type AgendaRotationEntry = { agenda: BroadcastAgendaRecord; events: BroadcastAgendaEventRecord[] };
+export type AgendaRotationEntry = { agenda: BroadcastAgendaRecord; events: AgendaRotationEvent[]; logoUrl: string | null };
 
 // Uma "saída" = uma URL de exibição (a que abre na TV). token é o único mecanismo de acesso —
 // a view de saída não passa por sessão/RBAC (regra do plano: TV não faz login interativo).
@@ -124,6 +134,10 @@ export type BroadcastOutputRecord = {
   currentSceneId: string | null;
   currentPlaylistItemId: string | null;
   drawerOpen: boolean;
+  // Mesmo mecanismo de drawerOpen (agenda), mas pra BrandFooterBar (logo+relógio+data+temperatura)
+  // — alternável por saída, pedido explícito: "além de fechar a agenda, deve ser possível fechar o
+  // footer".
+  footerOpen: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -172,4 +186,5 @@ export type RegionNewsArticle = {
 // controle real.
 export type BroadcastOutputEvent =
   | { type: "scene-changed"; sceneId: string | null }
-  | { type: "drawer-changed"; drawerOpen: boolean };
+  | { type: "drawer-changed"; drawerOpen: boolean }
+  | { type: "footer-changed"; footerOpen: boolean };

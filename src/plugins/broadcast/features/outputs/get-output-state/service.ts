@@ -1,5 +1,6 @@
 import path from "node:path";
 import { getMediaAsset } from "@/contexts/media";
+import { getSetting } from "@/contexts/settings";
 import { getBrandConfig } from "@/platform/brand/get-brand-config";
 import { resolveRegionNews } from "../../../runtime/region-news";
 import { resolveRegionWeather } from "../../../runtime/region-weather";
@@ -8,18 +9,20 @@ import {
   DEFAULT_SLIDE_DURATION_SECONDS,
   DEFAULT_WEBPAGE_SLIDE_DURATION_SECONDS,
 } from "../../../shared/playback-defaults";
+import { BROADCAST_SETTINGS } from "../../../shared/settings";
 import { streamableContentTypeForExtension } from "../../../shared/video-extensions";
 import type { BroadcastAgendaEventRecord, BroadcastPlaylistItemRecord, PlaylistItemKind } from "../../../contracts/types";
 import {
   findActiveAlertMessage,
   findAllAgendas,
+  findAllOutputAgendaLinks,
   findAllUpcomingAgendaEvents,
   findLayersBySceneId,
   findOutputByToken,
   findSceneById,
   findVisiblePlaylistItemsByPlaylistId,
 } from "./store";
-import type { AgendaRotationEntry, GetOutputStateQuery, GetOutputStateResult, PlaylistItemSummary } from "./types";
+import type { AgendaRotationEntry, AgendaRotationEvent, GetOutputStateQuery, GetOutputStateResult, PlaylistItemSummary } from "./types";
 
 const AGENDA_EVENTS_PER_ROTATION_LIMIT = 6;
 
@@ -71,11 +74,33 @@ async function classifyPlaylistItem(item: BroadcastPlaylistItemRecord): Promise<
   };
 }
 
+async function resolveMediaAssetUrl(mediaAssetId: string | null): Promise<string | null> {
+  if (!mediaAssetId) return null;
+  const asset = await getMediaAsset({ id: mediaAssetId });
+  return asset.success && asset.data ? asset.data.url : null;
+}
+
 // Agrupa os próximos eventos por agenda (uma query só pras duas tabelas, sem N+1) e descarta
 // agenda sem nenhum evento futuro — não desperdiça tempo de tela mostrando uma agenda vazia no
-// rodízio da layer "agenda".
-async function resolveAgendaRotation(): Promise<AgendaRotationEntry[]> {
-  const [agendas, events] = await Promise.all([findAllAgendas(), findAllUpcomingAgendaEvents()]);
+// rodízio da layer "agenda". Cada agenda tem sua própria logo (logoMediaAssetId) e cada evento sua
+// própria capa (coverMediaAssetId) — ambos opcionais, resolvidos aqui pra URL (client não toca
+// mídia diretamente); ausência de um ou outro é responsabilidade do renderer degradar bem
+// (logoUrl null usa a logo padrão da plataforma, coverUrl null mantém o card sem imagem).
+// outputId decide quais agendas entram no rodízio DESTA saída — modelo "opt-out" (ver comentário no
+// schema, broadcastOutputAgendas): uma agenda sem NENHUM vínculo aparece em todas as saídas
+// (comportamento anterior); assim que ganha ao menos um vínculo, só aparece nas saídas listadas.
+// Pedido real: "Agenda do Administrativo não precisa passar na Agenda Externa".
+async function resolveAgendaRotation(outputId: string): Promise<AgendaRotationEntry[]> {
+  const [agendas, events, outputAgendaLinks] = await Promise.all([
+    findAllAgendas(),
+    findAllUpcomingAgendaEvents(),
+    findAllOutputAgendaLinks(),
+  ]);
+
+  const agendaIdsWithRestrictions = new Set(outputAgendaLinks.map((link) => link.agendaId));
+  const agendaIdsAllowedForThisOutput = new Set(
+    outputAgendaLinks.filter((link) => link.outputId === outputId).map((link) => link.agendaId),
+  );
 
   const eventsByAgendaId = new Map<string, BroadcastAgendaEventRecord[]>();
   for (const event of events) {
@@ -84,9 +109,33 @@ async function resolveAgendaRotation(): Promise<AgendaRotationEntry[]> {
     eventsByAgendaId.set(event.agendaId, bucket);
   }
 
-  return agendas
-    .map((agenda) => ({ agenda, events: eventsByAgendaId.get(agenda.id) ?? [] }))
-    .filter((entry) => entry.events.length > 0);
+  const relevantAgendas = agendas.filter(
+    (agenda) =>
+      (eventsByAgendaId.get(agenda.id)?.length ?? 0) > 0 &&
+      (!agendaIdsWithRestrictions.has(agenda.id) || agendaIdsAllowedForThisOutput.has(agenda.id)),
+  );
+
+  return Promise.all(
+    relevantAgendas.map(async (agenda) => {
+      const rawEvents = eventsByAgendaId.get(agenda.id) ?? [];
+      const [logoUrl, resolvedEvents] = await Promise.all([
+        resolveMediaAssetUrl(agenda.logoMediaAssetId),
+        Promise.all(
+          rawEvents.map(async (event): Promise<AgendaRotationEvent> => ({
+            ...event,
+            coverUrl: await resolveMediaAssetUrl(event.coverMediaAssetId),
+          })),
+        ),
+      ]);
+      return { agenda, events: resolvedEvents, logoUrl };
+    }),
+  );
+}
+
+async function resolveBrandColor(): Promise<string> {
+  const result = await getSetting({ key: BROADCAST_SETTINGS.brandColor.key });
+  const value = result.success ? result.data?.value : null;
+  return typeof value === "string" && value ? value : BROADCAST_SETTINGS.brandColor.defaultValue;
 }
 
 // Resolve o estado completo pra primeira renderização da view de saída: a página server component
@@ -132,19 +181,27 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
     }
   }
 
-  // "agenda" também mostra o clima (canto inferior direito do painel — pedido: "no canto inferior
-  // direito o clima e tempo"), não só a layer "info" dedicada.
-  const needsWeather = layers.some((layer) => layer.type === "info" || layer.type === "agenda");
+  // Relógio+clima migraram da coluna de agenda pra BrandFooterBar (rodapé de altura fixa, nível do
+  // canvas — ver layer-renderer.tsx) — essa barra agora é uma propriedade da SAÍDA (output.footerOpen),
+  // não mais aninhada dentro da camada "video", então "precisa de clima" depende do footer estar
+  // aberto, não de existir uma layer "video". "info" continua existindo como layer dedicada à parte.
+  const needsWeather = layers.some((layer) => layer.type === "info") || output.footerOpen;
   const needsNews = layers.some((layer) => layer.type === "news") || anyPlaylistHasNewsItem;
-  const needsAgenda = layers.some((layer) => layer.type === "agenda");
+  // Além de existir na cena, a coluna de agenda só é de fato mostrada quando drawerOpen=true (ver
+  // LayerRenderer) — resolver a rotação/logo com a coluna fechada seria trabalho desperdiçado.
+  const needsAgenda = layers.some((layer) => layer.type === "agenda") && output.drawerOpen;
   const needsAlert = layers.some((layer) => layer.type === "alert");
+  // Logo da plataforma é usada tanto como fallback de agenda sem logo própria quanto na BrandFooterBar.
+  const needsBrandLogo = needsAgenda || output.footerOpen;
+  const needsBrandColor = output.footerOpen;
 
-  const [regionWeather, regionNews, agendaRotation, activeAlertMessage, brandLogoUrl] = await Promise.all([
+  const [regionWeather, regionNews, agendaRotation, activeAlertMessage, brandLogoUrl, brandColor] = await Promise.all([
     needsWeather ? resolveRegionWeather() : Promise.resolve(null),
     needsNews ? resolveRegionNews() : Promise.resolve([]),
-    needsAgenda ? resolveAgendaRotation() : Promise.resolve([]),
+    needsAgenda ? resolveAgendaRotation(output.id) : Promise.resolve([]),
     needsAlert ? findActiveAlertMessage() : Promise.resolve(null),
-    needsAgenda ? getBrandConfig("png").then((brand) => brand.logoUrl) : Promise.resolve(null),
+    needsBrandLogo ? getBrandConfig("png").then((brand) => brand.logoUrl) : Promise.resolve(null),
+    needsBrandColor ? resolveBrandColor() : Promise.resolve(BROADCAST_SETTINGS.brandColor.defaultValue),
   ]);
 
   return {
@@ -152,6 +209,7 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
     data: {
       outputId: output.id,
       drawerOpen: output.drawerOpen,
+      footerOpen: output.footerOpen,
       scene,
       layers,
       playlistItemsByPlaylistId,
@@ -161,6 +219,7 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
       agendaRotation,
       activeAlertMessage,
       brandLogoUrl,
+      brandColor,
     },
   };
 }

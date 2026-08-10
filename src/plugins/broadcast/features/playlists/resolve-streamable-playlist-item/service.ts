@@ -1,8 +1,7 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { getMediaAsset } from "@/contexts/media";
-import { getSetting } from "@/contexts/settings";
-import { BROADCAST_SETTINGS } from "../../../shared/settings";
+import { BROADCAST_ROOT_FOLDER } from "../../../shared/settings";
 import { resolveWithinRoot } from "../../../shared/sandboxed-path";
 import { streamableContentTypeForExtension } from "../../../shared/video-extensions";
 import { findPlaylistItemById } from "./store";
@@ -57,19 +56,7 @@ export async function resolveStreamableItem(query: ResolveStreamableItemQuery): 
     };
   }
 
-  const rootSetting = await getSetting({ key: BROADCAST_SETTINGS.rootFolder.key });
-  const rootFolder = rootSetting.success && typeof rootSetting.data?.value === "string" ? rootSetting.data.value : "";
-  if (!rootFolder.trim()) {
-    return {
-      success: false,
-      error: {
-        code: "broadcast.resolve-streamable-item.root_not_configured",
-        message: "A pasta raiz de vídeos ainda não foi configurada.",
-      },
-    };
-  }
-
-  const absolutePath = resolveWithinRoot(rootFolder, item.relativePath);
+  const absolutePath = resolveWithinRoot(BROADCAST_ROOT_FOLDER, item.relativePath);
   const contentType = streamableContentTypeForExtension(path.extname(item.relativePath));
   if (!absolutePath || !contentType) {
     return {

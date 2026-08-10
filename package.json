@@ -47,8 +47,10 @@
     "abcjs": "^6.6.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dompurify": "^3.4.13",
     "drizzle-orm": "^0.45.2",
     "fflate": "^0.8.3",
+    "jsdom": "^29.1.1",
     "lucide-react": "^1.27.0",
     "next": "16.2.11",
     "next-auth": "^5.0.0-beta.32",
@@ -71,6 +73,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jsdom": "^30.0.0",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",
     "@types/pg": "^8.20.0",

@@ -43,13 +43,20 @@ export type MediaAllowedTypeRule = {
   maxSizeBytes: number;
 };
 
-// Allowlist (nunca blocklist) — blob-spec seção 5. `image/svg+xml` fica de fora deliberadamente
-// (risco de XSS via script embutido).
+// Allowlist (nunca blocklist) — blob-spec seção 5. `image/svg+xml` pode carregar script
+// embutido (risco de XSS), então só é aceito pelo upload server-buffered
+// (uploadMediaAsset/uploadAvatarMediaAsset/uploadActivitySubmissionMediaAsset), nunca pelo
+// ticket de upload direto ao Blob — o servidor nunca vê os bytes nesse fluxo antes do arquivo já
+// estar público no storage, então não haveria onde sanitizar (ver
+// assertTypeAllowedForDirectUpload em request-media-upload-ticket/service.ts). Os bytes passam
+// por sanitizeSvgBuffer (sanitize-svg-buffer.ts) antes de chegar em storagePort.store — cap de
+// tamanho bem menor que os outros formatos de imagem porque SVG é texto.
 export const MEDIA_ALLOWED_TYPES: Record<string, MediaAllowedTypeRule> = {
   "image/png": { category: "image", maxSizeBytes: 8 * 1024 * 1024 },
   "image/jpeg": { category: "image", maxSizeBytes: 8 * 1024 * 1024 },
   "image/webp": { category: "image", maxSizeBytes: 8 * 1024 * 1024 },
   "image/gif": { category: "image", maxSizeBytes: 8 * 1024 * 1024 },
+  "image/svg+xml": { category: "image", maxSizeBytes: 2 * 1024 * 1024 },
   "application/pdf": { category: "document", maxSizeBytes: 20 * 1024 * 1024 },
   "video/mp4": { category: "video", maxSizeBytes: 200 * 1024 * 1024 },
   "video/webm": { category: "video", maxSizeBytes: 200 * 1024 * 1024 },

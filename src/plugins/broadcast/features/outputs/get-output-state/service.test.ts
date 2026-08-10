@@ -5,6 +5,11 @@ vi.mock("@/contexts/media", () => ({
   getMediaAsset: (...args: unknown[]) => getMediaAsset(...args),
 }));
 
+const getSetting = vi.fn();
+vi.mock("@/contexts/settings", () => ({
+  getSetting: (...args: unknown[]) => getSetting(...args),
+}));
+
 const getBrandConfig = vi.fn();
 vi.mock("@/platform/brand/get-brand-config", () => ({
   getBrandConfig: (...args: unknown[]) => getBrandConfig(...args),
@@ -26,6 +31,7 @@ const findLayersBySceneId = vi.fn();
 const findVisiblePlaylistItemsByPlaylistId = vi.fn();
 const findAllAgendas = vi.fn();
 const findAllUpcomingAgendaEvents = vi.fn();
+const findAllOutputAgendaLinks = vi.fn();
 const findActiveAlertMessage = vi.fn();
 vi.mock("./store", () => ({
   findOutputByToken: (...args: unknown[]) => findOutputByToken(...args),
@@ -34,12 +40,14 @@ vi.mock("./store", () => ({
   findVisiblePlaylistItemsByPlaylistId: (...args: unknown[]) => findVisiblePlaylistItemsByPlaylistId(...args),
   findAllAgendas: (...args: unknown[]) => findAllAgendas(...args),
   findAllUpcomingAgendaEvents: (...args: unknown[]) => findAllUpcomingAgendaEvents(...args),
+  findAllOutputAgendaLinks: (...args: unknown[]) => findAllOutputAgendaLinks(...args),
   findActiveAlertMessage: (...args: unknown[]) => findActiveAlertMessage(...args),
 }));
 
 describe("getOutputState", () => {
   beforeEach(() => {
     getMediaAsset.mockReset();
+    getSetting.mockReset();
     getBrandConfig.mockReset();
     resolveRegionWeather.mockReset();
     resolveRegionNews.mockReset();
@@ -49,7 +57,16 @@ describe("getOutputState", () => {
     findVisiblePlaylistItemsByPlaylistId.mockReset();
     findAllAgendas.mockReset();
     findAllUpcomingAgendaEvents.mockReset();
+    findAllOutputAgendaLinks.mockReset();
     findActiveAlertMessage.mockReset();
+    // Defaults sensatos pra testes que disparam a resolução (agora a camada "video" também
+    // dispara clima/logo/cor de marca) mas não se importam com o valor exato.
+    getSetting.mockResolvedValue({ success: false });
+    getBrandConfig.mockResolvedValue({ logoUrl: null });
+    resolveRegionWeather.mockResolvedValue(null);
+    // Sem vínculo nenhum = toda agenda aparece em toda saída (modelo opt-out, ver schema) — default
+    // que a maioria dos testes de agenda quer, só o teste dedicado abaixo sobrescreve.
+    findAllOutputAgendaLinks.mockResolvedValue([]);
   });
 
   it("fails when the token does not match any output", async () => {
@@ -63,7 +80,7 @@ describe("getOutputState", () => {
   });
 
   it("returns an empty scene/layers when the output has no current scene", async () => {
-    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: false, currentSceneId: null });
+    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: false, footerOpen: false, currentSceneId: null });
 
     const { getOutputState } = await import("./service");
     const result = await getOutputState({ token: "tok-1" });
@@ -73,6 +90,7 @@ describe("getOutputState", () => {
       data: {
         outputId: "o1",
         drawerOpen: false,
+        footerOpen: false,
         scene: null,
         layers: [],
         playlistItemsByPlaylistId: {},
@@ -82,6 +100,7 @@ describe("getOutputState", () => {
         agendaRotation: [],
         activeAlertMessage: null,
         brandLogoUrl: null,
+        brandColor: "#0f0f0f",
       },
     });
     expect(findSceneById).not.toHaveBeenCalled();
@@ -157,19 +176,18 @@ describe("getOutputState", () => {
     expect(result.success && result.data.regionNews).toHaveLength(1);
   });
 
-  it("groups upcoming events by agenda, drops agendas with no upcoming events, resolves the brand logo, and also resolves weather (agenda panel shows a weather corner too)", async () => {
-    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: false, currentSceneId: "s1" });
+  it("groups upcoming events by agenda, drops agendas with no upcoming events, and resolves the brand logo (fallback for agendas without their own)", async () => {
+    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: true, currentSceneId: "s1" });
     findSceneById.mockResolvedValue({ id: "s1", name: "Painel" });
     findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "agenda", config: {} }]);
     findAllAgendas.mockResolvedValue([
-      { id: "a1", name: "Semanal", displaySeconds: 20, order: 0, backgroundColor: null },
-      { id: "a2", name: "Mensal", displaySeconds: 30, order: 1, backgroundColor: "#1a1a2e" },
+      { id: "a1", name: "Semanal", displaySeconds: 20, order: 0, backgroundColor: null, logoMediaAssetId: null },
+      { id: "a2", name: "Mensal", displaySeconds: 30, order: 1, backgroundColor: "#1a1a2e", logoMediaAssetId: null },
     ]);
     findAllUpcomingAgendaEvents.mockResolvedValue([
-      { id: "e1", agendaId: "a1", title: "Reunião", startAt: new Date() },
+      { id: "e1", agendaId: "a1", title: "Reunião", startAt: new Date(), coverMediaAssetId: null },
     ]);
     getBrandConfig.mockResolvedValue({ logoUrl: "https://example.com/logo.png" });
-    resolveRegionWeather.mockResolvedValue({ temperatureC: 21, weatherCode: 1, conditionLabel: "Céu limpo", emoji: "☀️" });
 
     const { getOutputState } = await import("./service");
     const result = await getOutputState({ token: "tok-1" });
@@ -178,14 +196,127 @@ describe("getOutputState", () => {
     if (!result.success) return;
     expect(result.data.agendaRotation).toEqual([
       {
-        agenda: { id: "a1", name: "Semanal", displaySeconds: 20, order: 0, backgroundColor: null },
-        events: [{ id: "e1", agendaId: "a1", title: "Reunião", startAt: expect.any(Date) }],
+        agenda: { id: "a1", name: "Semanal", displaySeconds: 20, order: 0, backgroundColor: null, logoMediaAssetId: null },
+        events: [{ id: "e1", agendaId: "a1", title: "Reunião", startAt: expect.any(Date), coverMediaAssetId: null, coverUrl: null }],
+        logoUrl: null,
       },
     ]);
     expect(result.data.brandLogoUrl).toBe("https://example.com/logo.png");
     expect(getBrandConfig).toHaveBeenCalledWith("png");
-    expect(resolveRegionWeather).toHaveBeenCalledTimes(1);
-    expect(result.data.regionWeather).toEqual({ temperatureC: 21, weatherCode: 1, conditionLabel: "Céu limpo", emoji: "☀️" });
+    // Relógio/clima saíram da coluna de agenda pra barra inferior da camada "video" — uma cena só
+    // com "agenda" não deve mais disparar clima nenhum.
+    expect(resolveRegionWeather).not.toHaveBeenCalled();
+  });
+
+  it("excludes an agenda restricted to other outputs, but keeps one with no restriction at all (opt-out model)", async () => {
+    findOutputByToken.mockResolvedValue({ id: "o-externa", drawerOpen: true, currentSceneId: "s1" });
+    findSceneById.mockResolvedValue({ id: "s1", name: "Painel" });
+    findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "agenda", config: {} }]);
+    findAllAgendas.mockResolvedValue([
+      { id: "a-admin", name: "Administrativo", displaySeconds: 20, order: 0, backgroundColor: null, logoMediaAssetId: null },
+      { id: "a-geral", name: "Geral", displaySeconds: 20, order: 1, backgroundColor: null, logoMediaAssetId: null },
+    ]);
+    findAllUpcomingAgendaEvents.mockResolvedValue([
+      { id: "e1", agendaId: "a-admin", title: "Reunião interna", startAt: new Date(), coverMediaAssetId: null },
+      { id: "e2", agendaId: "a-geral", title: "Evento aberto", startAt: new Date(), coverMediaAssetId: null },
+    ]);
+    // "Administrativo" só está vinculada à saída "o-interna" — não deve aparecer em "o-externa".
+    // "Geral" não tem nenhum vínculo — aparece em qualquer saída, inclusive "o-externa".
+    findAllOutputAgendaLinks.mockResolvedValue([{ outputId: "o-interna", agendaId: "a-admin" }]);
+
+    const { getOutputState } = await import("./service");
+    const result = await getOutputState({ token: "tok-1" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.agendaRotation.map((entry) => entry.agenda.id)).toEqual(["a-geral"]);
+  });
+
+  it("resolves per-agenda logo and per-event cover images via media assets", async () => {
+    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: true, currentSceneId: "s1" });
+    findSceneById.mockResolvedValue({ id: "s1", name: "Painel" });
+    findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "agenda", config: {} }]);
+    findAllAgendas.mockResolvedValue([
+      { id: "a1", name: "Semanal", displaySeconds: 20, order: 0, backgroundColor: null, logoMediaAssetId: "logo-1" },
+    ]);
+    findAllUpcomingAgendaEvents.mockResolvedValue([
+      { id: "e1", agendaId: "a1", title: "Reunião", startAt: new Date(), coverMediaAssetId: "cover-1" },
+    ]);
+    getMediaAsset.mockImplementation(async ({ id }: { id: string }) => {
+      if (id === "logo-1") return { success: true, data: { id, url: "https://example.com/agenda-logo.png" } };
+      if (id === "cover-1") return { success: true, data: { id, url: "https://example.com/event-cover.jpg" } };
+      return { success: true, data: null };
+    });
+
+    const { getOutputState } = await import("./service");
+    const result = await getOutputState({ token: "tok-1" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.agendaRotation[0].logoUrl).toBe("https://example.com/agenda-logo.png");
+    expect(result.data.agendaRotation[0].events[0].coverUrl).toBe("https://example.com/event-cover.jpg");
+  });
+
+  it("resolves weather, brand logo, and brand color when the output's footer is open (BrandFooterBar needs all three)", async () => {
+    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: false, footerOpen: true, currentSceneId: "s1" });
+    findSceneById.mockResolvedValue({ id: "s1", name: "Principal" });
+    findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "video", config: { playlistId: "p1" } }]);
+    findVisiblePlaylistItemsByPlaylistId.mockResolvedValue([]);
+    resolveRegionWeather.mockResolvedValue({ temperatureC: 18, weatherCode: 2, conditionLabel: "Nublado", emoji: "⛅" });
+    getBrandConfig.mockResolvedValue({ logoUrl: "https://example.com/logo.png" });
+    getSetting.mockResolvedValue({ success: true, data: { value: "#221100" } });
+
+    const { getOutputState } = await import("./service");
+    const result = await getOutputState({ token: "tok-1" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.regionWeather).toEqual({ temperatureC: 18, weatherCode: 2, conditionLabel: "Nublado", emoji: "⛅" });
+    expect(result.data.brandLogoUrl).toBe("https://example.com/logo.png");
+    expect(result.data.brandColor).toBe("#221100");
+  });
+
+  it("skips weather and brand logo resolution when the output's footer is closed, even with a video layer present", async () => {
+    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: false, footerOpen: false, currentSceneId: "s1" });
+    findSceneById.mockResolvedValue({ id: "s1", name: "Principal" });
+    findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "video", config: { playlistId: "p1" } }]);
+    findVisiblePlaylistItemsByPlaylistId.mockResolvedValue([]);
+
+    const { getOutputState } = await import("./service");
+    const result = await getOutputState({ token: "tok-1" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.regionWeather).toBeNull();
+    expect(result.data.brandLogoUrl).toBeNull();
+    expect(resolveRegionWeather).not.toHaveBeenCalled();
+    expect(getBrandConfig).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the default brand color when the setting is not configured", async () => {
+    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: false, footerOpen: true, currentSceneId: "s1" });
+    findSceneById.mockResolvedValue({ id: "s1", name: "Principal" });
+    findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "video", config: { playlistId: "p1" } }]);
+    findVisiblePlaylistItemsByPlaylistId.mockResolvedValue([]);
+
+    const { getOutputState } = await import("./service");
+    const result = await getOutputState({ token: "tok-1" });
+
+    expect(result.success && result.data.brandColor).toBe("#0f0f0f");
+  });
+
+  it("skips agenda resolution when the agenda sidebar is closed (drawerOpen=false), even with an agenda layer present", async () => {
+    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: false, currentSceneId: "s1" });
+    findSceneById.mockResolvedValue({ id: "s1", name: "Painel" });
+    findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "agenda", config: {} }]);
+
+    const { getOutputState } = await import("./service");
+    const result = await getOutputState({ token: "tok-1" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.agendaRotation).toEqual([]);
+    expect(findAllAgendas).not.toHaveBeenCalled();
   });
 
   it("resolves the active alert message only when the scene has an alert layer", async () => {

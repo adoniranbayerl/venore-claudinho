@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, integer, jsonb, pgSchema, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, check, integer, jsonb, pgSchema, primaryKey, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const broadcastSchema = pgSchema("broadcast");
 
@@ -110,19 +110,26 @@ export const broadcastPlaylistItems = broadcastSchema.table(
 // um calendário genérico reaproveitável por outro context/plugin — vive só aqui de propósito.
 // backgroundColor é hex (#rrggbb), escolhido pelo operador via <input type="color"> — null cai no
 // preto padrão do painel (mesmo racional de layers.config.color na layer "text": cor por instância
-// escolhida em runtime, não um token de design fixo no código).
+// escolhida em runtime, não um token de design fixo no código). logoMediaAssetId (texto solto, sem
+// FK — mesmo racional de playlist_items.mediaAssetId, ver comentário abaixo) deixa cada agenda ter
+// sua própria marca; null cai na logo padrão da plataforma (brandLogoUrl, resolvido via
+// getBrandConfig em get-output-state).
 export const broadcastAgendas = broadcastSchema.table("agendas", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
   displaySeconds: integer("display_seconds").notNull().default(20),
   order: integer("order").notNull().default(0),
   backgroundColor: text("background_color"),
+  logoMediaAssetId: text("logo_media_asset_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // Eventos simples (título + data, descrição opcional), sem recorrência nem convidados — sempre
-// pertencem a uma agenda nomeada (broadcastAgendas), nunca soltos.
+// pertencem a uma agenda nomeada (broadcastAgendas), nunca soltos. coverMediaAssetId (opcional) é
+// texto solto sem FK — mesmo racional de playlist_items.mediaAssetId: um plugin não pode importar
+// contexts/media/database/schema (regra 7/8 do AGENTS.md), resolução de URL sempre passa por
+// @/contexts/media (getMediaAsset). Sem cover, o card do evento renderiza igual a antes.
 export const broadcastAgendaEvents = broadcastSchema.table("agenda_events", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   agendaId: text("agenda_id")
@@ -131,6 +138,7 @@ export const broadcastAgendaEvents = broadcastSchema.table("agenda_events", {
   title: text("title").notNull(),
   description: text("description"),
   startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+  coverMediaAssetId: text("cover_media_asset_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -163,8 +171,31 @@ export const broadcastOutputs = broadcastSchema.table(
       onDelete: "set null",
     }),
     drawerOpen: boolean("drawer_open").notNull().default(false),
+    // Mesmo mecanismo de drawerOpen, pra BrandFooterBar (logo+relógio+data+temperatura) — default
+    // true (comportamento anterior era sempre mostrar a barra).
+    footerOpen: boolean("footer_open").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("broadcast_outputs_token_idx").on(table.token)],
+);
+
+// Vínculo agenda↔saída — opcional: uma agenda SEM nenhuma linha aqui aparece em TODAS as saídas
+// (comportamento anterior, preservado por padrão); assim que ela ganha ao menos uma linha, só
+// aparece nas saídas listadas ali. Modelo "opt-out" escolhido de propósito pra não quebrar agendas
+// já existentes sem vínculo nenhum — pedido real: "Agenda do Administrativo não precisa passar na
+// Agenda Externa" (restringir uma agenda existente a um subconjunto de saídas), não "toda agenda
+// nova começa sem aparecer em lugar nenhum". Ambas as FKs cascade — apagar a agenda ou a saída
+// limpa o vínculo sozinho, sem deixar linha órfã.
+export const broadcastOutputAgendas = broadcastSchema.table(
+  "output_agendas",
+  {
+    outputId: text("output_id")
+      .notNull()
+      .references(() => broadcastOutputs.id, { onDelete: "cascade" }),
+    agendaId: text("agenda_id")
+      .notNull()
+      .references(() => broadcastAgendas.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.outputId, table.agendaId] })],
 );

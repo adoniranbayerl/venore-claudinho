@@ -1,6 +1,7 @@
 import type { OperationResult } from "@/shared/types";
 import type {
   AgendaRotationEntry,
+  AgendaRotationEvent,
   BroadcastLayerRecord,
   BroadcastSceneRecord,
   PlaylistItemSummary,
@@ -10,7 +11,7 @@ import type {
 
 export type GetOutputStateQuery = { token: string };
 
-export type { AgendaRotationEntry, PlaylistItemSummary };
+export type { AgendaRotationEntry, AgendaRotationEvent, PlaylistItemSummary };
 
 // Estado completo e autossuficiente pra renderizar a view de saída sem nenhuma outra chamada
 // autenticada: playlistItemsByPlaylistId resolve o "o que uma layer de vídeo toca" (a layer só
@@ -24,6 +25,7 @@ export type { AgendaRotationEntry, PlaylistItemSummary };
 export type BroadcastOutputState = {
   outputId: string;
   drawerOpen: boolean;
+  footerOpen: boolean;
   scene: BroadcastSceneRecord | null;
   layers: BroadcastLayerRecord[];
   playlistItemsByPlaylistId: Record<string, PlaylistItemSummary[]>;
@@ -33,6 +35,9 @@ export type BroadcastOutputState = {
   agendaRotation: AgendaRotationEntry[];
   activeAlertMessage: string | null;
   brandLogoUrl: string | null;
+  // Cor da barra de marca (logo+relógio+temperatura) no rodapé da camada "video" — sempre um hex
+  // válido (default de BROADCAST_SETTINGS.brandColor quando o operador não configurou nada).
+  brandColor: string;
 };
 
 export type GetOutputStateResult = OperationResult<BroadcastOutputState>;

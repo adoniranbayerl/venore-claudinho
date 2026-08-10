@@ -1,5 +1,6 @@
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BROADCAST_ROOT_FOLDER } from "../../../shared/settings";
 
 const findPlaylistItemById = vi.fn();
 vi.mock("./store", () => ({
@@ -11,25 +12,21 @@ vi.mock("@/contexts/media", () => ({
   getMediaAsset: (...args: unknown[]) => getMediaAsset(...args),
 }));
 
-const getSetting = vi.fn();
-vi.mock("@/contexts/settings", () => ({
-  getSetting: (...args: unknown[]) => getSetting(...args),
-}));
-
 const stat = vi.fn();
 vi.mock("node:fs/promises", () => ({
   stat: (...args: unknown[]) => stat(...args),
 }));
 
-const ROOT = path.join("C:", "media", "broadcast");
+// BROADCAST_ROOT_FOLDER agora é uma constante fixa (não mais lida de contexts/settings), então o
+// path absoluto esperado é sempre relativo ao process.cwd() do processo de teste — mesma resolução
+// que resolveWithinRoot faz de verdade, não um mock de valor arbitrário.
+const ROOT = path.resolve(BROADCAST_ROOT_FOLDER);
 
 describe("resolveStreamableItem", () => {
   beforeEach(() => {
     findPlaylistItemById.mockReset();
     getMediaAsset.mockReset();
-    getSetting.mockReset();
     stat.mockReset();
-    getSetting.mockResolvedValue({ success: true, data: { key: "broadcast.rootFolder", value: ROOT, updatedAt: new Date() } });
   });
 
   it("fails when the item does not exist", async () => {
@@ -96,16 +93,5 @@ describe("resolveStreamableItem", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) expect(result.error.code).toBe("broadcast.resolve-streamable-item.file_not_found");
-  });
-
-  it("fails when broadcast.rootFolder is not configured for a local item", async () => {
-    findPlaylistItemById.mockResolvedValue({ id: "i5", sourceType: "local", mediaAssetId: null, relativePath: "clips/intro.mp4" });
-    getSetting.mockResolvedValue({ success: true, data: null });
-
-    const { resolveStreamableItem } = await import("./service");
-    const result = await resolveStreamableItem({ itemId: "i5" });
-
-    expect(result.success).toBe(false);
-    if (!result.success) expect(result.error.code).toBe("broadcast.resolve-streamable-item.root_not_configured");
   });
 });

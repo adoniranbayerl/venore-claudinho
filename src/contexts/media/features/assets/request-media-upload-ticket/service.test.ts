@@ -8,7 +8,7 @@ vi.mock("@/observability", () => ({
 describe("validateMediaUploadCandidate", () => {
   it("rejects a contentType that is not in the allowlist", async () => {
     const { validateMediaUploadCandidate } = await import("./service");
-    const result = validateMediaUploadCandidate({ contentType: "image/svg+xml", size: 1024 });
+    const result = validateMediaUploadCandidate({ contentType: "image/bmp", size: 1024 });
     expect(result).toEqual({ success: false, error: { code: "media.upload.unsupported_type", message: expect.any(String) } });
   });
 
@@ -40,8 +40,20 @@ describe("requestMediaUploadTicket", () => {
 
   it("fails validation before generating a pathname", async () => {
     const { requestMediaUploadTicket } = await import("./service");
-    const result = await requestMediaUploadTicket({ filename: "malware.svg", contentType: "image/svg+xml", size: 10, actorId: "actor-1" });
-    expect(result.success).toBe(false);
+    const result = await requestMediaUploadTicket({ filename: "photo.bmp", contentType: "image/bmp", size: 10, actorId: "actor-1" });
+    expect(result).toEqual({
+      success: false,
+      error: { code: "media.upload.unsupported_type", message: expect.any(String) },
+    });
+  });
+
+  it("rejects image/svg+xml — SVG only goes through the server-buffered upload, never the direct-to-Blob ticket", async () => {
+    const { requestMediaUploadTicket } = await import("./service");
+    const result = await requestMediaUploadTicket({ filename: "icon.svg", contentType: "image/svg+xml", size: 10, actorId: "actor-1" });
+    expect(result).toEqual({
+      success: false,
+      error: { code: "media.upload.requires_buffered_upload", message: expect.any(String) },
+    });
   });
 
   it("sanitizes the filename, prefixes it with a random uuid, and puts it in the type folder", async () => {

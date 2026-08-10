@@ -13,6 +13,7 @@ export async function applyAgendaUpdate(input: {
   name: string;
   displaySeconds: number;
   backgroundColor: string | null;
+  logoMediaAssetId: string | null;
 }): Promise<BroadcastAgendaRecord> {
   const [row] = await db
     .update(broadcastAgendas)
@@ -20,6 +21,7 @@ export async function applyAgendaUpdate(input: {
       name: input.name,
       displaySeconds: input.displaySeconds,
       backgroundColor: input.backgroundColor,
+      logoMediaAssetId: input.logoMediaAssetId,
       updatedAt: sql`now()`,
     })
     .where(eq(broadcastAgendas.id, input.id))

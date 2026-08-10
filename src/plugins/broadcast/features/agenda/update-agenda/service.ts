@@ -21,6 +21,7 @@ export async function updateAgenda(command: UpdateAgendaCommand): Promise<Update
     name: command.name.trim(),
     displaySeconds: command.displaySeconds,
     backgroundColor: command.backgroundColor?.trim() || null,
+    logoMediaAssetId: command.logoMediaAssetId?.trim() || null,
   });
 
   endOperation(handle, { success: true });

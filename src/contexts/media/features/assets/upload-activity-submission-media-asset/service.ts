@@ -5,6 +5,7 @@ import { computeSha256Hex } from "@/infrastructure/storage/checksum";
 import { getOrCreateReservedCategory } from "../../../get-or-create-reserved-category";
 import { ACTIVITY_SUBMISSION_RESERVED_CATEGORY_KEY, ACTIVITY_SUBMISSION_RESERVED_CATEGORY_NAME } from "../../../contracts/types";
 import { resolveMediaStorageFolder } from "../../../resolve-media-storage-folder";
+import { sanitizeSvgBuffer } from "../../../sanitize-svg-buffer";
 import { insertAsset } from "../upload-media-asset/store";
 import type { UploadActivitySubmissionMediaAssetCommand, UploadActivitySubmissionMediaAssetResult } from "./types";
 
@@ -33,9 +34,21 @@ export async function uploadActivitySubmissionMediaAsset(
     ACTIVITY_SUBMISSION_RESERVED_CATEGORY_NAME,
   );
 
+  // SVG pode carregar script embutido — sanitiza antes de gravar (mesmo motivo de
+  // upload-media-asset/service.ts).
+  let dataToStore = command.data;
+  if (command.contentType === "image/svg+xml") {
+    const sanitized = sanitizeSvgBuffer(command.data);
+    if (!sanitized.success) {
+      endOperation(handle, sanitized);
+      return sanitized;
+    }
+    dataToStore = sanitized.data;
+  }
+
   const pathname = `${resolveMediaStorageFolder(command.contentType)}/${crypto.randomUUID()}-${sanitizeFilename(command.filename)}`;
-  const stored = await storagePort.store({ key: pathname, data: command.data, contentType: command.contentType });
-  const checksum = computeSha256Hex(command.data);
+  const stored = await storagePort.store({ key: pathname, data: dataToStore, contentType: command.contentType });
+  const checksum = computeSha256Hex(dataToStore);
 
   const asset = await insertAsset({
     filename: command.filename,

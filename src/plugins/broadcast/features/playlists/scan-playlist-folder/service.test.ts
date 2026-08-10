@@ -1,21 +1,6 @@
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@/observability", () => ({
-  beginOperation: vi.fn(() => ({
-    operationId: "op-1",
-    useCase: "test",
-    actor: { id: "actor-1", type: "user" },
-    kind: "write",
-    startedAt: new Date(),
-  })),
-  endOperation: vi.fn(),
-}));
-
-const getSetting = vi.fn();
-vi.mock("@/contexts/settings", () => ({
-  getSetting: (...args: unknown[]) => getSetting(...args),
-}));
+import { BROADCAST_ROOT_FOLDER } from "../../../shared/settings";
 
 const readdir = vi.fn();
 vi.mock("node:fs/promises", () => ({
@@ -24,18 +9,14 @@ vi.mock("node:fs/promises", () => ({
 
 const findPlaylistById = vi.fn();
 const findLocalPlaylistItemsByPlaylistId = vi.fn();
-const findMaxPlaylistItemOrder = vi.fn();
-const insertLocalPlaylistItems = vi.fn();
-const deletePlaylistItemsByIds = vi.fn();
 vi.mock("./store", () => ({
   findPlaylistById: (...args: unknown[]) => findPlaylistById(...args),
   findLocalPlaylistItemsByPlaylistId: (...args: unknown[]) => findLocalPlaylistItemsByPlaylistId(...args),
-  findMaxPlaylistItemOrder: (...args: unknown[]) => findMaxPlaylistItemOrder(...args),
-  insertLocalPlaylistItems: (...args: unknown[]) => insertLocalPlaylistItems(...args),
-  deletePlaylistItemsByIds: (...args: unknown[]) => deletePlaylistItemsByIds(...args),
 }));
 
-const ROOT = path.join("C:", "media", "broadcast");
+// BROADCAST_ROOT_FOLDER agora é uma constante fixa (não mais lida de contexts/settings), então o
+// path absoluto esperado é sempre relativo ao process.cwd() do processo de teste.
+const ROOT = path.resolve(BROADCAST_ROOT_FOLDER);
 
 function fileEntry(name: string) {
   return { name, isFile: () => true, isDirectory: () => false, isSymbolicLink: () => false };
@@ -46,14 +27,9 @@ function dirEntry(name: string) {
 
 describe("scanPlaylistFolder", () => {
   beforeEach(() => {
-    getSetting.mockReset();
     readdir.mockReset();
     findPlaylistById.mockReset();
     findLocalPlaylistItemsByPlaylistId.mockReset();
-    findMaxPlaylistItemOrder.mockReset();
-    insertLocalPlaylistItems.mockReset();
-    deletePlaylistItemsByIds.mockReset();
-    getSetting.mockResolvedValue({ success: true, data: { key: "broadcast.rootFolder", value: ROOT, updatedAt: new Date() } });
   });
 
   it("fails when the playlist does not exist", async () => {
@@ -78,17 +54,6 @@ describe("scanPlaylistFolder", () => {
     if (!result.success) expect(result.error.code).toBe("broadcast.scan-playlist-folder.no_folder");
   });
 
-  it("fails when broadcast.rootFolder is not configured", async () => {
-    findPlaylistById.mockResolvedValue({ id: "p1", name: "Clips", folderPath: "clips" });
-    getSetting.mockResolvedValue({ success: true, data: null });
-
-    const { scanPlaylistFolder } = await import("./service");
-    const result = await scanPlaylistFolder({ playlistId: "p1", actorId: "actor-1" });
-
-    expect(result.success).toBe(false);
-    if (!result.success) expect(result.error.code).toBe("broadcast.scan-playlist-folder.root_not_configured");
-  });
-
   it("fails when the playlist folder escapes the configured root", async () => {
     findPlaylistById.mockResolvedValue({ id: "p1", name: "Clips", folderPath: "../../outside" });
 
@@ -100,13 +65,12 @@ describe("scanPlaylistFolder", () => {
     expect(readdir).not.toHaveBeenCalled();
   });
 
-  it("adds newly discovered video files and removes items no longer on disk", async () => {
+  it("previews newly discovered video files and items no longer on disk, without writing anything", async () => {
     findPlaylistById.mockResolvedValue({ id: "p1", name: "Clips", folderPath: "clips" });
     findLocalPlaylistItemsByPlaylistId.mockResolvedValue([
       { id: "item-kept", relativePath: "clips/intro.mp4" },
       { id: "item-stale", relativePath: "clips/removed.mp4" },
     ]);
-    findMaxPlaylistItemOrder.mockResolvedValue(0);
 
     const clipsDir = path.join(ROOT, "clips");
     const subDir = path.join(clipsDir, "sub");
@@ -119,17 +83,18 @@ describe("scanPlaylistFolder", () => {
     const { scanPlaylistFolder } = await import("./service");
     const result = await scanPlaylistFolder({ playlistId: "p1", actorId: "actor-1" });
 
-    expect(result).toEqual({ success: true, data: { added: 1, removed: 1 } });
-    expect(deletePlaylistItemsByIds).toHaveBeenCalledWith(["item-stale"]);
-    expect(insertLocalPlaylistItems).toHaveBeenCalledWith([
-      { playlistId: "p1", order: 1, title: null, relativePath: "clips/sub/clip2.webm" },
-    ]);
+    expect(result).toEqual({
+      success: true,
+      data: {
+        toAdd: ["clips/sub/clip2.webm"],
+        toRemove: [{ id: "item-stale", relativePath: "clips/removed.mp4" }],
+      },
+    });
   });
 
   it("ignores image files — imagem entra só pela biblioteca de mídia, não pelo scan de pasta", async () => {
     findPlaylistById.mockResolvedValue({ id: "p1", name: "Clips", folderPath: "clips" });
     findLocalPlaylistItemsByPlaylistId.mockResolvedValue([]);
-    findMaxPlaylistItemOrder.mockResolvedValue(-1);
 
     const clipsDir = path.join(ROOT, "clips");
     readdir.mockImplementation(async (dir: string) => {
@@ -140,10 +105,7 @@ describe("scanPlaylistFolder", () => {
     const { scanPlaylistFolder } = await import("./service");
     const result = await scanPlaylistFolder({ playlistId: "p1", actorId: "actor-1" });
 
-    expect(result).toEqual({ success: true, data: { added: 1, removed: 0 } });
-    expect(insertLocalPlaylistItems).toHaveBeenCalledWith([
-      { playlistId: "p1", order: 0, title: null, relativePath: "clips/intro.mp4" },
-    ]);
+    expect(result).toEqual({ success: true, data: { toAdd: ["clips/intro.mp4"], toRemove: [] } });
   });
 
   it("surfaces a clear error when the configured folder can't be read from disk", async () => {

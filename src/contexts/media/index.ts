@@ -60,7 +60,7 @@ export { clearCategoryAssetsHandler as clearCategoryAssets } from "./features/ca
 export { requestMediaUploadTicketHandler as requestMediaUploadTicket } from "./features/assets/request-media-upload-ticket/handler";
 // Exposta pro route handler revalidar allowlist/limite dentro de onBeforeGenerateToken sem
 // duplicar a regra (blob-spec seção 5, "checado duas vezes").
-export { validateMediaUploadCandidate } from "./features/assets/request-media-upload-ticket/service";
+export { validateMediaUploadCandidate, assertTypeAllowedForDirectUpload } from "./features/assets/request-media-upload-ticket/service";
 export { confirmMediaUploadHandler as confirmMediaUpload } from "./features/assets/register-uploaded-media/handler";
 
 // Import só pelo efeito colateral: dispara o auto-start da varredura de reconciliação de upload

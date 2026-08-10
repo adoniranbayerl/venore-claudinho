@@ -14,6 +14,7 @@ export async function createAgendaEvent(command: CreateAgendaEventCommand): Prom
     title: command.title.trim(),
     description: command.description?.trim() || null,
     startAt: command.startAt,
+    coverMediaAssetId: command.coverMediaAssetId?.trim() || null,
   });
 
   endOperation(handle, { success: true });

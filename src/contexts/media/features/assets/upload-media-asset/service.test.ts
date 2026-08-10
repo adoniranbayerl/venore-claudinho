@@ -30,8 +30,8 @@ describe("uploadMediaAsset", () => {
   it("rejects a contentType outside the allowlist without touching storage", async () => {
     const { uploadMediaAsset } = await import("./service");
     const result = await uploadMediaAsset({
-      filename: "script.svg",
-      contentType: "image/svg+xml",
+      filename: "photo.bmp",
+      contentType: "image/bmp",
       size: 100,
       data: Buffer.from("x"),
       visibility: "private",
@@ -41,6 +41,52 @@ describe("uploadMediaAsset", () => {
     expect(result).toEqual({
       success: false,
       error: { code: "media.upload.unsupported_type", message: expect.any(String) },
+    });
+    expect(storeFn).not.toHaveBeenCalled();
+    expect(insertAsset).not.toHaveBeenCalled();
+  });
+
+  it("sanitizes SVG bytes before storing them and computes the checksum over the sanitized bytes", async () => {
+    storeFn.mockImplementation(async (input: { key: string; data: Buffer }) => ({
+      key: input.key,
+      url: `https://blob.test/${input.key}`,
+      size: input.data.byteLength,
+    }));
+    insertAsset.mockResolvedValue({ id: "asset-1", filename: "icon.svg" });
+
+    const { uploadMediaAsset } = await import("./service");
+    const malicious = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(2)</script><circle r="1"/></svg>');
+    const result = await uploadMediaAsset({
+      filename: "icon.svg",
+      contentType: "image/svg+xml",
+      size: malicious.byteLength,
+      data: malicious,
+      visibility: "public",
+      actorId: "actor-1",
+    });
+
+    expect(result.success).toBe(true);
+    expect(storeFn).toHaveBeenCalledTimes(1);
+    const storedData = (storeFn.mock.calls[0][0] as { data: Buffer }).data;
+    expect(storedData.toString("utf8")).not.toContain("<script");
+    expect(storedData.toString("utf8")).not.toContain("onload");
+    expect(insertAsset).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an image/svg+xml payload that isn't actually an SVG", async () => {
+    const { uploadMediaAsset } = await import("./service");
+    const result = await uploadMediaAsset({
+      filename: "fake.svg",
+      contentType: "image/svg+xml",
+      size: 20,
+      data: Buffer.from("<html>not svg</html>"),
+      visibility: "private",
+      actorId: "actor-1",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "media.upload.invalid_svg", message: expect.any(String) },
     });
     expect(storeFn).not.toHaveBeenCalled();
     expect(insertAsset).not.toHaveBeenCalled();

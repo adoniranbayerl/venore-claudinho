@@ -11,7 +11,7 @@ import { PlatformBrand } from "./PlatformBrand";
 // getMenuByLocation("sitemap")) é platform/theme-rendering/resolve-theme-slot-props.ts.
 export function FooterSlot({ brand, sitemapItems, creditsEnabled }: FooterSlotProps) {
   return (
-    <footer className="mt-auto grid gap-8 border-t border-border px-4 py-10 text-muted-foreground sm:px-6 bg-primary lg:grid-cols-[max-content_minmax(0,1fr)] lg:px-8)">
+    <footer className="mt-auto grid gap-8 border-t border-border px-4 py-10 text-muted-foreground sm:px-6 bg-background lg:grid-cols-[max-content_minmax(0,1fr)] lg:px-8)">
       <div className="w-fit max-w-full justify-self-start space-y-5 rounded-panel bg-accent/14 px-5 py-6">
         <div>
           <div className="max-w-40 origin-left scale-125">
