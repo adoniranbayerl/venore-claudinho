@@ -50,6 +50,13 @@
       "when": 1786396912211,
       "tag": "0006_simple_union_jack",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786402835397,
+      "tag": "0007_white_calypso",
+      "breakpoints": true
     }
   ]
 }

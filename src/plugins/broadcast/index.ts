@@ -127,6 +127,12 @@ export { setOutputDrawerHandler as setOutputDrawer } from "./features/outputs/se
 export { setOutputFooterHandler as setOutputFooter } from "./features/outputs/set-output-footer/handler";
 export { deleteOutputHandler as deleteOutput } from "./features/outputs/delete-output/handler";
 export type { DeleteOutputInput, DeleteOutputResult } from "./features/outputs/delete-output/types";
+// "Responsável" por uma saída — só broadcast.manage decide quem é (mesmo racional de
+// set-agenda-editors, ver shared/scoped-authorization/index.ts).
+export { setOutputEditorsHandler as setOutputEditors } from "./features/outputs/set-output-editors/handler";
+export { listOutputEditorsHandler as listOutputEditors } from "./features/outputs/list-output-editors/handler";
+export type { SetOutputEditorsInput, SetOutputEditorsResult } from "./features/outputs/set-output-editors/types";
+export type { ListOutputEditorsResult } from "./features/outputs/list-output-editors/types";
 // Sem authorizeActor (ver o próprio handler) — acesso por token, chamado pela página de saída
 // (server component) e pela rota SSE, nunca por uma action de UI autenticada por sessão de admin.
 export { getOutputStateHandler as getOutputState } from "./features/outputs/get-output-state/handler";
@@ -169,6 +175,11 @@ export { deleteAgendaEventHandler as deleteAgendaEvent } from "./features/agenda
 // telas uma agenda aparece é decisão de quem administra as saídas, não do editor de conteúdo).
 export { setAgendaOutputsHandler as setAgendaOutputs } from "./features/agenda/set-agenda-outputs/handler";
 export { listAgendaOutputsHandler as listAgendaOutputs } from "./features/agenda/list-agenda-outputs/handler";
+// "Responsável" por uma agenda — pedido explícito: "adicionar um responsável (role editor pra
+// cima) com acesso e permissão para alterar apenas a agenda atribuída". Só broadcast.manage decide
+// quem é (ver shared/scoped-authorization/index.ts pro racional completo).
+export { setAgendaEditorsHandler as setAgendaEditors } from "./features/agenda/set-agenda-editors/handler";
+export { listAgendaEditorsHandler as listAgendaEditors } from "./features/agenda/list-agenda-editors/handler";
 
 export type { CreateAgendaInput, CreateAgendaResult } from "./features/agenda/create-agenda/types";
 export type { UpdateAgendaInput, UpdateAgendaResult } from "./features/agenda/update-agenda/types";
@@ -176,6 +187,8 @@ export type { ReorderAgendasInput, ReorderAgendasResult } from "./features/agend
 export type { ListAgendasResult } from "./features/agenda/list-agendas/types";
 export type { SetAgendaOutputsInput, SetAgendaOutputsResult } from "./features/agenda/set-agenda-outputs/types";
 export type { ListAgendaOutputsResult } from "./features/agenda/list-agenda-outputs/types";
+export type { SetAgendaEditorsInput, SetAgendaEditorsResult } from "./features/agenda/set-agenda-editors/types";
+export type { ListAgendaEditorsResult } from "./features/agenda/list-agenda-editors/types";
 export type { DeleteAgendaInput, DeleteAgendaResult } from "./features/agenda/delete-agenda/types";
 export type { CreateAgendaEventInput, CreateAgendaEventResult } from "./features/agenda/create-agenda-event/types";
 export type { UpdateAgendaEventInput, UpdateAgendaEventResult } from "./features/agenda/update-agenda-event/types";

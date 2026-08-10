@@ -17,6 +17,7 @@ import {
   deleteAgendaAction,
   deleteAgendaEventAction,
   reorderAgendasAction,
+  setAgendaEditorsAction,
   setAgendaOutputsAction,
   updateAgendaAction,
   updateAgendaEventAction,
@@ -25,6 +26,11 @@ import {
 
 const initialState: BroadcastActionState = { error: null };
 const DEFAULT_AGENDA_COLOR = "#0f0f0f";
+
+// Não importa UserRef de @/contexts/auth (barrel arrasta next-auth/server pro bundle do browser,
+// mesmo racional documentado em outros pontos deste arquivo) — mesmo padrão de AssignRoleForm
+// (admin/rbac/_components/assign-role-form.tsx): tipo inline, campos mínimos.
+type AssignableUser = { id: string; name: string | null; email: string };
 
 function CreateAgendaForm() {
   const [state, formAction, pending] = useActionState(createAgendaAction, initialState);
@@ -197,6 +203,64 @@ function AgendaOutputsForm({
   );
 }
 
+// "Responsável" pela agenda — pedido explícito: "adicionar um responsável (role editor pra cima)
+// com acesso e permissão para alterar apenas a agenda atribuída". A atribuição sozinha não dá
+// acesso: a pessoa também precisa ter o papel/permission "Editar agendas atribuídas" em
+// /admin/rbac (broadcast.agenda.manage) — sem isso, estar atribuído aqui não tem efeito nenhum
+// (ver shared/scoped-authorization/index.ts no backend).
+function AgendaEditorsForm({
+  agendaId,
+  allUsers,
+  selectedUserIds,
+}: {
+  agendaId: string;
+  allUsers: AssignableUser[];
+  selectedUserIds: string[];
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set(selectedUserIds));
+  const [state, formAction, pending] = useActionState(setAgendaEditorsAction, initialState);
+  useActionToast({ pending, error: state.error, successMessage: "Responsáveis atualizados." });
+
+  function toggle(userId: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  }
+
+  return (
+    <form action={formAction} className="space-y-2 rounded-panel border border-border/60 bg-muted/20 p-2.5">
+      <input type="hidden" name="agendaId" value={agendaId} />
+      <input type="hidden" name="userIds" value={JSON.stringify([...selected])} />
+      <p className="text-xs font-medium text-foreground">Responsável por esta agenda</p>
+      <p className="text-xs text-muted-foreground">
+        Pessoas marcadas podem editar só esta agenda — precisam também ter o papel &quot;Editar agendas atribuídas&quot; em
+        Papéis e Permissões.
+      </p>
+      {allUsers.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhum usuário cadastrado ainda.</p>
+      ) : (
+        <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto">
+          {allUsers.map((user) => (
+            <label key={user.id} className="flex items-center gap-1.5 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={selected.has(user.id)}
+                onChange={() => toggle(user.id)}
+                className="size-4 shrink-0 rounded border-border"
+              />
+              <span className="truncate">{user.name ?? user.email} ({user.email})</span>
+            </label>
+          ))}
+        </div>
+      )}
+      <Button type="submit" size="sm" variant="outline" disabled={pending}>Salvar responsáveis</Button>
+    </form>
+  );
+}
+
 function CreateAgendaEventForm({ agendaId }: { agendaId: string }) {
   const [state, formAction, pending] = useActionState(createAgendaEventAction, initialState);
   useActionToast({ pending, error: state.error, successMessage: "Evento criado." });
@@ -339,6 +403,9 @@ export function AgendaSection({
   eventCoverMediaById,
   outputs,
   agendaOutputIdsByAgendaId,
+  canManageAll = true,
+  allUsers = [],
+  agendaEditorUserIdsByAgendaId = {},
 }: {
   agendas: BroadcastAgendaRecord[];
   eventsByAgenda: Record<string, BroadcastAgendaEventRecord[]>;
@@ -346,13 +413,21 @@ export function AgendaSection({
   eventCoverMediaById: Record<string, PickableMedia | null>;
   outputs: BroadcastOutputRecord[];
   agendaOutputIdsByAgendaId: Record<string, string[]>;
+  // false na rota enxuta /admin/broadcast/agenda (editor de agenda, sem broadcast.manage) — esconde
+  // criar/apagar/reordenar agenda, o vínculo agenda↔saída e a atribuição de responsáveis, que
+  // continuam ação de quem administra tudo (ver page.tsx vs. agenda/page.tsx).
+  canManageAll?: boolean;
+  allUsers?: AssignableUser[];
+  agendaEditorUserIdsByAgendaId?: Record<string, string[]>;
 }) {
   return (
     <div className="space-y-4">
-      <CreateAgendaForm />
+      {canManageAll && <CreateAgendaForm />}
       {agendas.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          Nenhuma agenda cadastrada ainda — crie uma (ex: &quot;Semanal&quot;) pra começar a adicionar eventos.
+          {canManageAll
+            ? 'Nenhuma agenda cadastrada ainda — crie uma (ex: "Semanal") pra começar a adicionar eventos.'
+            : "Nenhuma agenda foi atribuída a você ainda."}
         </p>
       )}
       <div className="space-y-3">
@@ -377,17 +452,28 @@ export function AgendaSection({
                   />
                   {agenda.name} <span className="text-muted-foreground">({agenda.displaySeconds}s na tela)</span>
                 </span>
-                {/* stopPropagation — sem isso, clicar em mover/apagar também alterna o <details>
-                    (o clique borbulha pro <summary>, disclosure trigger nativo). */}
-                <div className="flex items-center gap-1.5" onClick={(event) => event.stopPropagation()}>
-                  {upOrder && <MoveAgendaButton agendaIds={upOrder} direction="up" />}
-                  {downOrder && <MoveAgendaButton agendaIds={downOrder} direction="down" />}
-                  <DeleteAgendaButton agendaId={agenda.id} />
-                </div>
+                {canManageAll && (
+                  // stopPropagation — sem isso, clicar em mover/apagar também alterna o <details>
+                  // (o clique borbulha pro <summary>, disclosure trigger nativo).
+                  <div className="flex items-center gap-1.5" onClick={(event) => event.stopPropagation()}>
+                    {upOrder && <MoveAgendaButton agendaIds={upOrder} direction="up" />}
+                    {downOrder && <MoveAgendaButton agendaIds={downOrder} direction="down" />}
+                    <DeleteAgendaButton agendaId={agenda.id} />
+                  </div>
+                )}
               </summary>
               <div className="mt-3 space-y-2">
                 <EditAgendaForm agenda={agenda} logoMedia={agendaLogoMediaById[agenda.id] ?? null} />
-                <AgendaOutputsForm agendaId={agenda.id} outputs={outputs} selectedOutputIds={agendaOutputIdsByAgendaId[agenda.id] ?? []} />
+                {canManageAll && (
+                  <>
+                    <AgendaOutputsForm agendaId={agenda.id} outputs={outputs} selectedOutputIds={agendaOutputIdsByAgendaId[agenda.id] ?? []} />
+                    <AgendaEditorsForm
+                      agendaId={agenda.id}
+                      allUsers={allUsers}
+                      selectedUserIds={agendaEditorUserIdsByAgendaId[agenda.id] ?? []}
+                    />
+                  </>
+                )}
                 {(eventsByAgenda[agenda.id] ?? []).map((event) => (
                   <AgendaEventRow key={event.id} event={event} coverMedia={eventCoverMediaById[event.id] ?? null} />
                 ))}

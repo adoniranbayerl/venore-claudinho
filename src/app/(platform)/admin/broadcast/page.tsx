@@ -1,10 +1,12 @@
 import { CalendarDays, ListVideo, Settings as SettingsIcon, Tv } from "lucide-react";
+import { listUsers } from "@/contexts/auth";
 import { getBroadcastPageData } from "@/platform/admin-shell/get-broadcast-page-data";
 import {
+  listAgendaEditors,
   listAgendaEvents,
   listAgendaOutputs,
   listAgendas,
-  listLayers,
+  listOutputEditors,
   listOutputs,
   listPlaylistItems,
   listPlaylists,
@@ -12,6 +14,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getBroadcastBrandColor, getBroadcastNewsExcludeKeywords, getBroadcastRegion } from "./actions";
 import { resolvePickableMediaById } from "./_lib/resolve-pickable-media";
+import { resolveOutputPlaylistIds } from "./_lib/resolve-output-playlist-ids";
 import { PlaylistsSection } from "./_components/playlists-section";
 import { OutputsSection } from "./_components/outputs-section";
 import { SettingsSection } from "./_components/settings-section";
@@ -28,23 +31,43 @@ export default async function BroadcastAdminPage() {
     );
   }
 
-  const [playlistsResult, outputsResult, agendasResult, agendaEventsResult, agendaOutputsResult, region, brandColor, newsExcludeKeywords] =
-    await Promise.all([
-      listPlaylists(),
-      listOutputs(),
-      listAgendas(),
-      listAgendaEvents(),
-      listAgendaOutputs(),
-      getBroadcastRegion(),
-      getBroadcastBrandColor(),
-      getBroadcastNewsExcludeKeywords(),
-    ]);
+  const [
+    playlistsResult,
+    outputsResult,
+    agendasResult,
+    agendaEventsResult,
+    agendaOutputsResult,
+    agendaEditorsResult,
+    outputEditorsResult,
+    usersResult,
+    region,
+    brandColor,
+    newsExcludeKeywords,
+  ] = await Promise.all([
+    listPlaylists(),
+    listOutputs(),
+    listAgendas(),
+    listAgendaEvents(),
+    listAgendaOutputs(),
+    listAgendaEditors(),
+    listOutputEditors(),
+    listUsers(),
+    getBroadcastRegion(),
+    getBroadcastBrandColor(),
+    getBroadcastNewsExcludeKeywords(),
+  ]);
 
   const playlists = playlistsResult.success ? playlistsResult.data : [];
   const outputs = outputsResult.success ? outputsResult.data : [];
   const agendas = agendasResult.success ? agendasResult.data : [];
   const agendaEvents = agendaEventsResult.success ? agendaEventsResult.data : [];
   const agendaOutputIdsByAgendaId = agendaOutputsResult.success ? agendaOutputsResult.data : {};
+  const agendaEditorUserIdsByAgendaId = agendaEditorsResult.success ? agendaEditorsResult.data : {};
+  const outputEditorUserIdsByOutputId = outputEditorsResult.success ? outputEditorsResult.data : {};
+  // "Responsável" por agenda/tela (ver AgendaEditorsForm/OutputEditorsForm) — todos os usuários
+  // cadastrados, mesmo padrão de admin/rbac/page.tsx (allUsers = listUsers() direto, sem filtrar
+  // por status).
+  const allUsers = usersResult.success ? usersResult.data : [];
 
   const eventsByAgenda: Record<string, typeof agendaEvents> = {};
   for (const event of agendaEvents) {
@@ -68,20 +91,7 @@ export default async function BroadcastAdminPage() {
     ),
   );
 
-  // Cada saída já nasce com sua cena/camadas fixas provisionadas (create-output/store.ts) — a
-  // playlist que ela toca mora na config da camada "video" dessa cena, não é um campo direto da
-  // saída, então precisa resolver por saída pra pré-preencher o seletor de troca de playlist.
-  const outputPlaylistById: Record<string, string | null> = Object.fromEntries(
-    await Promise.all(
-      outputs.map(async (output) => {
-        if (!output.currentSceneId) return [output.id, null] as const;
-        const result = await listLayers({ sceneId: output.currentSceneId });
-        const videoLayer = result.success ? result.data.find((layer) => layer.type === "video") : undefined;
-        const playlistId = videoLayer && typeof videoLayer.config.playlistId === "string" ? (videoLayer.config.playlistId as string) : null;
-        return [output.id, playlistId] as const;
-      }),
-    ),
-  );
+  const outputPlaylistById = await resolveOutputPlaylistIds(outputs);
 
   return (
     <div className="space-y-6">
@@ -115,7 +125,13 @@ export default async function BroadcastAdminPage() {
           <p className="text-sm text-muted-foreground">
             Uma tela é uma URL — abra ela no navegador da TV. Escolha a playlist que ela toca e se a agenda/rodapé aparecem.
           </p>
-          <OutputsSection outputs={outputs} playlists={playlists} outputPlaylistById={outputPlaylistById} />
+          <OutputsSection
+            outputs={outputs}
+            playlists={playlists}
+            outputPlaylistById={outputPlaylistById}
+            allUsers={allUsers}
+            outputEditorUserIdsByOutputId={outputEditorUserIdsByOutputId}
+          />
         </TabsContent>
 
         <TabsContent value="playlists" className="space-y-3">
@@ -136,6 +152,8 @@ export default async function BroadcastAdminPage() {
             eventCoverMediaById={eventCoverMediaById}
             outputs={outputs}
             agendaOutputIdsByAgendaId={agendaOutputIdsByAgendaId}
+            allUsers={allUsers}
+            agendaEditorUserIdsByAgendaId={agendaEditorUserIdsByAgendaId}
           />
         </TabsContent>
 

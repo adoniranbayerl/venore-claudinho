@@ -1,5 +1,4 @@
-import { authorizeActor } from "@/contexts/rbac";
-import { BROADCAST_AGENDA_PERMISSIONS } from "../../../shared/permissions";
+import { authorizeAgendaEventActor } from "../../../shared/scoped-authorization";
 import { updateAgendaEvent } from "./service";
 import { validateUpdateAgendaEventInput } from "./validation";
 import type { UpdateAgendaEventInput, UpdateAgendaEventResult } from "./types";
@@ -10,7 +9,7 @@ export async function updateAgendaEventHandler(input: UpdateAgendaEventInput): P
     return { success: false, error: validationError };
   }
 
-  const authz = await authorizeActor(BROADCAST_AGENDA_PERMISSIONS);
+  const authz = await authorizeAgendaEventActor(input.eventId);
   if (!authz.authorized) {
     return { success: false, error: authz.error };
   }

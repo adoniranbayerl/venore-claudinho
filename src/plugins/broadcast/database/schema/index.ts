@@ -199,3 +199,35 @@ export const broadcastOutputAgendas = broadcastSchema.table(
   },
   (table) => [primaryKey({ columns: [table.outputId, table.agendaId] })],
 );
+
+// "Responsável" por uma agenda específica — pedido explícito: "adicionar um responsável (role
+// editor pra cima) com acesso e permissão para alterar apenas a agenda atribuída". userId é texto
+// solto sem FK (mesmo racional de playlist_items.mediaAssetId — plugin não pode importar
+// contexts/auth/database/schema, regra 7/8 do AGENTS.md); resolução de nome/e-mail sempre passa
+// por @/contexts/auth (listUsers). Estar aqui NÃO substitui a permission broadcast.agenda.manage —
+// é uma restrição A MAIS sobre ela: alguém sem essa permission continua barrado mesmo que esteja
+// atribuído a uma agenda (ver shared/scoped-authorization.ts), o que naturalmente exige "papel
+// editor pra cima" antes de a atribuição ter qualquer efeito.
+export const broadcastAgendaEditors = broadcastSchema.table(
+  "agenda_editors",
+  {
+    agendaId: text("agenda_id")
+      .notNull()
+      .references(() => broadcastAgendas.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.agendaId, table.userId] })],
+);
+
+// Mesmo racional de broadcastAgendaEditors, só que pra saídas — permission correspondente é
+// broadcast.outputs.manage (não broadcast.agenda.manage).
+export const broadcastOutputEditors = broadcastSchema.table(
+  "output_editors",
+  {
+    outputId: text("output_id")
+      .notNull()
+      .references(() => broadcastOutputs.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.outputId, table.userId] })],
+);

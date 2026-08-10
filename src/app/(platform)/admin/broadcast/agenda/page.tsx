@@ -4,12 +4,12 @@ import { resolvePickableMediaById } from "../_lib/resolve-pickable-media";
 import { AgendaSection } from "../_components/agenda-section";
 
 // Rota enxuta pro papel "editor de agenda" (permission broadcast.agenda.manage, sem
-// broadcast.manage) — pedido explícito: "precisamos criar um editor de Agenda, que editores
-// possam atualizar". Só a seção de agenda, sem playlists/saídas/configurações. Não busca
-// listAgendaOutputs nem passa outputs de verdade — o vínculo agenda↔saída (setAgendaOutputsAction)
-// é gateado só por broadcast.manage (decisão de quem administra as telas, não do editor de
-// conteúdo), então AgendaSection recebe outputs=[] aqui e a UI de vínculo simplesmente não
-// aparece (ver o guard outputs.length===0 em AgendaOutputsForm).
+// broadcast.manage) — pedido explícito: "adicionar um responsável (role editor pra cima) com
+// acesso e permissão para alterar apenas a agenda atribuída". Só a seção de agenda, sem
+// playlists/saídas/configurações. listAgendas()/listAgendaEvents() já devolvem só o que está
+// atribuído a este ator quando ele não tem broadcast.manage (ver list-agendas/handler.ts) — nada
+// de filtro extra aqui. canManageAll=false esconde criar/apagar/reordenar agenda, o vínculo
+// agenda↔saída e a atribuição de responsáveis, que continuam ação de quem administra tudo.
 export default async function BroadcastAgendaEditorPage() {
   const gate = await getBroadcastAgendaPageData();
   if (!gate.granted) {
@@ -50,6 +50,7 @@ export default async function BroadcastAgendaEditorPage() {
         eventCoverMediaById={eventCoverMediaById}
         outputs={[]}
         agendaOutputIdsByAgendaId={{}}
+        canManageAll={false}
       />
     </div>
   );

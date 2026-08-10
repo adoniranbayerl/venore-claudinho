@@ -15,12 +15,17 @@ import {
   deleteOutputAction,
   publishAlertAction,
   setOutputDrawerAction,
+  setOutputEditorsAction,
   setOutputFooterAction,
   setOutputPlaylistAction,
   type BroadcastActionState,
 } from "../actions";
 
 const initialState: BroadcastActionState = { error: null };
+
+// Mesmo racional de AssignableUser em agenda-section.tsx: tipo inline, nunca importa UserRef de
+// @/contexts/auth (barrel arrasta next-auth/server pro bundle do browser).
+type AssignableUser = { id: string; name: string | null; email: string };
 
 // Toda saída nasce com sua cena/camadas fixas já prontas (vídeo + agenda + aviso rápido) — não há
 // mais o que escolher além do nome e da playlist que toca (pedido explícito: "não vamos precisar
@@ -208,6 +213,62 @@ function DeleteOutputButton({ outputId }: { outputId: string }) {
   );
 }
 
+// "Responsável" pela tela — mesmo racional/padrão de AgendaEditorsForm (agenda-section.tsx). A
+// atribuição sozinha não dá acesso: a pessoa também precisa ter o papel "Editar telas atribuídas"
+// (broadcast.outputs.manage) em /admin/rbac.
+function OutputEditorsForm({
+  outputId,
+  allUsers,
+  selectedUserIds,
+}: {
+  outputId: string;
+  allUsers: AssignableUser[];
+  selectedUserIds: string[];
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set(selectedUserIds));
+  const [state, formAction, pending] = useActionState(setOutputEditorsAction, initialState);
+  useActionToast({ pending, error: state.error, successMessage: "Responsáveis atualizados." });
+
+  function toggle(userId: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  }
+
+  return (
+    <form action={formAction} className="space-y-2 rounded-panel border border-border/60 bg-muted/20 p-2.5">
+      <input type="hidden" name="outputId" value={outputId} />
+      <input type="hidden" name="userIds" value={JSON.stringify([...selected])} />
+      <p className="text-xs font-medium text-foreground">Responsável por esta tela</p>
+      <p className="text-xs text-muted-foreground">
+        Pessoas marcadas podem editar só esta tela — precisam também ter o papel &quot;Editar telas atribuídas&quot; em
+        Papéis e Permissões.
+      </p>
+      {allUsers.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhum usuário cadastrado ainda.</p>
+      ) : (
+        <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto">
+          {allUsers.map((user) => (
+            <label key={user.id} className="flex items-center gap-1.5 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={selected.has(user.id)}
+                onChange={() => toggle(user.id)}
+                className="size-4 shrink-0 rounded border-border"
+              />
+              <span className="truncate">{user.name ?? user.email} ({user.email})</span>
+            </label>
+          ))}
+        </div>
+      )}
+      <Button type="submit" size="sm" variant="outline" disabled={pending}>Salvar responsáveis</Button>
+    </form>
+  );
+}
+
 // Global (não por saída) — aparece em toda saída, e some sozinho quando a duração passa; "Remover
 // agora" força isso antes do tempo, se precisar.
 function QuickAlertPanel() {
@@ -245,16 +306,28 @@ export function OutputsSection({
   outputs,
   playlists,
   outputPlaylistById,
+  canManageAll = true,
+  allUsers = [],
+  outputEditorUserIdsByOutputId = {},
 }: {
   outputs: BroadcastOutputRecord[];
   playlists: BroadcastPlaylistRecord[];
   outputPlaylistById: Record<string, string | null>;
+  // false na rota enxuta /admin/broadcast/telas (editor de tela, sem broadcast.manage) — esconde
+  // aviso rápido, criar/apagar tela e a atribuição de responsáveis (ver page.tsx vs. telas/page.tsx).
+  canManageAll?: boolean;
+  allUsers?: AssignableUser[];
+  outputEditorUserIdsByOutputId?: Record<string, string[]>;
 }) {
   return (
     <div className="space-y-4">
-      <QuickAlertPanel />
-      <CreateOutputForm playlists={playlists} />
-      {outputs.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma tela cadastrada ainda.</p>}
+      {canManageAll && <QuickAlertPanel />}
+      {canManageAll && <CreateOutputForm playlists={playlists} />}
+      {outputs.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          {canManageAll ? "Nenhuma tela cadastrada ainda." : "Nenhuma tela foi atribuída a você ainda."}
+        </p>
+      )}
       <div className="space-y-3">
         {outputs.map((output) => (
           <div key={output.id} className="space-y-2 rounded-panel border border-border bg-card p-3">
@@ -262,7 +335,7 @@ export function OutputsSection({
               <span className="font-medium text-foreground">{output.name}</span>
               <div className="flex items-center gap-1.5">
                 <CopyOutputUrlButton token={output.token} />
-                <DeleteOutputButton outputId={output.id} />
+                {canManageAll && <DeleteOutputButton outputId={output.id} />}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -271,6 +344,9 @@ export function OutputsSection({
               <ToggleFooterButton output={output} />
             </div>
             <OutputPreviewToggle token={output.token} />
+            {canManageAll && (
+              <OutputEditorsForm outputId={output.id} allUsers={allUsers} selectedUserIds={outputEditorUserIdsByOutputId[output.id] ?? []} />
+            )}
           </div>
         ))}
       </div>

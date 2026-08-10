@@ -19,12 +19,16 @@ export const broadcastManifest: PluginManifest = {
   // nunca de fato enforced.
   permissions: [
     { key: "broadcast.manage", label: "Gerenciar playlists, saídas e controle ao vivo" },
-    // Escopo estreito de propósito — pra um papel "editor de agenda" que só cuida de eventos, sem
-    // acesso ao restante do Broadcast Studio (playlists, saídas, configurações). Pedido explícito:
-    // "precisamos criar um editor de Agenda, que editores possam atualizar". Os handlers de
-    // agenda aceitam broadcast.manage OU esta (authorizeActor já suporta array = "qualquer uma"),
-    // então quem já tem acesso total ao plugin continua funcionando sem mudança nenhuma.
-    { key: "broadcast.agenda.manage", label: "Editar agenda do Broadcast Studio (sem acesso ao restante)" },
+    // Escopo estreito de propósito — pra um papel "editor de agenda"/"editor de tela" que só cuida
+    // do que foi explicitamente atribuído a ele, sem acesso ao restante do Broadcast Studio.
+    // Pedido explícito: "adicionar um responsável (role editor pra cima) com acesso e permissão
+    // para alterar apenas a agenda atribuída, a mesma coisa para telas". A permission sozinha NÃO
+    // basta — só dá acesso de fato às agendas/saídas listadas em
+    // set-agenda-editors/set-output-editors (ver shared/scoped-authorization/index.ts); sem
+    // nenhuma atribuição, quem só tem esta permission não edita nada. broadcast.manage continua
+    // com acesso total, sem precisar de atribuição nenhuma.
+    { key: "broadcast.agenda.manage", label: "Editar agendas atribuídas no Broadcast Studio (sem acesso ao restante)" },
+    { key: "broadcast.outputs.manage", label: "Editar telas atribuídas no Broadcast Studio (sem acesso ao restante)" },
   ],
   settings: Object.values(BROADCAST_SETTINGS).map(({ key, defaultValue }) => ({ key, defaultValue })),
   navigation: [
@@ -52,6 +56,18 @@ export const broadcastManifest: PluginManifest = {
       groupOrder: 30,
       order: 31,
       requiredPermission: "broadcast.agenda.manage",
+    },
+    // Mesmo racional do item acima, pra broadcast.outputs.manage.
+    {
+      key: "broadcast.outputs-editor",
+      label: "Telas (Broadcast)",
+      href: "/admin/broadcast/telas",
+      icon: "tv",
+      groupKey: "plugins",
+      groupLabel: "Plugins",
+      groupOrder: 30,
+      order: 32,
+      requiredPermission: "broadcast.outputs.manage",
     },
   ],
 };

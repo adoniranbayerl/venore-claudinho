@@ -1,13 +1,14 @@
 import { authorizeActor } from "@/contexts/rbac";
-import { BROADCAST_AGENDA_PERMISSIONS } from "../../../shared/permissions";
 import { listAgendaEvents } from "./service";
 import type { ListAgendaEventsResult } from "./types";
 
+// Mesmo racional de list-agendas/handler.ts.
 export async function listAgendaEventsHandler(): Promise<ListAgendaEventsResult> {
-  const authz = await authorizeActor(BROADCAST_AGENDA_PERMISSIONS);
-  if (!authz.authorized) {
-    return { success: false, error: authz.error };
-  }
+  const full = await authorizeActor("broadcast.manage");
+  if (full.authorized) return listAgendaEvents();
 
-  return listAgendaEvents();
+  const scoped = await authorizeActor("broadcast.agenda.manage");
+  if (!scoped.authorized) return { success: false, error: scoped.error };
+
+  return listAgendaEvents({ assignedToUserId: scoped.actorId });
 }

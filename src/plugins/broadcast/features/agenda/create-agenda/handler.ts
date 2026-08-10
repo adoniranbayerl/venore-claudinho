@@ -1,16 +1,18 @@
 import { authorizeActor } from "@/contexts/rbac";
-import { BROADCAST_AGENDA_PERMISSIONS } from "../../../shared/permissions";
 import { createAgenda } from "./service";
 import { validateCreateAgendaInput } from "./validation";
 import type { CreateAgendaInput, CreateAgendaResult } from "./types";
 
+// Só broadcast.manage — criar uma agenda nova é ação de admin (quem administra decide o que
+// existe e depois atribui um responsável a ela via set-agenda-editors); um "editor de agenda"
+// (broadcast.agenda.manage) só edita agendas já atribuídas a ele, nunca cria novas.
 export async function createAgendaHandler(input: CreateAgendaInput): Promise<CreateAgendaResult> {
   const validationError = validateCreateAgendaInput(input);
   if (validationError) {
     return { success: false, error: validationError };
   }
 
-  const authz = await authorizeActor(BROADCAST_AGENDA_PERMISSIONS);
+  const authz = await authorizeActor("broadcast.manage");
   if (!authz.authorized) {
     return { success: false, error: authz.error };
   }

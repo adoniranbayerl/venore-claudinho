@@ -20,8 +20,10 @@ import {
   reorderAgendas,
   reorderPlaylistItems,
   scanPlaylistFolder,
+  setAgendaEditors,
   setAgendaOutputs,
   setOutputDrawer,
+  setOutputEditors,
   setOutputFooter,
   setOutputPlaylist,
   togglePlaylistItemVisibility,
@@ -305,6 +307,26 @@ export async function deleteOutputAction(_prevState: BroadcastActionState, formD
   return { error: null };
 }
 
+// Substitui o conjunto inteiro de responsáveis desta saída — mesmo padrão de
+// setAgendaEditorsAction.
+export async function setOutputEditorsAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const outputId = requireString(formData, "outputId");
+  let userIds: string[];
+  try {
+    userIds = JSON.parse(String(formData.get("userIds") ?? "[]"));
+  } catch {
+    return { error: "Seleção de responsáveis inválida." };
+  }
+
+  const result = await setOutputEditors({ outputId, userIds });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
 export async function createAgendaAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
   if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
 
@@ -368,6 +390,27 @@ export async function setAgendaOutputsAction(_prevState: BroadcastActionState, f
   }
 
   const result = await setAgendaOutputs({ agendaId, outputIds });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
+// Substitui o conjunto inteiro de responsáveis desta agenda — pedido explícito: "adicionar um
+// responsável (role editor pra cima) com acesso e permissão para alterar apenas a agenda
+// atribuída". Mesmo padrão de setAgendaOutputsAction (checkboxes, JSON).
+export async function setAgendaEditorsAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const agendaId = requireString(formData, "agendaId");
+  let userIds: string[];
+  try {
+    userIds = JSON.parse(String(formData.get("userIds") ?? "[]"));
+  } catch {
+    return { error: "Seleção de responsáveis inválida." };
+  }
+
+  const result = await setAgendaEditors({ agendaId, userIds });
   if (!result.success) return { error: result.error.message };
 
   revalidatePath(returnTo);

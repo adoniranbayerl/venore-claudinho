@@ -1,8 +1,9 @@
 import { authorizeActor } from "@/contexts/rbac";
-import { BROADCAST_AGENDA_PERMISSIONS } from "../../../shared/permissions";
 import { reorderAgendasService } from "./service";
 import type { ReorderAgendasInput, ReorderAgendasResult } from "./types";
 
+// Só broadcast.manage — reordenar a lista GLOBAL de agendas não faz sentido pra um editor restrito
+// a uma agenda só (mesmo racional de create-agenda/handler.ts).
 export async function reorderAgendasHandler(input: ReorderAgendasInput): Promise<ReorderAgendasResult> {
   if (input.agendaIds.length === 0) {
     return {
@@ -11,7 +12,7 @@ export async function reorderAgendasHandler(input: ReorderAgendasInput): Promise
     };
   }
 
-  const authz = await authorizeActor(BROADCAST_AGENDA_PERMISSIONS);
+  const authz = await authorizeActor("broadcast.manage");
   if (!authz.authorized) {
     return { success: false, error: authz.error };
   }
