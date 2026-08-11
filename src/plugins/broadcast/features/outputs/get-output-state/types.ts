@@ -8,6 +8,7 @@ import type {
   RegionNewsArticle,
   RegionWeather,
 } from "../../../contracts/types";
+import type { BroadcastAgendaAnimationStyle, BroadcastAgendaViewSize } from "../../../shared/settings";
 
 export type GetOutputStateQuery = { token: string };
 
@@ -38,6 +39,10 @@ export type BroadcastOutputState = {
   // Cor da barra de marca (logo+relógio+temperatura) no rodapé da camada "video" — sempre um hex
   // válido (default de BROADCAST_SETTINGS.brandColor quando o operador não configurou nada).
   brandColor: string;
+  // "fade" (default) ou "cascade" — ver BROADCAST_SETTINGS.agendaAnimationStyle.
+  agendaAnimationStyle: BroadcastAgendaAnimationStyle;
+  // "padrao" | "grande" (default) | "extra-grande" — ver BROADCAST_SETTINGS.agendaViewSize.
+  agendaViewSize: BroadcastAgendaViewSize;
 };
 
 export type GetOutputStateResult = OperationResult<BroadcastOutputState>;

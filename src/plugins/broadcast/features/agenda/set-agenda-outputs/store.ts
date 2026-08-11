@@ -11,8 +11,7 @@ export async function findAgendaById(id: string): Promise<BroadcastAgendaRecord 
 // Substitui o conjunto inteiro de vínculos desta agenda (apaga todos, insere os novos) — mesmo
 // padrão de "reenviar a lista inteira" das features de reorder, só que aqui o "conjunto" é
 // outputIds em vez de uma ordem. outputIds=[] é um estado válido: "esta agenda não aparece em
-// nenhuma saída" (diferente de nunca ter tido vínculo nenhum, que significa "aparece em todas" —
-// ver comentário no schema).
+// nenhuma saída" (modelo opt-in, ver comentário no schema).
 export async function replaceAgendaOutputLinks(agendaId: string, outputIds: string[]): Promise<void> {
   await db.transaction(async (tx) => {
     await tx.delete(broadcastOutputAgendas).where(eq(broadcastOutputAgendas.agendaId, agendaId));

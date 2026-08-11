@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, integer, jsonb, pgSchema, primaryKey, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, check, integer, jsonb, pgSchema, primaryKey, real, text, time, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const broadcastSchema = pgSchema("broadcast");
 
@@ -147,6 +147,11 @@ export const broadcastAgendaEvents = broadcastSchema.table("agenda_events", {
   description: text("description"),
   startAt: timestamp("start_at", { withTimezone: true }).notNull(),
   recurring: boolean("recurring").notNull().default(false),
+  // Só a hora do fim (sem data) — opcional, independe de recorrência: um evento recorrente já não
+  // guarda uma data própria pro início (startAt é só a âncora dia-da-semana+horário, ver
+  // shared/weekly-recurrence.ts), então o fim também não deveria precisar de uma. Usado só pra
+  // exibição ("19:30–21:00"), nunca em filtro/expiração — diferente de broadcastAlerts.expiresAt.
+  endTime: time("end_time"),
   coverMediaAssetId: text("cover_media_asset_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -189,13 +194,13 @@ export const broadcastOutputs = broadcastSchema.table(
   (table) => [uniqueIndex("broadcast_outputs_token_idx").on(table.token)],
 );
 
-// Vínculo agenda↔saída — opcional: uma agenda SEM nenhuma linha aqui aparece em TODAS as saídas
-// (comportamento anterior, preservado por padrão); assim que ela ganha ao menos uma linha, só
-// aparece nas saídas listadas ali. Modelo "opt-out" escolhido de propósito pra não quebrar agendas
-// já existentes sem vínculo nenhum — pedido real: "Agenda do Administrativo não precisa passar na
-// Agenda Externa" (restringir uma agenda existente a um subconjunto de saídas), não "toda agenda
-// nova começa sem aparecer em lugar nenhum". Ambas as FKs cascade — apagar a agenda ou a saída
-// limpa o vínculo sozinho, sem deixar linha órfã.
+// Vínculo agenda↔saída — modelo "opt-in": uma agenda SEM nenhuma linha aqui não aparece em
+// NENHUMA saída; só entra no rodízio de uma saída específica quando existe uma linha ligando as
+// duas. Trocado do "opt-out" original (sem vínculo = aparece em todas) porque esse comportamento
+// confundia: desmarcar a única saída vinculada não "removia" a agenda dali, zerava a restrição e
+// fazia ela reaparecer em toda saída, inclusive a que acabou de ser desmarcada — achado real
+// reportado pelo usuário. Ambas as FKs cascade — apagar a agenda ou a saída limpa o vínculo
+// sozinho, sem deixar linha órfã.
 export const broadcastOutputAgendas = broadcastSchema.table(
   "output_agendas",
   {

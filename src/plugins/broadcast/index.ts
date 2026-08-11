@@ -2,7 +2,7 @@
 // importar daqui ou de ./contracts, nunca de ./database/schema, ./features/*/store ou
 // ./features/*/service diretamente. Expandido conforme as features de cada fase forem entrando.
 export { BROADCAST_SETTINGS } from "./shared/settings";
-export type { BroadcastSettingField } from "./shared/settings";
+export type { BroadcastAgendaAnimationStyle, BroadcastAgendaViewSize, BroadcastSettingField } from "./shared/settings";
 
 export {
   BROADCAST_LAYER_TYPES,

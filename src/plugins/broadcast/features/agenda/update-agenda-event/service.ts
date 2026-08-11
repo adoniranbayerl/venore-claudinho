@@ -22,6 +22,7 @@ export async function updateAgendaEvent(command: UpdateAgendaEventCommand): Prom
     description: command.description?.trim() || null,
     startAt: command.startAt,
     recurring: command.recurring ?? false,
+    endTime: command.endTime?.trim() || null,
     coverMediaAssetId: command.coverMediaAssetId?.trim() || null,
   });
 

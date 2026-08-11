@@ -377,7 +377,7 @@ export async function reorderAgendasAction(_prevState: BroadcastActionState, for
 }
 
 // Substitui o conjunto inteiro de saídas vinculadas a esta agenda (checkboxes, todas resubmetidas
-// via JSON) — vazio é um valor válido ("aparece em todas as saídas", ver comentário no schema).
+// via JSON) — vazio é um valor válido ("não aparece em nenhuma saída", ver comentário no schema).
 export async function setAgendaOutputsAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
   if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
 
@@ -439,6 +439,7 @@ export async function createAgendaEventAction(_prevState: BroadcastActionState, 
     description: requireString(formData, "description") || undefined,
     startAt,
     recurring: formData.get("recurring") === "on",
+    endTime: requireString(formData, "endTime") || undefined,
     coverMediaAssetId: requireString(formData, "coverMediaAssetId") || undefined,
   });
   if (!result.success) return { error: result.error.message };
@@ -459,6 +460,7 @@ export async function updateAgendaEventAction(_prevState: BroadcastActionState, 
     description: requireString(formData, "description") || undefined,
     startAt,
     recurring: formData.get("recurring") === "on",
+    endTime: requireString(formData, "endTime") || undefined,
     coverMediaAssetId: requireString(formData, "coverMediaAssetId") || undefined,
   });
   if (!result.success) return { error: result.error.message };
@@ -532,6 +534,38 @@ export async function updateBroadcastBrandColorAction(
   return { error: null };
 }
 
+export async function updateBroadcastAgendaAnimationStyleAction(
+  _prevState: BroadcastActionState,
+  formData: FormData,
+): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const value = requireString(formData, "agendaAnimationStyle");
+  const result = await setSetting({
+    key: BROADCAST_SETTINGS.agendaAnimationStyle.key,
+    value: value === "cascade" ? "cascade" : "fade",
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
+export async function updateBroadcastAgendaViewSizeAction(
+  _prevState: BroadcastActionState,
+  formData: FormData,
+): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const value = requireString(formData, "agendaViewSize");
+  const normalized = value === "padrao" || value === "extra-grande" ? value : "grande";
+  const result = await setSetting({ key: BROADCAST_SETTINGS.agendaViewSize.key, value: normalized });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
 export async function updateBroadcastNewsExcludeKeywordsAction(
   _prevState: BroadcastActionState,
   formData: FormData,
@@ -556,6 +590,18 @@ export async function getBroadcastRegion(): Promise<string> {
 export async function getBroadcastBrandColor(): Promise<string> {
   const result = await getSetting({ key: BROADCAST_SETTINGS.brandColor.key });
   return result.success && typeof result.data?.value === "string" ? result.data.value : BROADCAST_SETTINGS.brandColor.defaultValue;
+}
+
+export async function getBroadcastAgendaAnimationStyle(): Promise<string> {
+  const result = await getSetting({ key: BROADCAST_SETTINGS.agendaAnimationStyle.key });
+  const value = result.success ? result.data?.value : null;
+  return value === "cascade" ? "cascade" : BROADCAST_SETTINGS.agendaAnimationStyle.defaultValue;
+}
+
+export async function getBroadcastAgendaViewSize(): Promise<string> {
+  const result = await getSetting({ key: BROADCAST_SETTINGS.agendaViewSize.key });
+  const value = result.success ? result.data?.value : null;
+  return value === "padrao" || value === "extra-grande" ? value : BROADCAST_SETTINGS.agendaViewSize.defaultValue;
 }
 
 export async function getBroadcastNewsExcludeKeywords(): Promise<string> {

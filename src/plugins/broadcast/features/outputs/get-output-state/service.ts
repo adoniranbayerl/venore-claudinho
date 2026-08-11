@@ -9,7 +9,7 @@ import {
   DEFAULT_SLIDE_DURATION_SECONDS,
   DEFAULT_WEBPAGE_SLIDE_DURATION_SECONDS,
 } from "../../../shared/playback-defaults";
-import { BROADCAST_SETTINGS } from "../../../shared/settings";
+import { BROADCAST_SETTINGS, type BroadcastAgendaAnimationStyle, type BroadcastAgendaViewSize } from "../../../shared/settings";
 import { streamableContentTypeForExtension } from "../../../shared/video-extensions";
 import { resolveEventOccurrenceDate } from "../../../shared/weekly-recurrence";
 import type { BroadcastAgendaEventRecord, BroadcastPlaylistItemRecord, PlaylistItemKind } from "../../../contracts/types";
@@ -87,10 +87,10 @@ async function resolveMediaAssetUrl(mediaAssetId: string | null): Promise<string
 // própria capa (coverMediaAssetId) — ambos opcionais, resolvidos aqui pra URL (client não toca
 // mídia diretamente); ausência de um ou outro é responsabilidade do renderer degradar bem
 // (logoUrl null usa a logo padrão da plataforma, coverUrl null mantém o card sem imagem).
-// outputId decide quais agendas entram no rodízio DESTA saída — modelo "opt-out" (ver comentário no
-// schema, broadcastOutputAgendas): uma agenda sem NENHUM vínculo aparece em todas as saídas
-// (comportamento anterior); assim que ganha ao menos um vínculo, só aparece nas saídas listadas.
-// Pedido real: "Agenda do Administrativo não precisa passar na Agenda Externa".
+// outputId decide quais agendas entram no rodízio DESTA saída — modelo "opt-in" (ver comentário
+// no schema, broadcastOutputAgendas): uma agenda só aparece numa saída quando existe um vínculo
+// explícito ligando as duas; sem vínculo nenhum, não aparece em lugar nenhum. Pedido real: "só
+// deve aparecer QUANDO estiver vinculada a uma tela".
 async function resolveAgendaRotation(outputId: string): Promise<AgendaRotationEntry[]> {
   const [agendas, events, outputAgendaLinks] = await Promise.all([
     findAllAgendas(),
@@ -98,7 +98,6 @@ async function resolveAgendaRotation(outputId: string): Promise<AgendaRotationEn
     findAllOutputAgendaLinks(),
   ]);
 
-  const agendaIdsWithRestrictions = new Set(outputAgendaLinks.map((link) => link.agendaId));
   const agendaIdsAllowedForThisOutput = new Set(
     outputAgendaLinks.filter((link) => link.outputId === outputId).map((link) => link.agendaId),
   );
@@ -118,9 +117,7 @@ async function resolveAgendaRotation(outputId: string): Promise<AgendaRotationEn
   }
 
   const relevantAgendas = agendas.filter(
-    (agenda) =>
-      (eventsByAgendaId.get(agenda.id)?.length ?? 0) > 0 &&
-      (!agendaIdsWithRestrictions.has(agenda.id) || agendaIdsAllowedForThisOutput.has(agenda.id)),
+    (agenda) => (eventsByAgendaId.get(agenda.id)?.length ?? 0) > 0 && agendaIdsAllowedForThisOutput.has(agenda.id),
   );
 
   return Promise.all(
@@ -147,6 +144,19 @@ async function resolveBrandColor(): Promise<string> {
   const result = await getSetting({ key: BROADCAST_SETTINGS.brandColor.key });
   const value = result.success ? result.data?.value : null;
   return typeof value === "string" && value ? value : BROADCAST_SETTINGS.brandColor.defaultValue;
+}
+
+async function resolveAgendaAnimationStyle(): Promise<BroadcastAgendaAnimationStyle> {
+  const result = await getSetting({ key: BROADCAST_SETTINGS.agendaAnimationStyle.key });
+  const value = result.success ? result.data?.value : null;
+  return value === "cascade" ? "cascade" : "fade";
+}
+
+async function resolveAgendaViewSize(): Promise<BroadcastAgendaViewSize> {
+  const result = await getSetting({ key: BROADCAST_SETTINGS.agendaViewSize.key });
+  const value = result.success ? result.data?.value : null;
+  if (value === "padrao" || value === "extra-grande") return value;
+  return "grande";
 }
 
 // Resolve o estado completo pra primeira renderização da view de saída: a página server component
@@ -205,15 +215,23 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
   // Logo da plataforma é usada tanto como fallback de agenda sem logo própria quanto na BrandFooterBar.
   const needsBrandLogo = needsAgenda || output.footerOpen;
   const needsBrandColor = output.footerOpen;
+  // Largura da agenda E altura da BrandFooterBar dependem da mesma escala (ver
+  // BROADCAST_AGENDA_VIEW_SIZE_SCALE) — precisa dela sempre que qualquer uma das duas aparece.
+  const needsAgendaViewSize = needsAgenda || output.footerOpen;
 
-  const [regionWeather, regionNews, agendaRotation, activeAlertMessage, brandLogoUrl, brandColor] = await Promise.all([
-    needsWeather ? resolveRegionWeather() : Promise.resolve(null),
-    needsNews ? resolveRegionNews() : Promise.resolve([]),
-    needsAgenda ? resolveAgendaRotation(output.id) : Promise.resolve([]),
-    needsAlert ? findActiveAlertMessage() : Promise.resolve(null),
-    needsBrandLogo ? getBrandConfig("png").then((brand) => brand.logoUrl) : Promise.resolve(null),
-    needsBrandColor ? resolveBrandColor() : Promise.resolve(BROADCAST_SETTINGS.brandColor.defaultValue),
-  ]);
+  const [regionWeather, regionNews, agendaRotation, activeAlertMessage, brandLogoUrl, brandColor, agendaAnimationStyle, agendaViewSize] =
+    await Promise.all([
+      needsWeather ? resolveRegionWeather() : Promise.resolve(null),
+      needsNews ? resolveRegionNews() : Promise.resolve([]),
+      needsAgenda ? resolveAgendaRotation(output.id) : Promise.resolve([]),
+      needsAlert ? findActiveAlertMessage() : Promise.resolve(null),
+      needsBrandLogo ? getBrandConfig("png").then((brand) => brand.logoUrl) : Promise.resolve(null),
+      needsBrandColor ? resolveBrandColor() : Promise.resolve(BROADCAST_SETTINGS.brandColor.defaultValue),
+      needsAgenda ? resolveAgendaAnimationStyle() : Promise.resolve(BROADCAST_SETTINGS.agendaAnimationStyle.defaultValue as BroadcastAgendaAnimationStyle),
+      needsAgendaViewSize
+        ? resolveAgendaViewSize()
+        : Promise.resolve(BROADCAST_SETTINGS.agendaViewSize.defaultValue as BroadcastAgendaViewSize),
+    ]);
 
   return {
     success: true,
@@ -231,6 +249,8 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
       activeAlertMessage,
       brandLogoUrl,
       brandColor,
+      agendaAnimationStyle,
+      agendaViewSize,
     },
   };
 }

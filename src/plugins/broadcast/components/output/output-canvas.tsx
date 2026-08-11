@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 // layer-renderer.tsx: este é um "use client" component, e o barrel arrasta handlers server-only
 // pro bundle do browser.
 import type { BroadcastOutputState } from "@/plugins/broadcast/features/outputs/get-output-state/types";
-import { AlertBanner, BrandFooterBar, LayerRenderer } from "./layer-renderer";
+import { AlertBanner, LayerRenderer } from "./layer-renderer";
 
 // Duração da troca de cena é comportamento do plugin, não decisão de design de marca (mesmo
 // racional do GEOMETRY_TRANSITION em layer-renderer.tsx) — fica como constante local.
@@ -95,14 +95,25 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
       <style>
         {"@keyframes broadcast-scene-fade { from { opacity: 0; } to { opacity: 1; } }" +
           "@keyframes broadcast-agenda-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }" +
+          // Item de evento entrando deslizado da DIREITA — usado com animation-delay crescente por
+          // item (ver AgendaLayer) pra virar uma cascata em sequência, não os cards inteiros
+          // aparecendo juntos. Estilo alternativo ao fade acima (BROADCAST_SETTINGS.agendaAnimationStyle).
+          // Distância grande (64px) + easing com leve overshoot ("ease-emphasis", mesma curva
+          // usada nos temas shadcn do projeto) — pedido explícito: "mais expressiva", não um
+          // deslize discreto.
+          "@keyframes broadcast-agenda-cascade-item { from { opacity: 0; transform: translateX(64px); } to { opacity: 1; transform: translateX(0); } }" +
           "@keyframes broadcast-alert-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }" +
           "@keyframes broadcast-news-title-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }" +
           "@keyframes broadcast-news-parallax { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.1) translate(-2%, -2%); } }"}
       </style>
       {/* Região que hospeda as camadas posicionadas por percentual (video/agenda/etc) — altura
-          FLEXÍVEL (min-h-0 flex-1), encolhe sozinha quando o footer e/ou o alerta abaixo ocupam
-          espaço, sem precisar de nenhum cálculo manual de "altura restante": os `left/top/width/
-          height: %` de cada LayerRenderer já são relativos a esta caixa, não à tela inteira. */}
+          FLEXÍVEL (min-h-0 flex-1), encolhe sozinha quando o alerta abaixo ocupa espaço, sem
+          precisar de nenhum cálculo manual de "altura restante": os `left/top/width/height: %` de
+          cada LayerRenderer já são relativos a esta caixa, não à tela inteira. O footer não mora
+          mais aqui em cima (canvas inteiro) — foi pra dentro da própria camada "video" (ver
+          VideoZoneLayer em layer-renderer.tsx), pra só ocupar a largura do vídeo, nunca a da
+          agenda — pedido explícito: "o Footer fica APENAS na parte da view do Vídeo, a Agenda vai
+          do canto superior até o inferior". */}
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <SceneFade key={state.scene?.id ?? "empty"}>
           {contentLayers.map((layer) => (
@@ -116,13 +127,14 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
               regionNews={state.regionNews}
               agendaRotation={state.agendaRotation}
               brandLogoUrl={state.brandLogoUrl}
+              brandColor={state.brandColor}
+              agendaAnimationStyle={state.agendaAnimationStyle}
+              agendaViewSize={state.agendaViewSize}
+              footerOpen={state.footerOpen}
             />
           ))}
         </SceneFade>
       </div>
-      {/* footerOpen alternável por saída (mesmo mecanismo de drawerOpen pra agenda) — fechado, nem
-          monta, a região de camadas acima recupera 100% da altura sozinha. */}
-      {state.footerOpen && <BrandFooterBar brandLogoUrl={state.brandLogoUrl} brandColor={state.brandColor} weather={state.regionWeather} />}
       <AlertBanner message={state.activeAlertMessage} />
     </div>
   );

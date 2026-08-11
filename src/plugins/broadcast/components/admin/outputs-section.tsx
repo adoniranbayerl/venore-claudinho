@@ -19,7 +19,7 @@ import {
   setOutputFooterAction,
   setOutputPlaylistAction,
   type BroadcastActionState,
-} from "../actions";
+} from "./actions";
 
 const initialState: BroadcastActionState = { error: null };
 
@@ -206,7 +206,7 @@ function DeleteOutputButton({ outputId }: { outputId: string }) {
       }}
     >
       <input type="hidden" name="outputId" value={outputId} />
-      <Button type="submit" variant="outline" size="icon" disabled={pending} aria-label="Apagar tela">
+      <Button type="submit" variant="destructive" size="icon" disabled={pending} aria-label="Apagar tela">
         <Trash2 className="size-4" />
       </Button>
     </form>

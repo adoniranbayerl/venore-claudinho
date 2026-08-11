@@ -37,7 +37,7 @@ import {
   updatePlaylistItemAction,
   type BroadcastActionState,
   type ScanPlaylistFolderState,
-} from "../actions";
+} from "./actions";
 
 const initialState: BroadcastActionState = { error: null };
 const initialScanState: ScanPlaylistFolderState = { error: null, toAdd: [], toRemove: [] };
@@ -75,7 +75,7 @@ function DeletePlaylistButton({ playlistId }: { playlistId: string }) {
       }}
     >
       <input type="hidden" name="playlistId" value={playlistId} />
-      <Button type="submit" variant="outline" size="icon" disabled={pending} aria-label="Apagar playlist">
+      <Button type="submit" variant="destructive" size="icon" disabled={pending} aria-label="Apagar playlist">
         <Trash2 className="size-4" />
       </Button>
     </form>
@@ -89,7 +89,7 @@ function DeletePlaylistItemButton({ itemId }: { itemId: string }) {
   return (
     <form action={formAction}>
       <input type="hidden" name="itemId" value={itemId} />
-      <Button type="submit" variant="outline" size="icon" disabled={pending} aria-label="Remover item">
+      <Button type="submit" variant="destructive" size="icon" disabled={pending} aria-label="Remover item">
         <Trash2 className="size-4" />
       </Button>
     </form>

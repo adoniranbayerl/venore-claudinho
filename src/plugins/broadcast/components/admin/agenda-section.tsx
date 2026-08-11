@@ -3,7 +3,10 @@
 import { useActionState, useState, type ReactNode } from "react";
 import { CalendarPlus, ChevronDown, ChevronUp, Pencil, Trash2, Tv, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { MediaPickerField } from "@/components/media-picker-field";
 import type { PickableMedia } from "@/components/media-picker-field.actions";
@@ -25,7 +28,7 @@ import {
   updateAgendaAction,
   updateAgendaEventAction,
   type BroadcastActionState,
-} from "../actions";
+} from "./actions";
 
 const initialState: BroadcastActionState = { error: null };
 const DEFAULT_AGENDA_COLOR = "#0f0f0f";
@@ -151,7 +154,7 @@ function DeleteAgendaButton({ agendaId }: { agendaId: string }) {
       }}
     >
       <input type="hidden" name="agendaId" value={agendaId} />
-      <Button type="submit" variant="outline" size="icon" disabled={pending} aria-label="Remover agenda">
+      <Button type="submit" variant="destructive" size="icon" disabled={pending} aria-label="Remover agenda">
         <Trash2 className="size-4" />
       </Button>
     </form>
@@ -160,8 +163,8 @@ function DeleteAgendaButton({ agendaId }: { agendaId: string }) {
 
 // Vínculo agenda↔saída — checkboxes, todas as saídas resubmetidas via JSON (mesmo padrão de
 // "reenviar o conjunto inteiro" das outras features deste arquivo). Nenhuma marcada = a agenda
-// aparece em TODAS as saídas (modelo opt-out, ver comentário no schema broadcastOutputAgendas) —
-// pedido real: "Agenda do Administrativo não precisa passar na Agenda Externa".
+// não aparece em NENHUMA saída (modelo opt-in, ver comentário no schema broadcastOutputAgendas) —
+// pedido real: "só deve aparecer QUANDO estiver vinculada a uma tela".
 function AgendaOutputsForm({
   agendaId,
   outputs,
@@ -192,7 +195,7 @@ function AgendaOutputsForm({
     <form action={formAction} className="space-y-2">
       <input type="hidden" name="agendaId" value={agendaId} />
       <input type="hidden" name="outputIds" value={JSON.stringify([...selected])} />
-      <p className="text-xs text-muted-foreground">Nenhuma marcada = aparece em todas as telas.</p>
+      <p className="text-xs text-muted-foreground">Nenhuma marcada = não aparece em nenhuma tela.</p>
       <div className="flex flex-col gap-1.5">
         {outputs.map((output) => (
           <label key={output.id} className="flex items-center gap-1.5 text-sm text-foreground">
@@ -345,32 +348,192 @@ function AgendaSettingsPanels({
   );
 }
 
+const WEEKDAY_LABELS = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+
+function pad(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function toDateInputValue(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function toTimeInputValue(date: Date): string {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+// Qualquer data com o dia da semana certo serve de âncora (weekly-recurrence.ts: só o dia da
+// semana e o horário do anchor importam pra evento recorrente, nunca a data em si) — não faz
+// sentido pedir uma data específica quando o operador já disse "toda quarta".
+function buildWeekdayAnchor(weekday: number, time: string): Date {
+  const [hours, minutes] = time.split(":").map(Number);
+  const anchor = new Date();
+  anchor.setHours(hours || 0, minutes || 0, 0, 0);
+  anchor.setDate(anchor.getDate() + (weekday - anchor.getDay()));
+  return anchor;
+}
+
+// Campos de data/hora do evento — separados (não mais um único <input type="datetime-local">) e
+// com um modo dedicado pra recorrência: marcando "repete toda semana", o campo de data específica
+// vira um seletor de dia da semana (informar o dia da semana já basta, não precisa também de uma
+// data — mesmo racional de buildWeekdayAnchor acima). O <input type="hidden" name="startAt">
+// computado mantém o server action (createAgendaEventAction/updateAgendaEventAction) exatamente
+// como já era, sem tocar backend.
+function AgendaEventDateTimeFields({
+  idPrefix,
+  defaultDate,
+  defaultRecurring,
+  defaultEndTime,
+}: {
+  idPrefix: string;
+  defaultDate: Date;
+  defaultRecurring: boolean;
+  defaultEndTime?: string | null;
+}) {
+  const [recurring, setRecurring] = useState(defaultRecurring);
+  const [date, setDate] = useState(() => toDateInputValue(defaultDate));
+  const [time, setTime] = useState(() => toTimeInputValue(defaultDate));
+  const [weekday, setWeekday] = useState(defaultDate.getDay());
+  // "HH:mm:ss" vindo do banco (coluna `time`) vira "HH:mm" pro <input type="time"> — mesmo
+  // formato que toTimeInputValue já produz.
+  const [endTime, setEndTime] = useState(defaultEndTime?.slice(0, 5) ?? "");
+
+  const startAt = recurring ? buildWeekdayAnchor(weekday, time) : new Date(`${date}T${time || "00:00"}`);
+  const startAtValue = Number.isNaN(startAt.getTime()) ? "" : toDatetimeLocalValue(startAt);
+
+  const endTimeField = (
+    <div className="space-y-1.5">
+      <label className="text-xs font-medium text-muted-foreground" htmlFor={`${idPrefix}-end-time`}>
+        Término (opcional)
+      </label>
+      <Input
+        id={`${idPrefix}-end-time`}
+        type="time"
+        value={endTime}
+        onChange={(event) => setEndTime(event.target.value)}
+        // Impede escolher um fim antes do início — nativo do browser, sem precisar de validação
+        // própria (mesmo padrão de "required" já usado nos outros campos deste form).
+        min={time || undefined}
+        className="w-28"
+      />
+    </div>
+  );
+
+  function handleRecurringChange(checked: boolean) {
+    if (checked) {
+      // Ligando recorrência: já parte do dia da semana da data escolhida até agora, em vez de
+      // resetar pro dia atual.
+      const [year, month, day] = date.split("-").map(Number);
+      setWeekday(new Date(year, month - 1, day).getDay());
+    } else {
+      // Desligando: a data volta a ser específica — usa a data efetiva da âncora recorrente (dia
+      // da semana + horário já escolhidos), não a data original do form.
+      setDate(toDateInputValue(startAt));
+    }
+    setRecurring(checked);
+  }
+
+  return (
+    // Bloco próprio ("Quando") separado do resto do card por um divisor, mesmo nível hierárquico
+    // de "Eventos" em AgendaCard (rótulo uppercase pequeno) — data/hora/recorrência formam um
+    // único grupo de decisão, não três campos soltos.
+    <div className="space-y-3 border-t border-border/60 pt-3">
+      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Quando</p>
+      <input type="hidden" name="startAt" value={startAtValue} />
+      <input type="hidden" name="recurring" value={recurring ? "on" : ""} />
+      <input type="hidden" name="endTime" value={endTime} />
+
+      <div className="flex items-center gap-2.5">
+        <Switch id={`${idPrefix}-recurring`} checked={recurring} onCheckedChange={handleRecurringChange} />
+        <label className="text-sm text-foreground" htmlFor={`${idPrefix}-recurring`}>
+          Repete toda semana
+        </label>
+      </div>
+
+      {recurring ? (
+        <div className="flex flex-wrap items-end gap-2.5">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor={`${idPrefix}-weekday`}>
+              Dia da semana
+            </label>
+            <Select value={String(weekday)} onValueChange={(value) => setWeekday(Number(value))}>
+              <SelectTrigger id={`${idPrefix}-weekday`} className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {WEEKDAY_LABELS.map((label, index) => (
+                  <SelectItem key={label} value={String(index)}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor={`${idPrefix}-time`}>
+              Horário
+            </label>
+            <Input id={`${idPrefix}-time`} type="time" value={time} onChange={(event) => setTime(event.target.value)} required className="w-28" />
+          </div>
+          {endTimeField}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-end gap-2.5">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor={`${idPrefix}-date`}>
+              Data
+            </label>
+            <Input id={`${idPrefix}-date`} type="date" value={date} onChange={(event) => setDate(event.target.value)} required className="w-40" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor={`${idPrefix}-time`}>
+              Horário
+            </label>
+            <Input id={`${idPrefix}-time`} type="time" value={time} onChange={(event) => setTime(event.target.value)} required className="w-28" />
+          </div>
+          {endTimeField}
+        </div>
+      )}
+
+      {recurring && startAtValue && (
+        <p className="text-xs text-muted-foreground">
+          Próxima ocorrência: {formatEventDate(resolveEventOccurrenceDate({ startAt, recurring: true }))}
+          {endTime && ` – ${endTime}`}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function CreateAgendaEventForm({ agendaId, onAdded }: { agendaId: string; onAdded: () => void }) {
   const [state, formAction, pending] = useActionState(createAgendaEventAction, initialState);
   useActionToast({ pending, error: state.error, successMessage: "Evento criado.", onSuccess: onAdded });
+  const formId = `${agendaId}-create-event`;
 
   return (
-    <form action={formAction} className="space-y-3 rounded-panel border border-border/60 bg-muted/20 p-3">
-      <input type="hidden" name="agendaId" value={agendaId} />
-      <div className="space-y-1">
-        <label className="text-xs font-medium text-muted-foreground" htmlFor={`${agendaId}-title`}>Título</label>
-        <Input id={`${agendaId}-title`} name="title" placeholder="Reunião geral" required className="w-full" />
-      </div>
-      <div className="space-y-1">
-        <label className="text-xs font-medium text-muted-foreground" htmlFor={`${agendaId}-start`}>Data e hora</label>
-        <Input id={`${agendaId}-start`} name="startAt" type="datetime-local" required className="w-full sm:max-w-xs" />
-      </div>
-      <label className="flex items-center gap-1.5 text-sm text-foreground">
-        <input type="checkbox" name="recurring" className="size-4 shrink-0 rounded border-border" />
-        Repete toda semana, sempre neste dia e horário
-      </label>
-      <div className="space-y-1">
-        <label className="text-xs font-medium text-muted-foreground" htmlFor={`${agendaId}-description`}>Descrição (opcional)</label>
-        <Textarea id={`${agendaId}-description`} name="description" rows={2} className="w-full" />
-      </div>
-      <MediaPickerField name="coverMediaAssetId" label="Imagem de capa (opcional)" />
-      <Button type="submit" disabled={pending} className="w-full sm:w-auto">Criar evento</Button>
-    </form>
+    <Card size="sm" className="bg-muted/20">
+      <CardHeader>
+        <CardTitle>Novo evento</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form id={formId} action={formAction} className="space-y-4">
+          <input type="hidden" name="agendaId" value={agendaId} />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor={`${agendaId}-title`}>Título</label>
+            <Input id={`${agendaId}-title`} name="title" placeholder="Reunião geral" required className="w-full" />
+          </div>
+          <AgendaEventDateTimeFields idPrefix={`${agendaId}-create`} defaultDate={new Date()} defaultRecurring={false} />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor={`${agendaId}-description`}>Descrição (opcional)</label>
+            <Textarea id={`${agendaId}-description`} name="description" rows={2} className="w-full" />
+          </div>
+          <MediaPickerField name="coverMediaAssetId" label="Imagem de capa (opcional)" />
+        </form>
+      </CardContent>
+      <CardFooter>
+        <Button type="submit" form={formId} disabled={pending} className="w-full sm:w-auto">Criar evento</Button>
+      </CardFooter>
+    </Card>
   );
 }
 
@@ -381,7 +544,7 @@ function DeleteAgendaEventButton({ eventId }: { eventId: string }) {
   return (
     <form action={formAction}>
       <input type="hidden" name="eventId" value={eventId} />
-      <Button type="submit" variant="outline" size="icon" disabled={pending} aria-label="Remover evento">
+      <Button type="submit" variant="destructive" size="icon" disabled={pending} aria-label="Remover evento">
         <Trash2 className="size-4" />
       </Button>
     </form>
@@ -395,6 +558,11 @@ function formatEventDate(startAt: string | Date): string {
   const weekday = date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
   const rest = date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   return `${weekday}, ${rest}`;
+}
+
+// "" quando não tem término definido — "HH:mm:ss" (coluna `time`) vira só "HH:mm" na exibição.
+function formatEndTimeSuffix(endTime: string | null): string {
+  return endTime ? ` – ${endTime.slice(0, 5)}` : "";
 }
 
 // "Toda quarta-feira" etc — mostrado ao lado da data da próxima ocorrência (formatEventDate já
@@ -412,8 +580,7 @@ function formatRecurringBadge(startAt: string | Date): string {
 // mostrada da hora realmente salva).
 function toDatetimeLocalValue(startAt: string | Date): string {
   const date = typeof startAt === "string" ? new Date(startAt) : startAt;
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${toDateInputValue(date)}T${toTimeInputValue(date)}`;
 }
 
 function EditAgendaEventForm({
@@ -427,49 +594,48 @@ function EditAgendaEventForm({
 }) {
   const [state, formAction, pending] = useActionState(updateAgendaEventAction, initialState);
   useActionToast({ pending, error: state.error, successMessage: "Evento atualizado.", onSuccess: onDone });
+  const formId = `${event.id}-edit-event`;
 
   return (
-    <form
-      // Mesmo racional do key em EditAgendaForm: força remontar o form (e seus inputs não
+    <Card
+      // Mesmo racional do key em EditAgendaForm: força remontar o card inteiro (e seus inputs não
       // controlados) quando o registro muda, senão o formulário fica mostrando dado velho depois
       // de salvar mesmo com o banco já atualizado.
       key={`${event.id}-${event.updatedAt.getTime()}`}
-      action={formAction}
-      className="mt-2 space-y-3 rounded-panel border border-border/60 bg-muted/30 p-3"
+      size="sm"
+      className="mt-2 bg-muted/30"
     >
-      <input type="hidden" name="eventId" value={event.id} />
-      <div className="space-y-1">
-        <label className="text-xs font-medium text-muted-foreground" htmlFor={`${event.id}-edit-title`}>Título</label>
-        <Input id={`${event.id}-edit-title`} name="title" defaultValue={event.title} required className="w-full" />
-      </div>
-      <div className="space-y-1">
-        <label className="text-xs font-medium text-muted-foreground" htmlFor={`${event.id}-edit-start`}>Data e hora</label>
-        <Input
-          id={`${event.id}-edit-start`}
-          name="startAt"
-          type="datetime-local"
-          // Pra evento recorrente, mostra a PRÓXIMA ocorrência (não a âncora crua, que pode ser
-          // de meses atrás) — mais intuitivo pro admin, e salvar sem trocar o dia da semana
-          // mantém o mesmo padrão de recorrência, só "avança" a âncora.
-          defaultValue={toDatetimeLocalValue(resolveEventOccurrenceDate(event))}
-          required
-          className="w-full sm:max-w-xs"
-        />
-      </div>
-      <label className="flex items-center gap-1.5 text-sm text-foreground">
-        <input type="checkbox" name="recurring" defaultChecked={event.recurring} className="size-4 shrink-0 rounded border-border" />
-        Repete toda semana, sempre neste dia e horário
-      </label>
-      <div className="space-y-1">
-        <label className="text-xs font-medium text-muted-foreground" htmlFor={`${event.id}-edit-description`}>Descrição (opcional)</label>
-        <Textarea id={`${event.id}-edit-description`} name="description" defaultValue={event.description ?? ""} rows={2} className="w-full" />
-      </div>
-      <MediaPickerField name="coverMediaAssetId" label="Imagem de capa (opcional)" initialMedia={coverMedia} />
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={pending}>Salvar</Button>
+      <CardHeader>
+        <CardTitle>Editar evento</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form id={formId} action={formAction} className="space-y-4">
+          <input type="hidden" name="eventId" value={event.id} />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor={`${event.id}-edit-title`}>Título</label>
+            <Input id={`${event.id}-edit-title`} name="title" defaultValue={event.title} required className="w-full" />
+          </div>
+          <AgendaEventDateTimeFields
+            idPrefix={`${event.id}-edit`}
+            // Pra evento recorrente, parte da PRÓXIMA ocorrência (não a âncora crua, que pode ser
+            // de meses atrás) — mais intuitivo pro admin, e salvar sem trocar o dia da semana
+            // mantém o mesmo padrão de recorrência, só "avança" a âncora.
+            defaultDate={resolveEventOccurrenceDate(event)}
+            defaultRecurring={event.recurring}
+            defaultEndTime={event.endTime}
+          />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor={`${event.id}-edit-description`}>Descrição (opcional)</label>
+            <Textarea id={`${event.id}-edit-description`} name="description" defaultValue={event.description ?? ""} rows={2} className="w-full" />
+          </div>
+          <MediaPickerField name="coverMediaAssetId" label="Imagem de capa (opcional)" initialMedia={coverMedia} />
+        </form>
+      </CardContent>
+      <CardFooter className="gap-2">
+        <Button type="submit" form={formId} size="sm" disabled={pending}>Salvar</Button>
         <Button type="button" variant="outline" size="sm" onClick={onDone}>Cancelar</Button>
-      </div>
-    </form>
+      </CardFooter>
+    </Card>
   );
 }
 
@@ -492,7 +658,10 @@ function AgendaEventRow({ event, coverMedia }: { event: BroadcastAgendaEventReco
             <p className="truncate font-medium text-foreground">{event.title}</p>
             {/* Data mostrada é sempre a PRÓXIMA ocorrência (resolveEventOccurrenceDate é no-op pra
                 evento não-recorrente) — pedido real: "mostre a data da quarta próxima". */}
-            <p className="truncate text-xs text-muted-foreground">{formatEventDate(resolveEventOccurrenceDate(event))}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {formatEventDate(resolveEventOccurrenceDate(event))}
+              {formatEndTimeSuffix(event.endTime)}
+            </p>
             {event.description && <p className="truncate text-xs text-muted-foreground">{event.description}</p>}
           </div>
         </div>

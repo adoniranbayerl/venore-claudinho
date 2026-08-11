@@ -64,8 +64,9 @@ describe("getOutputState", () => {
     getSetting.mockResolvedValue({ success: false });
     getBrandConfig.mockResolvedValue({ logoUrl: null });
     resolveRegionWeather.mockResolvedValue(null);
-    // Sem vínculo nenhum = toda agenda aparece em toda saída (modelo opt-out, ver schema) — default
-    // que a maioria dos testes de agenda quer, só o teste dedicado abaixo sobrescreve.
+    // Sem vínculo nenhum = agenda não aparece em nenhuma saída (modelo opt-in, ver schema) — os
+    // testes que precisam de agenda na rotação sobrescrevem com o vínculo explícito pro outputId
+    // usado no teste.
     findAllOutputAgendaLinks.mockResolvedValue([]);
   });
 
@@ -101,6 +102,8 @@ describe("getOutputState", () => {
         activeAlertMessage: null,
         brandLogoUrl: null,
         brandColor: "#0f0f0f",
+        agendaAnimationStyle: "fade",
+        agendaViewSize: "grande",
       },
     });
     expect(findSceneById).not.toHaveBeenCalled();
@@ -187,6 +190,7 @@ describe("getOutputState", () => {
     findAllUpcomingAgendaEvents.mockResolvedValue([
       { id: "e1", agendaId: "a1", title: "Reunião", startAt: new Date(), coverMediaAssetId: null },
     ]);
+    findAllOutputAgendaLinks.mockResolvedValue([{ outputId: "o1", agendaId: "a1" }]);
     getBrandConfig.mockResolvedValue({ logoUrl: "https://example.com/logo.png" });
 
     const { getOutputState } = await import("./service");
@@ -222,6 +226,7 @@ describe("getOutputState", () => {
     findAllUpcomingAgendaEvents.mockResolvedValue([
       { id: "e1", agendaId: "a1", title: "Reunião semanal", startAt: oldAnchor, recurring: true, coverMediaAssetId: null },
     ]);
+    findAllOutputAgendaLinks.mockResolvedValue([{ outputId: "o1", agendaId: "a1" }]);
 
     const { getOutputState } = await import("./service");
     const result = await getOutputState({ token: "tok-1" });
@@ -236,21 +241,29 @@ describe("getOutputState", () => {
     expect(event.startAt.getDay()).toBe(oldAnchor.getDay());
   });
 
-  it("excludes an agenda restricted to other outputs, but keeps one with no restriction at all (opt-out model)", async () => {
+  it("only shows an agenda on an output it's explicitly linked to — excludes agendas linked elsewhere and agendas with no link at all (opt-in model)", async () => {
     findOutputByToken.mockResolvedValue({ id: "o-externa", drawerOpen: true, currentSceneId: "s1" });
     findSceneById.mockResolvedValue({ id: "s1", name: "Painel" });
     findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "agenda", config: {} }]);
     findAllAgendas.mockResolvedValue([
       { id: "a-admin", name: "Administrativo", displaySeconds: 20, order: 0, backgroundColor: null, logoMediaAssetId: null },
       { id: "a-geral", name: "Geral", displaySeconds: 20, order: 1, backgroundColor: null, logoMediaAssetId: null },
+      { id: "a-sem-vinculo", name: "Sem vínculo", displaySeconds: 20, order: 2, backgroundColor: null, logoMediaAssetId: null },
     ]);
     findAllUpcomingAgendaEvents.mockResolvedValue([
       { id: "e1", agendaId: "a-admin", title: "Reunião interna", startAt: new Date(), coverMediaAssetId: null },
       { id: "e2", agendaId: "a-geral", title: "Evento aberto", startAt: new Date(), coverMediaAssetId: null },
+      { id: "e3", agendaId: "a-sem-vinculo", title: "Nunca vinculado", startAt: new Date(), coverMediaAssetId: null },
     ]);
-    // "Administrativo" só está vinculada à saída "o-interna" — não deve aparecer em "o-externa".
-    // "Geral" não tem nenhum vínculo — aparece em qualquer saída, inclusive "o-externa".
-    findAllOutputAgendaLinks.mockResolvedValue([{ outputId: "o-interna", agendaId: "a-admin" }]);
+    // "Administrativo" só está vinculada à saída "o-interna" — não aparece em "o-externa".
+    // "Geral" está vinculada a "o-externa" — aparece.
+    // "Sem vínculo" nunca foi vinculada a saída nenhuma — não aparece em lugar nenhum (achado
+    // real reportado pelo usuário quando o modelo ainda era opt-out: desmarcar a única saída
+    // vinculada não escondia a agenda, reativava "aparece em todas").
+    findAllOutputAgendaLinks.mockResolvedValue([
+      { outputId: "o-interna", agendaId: "a-admin" },
+      { outputId: "o-externa", agendaId: "a-geral" },
+    ]);
 
     const { getOutputState } = await import("./service");
     const result = await getOutputState({ token: "tok-1" });
@@ -270,6 +283,7 @@ describe("getOutputState", () => {
     findAllUpcomingAgendaEvents.mockResolvedValue([
       { id: "e1", agendaId: "a1", title: "Reunião", startAt: new Date(), coverMediaAssetId: "cover-1" },
     ]);
+    findAllOutputAgendaLinks.mockResolvedValue([{ outputId: "o1", agendaId: "a1" }]);
     getMediaAsset.mockImplementation(async ({ id }: { id: string }) => {
       if (id === "logo-1") return { success: true, data: { id, url: "https://example.com/agenda-logo.png" } };
       if (id === "cover-1") return { success: true, data: { id, url: "https://example.com/event-cover.jpg" } };

@@ -43,6 +43,59 @@ export const BROADCAST_SETTINGS = {
     defaultValue: "",
     label: "Palavras-chave pra excluir das notícias (separadas por vírgula)",
   },
+  // Como os cards de evento entram na tela ao trocar de agenda no rodízio — "fade" é o bloco
+  // inteiro (nome + lista) surgindo junto (comportamento original); "cascade" anima cada card de
+  // evento em sequência, um depois do outro, deslizando da direita. Pedido explícito: "quero ter
+  // a opção no sistema de colocar o fade atual ou essa animação".
+  agendaAnimationStyle: {
+    key: "broadcast.agendaAnimationStyle",
+    defaultValue: "fade",
+    label: "Estilo de animação da agenda",
+  },
+  // Escala conjunta da largura da coluna de agenda + altura da BrandFooterBar (ver
+  // BROADCAST_AGENDA_VIEW_SIZE_SCALE abaixo) — as duas crescem juntas de propósito: uma agenda
+  // mais larga ao lado de uma barra de marca pequena ficava desproporcional. Default já em
+  // "grande" (não "padrao") — pedido explícito: "Quero que a Agenda seja maior... Pode aumentar
+  // Agenda em 1/2".
+  agendaViewSize: {
+    key: "broadcast.agendaViewSize",
+    defaultValue: "grande",
+    label: "Tamanho da coluna de agenda e da barra de marca",
+  },
 } as const;
 
 export type BroadcastSettingField = keyof typeof BROADCAST_SETTINGS;
+
+export type BroadcastAgendaAnimationStyle = "fade" | "cascade";
+
+export type BroadcastAgendaViewSize = "padrao" | "grande" | "extra-grande";
+
+// agendaWidthPercent: TETO da largura da coluna de agenda quando aberta (o vídeo ocupa o resto,
+// 100 menos esse valor) — ver applyAgendaViewSizeOverride em layer-renderer.tsx, que ignora o
+// x/width cru gravado por output na criação (create-output/store.ts) e recalcula os dois a partir
+// daqui, pra um ajuste de tamanho valer pra saídas já existentes também, não só pras criadas
+// depois. Deixou de ser só um teto fixo: useZeroBarAgendaWidthPercent (layer-renderer.tsx) mede a
+// tela real e ajusta a agenda entre um piso de ~1/4 da tela (pedido explícito: "a barra da agenda
+// deve ter no mínimo aproximadamente 1/4 da tela") e este teto por tier — nenhum tier pode ficar
+// abaixo de 25 (o piso venceria de qualquer forma, mas evita a inconsistência de um tier "menor
+// que o mínimo global"). Na prática, com o piso de 25% bem acima do que fecha 16:9 exato (~10-15%
+// com os footers atuais), a agenda normalmente fica no piso e alguma barra preta residual volta a
+// aparecer na view do vídeo — trade-off explícito, tamanho da agenda tem prioridade.
+// footerHeightClassName/footerHeightPx: mesma altura, dois formatos — className pro primeiro
+// render (SSR-safe, sem depender de medir a janela) e px pro cálculo de
+// useZeroBarAgendaWidthPercent (a altura do footer, fixa, é o outro lado da mesma conta: quanto
+// mais alto o footer, mais largura sobra pra agenda sem gerar barra preta). Reduzida levemente
+// (pedido explícito: "diminua levemente o height").
+export const BROADCAST_AGENDA_VIEW_SIZE_SCALE: Record<
+  BroadcastAgendaViewSize,
+  { agendaWidthPercent: number; footerHeightClassName: string; footerHeightPx: number; footerLogoHeightClassName: string }
+> = {
+  padrao: { agendaWidthPercent: 25, footerHeightClassName: "h-20", footerHeightPx: 80, footerLogoHeightClassName: "h-20" },
+  grande: { agendaWidthPercent: 30, footerHeightClassName: "h-32", footerHeightPx: 128, footerLogoHeightClassName: "h-20" },
+  "extra-grande": {
+    agendaWidthPercent: 30,
+    footerHeightClassName: "h-20",
+    footerHeightPx: 160,
+    footerLogoHeightClassName: "h-12",
+  },
+};

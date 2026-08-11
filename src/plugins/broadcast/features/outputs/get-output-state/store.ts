@@ -81,7 +81,8 @@ export async function findAllUpcomingAgendaEvents(): Promise<BroadcastAgendaEven
 
 // Tabela inteira (pequena — um vínculo por linha) carregada de uma vez; o filtro "essa agenda
 // aparece nesta saída?" é feito em JS no service (resolveAgendaRotation), não aqui — ver comentário
-// no schema (broadcastOutputAgendas) pra entender o modelo "opt-out" (sem linha = aparece em todas).
+// no schema (broadcastOutputAgendas) pra entender o modelo "opt-in" (sem linha = não aparece em
+// nenhuma saída).
 export async function findAllOutputAgendaLinks(): Promise<{ outputId: string; agendaId: string }[]> {
   return db.select({ outputId: broadcastOutputAgendas.outputId, agendaId: broadcastOutputAgendas.agendaId }).from(broadcastOutputAgendas);
 }

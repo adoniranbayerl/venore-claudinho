@@ -1,5 +1,5 @@
 import type { OperationResult } from "@/shared/types";
 
-// Record<agendaId, outputId[]> — lista vazia pra uma agenda significa "sem vínculo, aparece em
-// todas as saídas" (mesmo modelo opt-out do schema), não "vinculada a nenhuma".
+// Record<agendaId, outputId[]> — lista vazia pra uma agenda significa "sem vínculo, não aparece
+// em nenhuma saída" (modelo opt-in, ver comentário no schema).
 export type ListAgendaOutputsResult = OperationResult<Record<string, string[]>>;

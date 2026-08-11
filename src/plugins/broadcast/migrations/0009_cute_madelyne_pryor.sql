@@ -1,0 +1,1 @@
+ALTER TABLE "broadcast"."agenda_events" ADD COLUMN "end_time" time;
