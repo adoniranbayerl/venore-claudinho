@@ -1,6 +1,8 @@
 import { GraduationCap } from "lucide-react";
 import { AdminCourseCard, listCourses, listLessonsByCourse } from "@/plugins/academy";
 import { getAcademyPageData } from "@/platform/admin-shell/get-academy-page-data";
+import { AdminAccessDenied } from "@/components/admin-access-denied";
+import { AdminPageHeader } from "@/components/admin-page-header";
 import { EmptyState } from "@/components/empty-state";
 import { CreateCourseDialog } from "./_components/create-course-dialog";
 import { ImportCourseDialog } from "./_components/import-course-dialog";
@@ -9,12 +11,7 @@ export default async function AcademyAdminPage() {
   const gate = await getAcademyPageData();
 
   if (!gate.granted) {
-    return (
-      <div className="rounded-panel border border-border bg-card p-8 text-center">
-        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar a Academy.</p>
-      </div>
-    );
+    return <AdminAccessDenied message="Você não tem permissão para gerenciar a Academy." />;
   }
 
   const coursesResult = await listCourses();
@@ -34,18 +31,18 @@ export default async function AcademyAdminPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Academy</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Gerencie cursos, aulas e requisitos de conclusão.</p>
-        </div>
-        {courses.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3">
-            <ImportCourseDialog />
-            <CreateCourseDialog />
-          </div>
-        )}
-      </div>
+      <AdminPageHeader
+        title="Academy"
+        description="Gerencie cursos, aulas e requisitos de conclusão."
+        actions={
+          courses.length > 0 && (
+            <>
+              <ImportCourseDialog />
+              <CreateCourseDialog />
+            </>
+          )
+        }
+      />
 
       {courses.length === 0 ? (
         <EmptyState

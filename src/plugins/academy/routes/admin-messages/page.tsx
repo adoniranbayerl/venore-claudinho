@@ -2,6 +2,8 @@ import { MessageCircle } from "lucide-react";
 import { listAllMessageThreads } from "@/plugins/academy";
 import { listUsers } from "@/contexts/auth";
 import { getAcademyPageData } from "@/platform/admin-shell/get-academy-page-data";
+import { AdminAccessDenied } from "@/components/admin-access-denied";
+import { AdminPageHeader } from "@/components/admin-page-header";
 import { EmptyState } from "@/components/empty-state";
 import { MessageThreadPanel } from "../admin-course-enrolled-student/_components/message-thread-panel";
 
@@ -17,12 +19,7 @@ export default async function AcademyMessagesAdminPage() {
   const gate = await getAcademyPageData();
 
   if (!gate.granted) {
-    return (
-      <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy text-center">
-        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar a Academy.</p>
-      </div>
-    );
+    return <AdminAccessDenied message="Você não tem permissão para gerenciar a Academy." />;
   }
 
   const [threadsResult, usersResult] = await Promise.all([listAllMessageThreads(), listUsers()]);
@@ -35,10 +32,7 @@ export default async function AcademyMessagesAdminPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Mensagens</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Todas as conversas com alunos, de todos os cursos.</p>
-      </div>
+      <AdminPageHeader title="Mensagens" description="Todas as conversas com alunos, de todos os cursos." />
 
       {threads.length === 0 ? (
         <EmptyState

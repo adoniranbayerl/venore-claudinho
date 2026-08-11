@@ -6,8 +6,13 @@ import { getBirthdayAppearance, listBirthdays, MONTH_LABELS, type BirthdayAdminV
 import { getBirthdaysPageData } from "@/platform/admin-shell/get-birthdays-page-data";
 import { getBrandConfig } from "@/platform/brand/get-brand-config";
 import { resolveBrandAesthetics } from "@/platform/theme-rendering/resolve-brand-aesthetics";
+import { AdminAccessDenied } from "@/components/admin-access-denied";
+import { AdminPageHeader } from "@/components/admin-page-header";
+import { AdminStatTile } from "@/components/admin-stat-tile";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { BirthdaysByMonthChart, type BirthdaysByMonthDatum } from "./birthdays-by-month-chart";
 import { CreateBirthdayDialog } from "./create-birthday-dialog";
 import { ImportBirthdaysCsvDialog } from "./import-birthdays-csv-dialog";
 import { PrintBirthdaysDialog } from "./print-birthdays-dialog";
@@ -27,12 +32,7 @@ export default async function BirthdaysAdminPage() {
   const gate = await getBirthdaysPageData();
 
   if (!gate.granted) {
-    return (
-      <div className="rounded-panel border border-border bg-card p-8 text-center">
-        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para ver os aniversariantes.</p>
-      </div>
-    );
+    return <AdminAccessDenied message="Você não tem permissão para ver os aniversariantes." />;
   }
 
   const aesthetics = await resolveBrandAesthetics();
@@ -68,34 +68,51 @@ export default async function BirthdaysAdminPage() {
     byMonth.set(birthday.month, monthGroup);
   }
 
+  const byMonthChartData: BirthdaysByMonthDatum[] = Object.entries(MONTH_LABELS).map(([month, label]) => ({
+    month: label.slice(0, 3),
+    total: (byMonth.get(Number(month)) ?? []).length,
+  }));
+
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Aniversariantes</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Cadastro de aniversários por mês e dia — sem ano de nascimento.
-          </p>
+      <AdminPageHeader
+        title="Aniversariantes"
+        description="Cadastro de aniversários por mês e dia — sem ano de nascimento."
+        actions={
+          <>
+            <Button variant="outline" asChild>
+              <Link href="/admin/birthdays/appearance">Aparência</Link>
+            </Button>
+            <PrintBirthdaysDialog
+              birthdays={birthdays}
+              appearance={appearanceResult.data}
+              brand={{
+                mode: aesthetics.mode,
+                logoUrl: brandConfig.logoUrl,
+                name: brandConfig.siteName,
+                color: aesthetics.color,
+              }}
+              giftSvgMarkup={giftSvgMarkup}
+            />
+            <ImportBirthdaysCsvDialog />
+            {birthdays.length > 0 && <CreateBirthdayDialog />}
+          </>
+        }
+      />
+
+      {birthdays.length > 0 && (
+        <div className="grid gap-4 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
+          <AdminStatTile label="Total" value={birthdays.length} />
+          <AdminStatTile label="Hoje" value={today.length} />
+          <AdminStatTile label="Esta semana" value={thisWeek.length} />
+          <Card size="sm" className="lg:row-span-1">
+            <CardContent className="space-y-1">
+              <p className="text-xs font-medium uppercase tracking-caps text-muted-foreground">Por mês</p>
+              <BirthdaysByMonthChart data={byMonthChartData} />
+            </CardContent>
+          </Card>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/admin/birthdays/appearance">Aparência</Link>
-          </Button>
-          <PrintBirthdaysDialog
-            birthdays={birthdays}
-            appearance={appearanceResult.data}
-            brand={{
-              mode: aesthetics.mode,
-              logoUrl: brandConfig.logoUrl,
-              name: brandConfig.siteName,
-              color: aesthetics.color,
-            }}
-            giftSvgMarkup={giftSvgMarkup}
-          />
-          <ImportBirthdaysCsvDialog />
-          {birthdays.length > 0 && <CreateBirthdayDialog />}
-        </div>
-      </div>
+      )}
 
       {birthdays.length === 0 ? (
         <EmptyState

@@ -9,6 +9,7 @@ import {
   listLessonsByCourse,
 } from "@/plugins/academy";
 import { getAcademyPageData } from "@/platform/admin-shell/get-academy-page-data";
+import { AdminAccessDenied } from "@/components/admin-access-denied";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,12 +25,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   const gate = await getAcademyPageData();
 
   if (!gate.granted) {
-    return (
-      <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy text-center">
-        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar a Academy.</p>
-      </div>
-    );
+    return <AdminAccessDenied message="Você não tem permissão para gerenciar a Academy." />;
   }
 
   const [courseResult, lessonsResult, enrollmentsResult, activityMediaResult] = await Promise.all([
@@ -87,7 +83,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         >
           ← Academy
         </Link>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">{course.title}</h1>
+        <h1 className="mt-1 text-xl font-semibold text-foreground">{course.title}</h1>
         <p className="mt-2 text-[11px] font-medium tracking-caps text-muted-foreground/56 uppercase">
           {STATUS_LABEL[course.status]} · {lessons.length} {lessons.length === 1 ? "aula" : "aulas"}
         </p>
@@ -138,7 +134,16 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{lesson.title}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <Badge variant={lesson.status === "draft" ? "secondary" : lesson.status === "restricted" ? "outline" : "default"}>
+                      <Badge
+                        variant="outline"
+                        className={
+                          lesson.status === "draft"
+                            ? undefined
+                            : lesson.status === "restricted"
+                              ? "border-warning-border bg-warning-soft text-warning"
+                              : "border-success-border bg-success-soft text-success"
+                        }
+                      >
                         {lesson.status === "draft" ? "rascunho" : lesson.status === "restricted" ? "restrito" : "público"}
                       </Badge>
                       {lesson.videoUrl && (

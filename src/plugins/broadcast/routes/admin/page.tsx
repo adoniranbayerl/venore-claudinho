@@ -1,5 +1,7 @@
 import { CalendarDays, ListVideo, Settings as SettingsIcon, Tv } from "lucide-react";
 import { listUsers } from "@/contexts/auth";
+import { AdminAccessDenied } from "@/components/admin-access-denied";
+import { AdminPageHeader } from "@/components/admin-page-header";
 import { getBroadcastPageData } from "@/platform/admin-shell/get-broadcast-page-data";
 import {
   listAgendaEditors,
@@ -37,12 +39,7 @@ import { AgendaSection } from "@/plugins/broadcast/components/admin/agenda-secti
 export default async function BroadcastAdminPage() {
   const gate = await getBroadcastPageData();
   if (!gate.granted) {
-    return (
-      <div className="rounded-panel border border-border bg-card p-8 text-center">
-        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para ver o Broadcast Studio.</p>
-      </div>
-    );
+    return <AdminAccessDenied message="Você não tem permissão para ver o Broadcast Studio." />;
   }
 
   const hasFullAccess = gate.actor.isSuperadmin || gate.actor.permissions.includes("broadcast.manage");
@@ -142,14 +139,14 @@ export default async function BroadcastAdminPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Broadcast Studio</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {hasFullAccess
+      <AdminPageHeader
+        title="Broadcast Studio"
+        description={
+          hasFullAccess
             ? "Monte playlists de vídeo/imagem/site/notícias, gerencie a agenda e gere a URL que abre na TV — o layout da tela é fixo e cuidado automaticamente."
-            : "As telas e/ou agendas atribuídas a você."}
-        </p>
-      </div>
+            : "As telas e/ou agendas atribuídas a você."
+        }
+      />
 
       {hasFullAccess ? (
         <Tabs defaultValue="outputs">

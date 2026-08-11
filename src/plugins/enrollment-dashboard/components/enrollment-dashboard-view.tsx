@@ -1,7 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AdminPageHeader } from "@/components/admin-page-header";
+import { AdminStatTile } from "@/components/admin-stat-tile";
 import type { EnrollmentInstitution } from "../contracts/types";
 import { goalCompletionRatio, sumProgramTotals, totalEnrollments } from "../shared/enrollment-metrics";
-import { StatTile } from "./stat-tile";
 import { InstitutionLogo } from "./institution-logo";
 import { EnrollmentTable } from "./enrollment-table";
 import { GoalVsActualChart, type GoalVsActualDatum } from "./goal-vs-actual-chart";
@@ -38,23 +39,21 @@ export function EnrollmentDashboardView({
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Dashboard de Matrícula</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Meta, rematrícula e novas matrículas por instituição e curso. Dado mockado — próxima etapa é ligar à matrícula real.
-        </p>
-      </div>
+      <AdminPageHeader
+        title="Dashboard de Matrícula"
+        description="Meta, rematrícula e novas matrículas por instituição e curso. Dado mockado — próxima etapa é ligar à matrícula real."
+      />
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatTile label="Meta geral" value={overall.goal.toLocaleString("pt-BR")} />
-        <StatTile label="Total matriculado" value={overallTotal.toLocaleString("pt-BR")} />
-        <StatTile
+        <AdminStatTile label="Meta geral" value={overall.goal.toLocaleString("pt-BR")} />
+        <AdminStatTile label="Total matriculado" value={overallTotal.toLocaleString("pt-BR")} />
+        <AdminStatTile
           label="% da meta"
           value={`${Math.round(overallRatio * 100)}%`}
           hint={`${overallTotal.toLocaleString("pt-BR")} de ${overall.goal.toLocaleString("pt-BR")}`}
         />
-        <StatTile label="Rematriculados" value={overall.renewed.toLocaleString("pt-BR")} />
-        <StatTile label="Novas matrículas" value={overall.newEnrollments.toLocaleString("pt-BR")} />
+        <AdminStatTile label="Rematriculados" value={overall.renewed.toLocaleString("pt-BR")} />
+        <AdminStatTile label="Novas matrículas" value={overall.newEnrollments.toLocaleString("pt-BR")} />
       </section>
 
       {institutions.map((institution) => {

@@ -1,3 +1,5 @@
+import { AdminAccessDenied } from "@/components/admin-access-denied";
+import { AdminPageHeader } from "@/components/admin-page-header";
 import { getBirthdayAppearance } from "@/plugins/birthdays";
 import { getBirthdaysPageData } from "@/platform/admin-shell/get-birthdays-page-data";
 import { BirthdaysAppearanceForm } from "./birthdays-appearance-form";
@@ -6,12 +8,7 @@ export default async function BirthdaysAppearancePage() {
   const gate = await getBirthdaysPageData();
 
   if (!gate.granted) {
-    return (
-      <div className="rounded-panel border border-border bg-card p-8 text-center">
-        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para ver os aniversariantes.</p>
-      </div>
-    );
+    return <AdminAccessDenied message="Você não tem permissão para ver os aniversariantes." />;
   }
 
   const appearanceResult = await getBirthdayAppearance();
@@ -21,10 +18,7 @@ export default async function BirthdaysAppearancePage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Aparência dos aniversariantes</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Cores usadas no quadro público de aniversariantes.</p>
-      </div>
+      <AdminPageHeader title="Aparência dos aniversariantes" description="Cores usadas no quadro público de aniversariantes." />
 
       <BirthdaysAppearanceForm appearance={appearanceResult.data} />
     </div>

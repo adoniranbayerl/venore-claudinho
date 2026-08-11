@@ -8,6 +8,7 @@ import {
   listMessageThreadsForCourse,
 } from "@/plugins/academy";
 import { getAcademyPageData } from "@/platform/admin-shell/get-academy-page-data";
+import { AdminAccessDenied } from "@/components/admin-access-denied";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResetQuizAttemptsButton } from "../admin-course/_components/reset-quiz-attempts-button";
@@ -30,12 +31,7 @@ export default async function CourseEnrolledStudentPage({
   const gate = await getAcademyPageData();
 
   if (!gate.granted) {
-    return (
-      <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy text-center">
-        <h1 className="text-lg font-semibold text-foreground">Acesso negado</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Você não tem permissão para gerenciar a Academy.</p>
-      </div>
-    );
+    return <AdminAccessDenied message="Você não tem permissão para gerenciar a Academy." />;
   }
 
   const [courseResult, enrollmentsResult, progressResult, messageThreadsResult] = await Promise.all([
@@ -92,7 +88,7 @@ export default async function CourseEnrolledStudentPage({
         >
           ← Matriculados
         </Link>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">{studentLabel}</h1>
+        <h1 className="mt-1 text-xl font-semibold text-foreground">{studentLabel}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {enrollment.email && enrollment.name ? `${enrollment.email} · ` : ""}
           {course.title}
