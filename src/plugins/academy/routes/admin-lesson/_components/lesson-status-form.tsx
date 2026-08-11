@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { setLessonStatusAction, type CourseActionState } from "../../../courses/[id]/actions";
+import { setLessonStatusAction, type CourseActionState } from "../../admin-course/actions";
 import type { LessonStatus } from "@/plugins/academy";
 
 const initialState: CourseActionState = { error: null };
