@@ -11,6 +11,7 @@ import {
 } from "../../../shared/playback-defaults";
 import { BROADCAST_SETTINGS } from "../../../shared/settings";
 import { streamableContentTypeForExtension } from "../../../shared/video-extensions";
+import { resolveEventOccurrenceDate } from "../../../shared/weekly-recurrence";
 import type { BroadcastAgendaEventRecord, BroadcastPlaylistItemRecord, PlaylistItemKind } from "../../../contracts/types";
 import {
   findActiveAlertMessage,
@@ -102,8 +103,15 @@ async function resolveAgendaRotation(outputId: string): Promise<AgendaRotationEn
     outputAgendaLinks.filter((link) => link.outputId === outputId).map((link) => link.agendaId),
   );
 
+  // Ordena pela ocorrência EFETIVA (resolveEventOccurrenceDate), não pelo startAt cru — um evento
+  // recorrente antigo (startAt de meses atrás, mas recurring=true) precisa entrar na posição
+  // certa da fila, baseada na próxima vez que ele realmente acontece, não em quando foi criado.
+  const sortedEvents = [...events].sort(
+    (a, b) => resolveEventOccurrenceDate(a).getTime() - resolveEventOccurrenceDate(b).getTime(),
+  );
+
   const eventsByAgendaId = new Map<string, BroadcastAgendaEventRecord[]>();
-  for (const event of events) {
+  for (const event of sortedEvents) {
     const bucket = eventsByAgendaId.get(event.agendaId) ?? [];
     if (bucket.length < AGENDA_EVENTS_PER_ROTATION_LIMIT) bucket.push(event);
     eventsByAgendaId.set(event.agendaId, bucket);
@@ -123,6 +131,9 @@ async function resolveAgendaRotation(outputId: string): Promise<AgendaRotationEn
         Promise.all(
           rawEvents.map(async (event): Promise<AgendaRotationEvent> => ({
             ...event,
+            // Client (layer-renderer.tsx) nunca sabe de recorrência — sempre recebe um startAt
+            // que já é "a próxima vez que isso acontece", nunca a âncora crua do padrão.
+            startAt: resolveEventOccurrenceDate(event),
             coverUrl: await resolveMediaAssetUrl(event.coverMediaAssetId),
           })),
         ),

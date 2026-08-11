@@ -13,6 +13,7 @@ export async function applyAgendaEventUpdate(input: {
   title: string;
   description: string | null;
   startAt: Date;
+  recurring: boolean;
   coverMediaAssetId: string | null;
 }): Promise<BroadcastAgendaEventRecord> {
   const [row] = await db
@@ -21,6 +22,7 @@ export async function applyAgendaEventUpdate(input: {
       title: input.title,
       description: input.description,
       startAt: input.startAt,
+      recurring: input.recurring,
       coverMediaAssetId: input.coverMediaAssetId,
       updatedAt: sql`now()`,
     })

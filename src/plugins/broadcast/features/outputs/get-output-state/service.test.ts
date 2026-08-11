@@ -208,6 +208,34 @@ describe("getOutputState", () => {
     expect(resolveRegionWeather).not.toHaveBeenCalled();
   });
 
+  it("keeps a weekly recurring event even when its startAt anchor is in the past, and sends the client its next occurrence instead of the raw anchor", async () => {
+    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: true, currentSceneId: "s1" });
+    findSceneById.mockResolvedValue({ id: "s1", name: "Painel" });
+    findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "agenda", config: {} }]);
+    findAllAgendas.mockResolvedValue([
+      { id: "a1", name: "Semanal", displaySeconds: 20, order: 0, backgroundColor: null, logoMediaAssetId: null },
+    ]);
+    // Âncora de meses atrás — findAllUpcomingAgendaEvents já filtra "startAt >= agora OU
+    // recurring", então o mock aqui simula exatamente isso: a query devolveu o evento mesmo com
+    // startAt no passado, por ser recurring=true.
+    const oldAnchor = new Date(Date.now() - 1000 * 60 * 60 * 24 * 90);
+    findAllUpcomingAgendaEvents.mockResolvedValue([
+      { id: "e1", agendaId: "a1", title: "Reunião semanal", startAt: oldAnchor, recurring: true, coverMediaAssetId: null },
+    ]);
+
+    const { getOutputState } = await import("./service");
+    const result = await getOutputState({ token: "tok-1" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.agendaRotation).toHaveLength(1);
+    const [event] = result.data.agendaRotation[0].events;
+    expect(event.id).toBe("e1");
+    // A data mandada pro client não é a âncora crua — é a próxima ocorrência, sempre >= agora.
+    expect(event.startAt.getTime()).toBeGreaterThan(Date.now());
+    expect(event.startAt.getDay()).toBe(oldAnchor.getDay());
+  });
+
   it("excludes an agenda restricted to other outputs, but keeps one with no restriction at all (opt-out model)", async () => {
     findOutputByToken.mockResolvedValue({ id: "o-externa", drawerOpen: true, currentSceneId: "s1" });
     findSceneById.mockResolvedValue({ id: "s1", name: "Painel" });

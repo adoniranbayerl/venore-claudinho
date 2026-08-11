@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, or } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import {
   broadcastAgendaEvents,
@@ -64,12 +64,17 @@ export async function findAllAgendas(): Promise<BroadcastAgendaRecord[]> {
 }
 
 // Todos os eventos futuros de todas as agendas numa query só (evita N+1 — o agrupamento por
-// agenda acontece em JS, no service).
+// agenda acontece em JS, no service) — MAIS todo evento recurring=true, mesmo com startAt no
+// passado: pra um evento "toda semana" (ver shared/weekly-recurrence.ts), startAt é só a âncora
+// do padrão (dia da semana + horário), nunca a data real da próxima ocorrência, então filtrar por
+// "startAt >= agora" excluiria injustamente uma recorrência antiga cujo padrão continua valendo.
+// A ordem por startAt aqui é só um pré-filtro grosseiro — a ordem real (por ocorrência efetiva)
+// acontece em JS no service, depois de resolver a data de cada evento recorrente.
 export async function findAllUpcomingAgendaEvents(): Promise<BroadcastAgendaEventRecord[]> {
   const rows = await db
     .select()
     .from(broadcastAgendaEvents)
-    .where(gte(broadcastAgendaEvents.startAt, new Date()))
+    .where(or(gte(broadcastAgendaEvents.startAt, new Date()), eq(broadcastAgendaEvents.recurring, true)))
     .orderBy(asc(broadcastAgendaEvents.startAt));
   return rows as BroadcastAgendaEventRecord[];
 }

@@ -6,6 +6,7 @@ export type UpdateAgendaEventCommand = {
   title: string;
   description?: string | null;
   startAt: Date;
+  recurring?: boolean;
   coverMediaAssetId?: string | null;
   actorId: string;
 };

@@ -125,11 +125,19 @@ export const broadcastAgendas = broadcastSchema.table("agendas", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-// Eventos simples (título + data, descrição opcional), sem recorrência nem convidados — sempre
-// pertencem a uma agenda nomeada (broadcastAgendas), nunca soltos. coverMediaAssetId (opcional) é
-// texto solto sem FK — mesmo racional de playlist_items.mediaAssetId: um plugin não pode importar
+// Eventos simples (título + data, descrição opcional) — sempre pertencem a uma agenda nomeada
+// (broadcastAgendas), nunca soltos. coverMediaAssetId (opcional) é texto solto sem FK — mesmo
+// racional de playlist_items.mediaAssetId: um plugin não pode importar
 // contexts/media/database/schema (regra 7/8 do AGENTS.md), resolução de URL sempre passa por
 // @/contexts/media (getMediaAsset). Sem cover, o card do evento renderiza igual a antes.
+//
+// recurring: sem convidados, sem regra genérica de recorrência (RRULE completo, intervalo,
+// "até tal data", exceções) — só o caso pedido: "toda semana, sempre" — pedido explícito: "quero
+// criar um evento que acontece toda semana... não quero ter que ficar trocando a data toda
+// semana. Quero que mostre a data da quarta próxima". startAt vira a ÂNCORA do padrão quando
+// recurring=true (o dia da semana e o horário dele definem a recorrência, não a data em si) — a
+// data real da PRÓXIMA ocorrência é sempre calculada em runtime a partir de "agora", nunca gravada
+// (ver shared/weekly-recurrence.ts); editar o evento reancora o padrão a partir do que foi salvo.
 export const broadcastAgendaEvents = broadcastSchema.table("agenda_events", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   agendaId: text("agenda_id")
@@ -138,6 +146,7 @@ export const broadcastAgendaEvents = broadcastSchema.table("agenda_events", {
   title: text("title").notNull(),
   description: text("description"),
   startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+  recurring: boolean("recurring").notNull().default(false),
   coverMediaAssetId: text("cover_media_asset_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

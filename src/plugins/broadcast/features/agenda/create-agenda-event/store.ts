@@ -7,6 +7,7 @@ export async function insertAgendaEvent(input: {
   title: string;
   description: string | null;
   startAt: Date;
+  recurring: boolean;
   coverMediaAssetId: string | null;
 }): Promise<BroadcastAgendaEventRecord> {
   const [row] = await db.insert(broadcastAgendaEvents).values(input).returning();

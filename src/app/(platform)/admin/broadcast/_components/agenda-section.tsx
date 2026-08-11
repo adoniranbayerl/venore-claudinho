@@ -11,6 +11,9 @@ import { useActionToast } from "@/hooks/use-action-toast";
 // Importa direto de contracts/, nunca do barrel (@/plugins/broadcast) — mesmo racional de
 // outputs-section.tsx.
 import type { BroadcastAgendaEventRecord, BroadcastAgendaRecord, BroadcastOutputRecord } from "@/plugins/broadcast/contracts/types";
+// Import direto do módulo compartilhado (não do barrel @/plugins/broadcast) — mesma regra dos
+// tipos acima: client component nunca pode arrastar o barrel de server (Drizzle/pg) pro bundle.
+import { resolveEventOccurrenceDate } from "@/plugins/broadcast/shared/weekly-recurrence";
 import {
   createAgendaAction,
   createAgendaEventAction,
@@ -357,6 +360,10 @@ function CreateAgendaEventForm({ agendaId, onAdded }: { agendaId: string; onAdde
         <label className="text-xs font-medium text-muted-foreground" htmlFor={`${agendaId}-start`}>Data e hora</label>
         <Input id={`${agendaId}-start`} name="startAt" type="datetime-local" required className="w-full sm:max-w-xs" />
       </div>
+      <label className="flex items-center gap-1.5 text-sm text-foreground">
+        <input type="checkbox" name="recurring" className="size-4 shrink-0 rounded border-border" />
+        Repete toda semana, sempre neste dia e horário
+      </label>
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground" htmlFor={`${agendaId}-description`}>Descrição (opcional)</label>
         <Textarea id={`${agendaId}-description`} name="description" rows={2} className="w-full" />
@@ -388,6 +395,16 @@ function formatEventDate(startAt: string | Date): string {
   const weekday = date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
   const rest = date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   return `${weekday}, ${rest}`;
+}
+
+// "Toda quarta-feira" etc — mostrado ao lado da data da próxima ocorrência (formatEventDate já
+// resolve pra data efetiva, ver AgendaEventRow), pra deixar claro que aquela data é só a próxima,
+// não a única. Pedido real: "quero criar um evento que acontece toda semana [...] não quero ter
+// que ficar trocando a data toda semana".
+function formatRecurringBadge(startAt: string | Date): string {
+  const date = typeof startAt === "string" ? new Date(startAt) : startAt;
+  const weekday = date.toLocaleDateString("pt-BR", { weekday: "long" });
+  return `Toda ${weekday}`;
 }
 
 // <input type="datetime-local"> espera "YYYY-MM-DDTHH:mm" em horário local (sem timezone) — usa
@@ -431,11 +448,18 @@ function EditAgendaEventForm({
           id={`${event.id}-edit-start`}
           name="startAt"
           type="datetime-local"
-          defaultValue={toDatetimeLocalValue(event.startAt)}
+          // Pra evento recorrente, mostra a PRÓXIMA ocorrência (não a âncora crua, que pode ser
+          // de meses atrás) — mais intuitivo pro admin, e salvar sem trocar o dia da semana
+          // mantém o mesmo padrão de recorrência, só "avança" a âncora.
+          defaultValue={toDatetimeLocalValue(resolveEventOccurrenceDate(event))}
           required
           className="w-full sm:max-w-xs"
         />
       </div>
+      <label className="flex items-center gap-1.5 text-sm text-foreground">
+        <input type="checkbox" name="recurring" defaultChecked={event.recurring} className="size-4 shrink-0 rounded border-border" />
+        Repete toda semana, sempre neste dia e horário
+      </label>
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground" htmlFor={`${event.id}-edit-description`}>Descrição (opcional)</label>
         <Textarea id={`${event.id}-edit-description`} name="description" defaultValue={event.description ?? ""} rows={2} className="w-full" />
@@ -456,12 +480,19 @@ function AgendaEventRow({ event, coverMedia }: { event: BroadcastAgendaEventReco
     <div className="rounded-panel border border-border bg-muted/40 p-2.5 text-sm">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
+          {event.recurring && (
+            <span className="shrink-0 rounded-full bg-accent/14 px-2 py-0.5 text-[11px] text-muted-foreground">
+              {formatRecurringBadge(event.startAt)}
+            </span>
+          )}
           {event.coverMediaAssetId && (
-            <span className="rounded-full bg-accent/14 px-2 py-0.5 text-[11px] text-muted-foreground">com capa</span>
+            <span className="shrink-0 rounded-full bg-accent/14 px-2 py-0.5 text-[11px] text-muted-foreground">com capa</span>
           )}
           <div className="min-w-0">
             <p className="truncate font-medium text-foreground">{event.title}</p>
-            <p className="truncate text-xs text-muted-foreground">{formatEventDate(event.startAt)}</p>
+            {/* Data mostrada é sempre a PRÓXIMA ocorrência (resolveEventOccurrenceDate é no-op pra
+                evento não-recorrente) — pedido real: "mostre a data da quarta próxima". */}
+            <p className="truncate text-xs text-muted-foreground">{formatEventDate(resolveEventOccurrenceDate(event))}</p>
             {event.description && <p className="truncate text-xs text-muted-foreground">{event.description}</p>}
           </div>
         </div>

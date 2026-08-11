@@ -101,6 +101,9 @@ export type BroadcastAgendaEventRecord = {
   title: string;
   description: string | null;
   startAt: Date;
+  // "Toda semana" — quando true, startAt é a ÂNCORA do padrão (dia da semana + horário), não a
+  // data real do próximo evento (ver shared/weekly-recurrence.ts).
+  recurring: boolean;
   // Imagem de capa opcional (id cru) — sem ela, o card do evento renderiza igual a antes.
   coverMediaAssetId: string | null;
   createdAt: Date;

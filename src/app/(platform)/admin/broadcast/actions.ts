@@ -438,6 +438,7 @@ export async function createAgendaEventAction(_prevState: BroadcastActionState, 
     title: requireString(formData, "title"),
     description: requireString(formData, "description") || undefined,
     startAt,
+    recurring: formData.get("recurring") === "on",
     coverMediaAssetId: requireString(formData, "coverMediaAssetId") || undefined,
   });
   if (!result.success) return { error: result.error.message };
@@ -457,6 +458,7 @@ export async function updateAgendaEventAction(_prevState: BroadcastActionState, 
     title: requireString(formData, "title"),
     description: requireString(formData, "description") || undefined,
     startAt,
+    recurring: formData.get("recurring") === "on",
     coverMediaAssetId: requireString(formData, "coverMediaAssetId") || undefined,
   });
   if (!result.success) return { error: result.error.message };

@@ -57,6 +57,13 @@
       "when": 1786402835397,
       "tag": "0007_white_calypso",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786451193611,
+      "tag": "0008_icy_luke_cage",
+      "breakpoints": true
     }
   ]
 }
