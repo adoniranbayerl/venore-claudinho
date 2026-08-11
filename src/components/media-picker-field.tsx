@@ -245,7 +245,7 @@ export function MediaPickerField({
             <div className="col-span-full flex flex-col items-center gap-2 py-6 text-center">
               <ImageOff className="size-6 text-muted-foreground/56" strokeWidth={1.5} />
               <p className="text-sm text-foreground">Nenhum arquivo enviado ainda</p>
-              <p className="text-xs text-muted-foreground">Use "Enviar agora" acima, ou gerencie a biblioteca completa em Mídia.</p>
+              <p className="text-xs text-muted-foreground">Use &quot;Enviar agora&quot; acima, ou gerencie a biblioteca completa em Mídia.</p>
               <Link
                 href="/admin/media"
                 className="rounded-sm text-xs font-medium text-foreground outline-none ui-motion-base hover:underline focus-visible:ring-2 focus-visible:ring-ring"

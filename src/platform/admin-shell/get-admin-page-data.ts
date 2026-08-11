@@ -1,8 +1,14 @@
+import { cache } from "react";
 import { getCurrentUser } from "@/contexts/auth";
 import { getUserContext } from "@/contexts/rbac";
 import type { AdminPageGate } from "./types";
 
-export async function getAdminPageData(): Promise<AdminPageGate> {
+// cache() memoiza por request: o layout único ((platform)/layout.tsx) chama isso pra montar a
+// sidebar/gate geral, e cada página admin chama de novo pelo próprio loader "de seção" (regra 13
+// — gate de página nunca é dispensado pelo menu já filtrado, docs/venore-docks.md). Sem
+// memoização isso era 2 round-trips de sessão + RBAC por request em vez de 1 — mesmo padrão de
+// resolve-active-theme.ts.
+export const getAdminPageData = cache(async (): Promise<AdminPageGate> => {
   const currentUser = await getCurrentUser();
   if (!currentUser.success || !currentUser.data) {
     return { granted: false, reason: "unauthenticated" };
@@ -29,4 +35,4 @@ export async function getAdminPageData(): Promise<AdminPageGate> {
       permissions: context.data.permissions,
     },
   };
-}
+});

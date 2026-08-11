@@ -46,6 +46,47 @@ valida input → `authorizeActor("rbac.roles.assign")` → chama o `service` (ú
 - `useTheme()` do `next-themes` é a única exceção a "o tema nunca busca dado sozinho": o
   color-mode toggle (`src/components/color-mode-toggle.tsx`) lê/altera tema direto no client.
 
+### 1.1 Rotas de plugin: `app/` é só roteamento, tudo mora em `src/plugins/<nome>/routes/`
+
+Nenhuma página, `action.ts`, componente local de rota ou route handler de um plugin mora em
+`src/app/`. `app/` existe só porque o Next.js exige a estrutura de pastas pra resolver a URL
+(inclusive segmentos dinâmicos como `[id]`/`[token]` e parallel routes `@slot`) — o arquivo dentro
+de `app/` é sempre um shim de reexport de uma linha (duas quando há route segment config, ver
+abaixo), nunca o lugar onde a lógica é escrita:
+
+```tsx
+// src/app/(platform)/admin/broadcast/page.tsx — TODO o arquivo
+export { default } from "@/plugins/broadcast/routes/admin/page";
+```
+
+```ts
+// src/app/api/broadcast/stream/[itemId]/route.ts — TODO o arquivo
+export { GET } from "@/plugins/broadcast/routes/api/stream/route";
+```
+
+O conteúdo real (página, `actions.ts`, componentes locais, handler de API) mora em
+`src/plugins/<nome>/routes/<rota>/`, ao lado do resto do plugin — ver `src/plugins/broadcast/routes/`,
+`src/plugins/donations/routes/`, `src/plugins/enrollment-dashboard/routes/`, `src/plugins/birthdays/routes/`
+e `src/plugins/academy/routes/` como referência.
+
+**Exceção mecânica, não de conteúdo**: se a página/rota original declarar route segment config
+(`export const dynamic`, `revalidate`, `runtime`, etc.), esse export precisa continuar declarado
+*literalmente* no arquivo dentro de `app/` — o Next.js só lê esses valores de export direto no
+arquivo de rota, nunca via re-export:
+
+```ts
+// src/app/api/broadcast/output/[token]/events/route.ts
+export { GET } from "@/plugins/broadcast/routes/api/output-events/route";
+
+// Precisa ficar aqui, direto no arquivo de rota — Next.js não segue re-export pra isso.
+export const dynamic = "force-dynamic";
+```
+
+Parallel routes (`@slotName`) seguem a mesma regra: a pasta `@slotName` continua existindo
+fisicamente dentro de `app/` (não pode ser movida/renomeada, é convenção do Next.js), só o
+conteúdo do `page.tsx` dentro dela vira reexport — ver
+`src/app/(platform)/@sidebarContextual/academy/[courseSlug]/[lessonId]/page.tsx`.
+
 ## 2. Padrões proibidos
 
 **`use case` importando `use case` de outro context:**

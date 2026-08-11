@@ -134,6 +134,44 @@
      bloco base pelo mesmo motivo de --sidebar-width-* acima: não muda entre light/dark. */
   --overlay-foreground: oklch(1 0 0);
 
+  /* Superfície "apresentação" (telão/projetor) — src/plugins/enrollment-dashboard e qualquer view
+     futura do mesmo tipo (uma tela pública, vista de longe, sem sessão). Sempre escura,
+     independente do light/dark do admin — mesmo racional de --overlay-foreground acima: quem
+     está de longe olhando um telão não deveria ver a cor mudar com a preferência de quem logou
+     por último. Por isso só existe no bloco base, nunca redeclarada em .dark. Valores portados
+     (hex → oklch) do protótipo aprovado na sessão que criou o slide de apresentação. */
+  --presentation-ground: oklch(0.162 0.009 168.9);
+  --presentation-surface: oklch(0.192 0.012 167.1);
+  --presentation-card: oklch(0.217 0.013 170.2);
+  --presentation-border: oklch(0.294 0.023 162.9);
+  --presentation-foreground: oklch(0.966 0.008 139.4);
+  --presentation-muted-foreground: oklch(0.704 0.029 167.4);
+  --presentation-faint-foreground: oklch(0.525 0.024 169.9);
+  --presentation-accent: oklch(0.835 0.19 131.4);
+  --presentation-shadow: 0 40px 80px -40px oklch(0 0 0 / 0.6);
+
+  /* status semântico da apresentação — mesmos três papéis de --success/--warning/--destructive
+     acima, mas com valor próprio calibrado pro fundo escuro fixo (--presentation-card), não os
+     tokens que trocam com o tema. */
+  --presentation-success: oklch(0.732 0.151 163.3);
+  --presentation-success-bg: oklch(0.247 0.026 169.9);
+  --presentation-success-border: oklch(0.375 0.053 165);
+
+  --presentation-warning: oklch(0.817 0.14 80.1);
+  --presentation-warning-bg: oklch(0.241 0.023 87.9);
+  --presentation-warning-border: oklch(0.366 0.048 85.9);
+
+  --presentation-critical: oklch(0.686 0.173 28.2);
+  --presentation-critical-bg: oklch(0.222 0.029 30.5);
+  --presentation-critical-border: oklch(0.315 0.056 30.5);
+
+  /* composição (rematrícula × nova matrícula) — família própria (azul/rosa), fora do vocabulário
+     de status acima e de --presentation-accent, validada com scripts/validate_palette.js do skill
+     de dataviz (ΔE normal 24.0, protanopia 13.9 — acima do piso recomendado de 15/8). Nunca
+     reaproveitar pra "bom/ruim": aqui a cor marca só a origem da matrícula, não se está indo bem. */
+  --presentation-renewed: oklch(0.624 0.149 258.9);
+  --presentation-new: oklch(0.618 0.174 354.3);
+
   /* identidade — gradiente de fundo do app e família de tokens do header. Só o que é IDENTIDADE
      deste tema mora aqui à parte do vocabulário shadcn acima; o vocabulário shadcn também só
      existe neste arquivo (é o único tema instalado), mas continua nomeado de forma genérica —
