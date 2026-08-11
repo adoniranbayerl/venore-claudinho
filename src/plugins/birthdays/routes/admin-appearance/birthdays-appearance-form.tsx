@@ -7,7 +7,7 @@ import { useActionToast } from "@/hooks/use-action-toast";
 // birthday-fields.tsx: client component não pode arrastar @/infrastructure/database/client (pg)
 // pelos handlers reexportados no barrel.
 import { BIRTHDAY_APPEARANCE_SETTINGS, type BirthdayAppearanceSettings } from "@/plugins/birthdays/shared/appearance";
-import { updateBirthdaysAppearanceAction, type BirthdaysAppearanceActionState } from "../actions";
+import { updateBirthdaysAppearanceAction, type BirthdaysAppearanceActionState } from "./actions";
 
 const initialState: BirthdaysAppearanceActionState = { error: null };
 

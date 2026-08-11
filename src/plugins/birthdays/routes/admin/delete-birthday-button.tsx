@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { deleteBirthdayAction, type BirthdaysActionState } from "../actions";
+import { deleteBirthdayAction, type BirthdaysActionState } from "./actions";
 
 const initialState: BirthdaysActionState = { error: null };
 

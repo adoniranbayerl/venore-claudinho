@@ -18,13 +18,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 // birthday-fields.tsx: este componente roda no browser e o barrel reexporta handlers que
 // arrastam @/infrastructure/database/client (pg).
 import { MONTH_LABELS } from "@/plugins/birthdays/shared/months";
-import { importBirthdaysCsvAction, previewBirthdaysCsvImportAction } from "../actions";
+import { importBirthdaysCsvAction, previewBirthdaysCsvImportAction } from "./actions";
 import {
   birthdaysCsvImportInitialPreviewState,
   birthdaysCsvImportInitialState,
   type ImportBirthdaysCsvActionState,
   type PreviewBirthdaysCsvImportState,
-} from "../initial-state";
+} from "./initial-state";
 
 export function ImportBirthdaysCsvDialog() {
   const [open, setOpen] = useState(false);

@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { createBirthdayAction, type BirthdaysActionState } from "../actions";
+import { createBirthdayAction, type BirthdaysActionState } from "./actions";
 import { BirthdayFields } from "./birthday-fields";
 
 const initialState: BirthdaysActionState = { error: null };
