@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 // birthdays-appearance-form.tsx: client component não pode arrastar código server-only pelos
 // handlers reexportados no barrel. Aqui é só tipo (apagado em build), mas mantém o mesmo hábito.
 import type { DonationSettings } from "@/plugins/donations/contracts/types";
-import { updateDonationSettingsAction, type DonationsSettingsActionState } from "../actions";
+import { updateDonationSettingsAction, type DonationsSettingsActionState } from "./actions";
 
 const initialState: DonationsSettingsActionState = { error: null };
 
