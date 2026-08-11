@@ -80,6 +80,13 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
   // flex (ver AlertBanner), pra empurrar o layout em vez de sobrepor (pedido explícito: "quando a
   // barra de aviso aparece, ela não deve sobrepor nada, ela deve empurrar").
   const contentLayers = state.layers.filter((layer) => layer.type !== "alert");
+  // A coluna de agenda só fica de fato aberta quando drawerOpen=true E existe alguma agenda com
+  // evento futuro pra mostrar — pedido explícito: "se não houver agenda ativa, feche a agenda no
+  // View". agendaRotation já vem [] tanto quando drawerOpen=false (get-output-state nem resolve)
+  // quanto quando está aberta mas nenhuma agenda tem evento futuro — os dois casos devem fechar a
+  // coluna e devolver a largura pro vídeo, não só o primeiro. Reabre sozinho assim que alguma
+  // agenda ganhar um evento futuro de novo, sem precisar de ação manual.
+  const effectiveDrawerOpen = state.drawerOpen && state.agendaRotation.length > 0;
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-black">
@@ -102,7 +109,7 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
             <LayerRenderer
               key={layer.id}
               layer={layer}
-              drawerOpen={state.drawerOpen}
+              drawerOpen={effectiveDrawerOpen}
               playlistItemsByPlaylistId={state.playlistItemsByPlaylistId}
               resolvedAssetUrlByLayerId={state.resolvedAssetUrlByLayerId}
               regionWeather={state.regionWeather}

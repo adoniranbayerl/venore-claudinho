@@ -397,11 +397,15 @@ function NewsLayer({ articles }: { articles: RegionNewsArticle[] }) {
   return <NewsCardRotator articles={articles} />;
 }
 
-function formatEventDay(startAt: string | Date): { day: string; month: string; time: string } {
+// weekday entra pro card de evento — pedido explícito: "existem eventos que são recorrentes toda
+// semana, vale colocar o dia da semana na view, não apenas a data numérica" (pra "toda quinta"
+// ficar óbvio de bater o olho, sem precisar calcular o dia da semana a partir do número).
+function formatEventDay(startAt: string | Date): { day: string; month: string; weekday: string; time: string } {
   const date = typeof startAt === "string" ? new Date(startAt) : startAt;
   return {
     day: date.toLocaleDateString("pt-BR", { day: "2-digit" }),
     month: date.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
+    weekday: date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""),
     time: date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
   };
 }
@@ -451,9 +455,15 @@ function AgendaLayer({ rotation, brandLogoUrl }: { rotation: AgendaRotationEntry
 
   useTimedAdvance(current ? current.agenda.displaySeconds * 1000 : 0, advanceAgenda, rotation.length > 1, manualTick);
 
-  const backgroundColor = current?.agenda.backgroundColor ?? DEFAULT_AGENDA_BACKGROUND;
+  // LayerRenderer só monta esta layer quando drawerOpen=true, e drawerOpen agora já exige
+  // rotation.length > 0 (ver effectiveDrawerOpen em output-canvas.tsx — "se não houver agenda
+  // ativa, feche a agenda no View") — current nunca é null na prática, mas o guard evita depender
+  // dessa garantia implícita entre arquivos.
+  if (!current) return null;
+
+  const backgroundColor = current.agenda.backgroundColor ?? DEFAULT_AGENDA_BACKGROUND;
   const palette = resolveContrastPalette(backgroundColor);
-  const logoUrl = current?.logoUrl ?? brandLogoUrl;
+  const logoUrl = current.logoUrl ?? brandLogoUrl;
 
   // Clicável quando há mais de uma agenda no rodízio — pedido explícito: "se clicar na Agenda,
   // muda a agenda". onClick direto no container (diferente de PlaylistLayer): aqui não existe
@@ -474,94 +484,97 @@ function AgendaLayer({ rotation, brandLogoUrl }: { rotation: AgendaRotationEntry
       className={`relative flex h-full w-full flex-col overflow-hidden ${rotation.length > 1 ? "cursor-pointer" : ""}`}
       style={{ background: backgroundColor, transition: "background 500ms ease" }}
     >
-      {/* Logo/espaçamento aumentados (feedback direto: "tudo está muito apertado. Brand/logo da
-          agenda está pequena demais") — mesma altura do logo da BrandFooterBar (h-14), pra ficar
-          visível de longe como o resto da tela. */}
+      {/* Logo maior e alinhada à esquerda (pedido explícito) — antes centralizada e do mesmo
+          tamanho da BrandFooterBar (h-14); agora maior que ela de propósito, é o elemento
+          principal desta coluna. */}
       {logoUrl && (
-        <div className="flex justify-center p-6">
+        <div className="flex justify-start p-6 pb-4">
           {/* eslint-disable-next-line @next/next/no-img-element -- logo vem de contexts/media (Blob), domínio arbitrário. */}
           <img
             src={logoUrl}
             alt=""
-            className="h-14 w-auto object-contain"
+            className="h-20 w-auto object-contain"
             style={palette.isLight ? undefined : { filter: "brightness(0) invert(1)" }}
           />
         </div>
       )}
 
       <div className="flex-1 overflow-hidden px-5 pb-5">
-        {!current ? (
-          <div className="flex h-full items-center justify-center text-center text-sm" style={{ color: palette.muted }}>
-            Nenhuma agenda com eventos futuros
-          </div>
-        ) : (
-          <div key={current.agenda.id} className="flex h-full flex-col gap-4" style={{ animation: "broadcast-agenda-fade 500ms ease" }}>
-            <span className="text-sm font-semibold uppercase" style={{ color: palette.muted, letterSpacing: "0.08em" }}>
-              {current.agenda.name}
-            </span>
-            <div className="flex flex-1 flex-col gap-3 overflow-hidden">
-              {current.events.map((event) => {
-                const { day, month, time: eventTime } = formatEventDay(event.startAt);
-                const today = isSameDay(event.startAt);
+        <div key={current.agenda.id} className="flex h-full flex-col gap-4" style={{ animation: "broadcast-agenda-fade 500ms ease" }}>
+          <span className="text-sm font-semibold uppercase" style={{ color: palette.muted, letterSpacing: "0.08em" }}>
+            {current.agenda.name}
+          </span>
+          <div className="flex flex-1 flex-col gap-3 overflow-hidden">
+            {current.events.map((event) => {
+              const { day, month, weekday, time: eventTime } = formatEventDay(event.startAt);
+              const today = isSameDay(event.startAt);
+              // "seg • 14:00" — pedido explícito: eventos recorrentes toda semana ficam óbvios de
+              // bater o olho ("toda seg") sem precisar calcular a partir do número do dia.
+              const weekdayAndTime = `${weekday} • ${eventTime}`;
 
-                // Com capa: banner grande full-width (dá pra ver de longe, pedido explícito —
-                // a primeira versão usava uma miniatura de 40x40, pequena demais) com
-                // título/data sobrepostos num gradiente, não mais o card de texto normal.
-                if (event.coverUrl) {
-                  return (
-                    <div key={event.id} className="relative w-full shrink-0 overflow-hidden rounded-xl" style={{ aspectRatio: "16 / 7" }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element -- cover vem de contexts/media (Blob), domínio arbitrário. */}
-                      <img src={event.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                      <div
-                        className="absolute inset-0"
-                        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.15) 55%, transparent)" }}
-                      />
-                      {today && (
-                        <span
-                          className="absolute right-2.5 top-2.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
-                          style={{ background: "#F4B000", color: "#0F0F0F" }}
-                        >
-                          Hoje
-                        </span>
-                      )}
-                      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
-                        <p className="min-w-0 truncate text-xl font-semibold" style={{ color: "#FFFFFF" }}>{event.title}</p>
-                        <div className="shrink-0 text-right leading-none">
-                          <span className="text-2xl font-bold" style={{ color: "#FFFFFF" }}>{day}</span>
-                          <span className="block text-[10px] uppercase" style={{ color: "rgba(255,255,255,0.75)" }}>{month}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
+              // Com capa: banner grande full-width (dá pra ver de longe, pedido explícito — a
+              // primeira versão usava uma miniatura de 40x40, pequena demais) com título/data
+              // sobrepostos num gradiente, não mais o card de texto normal. Mantém TODA a
+              // informação de data/hora que o card sem capa tem (pedido explícito: "quando há
+              // cover image, mantenha todas as informações de data e hora") — dia da semana +
+              // horário abaixo do título, não só dia/mês no badge.
+              if (event.coverUrl) {
                 return (
-                  <div
-                    key={event.id}
-                    className="flex items-center gap-3.5 rounded-lg p-3.5"
-                    style={{ background: today ? palette.todayBg : palette.subtle }}
-                  >
+                  <div key={event.id} className="relative w-full shrink-0 overflow-hidden rounded-xl" style={{ aspectRatio: "16 / 7" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- cover vem de contexts/media (Blob), domínio arbitrário. */}
+                    <img src={event.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
                     <div
-                      className="flex shrink-0 flex-col items-center justify-center rounded-md px-2.5 py-1.5"
-                      style={{
-                        background: today ? "#F4B000" : palette.subtle,
-                        color: today ? "#0F0F0F" : palette.foreground,
-                        minWidth: "3.25rem",
-                      }}
-                    >
-                      <span className="text-lg font-bold leading-none">{day}</span>
-                      <span className="text-[10px] uppercase leading-none">{month}</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-base font-medium" style={{ color: palette.foreground }}>{event.title}</p>
-                      <p className="text-sm" style={{ color: palette.muted }}>{eventTime}</p>
+                      className="absolute inset-0"
+                      style={{ background: "linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.15) 55%, transparent)" }}
+                    />
+                    {today && (
+                      <span
+                        className="absolute right-2.5 top-2.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
+                        style={{ background: "#F4B000", color: "#0F0F0F" }}
+                      >
+                        Hoje
+                      </span>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-xl font-semibold" style={{ color: "#FFFFFF" }}>{event.title}</p>
+                        <p className="mt-0.5 text-sm capitalize" style={{ color: "rgba(255,255,255,0.75)" }}>{weekdayAndTime}</p>
+                      </div>
+                      <div className="shrink-0 text-right leading-none">
+                        <span className="text-2xl font-bold" style={{ color: "#FFFFFF" }}>{day}</span>
+                        <span className="block text-[10px] uppercase" style={{ color: "rgba(255,255,255,0.75)" }}>{month}</span>
+                      </div>
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              }
+
+              return (
+                <div
+                  key={event.id}
+                  className="flex items-center gap-3.5 rounded-lg p-3.5"
+                  style={{ background: today ? palette.todayBg : palette.subtle }}
+                >
+                  <div
+                    className="flex shrink-0 flex-col items-center justify-center rounded-md px-2.5 py-1.5"
+                    style={{
+                      background: today ? "#F4B000" : palette.subtle,
+                      color: today ? "#0F0F0F" : palette.foreground,
+                      minWidth: "3.25rem",
+                    }}
+                  >
+                    <span className="text-lg font-bold leading-none">{day}</span>
+                    <span className="text-[10px] uppercase leading-none">{month}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-medium" style={{ color: palette.foreground }}>{event.title}</p>
+                    <p className="text-sm capitalize" style={{ color: palette.muted }}>{weekdayAndTime}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        )}
+        </div>
       </div>
 
       {rotation.length > 1 && (
