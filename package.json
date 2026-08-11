@@ -2,6 +2,15 @@
   "name": "venore-docks-1.0.0",
   "version": "0.1.0",
   "private": true,
+  "browserslist": [
+    "chrome >= 53",
+    "and_chr >= 53",
+    "safari >= 10",
+    "ios_saf >= 10",
+    "samsung >= 6.2",
+    "firefox >= 52",
+    "edge >= 15"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
