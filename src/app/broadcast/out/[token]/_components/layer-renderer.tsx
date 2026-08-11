@@ -62,7 +62,12 @@ const NEWS_ARTICLE_ROTATION_MS = 6000;
 // trava pra sempre no item seguinte (sintoma relatado: "a primeira agenda entra, a segunda não
 // alterna mais"). Reagendar de dentro do callback funciona pra qualquer duração/quantidade de
 // itens, sem depender de nenhum valor externo mudar entre ciclos.
-function useTimedAdvance(durationMs: number, onDone: () => void, active = true) {
+//
+// resetKey é opcional — usado pelo avanço manual por clique (pedido explícito: "se clicar na view
+// muda o vídeo, se clicar na agenda muda a agenda"): incrementar o contador reinicia a contagem
+// automática do zero a partir do clique, em vez de deixar o timer automático (que continuaria
+// contando desde o ciclo anterior) disparar de novo logo em seguida e "engolir" um item.
+function useTimedAdvance(durationMs: number, onDone: () => void, active = true, resetKey: number = 0) {
   const onDoneRef = useRef(onDone);
 
   // Ref só é escrita dentro de efeito (nunca durante o render — react-hooks/refs), roda depois de
@@ -87,7 +92,7 @@ function useTimedAdvance(durationMs: number, onDone: () => void, active = true) 
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [durationMs, active]);
+  }, [durationMs, active, resetKey]);
 }
 
 type PlaylistSlide =
@@ -114,6 +119,9 @@ function buildPlaylistSlides(items: PlaylistItemSummary[]): PlaylistSlide[] {
 
 function PlaylistLayer({ items, newsArticles }: { items: PlaylistItemSummary[]; newsArticles: RegionNewsArticle[] }) {
   const [index, setIndex] = useState(0);
+  // Incrementado a cada avanço manual por clique — vira resetKey de useTimedAdvance, reiniciando a
+  // contagem automática a partir do clique (ver comentário na definição do hook).
+  const [manualTick, setManualTick] = useState(0);
   const slides = buildPlaylistSlides(items);
 
   const advance = () => setIndex((previous) => (previous + 1) % slides.length);
@@ -128,6 +136,7 @@ function PlaylistLayer({ items, newsArticles }: { items: PlaylistItemSummary[]; 
     current && current.kind !== "video" ? (isEmptyNewsBlock ? 1000 : current.durationSeconds * 1000) : 0,
     advance,
     current !== null && current.kind !== "video",
+    manualTick,
   );
 
   if (!current) {
@@ -138,35 +147,52 @@ function PlaylistLayer({ items, newsArticles }: { items: PlaylistItemSummary[]; 
     );
   }
 
-  if (current.kind === "video") {
-    // object-contain (não object-cover) — deixa barras pretas (letterbox/pillarbox) quando o
-    // vídeo não bate exatamente com a proporção da área disponível, em vez de cortar (pedido
-    // explícito: "adicione bordas ao vídeo" em vez de redimensionar a barra de marca embaixo, que
-    // era o mecanismo antigo pra "sobrar" a altura certa — ver comentário em BrandFooterBar).
-    return (
+  // object-cover (preenche o quadro, cortando o excesso) — object-contain (letterbox/pillarbox com
+  // barras pretas) foi tentado antes a pedido, mas ficou ruim na prática ("vamos tirar a borda onde
+  // fica o vídeo") — voltou pro comportamento original. O footer não volta a "inflar" por causa
+  // disso: ele é uma barra de altura FIXA no nível do canvas (BrandFooterBar), independente de como
+  // o vídeo/imagem preenche a própria área.
+  const content =
+    current.kind === "video" ? (
       <video
         key={current.key}
-        className="h-full w-full bg-black object-contain"
+        className="h-full w-full object-cover"
         src={`/api/broadcast/stream/${current.itemId}`}
         autoPlay
         muted
         playsInline
         onEnded={advance}
       />
+    ) : current.kind === "image" ? (
+      // fonte é a rota de stream do plugin (arquivo local ou Blob), não um asset estático do bundle.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img key={current.key} src={`/api/broadcast/stream/${current.itemId}`} alt="" className="h-full w-full object-cover" />
+    ) : current.kind === "webpage" ? (
+      <iframe key={current.key} src={current.url} className="h-full w-full border-0" title="Página web da playlist" />
+    ) : (
+      <NewsCardRotator key={current.key} articles={newsArticles} />
     );
-  }
 
-  if (current.kind === "image") {
-    // fonte é a rota de stream do plugin (arquivo local ou Blob), não um asset estático do bundle.
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img key={current.key} src={`/api/broadcast/stream/${current.itemId}`} alt="" className="h-full w-full bg-black object-contain" />;
-  }
-
-  if (current.kind === "webpage") {
-    return <iframe key={current.key} src={current.url} className="h-full w-full border-0" title="Página web da playlist" />;
-  }
-
-  return <NewsCardRotator key={current.key} articles={newsArticles} />;
+  // Clicável quando há mais de um item — pedido explícito: "se clicar na view muda o vídeo". Uma
+  // camada transparente por cima (não onClick direto no <video>/<iframe>) garante o mesmo
+  // comportamento pra qualquer tipo de slide, inclusive "webpage" (um clique dentro de um <iframe>
+  // nunca borbulha pro elemento pai — é outro documento).
+  return (
+    <div className="relative h-full w-full">
+      {content}
+      {slides.length > 1 && (
+        <div
+          role="button"
+          aria-label="Avançar para o próximo item da playlist"
+          onClick={() => {
+            advance();
+            setManualTick((tick) => tick + 1);
+          }}
+          className="absolute inset-0 cursor-pointer"
+        />
+      )}
+    </div>
+  );
 }
 
 // Camada "video" (playlist principal) — antes ficava travada em 16:9 (padding-top percentual) com
@@ -225,13 +251,19 @@ export function BrandFooterBar({
             <div className="mt-1 text-xs font-medium capitalize" style={{ color: palette.muted }}>{date}</div>
           </div>
           {weather && (
+            // UX "premium" — mesmo par tipográfico do horário ao lado (número grande em cima,
+            // rótulo pequeno e discreto embaixo) em vez de só emoji+número soltos, pra ficar
+            // visualmente consistente com o resto da barra.
             <>
               <span aria-hidden="true" className="h-8 w-px shrink-0" style={{ background: palette.subtle }} />
-              <div className="flex items-center gap-2">
-                <span className="text-3xl leading-none">{weather.emoji}</span>
-                <span className="text-2xl leading-none font-bold tabular-nums" style={{ color: palette.foreground }}>
-                  {Math.round(weather.temperatureC)}°
-                </span>
+              <div className="flex items-center gap-3">
+                <span className="text-4xl leading-none">{weather.emoji}</span>
+                <div className="text-left leading-none">
+                  <div className="text-2xl font-bold tabular-nums" style={{ color: palette.foreground }}>
+                    {Math.round(weather.temperatureC)}°
+                  </div>
+                  <div className="mt-1 text-xs font-medium capitalize" style={{ color: palette.muted }}>{weather.conditionLabel}</div>
+                </div>
               </div>
             </>
           )}
@@ -412,21 +444,34 @@ function resolveContrastPalette(backgroundColor: string) {
 // migraram pra barra inferior da camada "video" (MainZoneLayer) — não aparecem mais aqui.
 function AgendaLayer({ rotation, brandLogoUrl }: { rotation: AgendaRotationEntry[]; brandLogoUrl: string | null }) {
   const [index, setIndex] = useState(0);
+  // Mesmo mecanismo de PlaylistLayer — reinicia a contagem automática a partir de um clique manual.
+  const [manualTick, setManualTick] = useState(0);
   const current = rotation.length > 0 ? rotation[index % rotation.length] : null;
+  const advanceAgenda = () => setIndex((previous) => (previous + 1) % rotation.length);
 
-  useTimedAdvance(
-    current ? current.agenda.displaySeconds * 1000 : 0,
-    () => setIndex((previous) => (previous + 1) % rotation.length),
-    rotation.length > 1,
-  );
+  useTimedAdvance(current ? current.agenda.displaySeconds * 1000 : 0, advanceAgenda, rotation.length > 1, manualTick);
 
   const backgroundColor = current?.agenda.backgroundColor ?? DEFAULT_AGENDA_BACKGROUND;
   const palette = resolveContrastPalette(backgroundColor);
   const logoUrl = current?.logoUrl ?? brandLogoUrl;
 
+  // Clicável quando há mais de uma agenda no rodízio — pedido explícito: "se clicar na Agenda,
+  // muda a agenda". onClick direto no container (diferente de PlaylistLayer): aqui não existe
+  // sub-elemento tipo <iframe> que engoliria o clique, então não precisa de uma camada extra por
+  // cima.
   return (
     <div
-      className="relative flex h-full w-full flex-col overflow-hidden"
+      role={rotation.length > 1 ? "button" : undefined}
+      aria-label={rotation.length > 1 ? "Avançar para a próxima agenda" : undefined}
+      onClick={
+        rotation.length > 1
+          ? () => {
+              advanceAgenda();
+              setManualTick((tick) => tick + 1);
+            }
+          : undefined
+      }
+      className={`relative flex h-full w-full flex-col overflow-hidden ${rotation.length > 1 ? "cursor-pointer" : ""}`}
       style={{ background: backgroundColor, transition: "background 500ms ease" }}
     >
       {/* Logo/espaçamento aumentados (feedback direto: "tudo está muito apertado. Brand/logo da
