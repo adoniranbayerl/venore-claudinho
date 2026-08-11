@@ -413,9 +413,9 @@ export function AgendaSection({
   eventCoverMediaById: Record<string, PickableMedia | null>;
   outputs: BroadcastOutputRecord[];
   agendaOutputIdsByAgendaId: Record<string, string[]>;
-  // false na rota enxuta /admin/broadcast/agenda (editor de agenda, sem broadcast.manage) — esconde
-  // criar/apagar/reordenar agenda, o vínculo agenda↔saída e a atribuição de responsáveis, que
-  // continuam ação de quem administra tudo (ver page.tsx vs. agenda/page.tsx).
+  // false pra um ator sem broadcast.manage (só broadcast.agenda.manage — "responsável" por
+  // agendas específicas, ver page.tsx) — esconde criar/apagar/reordenar agenda, o vínculo
+  // agenda↔saída e a atribuição de responsáveis, que continuam ação de quem administra tudo.
   canManageAll?: boolean;
   allUsers?: AssignableUser[];
   agendaEditorUserIdsByAgendaId?: Record<string, string[]>;

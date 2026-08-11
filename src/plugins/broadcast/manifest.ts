@@ -31,6 +31,11 @@ export const broadcastManifest: PluginManifest = {
     { key: "broadcast.outputs.manage", label: "Editar telas atribuídas no Broadcast Studio (sem acesso ao restante)" },
   ],
   settings: Object.values(BROADCAST_SETTINGS).map(({ key, defaultValue }) => ({ key, defaultValue })),
+  // Um único link — pedido explícito: "não separe os links na navegação admin". As três
+  // permissions do plugin levam todas pra /admin/broadcast; a página decide sozinha, a partir da
+  // permission que o ator tem, se mostra o admin completo (4 abas) ou só a(s) aba(s) do que foi
+  // atribuído a ele (ver page.tsx). Chegou a existir uma rota satélite por permission
+  // (/admin/broadcast/agenda, /admin/broadcast/telas) — foram absorvidas nesta mesma página.
   navigation: [
     {
       key: "broadcast.admin",
@@ -41,33 +46,7 @@ export const broadcastManifest: PluginManifest = {
       groupLabel: "Plugins",
       groupOrder: 30,
       order: 30,
-      requiredPermission: "broadcast.manage",
-    },
-    // Rota separada e mais enxuta (só a agenda) — pra quem tem SÓ broadcast.agenda.manage, não
-    // broadcast.manage; quem já vê o item acima (admin completo) não precisa deste também, a aba
-    // "Agenda" do admin completo já cobre o mesmo caso de uso.
-    {
-      key: "broadcast.agenda-editor",
-      label: "Agenda (Broadcast)",
-      href: "/admin/broadcast/agenda",
-      icon: "calendar-days",
-      groupKey: "plugins",
-      groupLabel: "Plugins",
-      groupOrder: 30,
-      order: 31,
-      requiredPermission: "broadcast.agenda.manage",
-    },
-    // Mesmo racional do item acima, pra broadcast.outputs.manage.
-    {
-      key: "broadcast.outputs-editor",
-      label: "Telas (Broadcast)",
-      href: "/admin/broadcast/telas",
-      icon: "tv",
-      groupKey: "plugins",
-      groupLabel: "Plugins",
-      groupOrder: 30,
-      order: 32,
-      requiredPermission: "broadcast.outputs.manage",
+      requiredPermission: ["broadcast.manage", "broadcast.agenda.manage", "broadcast.outputs.manage"],
     },
   ],
 };

@@ -313,8 +313,9 @@ export function OutputsSection({
   outputs: BroadcastOutputRecord[];
   playlists: BroadcastPlaylistRecord[];
   outputPlaylistById: Record<string, string | null>;
-  // false na rota enxuta /admin/broadcast/telas (editor de tela, sem broadcast.manage) — esconde
-  // aviso rápido, criar/apagar tela e a atribuição de responsáveis (ver page.tsx vs. telas/page.tsx).
+  // false pra um ator sem broadcast.manage (só broadcast.outputs.manage — "responsável" por
+  // telas específicas, ver page.tsx) — esconde aviso rápido, criar/apagar tela e a atribuição de
+  // responsáveis.
   canManageAll?: boolean;
   allUsers?: AssignableUser[];
   outputEditorUserIdsByOutputId?: Record<string, string[]>;
