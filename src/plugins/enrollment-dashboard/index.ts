@@ -4,8 +4,7 @@ export { totalEnrollments, goalCompletionRatio, goalStatus } from "./shared/enro
 export { getPresentationAccessHandler as getPresentationAccess } from "./features/get-presentation-access/handler";
 
 export { EnrollmentDashboardView } from "./components/enrollment-dashboard-view";
-export { SchoolPresentationSlide } from "./components/school-presentation-slide";
-export { CollegePresentationSlide } from "./components/college-presentation-slide";
+export { EnrollmentColumnsSlide } from "./components/enrollment-columns-slide";
 export { PresentationCanvas } from "./components/presentation-canvas";
 
 export type { EnrollmentInstitution, EnrollmentProgramMetrics, EnrollmentGoalStatus } from "./contracts/types";

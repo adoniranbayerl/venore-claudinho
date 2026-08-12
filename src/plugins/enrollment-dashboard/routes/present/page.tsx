@@ -2,11 +2,10 @@ import { notFound } from "next/navigation";
 import { getMediaAsset } from "@/contexts/media";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 import {
-  CollegePresentationSlide,
+  EnrollmentColumnsSlide,
   getMockEnrollmentDashboardData,
   getPresentationAccess,
   PresentationCanvas,
-  SchoolPresentationSlide,
 } from "@/plugins/enrollment-dashboard";
 
 // Fora de (platform) de propósito — pedido explícito: uma view "só o dashboard", sem sidebar,
@@ -49,11 +48,10 @@ export default async function EnrollmentDashboardPresentationPage({
       {/* Sem overflow de rolagem de propósito (pedido explícito: nada de scroll, tudo cabe na tela
           como um slide) — h-full/flex força o conteúdo a caber na altura fixa do canvas. */}
       <div className="h-full w-full overflow-hidden px-10 py-8">
-        {institution.programLabel === "Turma" ? (
-          <SchoolPresentationSlide institution={institution} logoUrl={logoUrl} />
-        ) : (
-          <CollegePresentationSlide institution={institution} logoUrl={logoUrl} />
-        )}
+        {/* Mesmo componente pras duas instituições (pedido explícito: "a view da Faculdade deve
+            ter o mesmo layout da view do Colégio") — a diferença de colunas (4 segmentos x 1
+            grupo só) vem inteiramente do dado (program.group), não de um branch aqui. */}
+        <EnrollmentColumnsSlide institution={institution} logoUrl={logoUrl} />
       </div>
     </PresentationCanvas>
   );
