@@ -10,6 +10,8 @@ const dateFormatter = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: 
 // texto), a retenção (rematriculados ÷ total — conta diferente da meta, por isso separada do
 // donut) e o donut (meta + composição). Tudo ancorado no topo (items-start), não centralizado —
 // o donut é mais alto que o bloco de identidade, e um "center" deixava a identidade flutuando.
+// Só tokens shadcn já existentes (foreground/muted-foreground/primary) — sem cor própria de
+// plugin.
 export function InstitutionSlideHeader({
   institution,
   logoUrl,
@@ -26,37 +28,33 @@ export function InstitutionSlideHeader({
   return (
     <header className="flex shrink-0 items-start justify-between gap-5">
       <div className="flex items-start gap-4">
-        <InstitutionLogo
-          url={logoUrl}
-          name={institution.name}
-          className="size-14 border-presentation-border bg-presentation-card text-presentation-muted-foreground"
-        />
+        <InstitutionLogo url={logoUrl} name={institution.name} className="size-14" />
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-presentation-foreground">{institution.name}</h1>
-          <p className="text-sm text-presentation-faint-foreground">{dateFormatter.format(new Date())}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{institution.name}</h1>
+          <p className="text-sm text-muted-foreground/56">{dateFormatter.format(new Date())}</p>
         </div>
       </div>
 
       <div className="flex flex-col items-end gap-2">
         <div className="flex items-center gap-3.5">
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-presentation-muted-foreground">
-            <span className="size-2 shrink-0 rounded-full bg-presentation-renewed" />
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <span className="size-2 shrink-0 rounded-full bg-muted-foreground" />
             Rematrícula
           </span>
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-presentation-muted-foreground">
-            <span className="size-2 shrink-0 rounded-full bg-presentation-new" />
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <span className="size-2 shrink-0 rounded-full bg-primary" />
             Nova matrícula
           </span>
         </div>
 
         <div className="flex items-start gap-6">
           <div className="pt-1.5 text-right">
-            <p className="text-2xl font-extrabold tabular-nums text-presentation-renewed">{Math.round(retention * 100)}%</p>
-            <p className="text-[0.68rem] font-bold tracking-wide text-presentation-faint-foreground uppercase">Retenção</p>
+            <p className="text-2xl font-extrabold tabular-nums text-foreground">{Math.round(retention * 100)}%</p>
+            <p className="text-[0.68rem] font-bold tracking-wide text-muted-foreground/56 uppercase">Retenção</p>
           </div>
           <div className="text-center">
             <EnrollmentDonut goal={totals.goal} renewed={totals.renewed} newEnrollments={totals.newEnrollments} />
-            <p className="mt-1 text-xs font-semibold text-presentation-muted-foreground">{Math.round(ratio * 100)}% da meta</p>
+            <p className="mt-1 text-xs font-semibold text-muted-foreground">{Math.round(ratio * 100)}% da meta</p>
           </div>
         </div>
       </div>

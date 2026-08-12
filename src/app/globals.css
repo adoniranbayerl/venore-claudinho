@@ -89,29 +89,6 @@
 
   --color-overlay-foreground: var(--overlay-foreground);
 
-  /* Superfície de apresentação (telão/projetor) — declarada só no bloco base do tema, ver
-     comentário em src/themes/venore-slime/theme.css. */
-  --color-presentation-ground: var(--presentation-ground);
-  --color-presentation-surface: var(--presentation-surface);
-  --color-presentation-card: var(--presentation-card);
-  --color-presentation-border: var(--presentation-border);
-  --color-presentation-foreground: var(--presentation-foreground);
-  --color-presentation-muted-foreground: var(--presentation-muted-foreground);
-  --color-presentation-faint-foreground: var(--presentation-faint-foreground);
-  --color-presentation-accent: var(--presentation-accent);
-  --color-presentation-success: var(--presentation-success);
-  --color-presentation-success-bg: var(--presentation-success-bg);
-  --color-presentation-success-border: var(--presentation-success-border);
-  --color-presentation-warning: var(--presentation-warning);
-  --color-presentation-warning-bg: var(--presentation-warning-bg);
-  --color-presentation-warning-border: var(--presentation-warning-border);
-  --color-presentation-critical: var(--presentation-critical);
-  --color-presentation-critical-bg: var(--presentation-critical-bg);
-  --color-presentation-critical-border: var(--presentation-critical-border);
-  --color-presentation-renewed: var(--presentation-renewed);
-  --color-presentation-new: var(--presentation-new);
-  --shadow-presentation: var(--presentation-shadow);
-
   --radius-sm: calc(var(--radius) * var(--ui-radius-scale-sm));
   --radius-md: calc(var(--radius) * var(--ui-radius-scale-md));
   --radius-lg: calc(var(--radius) * var(--ui-radius-scale-lg));

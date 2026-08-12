@@ -4,9 +4,10 @@ const STROKE_WIDTH = 13;
 
 // Anel só (sem chart lib) — mesma técnica de stroke-dasharray/dashoffset em dois <circle>
 // sobrepostos que layer-renderer.tsx/course-dashboard-chart-client.tsx já usam pra cor via
-// var(...) em atributo SVG. O preenchimento vai até o ponto da meta (sobra de anel = quanto
-// falta); dentro do preenchido, duas cores marcam rematrícula x nova — mesma leitura da barra do
-// EnrollmentStatusCard, só que em formato de "hero" pro cabeçalho do slide.
+// var(...) em atributo SVG (aqui var(--border)/var(--muted-foreground)/var(--primary), tokens já
+// existentes no tema — plugin não declara cor nova). O preenchimento vai até o ponto da meta
+// (sobra de anel = quanto falta); dentro do preenchido, duas cores marcam rematrícula x nova —
+// mesma leitura da barra do EnrollmentStatusCard, só que em formato de "hero" pro cabeçalho.
 export function EnrollmentDonut({
   goal,
   renewed,
@@ -26,13 +27,13 @@ export function EnrollmentDonut({
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg viewBox="0 0 120 120" className="h-full w-full">
-        <circle cx="60" cy="60" r={RADIUS} fill="none" stroke="var(--color-presentation-border)" strokeWidth={STROKE_WIDTH} />
+        <circle cx="60" cy="60" r={RADIUS} fill="none" stroke="var(--border)" strokeWidth={STROKE_WIDTH} />
         <circle
           cx="60"
           cy="60"
           r={RADIUS}
           fill="none"
-          stroke="var(--color-presentation-renewed)"
+          stroke="var(--muted-foreground)"
           strokeWidth={STROKE_WIDTH}
           strokeLinecap="round"
           strokeDasharray={`${renewedLength} ${CIRCUMFERENCE}`}
@@ -43,7 +44,7 @@ export function EnrollmentDonut({
           cy="60"
           r={RADIUS}
           fill="none"
-          stroke="var(--color-presentation-new)"
+          stroke="var(--primary)"
           strokeWidth={STROKE_WIDTH}
           strokeLinecap="round"
           strokeDasharray={`${newLength} ${CIRCUMFERENCE}`}
@@ -52,8 +53,8 @@ export function EnrollmentDonut({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center leading-none">
-        <span className="text-lg font-extrabold tabular-nums text-presentation-foreground">{total.toLocaleString("pt-BR")}</span>
-        <span className="mt-1 text-[0.6rem] font-semibold text-presentation-faint-foreground">de {goal.toLocaleString("pt-BR")}</span>
+        <span className="text-lg font-extrabold tabular-nums text-foreground">{total.toLocaleString("pt-BR")}</span>
+        <span className="mt-1 text-[0.6rem] font-semibold text-muted-foreground/56">de {goal.toLocaleString("pt-BR")}</span>
       </div>
     </div>
   );

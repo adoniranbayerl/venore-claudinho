@@ -3,30 +3,36 @@ import { cn } from "@/lib/utils";
 import type { EnrollmentGoalStatus, EnrollmentProgramMetrics } from "../contracts/types";
 import { compositionBarWidths, goalStatus, totalEnrollments } from "../shared/enrollment-metrics";
 
+// Só tokens já existentes no tema (AGENTS.md — plugin não pode declarar valor de design novo):
+// status usa success/warning/destructive, já com par -soft/-border pronto pros dois primeiros;
+// destructive não tem -soft/-border próprio, então usa opacidade sobre o token base (mesmo padrão
+// já usado em goal-status-badge.tsx). Composição (rematrícula x nova) reaproveita
+// muted-foreground/primary — não é o par mais contrastante possível, mas é o que o tema já
+// declara; não dá pra inventar --renewed/--new sem tocar em theme.css (fora do escopo do plugin).
 const STATUS_STYLES: Record<
   EnrollmentGoalStatus,
   { icon: LucideIcon; text: string; pill: string; cardBg: string; cardBorder: string }
 > = {
   met: {
     icon: CircleCheckBig,
-    text: "text-presentation-success",
-    pill: "bg-presentation-success/20 text-presentation-success",
-    cardBg: "bg-presentation-success-bg",
-    cardBorder: "border-presentation-success-border",
+    text: "text-success",
+    pill: "bg-success/20 text-success",
+    cardBg: "bg-success-soft",
+    cardBorder: "border-success-border",
   },
   "on-track": {
     icon: Circle,
-    text: "text-presentation-warning",
-    pill: "bg-presentation-warning/20 text-presentation-warning",
-    cardBg: "bg-presentation-warning-bg",
-    cardBorder: "border-presentation-warning-border",
+    text: "text-warning",
+    pill: "bg-warning/20 text-warning",
+    cardBg: "bg-warning-soft",
+    cardBorder: "border-warning-border",
   },
   below: {
     icon: TriangleAlert,
-    text: "text-presentation-critical",
-    pill: "bg-presentation-critical/20 text-presentation-critical",
-    cardBg: "bg-presentation-critical-bg",
-    cardBorder: "border-presentation-critical-border",
+    text: "text-destructive",
+    pill: "bg-destructive/20 text-destructive",
+    cardBg: "bg-destructive/10",
+    cardBorder: "border-destructive/30",
   },
 };
 
@@ -34,7 +40,7 @@ const STATUS_STYLES: Record<
 // tamanho muda (size="lg" quando a instituição tem poucos programas e cada um ganha mais
 // espaço). Cor de status (fundo/número/pill) é uma família; cor de composição (barra/pontinhos)
 // é outra, de propósito — nunca a mesma, senão "de onde veio a matrícula" se confunde com "está
-// indo bem" (ver comentário em theme.css sobre --presentation-renewed/--presentation-new).
+// indo bem".
 export function EnrollmentStatusCard({ program, size = "sm" }: { program: EnrollmentProgramMetrics; size?: "sm" | "lg" }) {
   const status = goalStatus(program);
   const styles = STATUS_STYLES[status];
@@ -54,7 +60,7 @@ export function EnrollmentStatusCard({ program, size = "sm" }: { program: Enroll
       )}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className={cn("truncate font-semibold text-presentation-foreground", isLarge ? "text-lg" : "text-sm")}>{program.label}</span>
+        <span className={cn("truncate font-semibold text-foreground", isLarge ? "text-lg" : "text-sm")}>{program.label}</span>
         <span className={cn("flex shrink-0 items-center gap-1 rounded-full font-bold", styles.pill, isLarge ? "px-2.5 py-1 text-xs" : "px-1.5 py-0.5 text-[0.62rem]")}>
           <Icon className={isLarge ? "size-3.5" : "size-2.5"} />
           {Math.round(ratio * 100)}%
@@ -63,22 +69,22 @@ export function EnrollmentStatusCard({ program, size = "sm" }: { program: Enroll
 
       <div className={cn("flex items-baseline gap-1.5 font-extrabold tabular-nums", styles.text, isLarge ? "text-4xl" : "text-2xl")}>
         {total.toLocaleString("pt-BR")}
-        <span className="text-[0.5em] font-bold tracking-wide text-presentation-muted-foreground uppercase">meta {program.goal.toLocaleString("pt-BR")}</span>
+        <span className="text-[0.5em] font-bold tracking-wide text-muted-foreground uppercase">meta {program.goal.toLocaleString("pt-BR")}</span>
       </div>
 
-      <div className={cn("flex overflow-hidden rounded-full bg-presentation-ground", isLarge ? "h-2" : "h-1.5")}>
-        <div className="h-full bg-presentation-renewed" style={{ width: `${renewedPercent}%` }} />
-        <div className="h-full bg-presentation-new" style={{ width: `${newPercent}%` }} />
+      <div className={cn("flex overflow-hidden rounded-full bg-background", isLarge ? "h-2" : "h-1.5")}>
+        <div className="h-full bg-muted-foreground" style={{ width: `${renewedPercent}%` }} />
+        <div className="h-full bg-primary" style={{ width: `${newPercent}%` }} />
       </div>
 
       <div className={cn("flex items-center gap-2.5 font-bold tabular-nums", isLarge ? "text-sm" : "text-[0.68rem]")}>
-        <span className="flex items-center gap-1 text-presentation-renewed">
-          <span className="size-1.5 shrink-0 rounded-full bg-presentation-renewed" />
+        <span className="flex items-center gap-1 text-muted-foreground">
+          <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground" />
           {program.renewed.toLocaleString("pt-BR")}
           {isLarge && " rematr."}
         </span>
-        <span className="flex items-center gap-1 text-presentation-new">
-          <span className="size-1.5 shrink-0 rounded-full bg-presentation-new" />
+        <span className="flex items-center gap-1 text-primary">
+          <span className="size-1.5 shrink-0 rounded-full bg-primary" />
           {program.newEnrollments.toLocaleString("pt-BR")}
           {isLarge && " novas"}
         </span>
