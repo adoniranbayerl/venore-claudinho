@@ -39,7 +39,7 @@ export function SchoolPresentationSlide({ institution, logoUrl }: { institution:
                 <h2 className="truncate text-base font-extrabold tracking-caps text-presentation-foreground uppercase">{group}</h2>
                 <span className="shrink-0 text-sm font-extrabold tabular-nums text-presentation-renewed">{Math.round(groupRetention * 100)}%</span>
               </div>
-              <div className="flex flex-1 flex-col justify-center">
+              <div className="flex flex-1 flex-col justify-start">
                 {programs.map((program) => (
                   <EnrollmentRowItem key={program.key} program={program} />
                 ))}
