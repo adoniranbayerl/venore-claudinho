@@ -1,6 +1,7 @@
 import type { EnrollmentInstitution, EnrollmentProgramMetrics } from "../contracts/types";
 import { retentionRatio, sumProgramTotals } from "../shared/enrollment-metrics";
 import { InstitutionSlideHeader } from "./institution-slide-header";
+import { EnrollmentSummaryColumn } from "./enrollment-summary-column";
 import { EnrollmentRowItem } from "./enrollment-row-item";
 
 function groupPrograms(
@@ -20,20 +21,24 @@ function groupPrograms(
   return order.map((group) => ({ group, programs: byGroup.get(group) ?? [] }));
 }
 
-// Slide de TV — mesmo layout pras duas instituições (pedido explícito: "a view da Faculdade deve
-// ter o mesmo layout da view do Colégio"), turma/curso em colunas fixas, cada um uma linha de
-// lista (EnrollmentRowItem). Colégio tem "group" em cada program (segmento: Educação Infantil,
-// Fundamental I/II, Médio) e vira 4 colunas; faculdade não tem "group" nenhum, então cai num único
-// grupo (rótulo = programLabel no plural: "Cursos") e vira 1 coluna larga com os 4 cursos.
+// Slide de TV — mesmo layout pras duas instituições, turma/curso em colunas fixas, cada um uma
+// linha de lista (EnrollmentRowItem). A primeira coluna é sempre o resumo geral em anéis
+// (EnrollmentSummaryColumn, pedido explícito: "a coluna dos anéis deve estar ao lado das turmas,
+// como a primeira coluna"), seguida pelas colunas de turma/curso. Colégio tem "group" em cada
+// program (segmento: Educação Infantil, Fundamental I/II, Médio) e vira 4 colunas de turma;
+// faculdade não tem "group" nenhum, cai num único grupo (rótulo = programLabel no plural:
+// "Cursos") e vira 1 coluna larga com os 4 cursos — total de 2 e 5 colunas respectivamente.
 export function EnrollmentColumnsSlide({ institution, logoUrl }: { institution: EnrollmentInstitution; logoUrl: string | null }) {
   const totals = sumProgramTotals(institution.programs);
   const groups = groupPrograms(institution.programs, `${institution.programLabel}s`);
 
   return (
     <div className="flex h-full flex-col gap-8">
-      <InstitutionSlideHeader institution={institution} logoUrl={logoUrl} totals={totals} />
+      <InstitutionSlideHeader institution={institution} logoUrl={logoUrl} />
 
-      <div className="grid min-h-0 flex-1 gap-10" style={{ gridTemplateColumns: `repeat(${groups.length}, minmax(0, 1fr))` }}>
+      <div className="grid min-h-0 flex-1 gap-10" style={{ gridTemplateColumns: `repeat(${groups.length + 1}, minmax(0, 1fr))` }}>
+        <EnrollmentSummaryColumn totals={totals} />
+
         {groups.map(({ group, programs }) => {
           const groupTotals = sumProgramTotals(programs);
           const groupRetention = retentionRatio(groupTotals);
