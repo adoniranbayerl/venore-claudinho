@@ -45,7 +45,7 @@ export function EnrollmentColumnsSlide({ institution, logoUrl }: { institution: 
 
           return (
             <div key={group} className="flex min-h-0 flex-col">
-              <div className="mb-4 border-b-2 border-presentation-border pb-3">
+              <div className="mb-4 min-h-16 border-b-2 border-presentation-border pb-3">
                 <div className="flex items-baseline justify-between gap-2">
                   <h2 className="truncate text-base font-extrabold tracking-caps text-presentation-foreground uppercase">{group}</h2>
                   <span className="shrink-0 text-sm font-extrabold tabular-nums text-presentation-renewed">{Math.round(groupRetention * 100)}% ret.</span>

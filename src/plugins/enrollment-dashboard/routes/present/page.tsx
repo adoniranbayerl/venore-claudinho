@@ -47,7 +47,7 @@ export default async function EnrollmentDashboardPresentationPage({
     <PresentationCanvas>
       {/* Sem overflow de rolagem de propósito (pedido explícito: nada de scroll, tudo cabe na tela
           como um slide) — h-full/flex força o conteúdo a caber na altura fixa do canvas. */}
-      <div className="h-full w-full overflow-hidden px-10 py-8">
+      <div className="h-full w-full overflow-hidden px-4 py-4">
         {/* Mesmo componente pras duas instituições (pedido explícito: "a view da Faculdade deve
             ter o mesmo layout da view do Colégio") — a diferença de colunas (4 segmentos x 1
             grupo só) vem inteiramente do dado (program.group), não de um branch aqui. */}
