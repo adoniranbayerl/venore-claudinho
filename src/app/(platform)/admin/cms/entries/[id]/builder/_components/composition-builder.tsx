@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
-import type { BlockDefinition, Composition } from "@/contexts/cms";
+import type { Block, BlockDefinition, Composition } from "@/contexts/cms";
 import { Button } from "@/components/ui/button";
 import {
   addChild,
@@ -16,12 +16,37 @@ import {
   removeBlock,
   updateBlockData,
 } from "@/platform/page-builder/composition-tree";
+import { blockFieldPanels } from "@/platform/page-builder/block-field-panels";
 import { saveEntryCompositionAction } from "../actions";
 import { BlockFieldsPanel } from "./block-fields-panel";
 import { BlockPaletteDialog } from "./block-palette-dialog";
 import { BlockTree } from "./block-tree";
 
 type PaletteRequest = { mode: "root" } | { mode: "sibling"; anchorId: string } | { mode: "child"; parentId: string; areaKey: string };
+
+// Componente próprio (fora de CompositionBuilder) só pra satisfazer react-hooks/static-components:
+// o lint não aceita escolher dinamicamente qual componente usar como tag JSX dentro do corpo de um
+// componente com hooks, mesmo quando a escolha vem de indexar um Record estável — precisa ser
+// "declarado fora do render" (texto literal da mensagem de erro do lint). blockFieldPanels
+// (platform/page-builder/block-field-panels.ts) só tem entrada pra bloco com painel 100% custom
+// (hoje só academy.notation.sheet); todo o resto cai no BlockFieldsPanel genérico, como sempre.
+function SelectedBlockFieldPanel({
+  block,
+  definition,
+  errorMessage,
+  onChange,
+}: {
+  block: Block;
+  definition: BlockDefinition;
+  errorMessage: string | null;
+  onChange: (data: Record<string, unknown>) => void;
+}) {
+  const CustomPanel = blockFieldPanels[block.key];
+  if (CustomPanel) {
+    return <CustomPanel block={block} definition={definition} errorMessage={errorMessage} onChange={onChange} />;
+  }
+  return <BlockFieldsPanel block={block} definition={definition} errorMessage={errorMessage} onChange={onChange} />;
+}
 
 export function CompositionBuilder({
   entryId,
@@ -176,7 +201,7 @@ export function CompositionBuilder({
 
         <div className="rounded-panel border border-border bg-card ui-panel-padding-roomy">
           {selectedBlock && selectedDefinition ? (
-            <BlockFieldsPanel
+            <SelectedBlockFieldPanel
               block={selectedBlock}
               definition={selectedDefinition}
               errorMessage={saveError?.blockId === selectedBlock.id ? saveError.message : null}

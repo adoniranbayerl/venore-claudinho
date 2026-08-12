@@ -5,6 +5,7 @@ import { enrollCtaBlockDefinition } from "./enroll-cta";
 import { courseProgressBlockDefinition } from "./course-progress";
 import { lessonTrailBlockDefinition } from "./lesson-trail";
 import { courseDashboardChartBlockDefinition } from "./course-dashboard-chart";
+import { notationSheetBlockDefinition } from "./notation-sheet";
 
 export const blockDefinitions: BlockDefinition[] = [
   courseListBlockDefinition,
@@ -13,4 +14,5 @@ export const blockDefinitions: BlockDefinition[] = [
   courseProgressBlockDefinition,
   lessonTrailBlockDefinition,
   courseDashboardChartBlockDefinition,
+  notationSheetBlockDefinition,
 ];

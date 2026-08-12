@@ -2,37 +2,37 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-const CANVAS_WIDTH = 1920;
-const CANVAS_HEIGHT = 1080;
+const REFERENCE_HEIGHT = 1080;
 
-// Canvas de design fixo 16:9 (1920×1080) — pedido explícito: a view pública é pra abrir num
-// telão/projetor como um slide, não navegada como página comum. Escala uniforme (nunca X/Y
-// separado, senão distorce) calculada do viewport real, centralizada, com barra de letterbox
-// quando a tela não é exatamente 16:9 (ex: 16:10, ultrawide). Mesmo racional de design-size-fixo
-// do preview de saída do broadcast (plugins/broadcast/components/admin/outputs-section.tsx,
-// PREVIEW_DESIGN_WIDTH/HEIGHT), só que aqui é a view real, não uma miniatura.
-//
-// bg-presentation-ground — vocabulário oficial "apresentação" do sistema de temas (declarado por
-// todo tema instalado, ver theme.css), sempre a versão escura do tema ativo, independente do
-// light/dark corrente. Não é cor própria do plugin: é o sistema de temas que oficializa esse
-// token, o plugin só consome.
+// Canvas de design com altura de referência fixa (1080) — pedido explícito: a view pública é pra
+// abrir num telão/projetor como um slide, não navegada como página comum, então tudo cabe sem
+// scroll através de escala uniforme (nunca X/Y separado, senão distorce), calculada do viewport
+// real. A LARGURA de design, ao contrário da versão anterior (fixa em 1920, sempre 16:9), é
+// derivada da proporção real do container — então a escala preenche o espaço inteiro sempre,
+// sem barra de letterbox nem corte de conteúdo, em qualquer proporção (16:9 direto num
+// telão/projetor, mas também num retângulo mais estreito quando esta página é embutida como
+// camada "webpage" do Broadcast Studio com a coluna de agenda aberta, que não é 16:9 — pedido
+// explícito: "gostaria que preenchesse todo o espaço da view"). O grid/flex do slide
+// (EnrollmentColumnsSlide) já é proporcional (colunas em fr, sem px fixo), então uma largura de
+// design diferente de 1920 não quebra o layout, só redistribui o mesmo espaço relativo.
 export function PresentationCanvas({ children }: { children: ReactNode }) {
-  const [scale, setScale] = useState(1);
+  const [box, setBox] = useState({ width: 1920, height: REFERENCE_HEIGHT, scale: 1 });
 
   useEffect(() => {
-    function updateScale() {
-      setScale(Math.min(window.innerWidth / CANVAS_WIDTH, window.innerHeight / CANVAS_HEIGHT));
+    function updateBox() {
+      const scale = window.innerHeight / REFERENCE_HEIGHT;
+      setBox({ width: window.innerWidth / scale, height: REFERENCE_HEIGHT, scale });
     }
-    updateScale();
-    window.addEventListener("resize", updateScale);
-    return () => window.removeEventListener("resize", updateScale);
+    updateBox();
+    window.addEventListener("resize", updateBox);
+    return () => window.removeEventListener("resize", updateBox);
   }, []);
 
   return (
     <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-presentation-ground">
       <div
         className="overflow-hidden bg-presentation-ground"
-        style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(${scale})`, transformOrigin: "center center" }}
+        style={{ width: box.width, height: box.height, transform: `scale(${box.scale})`, transformOrigin: "center center" }}
       >
         {children}
       </div>

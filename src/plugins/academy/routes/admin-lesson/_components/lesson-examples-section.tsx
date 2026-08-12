@@ -10,7 +10,7 @@ import { InteractiveNotation } from "@/components/interactive-notation";
 import { EmptyState } from "@/components/empty-state";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { addLessonExampleAction, deleteLessonExampleAction, type LessonActionState } from "../actions";
-import { NotationEditor } from "./notation-editor";
+import { NotationEditor } from "@/plugins/academy/components/notation-editor";
 
 const initialState: LessonActionState = { error: null };
 

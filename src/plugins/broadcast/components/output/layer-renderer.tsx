@@ -722,7 +722,7 @@ function AgendaLayer({
               </span>
             </div>
           </div>
-          <div className="flex flex-1 flex-col gap-2 overflow-hidden">
+          <div className="flex flex-1 flex-col gap-2.5 overflow-hidden">
             {current.events.map((event, eventIndex) => {
               const { day, month, weekday, time: eventTime } = formatEventDay(event.startAt);
               const today = isSameDay(event.startAt);
@@ -767,16 +767,16 @@ function AgendaLayer({
                     />
                     {today && (
                       <span
-                        className="absolute right-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
+                        className="absolute right-2 top-2 rounded-full px-2.5 py-1 text-xs font-bold uppercase"
                         style={{ background: TV_ACCENT_COLOR, color: TV_ACCENT_FOREGROUND }}
                       >
                         Hoje
                       </span>
                     )}
-                    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2.5">
+                    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
                       <div className="min-w-0">
                         <p
-                          className="truncate text-lg font-semibold"
+                          className="truncate text-xl font-semibold"
                           style={{ color: "#FFFFFF", textShadow: "0 1px 6px rgba(0,0,0,0.8)" }}
                         >
                           {event.title}
@@ -785,10 +785,10 @@ function AgendaLayer({
                             card sem capa: pedido explícito "crie recursos para evidenciar melhor
                             a data, dia da semana e hora". */}
                         <span
-                          className="mt-1 inline-flex max-w-full items-center gap-1 truncate rounded-full px-2 py-0.5 text-xs font-semibold capitalize"
+                          className="mt-1.5 inline-flex max-w-full items-center gap-1.5 truncate rounded-full px-2.5 py-1 text-sm font-semibold capitalize"
                           style={{ background: "rgba(255,255,255,0.18)", color: "#FFFFFF", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}
                         >
-                          <Clock className="size-3 shrink-0" aria-hidden />
+                          <Clock className="size-3.5 shrink-0" aria-hidden />
                           <span className="truncate">{weekdayAndTime}</span>
                         </span>
                       </div>
@@ -796,11 +796,11 @@ function AgendaLayer({
                           contraste igual ao do card sem capa, independente do que estiver por
                           trás na foto. */}
                       <div
-                        className="flex shrink-0 flex-col items-center justify-center rounded-md px-2.5 py-1.5 text-center leading-none"
+                        className="flex shrink-0 flex-col items-center justify-center rounded-md px-3 py-2 text-center leading-none"
                         style={{ background: today ? TV_ACCENT_COLOR : "rgba(0,0,0,0.55)", color: today ? TV_ACCENT_FOREGROUND : "#FFFFFF" }}
                       >
-                        <span className="text-2xl font-bold">{day}</span>
-                        <span className="mt-0.5 text-[11px] font-semibold uppercase" style={{ opacity: 0.85 }}>
+                        <span className="text-3xl font-bold">{day}</span>
+                        <span className="mt-0.5 text-xs font-semibold uppercase" style={{ opacity: 0.85 }}>
                           {month}
                         </span>
                       </div>
@@ -819,29 +819,29 @@ function AgendaLayer({
               return (
                 <div
                   key={event.id}
-                  className="flex items-center gap-3 rounded-lg p-2.5"
+                  className="flex items-center gap-3.5 rounded-lg p-3"
                   style={{ background: today ? palette.todayBg : palette.subtle, ...cascadeStyle }}
                 >
                   <div
-                    className="flex shrink-0 flex-col items-center justify-center rounded-md px-2.5 py-1.5"
+                    className="flex shrink-0 flex-col items-center justify-center rounded-md px-3 py-2"
                     style={{
                       background: today ? TV_ACCENT_COLOR : palette.subtle,
                       color: today ? TV_ACCENT_FOREGROUND : palette.foreground,
-                      minWidth: "4.25rem",
+                      minWidth: "4.75rem",
                     }}
                   >
-                    <span className="text-2xl font-bold leading-none">{day}</span>
-                    <span className="mt-0.5 text-xs font-semibold uppercase leading-none" style={{ opacity: 0.85 }}>
+                    <span className="text-3xl font-bold leading-none">{day}</span>
+                    <span className="mt-0.5 text-sm font-semibold uppercase leading-none" style={{ opacity: 0.85 }}>
                       {month}
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-base font-medium" style={{ color: palette.foreground }}>{event.title}</p>
+                    <p className="truncate text-lg font-medium" style={{ color: palette.foreground }}>{event.title}</p>
                     <span
-                      className="mt-1 inline-flex max-w-full items-center gap-1 truncate rounded-full px-2 py-0.5 text-xs font-semibold capitalize"
+                      className="mt-1.5 inline-flex max-w-full items-center gap-1.5 truncate rounded-full px-2.5 py-1 text-sm font-semibold capitalize"
                       style={{ background: TV_ACCENT_COLOR_SOFT, color: TV_ACCENT_COLOR }}
                     >
-                      <Clock className="size-3 shrink-0" aria-hidden />
+                      <Clock className="size-3.5 shrink-0" aria-hidden />
                       <span className="truncate">{weekdayAndTime}</span>
                     </span>
                   </div>

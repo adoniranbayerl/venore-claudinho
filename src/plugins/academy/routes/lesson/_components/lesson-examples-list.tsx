@@ -1,4 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import { InteractiveNotation } from "@/components/interactive-notation";
+import { Button } from "@/components/ui/button";
+import { SingAlongPractice } from "@/plugins/academy/components/sing-along-practice";
 
 export type LessonExampleStepItem = {
   id: string;
@@ -11,28 +16,49 @@ export type LessonExampleStepItem = {
 };
 
 export function LessonExamplesList({ examples }: { examples: LessonExampleStepItem[] }) {
+  const [openPracticeId, setOpenPracticeId] = useState<string | null>(null);
+
   return (
     <ul className="space-y-4">
-      {examples.map((example) => (
-        <li key={example.id} className="rounded-md border border-border px-3.5 py-3">
-          <p className="text-sm font-medium text-foreground">{example.title}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{example.captionText}</p>
-          <div className="mt-2 space-y-2">
-            {example.notationData && (
-              <InteractiveNotation abc={example.notationData} className="overflow-x-auto rounded-md bg-card p-2" />
-            )}
-            {example.audioUrl && <audio controls src={example.audioUrl} className="h-8 w-full" />}
-            {example.sheetUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={example.sheetUrl}
-                alt={example.sheetFilename ?? example.title}
-                className="max-h-56 rounded-md border border-border"
-              />
-            )}
-          </div>
-        </li>
-      ))}
+      {examples.map((example) => {
+        const isPracticing = openPracticeId === example.id;
+        return (
+          <li key={example.id} className="rounded-md border border-border px-3.5 py-3">
+            <p className="text-sm font-medium text-foreground">{example.title}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{example.captionText}</p>
+            <div className="mt-2 space-y-2">
+              {example.notationData && (
+                <>
+                  {!isPracticing && (
+                    <InteractiveNotation
+                      abc={example.notationData}
+                      className="overflow-x-auto rounded-md bg-card p-2"
+                    />
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setOpenPracticeId(isPracticing ? null : example.id)}
+                  >
+                    {isPracticing ? "Fechar" : "Cantar junto"}
+                  </Button>
+                  {isPracticing && <SingAlongPractice abc={example.notationData} />}
+                </>
+              )}
+              {example.audioUrl && <audio controls src={example.audioUrl} className="h-8 w-full" />}
+              {example.sheetUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={example.sheetUrl}
+                  alt={example.sheetFilename ?? example.title}
+                  className="max-h-56 rounded-md border border-border"
+                />
+              )}
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }
