@@ -12,6 +12,7 @@ import {
 import type { Block, EntryRecord } from "@/contexts/cms";
 import { getCurrentUser } from "@/contexts/auth";
 import { getMediaAsset } from "@/contexts/media";
+import { resolvePublicPluginRoute } from "@/platform/plugin-routing/resolve-public-route";
 import { BlockRenderer } from "@/components/page-builder/block-renderer";
 import { EmptyState } from "@/components/empty-state";
 
@@ -147,8 +148,28 @@ async function renderCategoryBlogroll(category: { id: string; name: string; slug
   );
 }
 
-export default async function CatchAllPage({ params }: { params: Promise<{ slug: string[] }> }) {
+export default async function CatchAllPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string[] }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { slug: segments } = await params;
+
+  // Rota de plugin (ex: /academy, /birthdays, /donations) sempre tem precedência sobre conteúdo
+  // do CMS de mesmo slug — mesmo comportamento de quando cada uma era uma pasta literal em
+  // app/(platform)/**, reservando o slug antes do catch-all existir sequer. Plugin registrado mas
+  // desativado, ou sub-rota que não casou, vira notFound() direto — nunca cai pra procurar
+  // conteúdo do CMS com aquele slug (ver comentário em resolve-public-route.ts).
+  const pluginRoute = await resolvePublicPluginRoute(segments);
+  if (pluginRoute.kind === "reserved-not-found") {
+    notFound();
+  }
+  if (pluginRoute.kind === "matched") {
+    const { Component, params: routeParams } = pluginRoute;
+    return <Component params={Promise.resolve(routeParams)} searchParams={searchParams} />;
+  }
 
   // "home" só existe canonicamente em "/" — sem isso, /home renderizaria o mesmo conteúdo da
   // home num segundo endereço (docs/venore-docks.md — decisão de rota pública desta sessão).

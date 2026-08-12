@@ -46,46 +46,68 @@ valida input → `authorizeActor("rbac.roles.assign")` → chama o `service` (ú
 - `useTheme()` do `next-themes` é a única exceção a "o tema nunca busca dado sozinho": o
   color-mode toggle (`src/components/color-mode-toggle.tsx`) lê/altera tema direto no client.
 
-### 1.1 Rotas de plugin: `app/` é só roteamento, tudo mora em `src/plugins/<nome>/routes/`
+### 1.1 Rotas de plugin: `app/` não conhece nomes de plugin, tudo mora em `src/plugins/<nome>/routes/`
 
 Nenhuma página, `action.ts`, componente local de rota ou route handler de um plugin mora em
-`src/app/`. `app/` existe só porque o Next.js exige a estrutura de pastas pra resolver a URL
-(inclusive segmentos dinâmicos como `[id]`/`[token]` e parallel routes `@slot`) — o arquivo dentro
-de `app/` é sempre um shim de reexport de uma linha (duas quando há route segment config, ver
-abaixo), nunca o lugar onde a lógica é escrita:
+`src/app/`, **e nenhuma pasta de `app/` é nomeada por plugin** (nada de `admin/broadcast/`,
+`api/birthdays/`, `academy/` — nem como shim). A fronteira de um plugin é só o plugin; `app/` só
+sabe que "existe um mecanismo genérico de despacho", nunca "existe o plugin X".
 
-```tsx
-// src/app/(platform)/admin/broadcast/page.tsx — TODO o arquivo
-export { default } from "@/plugins/broadcast/routes/admin/page";
-```
+Isso é resolvido por **duas peças por plugin** dentro de `src/plugins/<nome>/routes/`:
 
-```ts
-// src/app/api/broadcast/stream/[itemId]/route.ts — TODO o arquivo
-export { GET } from "@/plugins/broadcast/routes/api/stream/route";
-```
+1. Os componentes/handlers de verdade (`admin/page.tsx`, `admin-course/page.tsx`,
+   `api/course-export/route.ts` etc.) — mesma ideia de sempre, só que agora nunca têm um shim
+   correspondente em `app/`.
+2. `route-table.ts`, exportando `PluginRouteTable` (`src/platform/plugin-routing/types.ts`): um
+   array `{ pattern, Component }`/`{ pattern, handlers }` por área (`admin`, `public`, `api`).
+   `pattern` usa `:nome` pra segmento capturado (`"courses/:id/enrolled/:studentActorId"`) — o
+   nome do `:param` precisa bater com a prop que o componente espera. `admin`/`api` são
+   relativos (sem o nome do plugin, ex: `"messages"`); `public` é **caminho completo** (ex:
+   `"academy/:courseSlug"`, `"cursos"`) porque um plugin pode ter mais de um "namespace" de URL
+   pública (academy é dono de `academy/**` e também de `cursos`, uma vitrine separada). Os dois
+   helpers `asPluginPage`/`asPluginApiHandler` só existem pra contornar variância de parâmetro do
+   TypeScript (o componente real tem um `params` mais específico que `PluginRouteParams`); quem
+   escreve a `route-table.ts` é responsável por garantir que o `:param` do pattern bate com o que
+   o componente espera — não tem checagem automática disso.
 
-O conteúdo real (página, `actions.ts`, componentes locais, handler de API) mora em
-`src/plugins/<nome>/routes/<rota>/`, ao lado do resto do plugin — ver `src/plugins/broadcast/routes/`,
-`src/plugins/donations/routes/`, `src/plugins/enrollment-dashboard/routes/`, `src/plugins/birthdays/routes/`
-e `src/plugins/academy/routes/` como referência.
+`src/plugins/route-registry.ts` agrega a `route-table` de cada plugin instalado (mesmo padrão de
+import estático de `src/plugins/registry.ts` pros manifestos). Três pontos em `app/` — só três, pra
+sempre, independente de quantos plugins existirem ou quantas rotas cada um ganhar depois —
+consultam esse registro:
 
-**Exceção mecânica, não de conteúdo**: se a página/rota original declarar route segment config
-(`export const dynamic`, `revalidate`, `runtime`, etc.), esse export precisa continuar declarado
-*literalmente* no arquivo dentro de `app/` — o Next.js só lê esses valores de export direto no
-arquivo de rota, nunca via re-export:
+- `src/app/(platform)/admin/[plugin]/[[...slug]]/page.tsx` — toda rota admin de plugin.
+- `src/app/api/[plugin]/[[...slug]]/route.ts` — toda rota de API de plugin.
+- `src/app/(platform)/[...slug]/page.tsx` (o catch-all do CMS) — antes de tentar resolver
+  categoria/entry, chama `resolvePublicPluginRoute(segments)`; um caminho que casa com um plugin
+  ativo renderiza o plugin, um que casa com um plugin **desativado** vira `notFound()` direto
+  (nunca cai pra procurar conteúdo do CMS no mesmo slug — o caminho fica "reservado" pro plugin
+  mesmo desligado), e um caminho que não casa com nenhum plugin segue o fluxo normal do CMS. Isso
+  é deliberado: o catch-all do CMS é o único dispatcher de rota pública do sistema, plugin incluso
+  — não existe mais uma pasta reservando o slug antes dele.
 
-```ts
-// src/app/api/broadcast/output/[token]/events/route.ts
-export { GET } from "@/plugins/broadcast/routes/api/output-events/route";
+Adicionar uma rota nova a um plugin existente (admin, pública ou API) é só uma entrada nova em
+`route-table.ts` — nunca toca `app/`.
 
-// Precisa ficar aqui, direto no arquivo de rota — Next.js não segue re-export pra isso.
-export const dynamic = "force-dynamic";
-```
+**Exceções físicas, não de conteúdo** (continuam existindo por exigência do Next.js, não por
+preguiça de generalizar):
+- Route segment config (`export const dynamic`, `revalidate`, `runtime`) só é lido de export
+  direto no arquivo de rota dentro de `app/`, nunca via import — por isso os três pontos de
+  despacho acima declaram `export const dynamic = "force-dynamic"` (ou equivalente) neles mesmos,
+  cobrindo toda rota que passa por ali, em vez de cada plugin precisar declarar o seu.
+- Parallel route (`@slotName`, ex: `@sidebarContextual`) continua exigindo um arquivo físico na
+  posição exata da URL que ela cobre — `src/app/(platform)/@sidebarContextual/academy/[courseSlug]/[lessonId]/page.tsx`
+  não generaliza pro registro (é uma única posição, não uma família de rotas), mas seu conteúdo
+  já é só um reexport de `@/plugins/academy/routes/lesson-sidebar/page`.
+- Uma página pública que precisa escapar por completo da shell do `(platform)` (sem
+  header/nav/footer — ex: `src/app/broadcast/out/[token]/`, saída de TV;
+  `src/app/enrollment-dashboard/present/[token]/[institutionKey]/`, telão de apresentação) não
+  pode entrar no catch-all do CMS, porque herdar `(platform)/layout.tsx` é automático assim que a
+  rota mora sob esse route group — continuam como pasta própria fora de `(platform)/`, sempre um
+  shim de reexport.
 
-Parallel routes (`@slotName`) seguem a mesma regra: a pasta `@slotName` continua existindo
-fisicamente dentro de `app/` (não pode ser movida/renomeada, é convenção do Next.js), só o
-conteúdo do `page.tsx` dentro dela vira reexport — ver
-`src/app/(platform)/@sidebarContextual/academy/[courseSlug]/[lessonId]/page.tsx`.
+**Um plugin pode ser dono de uma URL que não começa pelo seu próprio nome** (ex: `academy` é dono
+de `/cursos`, não só de `/academy/**`) — a `route-table.ts` "public" registra o caminho completo,
+não um prefixo implícito.
 
 ## 2. Padrões proibidos
 
