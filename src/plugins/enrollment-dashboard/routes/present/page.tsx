@@ -48,7 +48,7 @@ export default async function EnrollmentDashboardPresentationPage({
     <PresentationCanvas>
       {/* Sem overflow de rolagem de propósito (pedido explícito: nada de scroll, tudo cabe na tela
           como um slide) — h-full/flex força o conteúdo a caber na altura fixa do canvas. */}
-      <div className="h-full w-full overflow-hidden px-12 py-9">
+      <div className="h-full w-full overflow-hidden px-10 py-8">
         {institution.programLabel === "Turma" ? (
           <SchoolPresentationSlide institution={institution} logoUrl={logoUrl} />
         ) : (

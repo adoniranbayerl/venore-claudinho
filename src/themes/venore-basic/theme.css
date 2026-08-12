@@ -117,6 +117,11 @@
   --presentation-warning-border: color-mix(in oklch, var(--presentation-warning) 34%, var(--presentation-border));
 
   --presentation-destructive: oklch(0.6 0.2 25);
+
+  /* presentation-renewed/new — versão invariante de chart-6/chart-7 pra composição dentro da
+     superfície de apresentação (sempre escura); ver racional completo em venore-slime/theme.css. */
+  --presentation-renewed: oklch(0.62 0.17 210);
+  --presentation-new: oklch(0.64 0.18 350);
 }
 
 [data-theme="venore-basic"].dark {

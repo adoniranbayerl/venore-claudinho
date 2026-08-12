@@ -154,6 +154,11 @@
 
   --presentation-destructive: oklch(0.65 0.22 25);
 
+  /* presentation-renewed/new — versão invariante de chart-6/chart-7 pra composição dentro da
+     superfície de apresentação (sempre escura); ver racional completo em venore-slime/theme.css. */
+  --presentation-renewed: oklch(0.62 0.17 235);
+  --presentation-new: oklch(0.64 0.18 350);
+
   /* identidade — degradê mínimo: um único linear-gradient vertical, quase imperceptível (não os
      múltiplos radiais do Nightcity, nem zero como o Kazordoon) */
   --app-bg-start: oklch(0.99 0.004 250);

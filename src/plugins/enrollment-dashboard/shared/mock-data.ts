@@ -17,7 +17,9 @@ const ERASTO_GAERTNER_TURMAS = [
   { key: "f1-2", label: "2º ano", group: "Fundamental I", goal: 30, renewed: 20, newEnrollments: 8 },
   { key: "f1-3", label: "3º ano", group: "Fundamental I", goal: 32, renewed: 22, newEnrollments: 9 },
   { key: "f1-4", label: "4º ano", group: "Fundamental I", goal: 32, renewed: 24, newEnrollments: 6 },
-  { key: "f1-5", label: "5º ano", group: "Fundamental I", goal: 34, renewed: 26, newEnrollments: 7 },
+  // 5º ano passou da meta de propósito — precisa de pelo menos uma turma em "meta atingida" pra
+  // provar o destaque visual desse estado (selo + fundo), não só o estado "em andamento".
+  { key: "f1-5", label: "5º ano", group: "Fundamental I", goal: 34, renewed: 27, newEnrollments: 8 },
   { key: "f2-6", label: "6º ano", group: "Fundamental II", goal: 36, renewed: 28, newEnrollments: 6 },
   { key: "f2-7", label: "7º ano", group: "Fundamental II", goal: 36, renewed: 27, newEnrollments: 5 },
   { key: "f2-8", label: "8º ano", group: "Fundamental II", goal: 34, renewed: 25, newEnrollments: 4 },

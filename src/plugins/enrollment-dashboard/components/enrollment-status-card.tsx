@@ -1,13 +1,12 @@
-import { Circle, CircleCheckBig, TriangleAlert, type LucideIcon } from "lucide-react";
+import { CircleCheckBig, Circle, TriangleAlert, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnrollmentGoalStatus, EnrollmentProgramMetrics } from "../contracts/types";
 import { compositionBarWidths, goalStatus, totalEnrollments } from "../shared/enrollment-metrics";
 
-// Vocabulário oficial "apresentação" do sistema de temas (src/themes/*/theme.css) — status usa
-// success/warning/destructive (com par -soft/-border já pronto pros dois primeiros; destructive
-// usa opacidade sobre o token base, mesmo padrão do resto do app pra esse caso). Composição
-// (rematrícula x nova) usa chart-6/chart-7, o par categórico dedicado — cor de status nunca se
-// mistura com cor de composição, são famílias diferentes de propósito.
+// Vocabulário oficial "apresentação" do sistema de temas — status usa success/warning/destructive
+// (par -soft/-border pronto pros dois primeiros; destructive usa opacidade sobre o token base).
+// "met" ganha um tratamento à parte (ver JSX abaixo: selo "Meta atingida" em vez de só a pct) —
+// pedido explícito de destacar quem bateu a meta, não só colorir o número.
 const STATUS_STYLES: Record<
   EnrollmentGoalStatus,
   { icon: LucideIcon; label: string; text: string; pill: string; cardBg: string; cardBorder: string }
@@ -16,7 +15,7 @@ const STATUS_STYLES: Record<
     icon: CircleCheckBig,
     label: "Meta atingida",
     text: "text-presentation-success",
-    pill: "bg-presentation-success/20 text-presentation-success",
+    pill: "bg-presentation-success/25 text-presentation-success",
     cardBg: "bg-presentation-success-soft",
     cardBorder: "border-presentation-success-border",
   },
@@ -38,70 +37,47 @@ const STATUS_STYLES: Record<
   },
 };
 
-// Cartão único de meta — mesmo componente pra turma (colégio) e curso (faculdade), só o tamanho
-// muda (size="lg" quando a instituição tem poucos programas e cada um ganha mais espaço). Cada
-// número tem um rótulo explícito acima (TOTAL/META) — antes a meta era só um sufixo pequeno e
-// apagado, difícil de identificar o que era o quê.
-export function EnrollmentStatusCard({ program, size = "sm" }: { program: EnrollmentProgramMetrics; size?: "sm" | "lg" }) {
+// Cartão grande — usado só pela faculdade (poucos cursos, cada um com bastante espaço). Nome em
+// cima, resto embaixo; quem bate a meta ganha um selo "Meta atingida" em vez da pct simples, pra
+// se destacar de verdade na fileira.
+export function EnrollmentStatusCard({ program }: { program: EnrollmentProgramMetrics }) {
   const status = goalStatus(program);
   const styles = STATUS_STYLES[status];
   const Icon = styles.icon;
   const total = totalEnrollments(program);
   const ratio = program.goal > 0 ? total / program.goal : 0;
   const { renewedPercent, newPercent } = compositionBarWidths(program);
-  const isLarge = size === "lg";
+  const met = status === "met";
 
   return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-col rounded-2xl border",
-        styles.cardBg,
-        styles.cardBorder,
-        isLarge ? "gap-4 p-6" : "gap-2 p-3.5",
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className={cn("truncate font-bold text-presentation-foreground", isLarge ? "text-2xl" : "text-sm")}>{program.label}</span>
-        <span
-          className={cn("flex shrink-0 items-center gap-1.5 rounded-full font-bold", styles.pill, isLarge ? "px-3 py-1.5 text-sm" : "px-1.5 py-0.5 text-[0.68rem]")}
-        >
-          <Icon className={isLarge ? "size-4" : "size-2.5"} />
-          {Math.round(ratio * 100)}%
+    <div className={cn("flex min-w-0 flex-col gap-5 rounded-2xl border p-7", styles.cardBg, styles.cardBorder)}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="truncate text-2xl font-bold text-presentation-foreground">{program.label}</span>
+        <span className={cn("flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold", styles.pill)}>
+          <Icon className="size-4" />
+          {met ? styles.label : `${Math.round(ratio * 100)}%`}
         </span>
       </div>
 
-      <div className="flex items-end gap-5">
-        <div>
-          <p className={cn("font-bold tracking-wide text-presentation-muted-foreground uppercase", isLarge ? "text-xs" : "text-[0.6rem]")}>Total</p>
-          <p className={cn("font-extrabold tabular-nums leading-none", styles.text, isLarge ? "text-6xl" : "text-2xl")}>
-            {total.toLocaleString("pt-BR")}
-          </p>
-        </div>
-        <div>
-          <p className={cn("font-bold tracking-wide text-presentation-muted-foreground uppercase", isLarge ? "text-xs" : "text-[0.6rem]")}>Meta</p>
-          <p className={cn("font-bold tabular-nums leading-none text-presentation-foreground/70", isLarge ? "text-3xl" : "text-base")}>
-            {program.goal.toLocaleString("pt-BR")}
-          </p>
-        </div>
+      <div className="flex items-baseline gap-3">
+        <span className={cn("text-7xl font-extrabold tabular-nums leading-none", styles.text)}>{total.toLocaleString("pt-BR")}</span>
+        <span className="text-2xl font-semibold text-presentation-muted-foreground">de {program.goal.toLocaleString("pt-BR")}</span>
       </div>
 
-      <div>
-        <div className={cn("flex overflow-hidden rounded-full bg-presentation-ground", isLarge ? "h-2.5" : "h-1.5")}>
-          <div className="h-full bg-chart-6" style={{ width: `${renewedPercent}%` }} />
-          <div className="h-full bg-chart-7" style={{ width: `${newPercent}%` }} />
-        </div>
-        <div className={cn("mt-1.5 flex items-center gap-3 font-bold tabular-nums", isLarge ? "text-base" : "text-xs")}>
-          <span className="flex items-center gap-1.5 text-chart-6">
-            <span className="size-2 shrink-0 rounded-full bg-chart-6" />
-            {program.renewed.toLocaleString("pt-BR")}
-            {isLarge && " rematrículas"}
-          </span>
-          <span className="flex items-center gap-1.5 text-chart-7">
-            <span className="size-2 shrink-0 rounded-full bg-chart-7" />
-            {program.newEnrollments.toLocaleString("pt-BR")}
-            {isLarge && " novas"}
-          </span>
-        </div>
+      <div className="flex overflow-hidden rounded-full bg-presentation-ground" style={{ height: 14 }}>
+        <div className="h-full bg-presentation-renewed" style={{ width: `${renewedPercent}%` }} />
+        <div className="h-full bg-presentation-new" style={{ width: `${newPercent}%` }} />
+      </div>
+
+      <div className="flex items-center gap-6 text-base font-bold tabular-nums">
+        <span className="flex items-center gap-2 text-presentation-renewed">
+          <span className="size-2.5 shrink-0 rounded-full bg-presentation-renewed" />
+          {program.renewed.toLocaleString("pt-BR")} rematrículas
+        </span>
+        <span className="flex items-center gap-2 text-presentation-new">
+          <span className="size-2.5 shrink-0 rounded-full bg-presentation-new" />
+          {program.newEnrollments.toLocaleString("pt-BR")} novas
+        </span>
       </div>
     </div>
   );

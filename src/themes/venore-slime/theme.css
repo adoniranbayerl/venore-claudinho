@@ -167,6 +167,14 @@
 
   --presentation-destructive: oklch(0.64 0.226 26);
 
+  /* presentation-renewed/new — versão invariante de chart-6/chart-7 pra composição dentro da
+     superfície de apresentação (sempre escura). chart-6/chart-7 puros trocam de valor com
+     light/dark (pensados pra gráfico normal dentro do app); reaproveitá-los direto na apresentação
+     faria a cor mudar com o tema do admin mesmo a superfície sendo sempre escura — por isso
+     precisam do próprio par fixo aqui, com o mesmo valor do bloco .dark abaixo. */
+  --presentation-renewed: oklch(0.62 0.17 235);
+  --presentation-new: oklch(0.64 0.18 350);
+
   /* identidade — gradiente de fundo do app e família de tokens do header. Só o que é IDENTIDADE
      deste tema mora aqui à parte do vocabulário shadcn acima; o vocabulário shadcn também só
      existe neste arquivo (é o único tema instalado), mas continua nomeado de forma genérica —

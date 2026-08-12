@@ -116,6 +116,8 @@
   --color-presentation-warning-soft: var(--presentation-warning-soft);
   --color-presentation-warning-border: var(--presentation-warning-border);
   --color-presentation-destructive: var(--presentation-destructive);
+  --color-presentation-renewed: var(--presentation-renewed);
+  --color-presentation-new: var(--presentation-new);
 
   --radius-sm: calc(var(--radius) * var(--ui-radius-scale-sm));
   --radius-md: calc(var(--radius) * var(--ui-radius-scale-md));
