@@ -26,11 +26,12 @@ function groupPrograms(
 // Fundamental I/II, Médio) e vira 4 colunas; faculdade não tem "group" nenhum, então cai num único
 // grupo (rótulo = programLabel no plural: "Cursos") e vira 1 coluna larga com os 4 cursos.
 export function EnrollmentColumnsSlide({ institution, logoUrl }: { institution: EnrollmentInstitution; logoUrl: string | null }) {
+  const totals = sumProgramTotals(institution.programs);
   const groups = groupPrograms(institution.programs, `${institution.programLabel}s`);
 
   return (
     <div className="flex h-full flex-col gap-8">
-      <InstitutionSlideHeader institution={institution} logoUrl={logoUrl} />
+      <InstitutionSlideHeader institution={institution} logoUrl={logoUrl} totals={totals} />
 
       <div className="grid min-h-0 flex-1 gap-10" style={{ gridTemplateColumns: `repeat(${groups.length}, minmax(0, 1fr))` }}>
         {groups.map(({ group, programs }) => {
