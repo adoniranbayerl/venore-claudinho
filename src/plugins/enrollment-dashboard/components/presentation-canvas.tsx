@@ -12,9 +12,10 @@ const CANVAS_HEIGHT = 1080;
 // do preview de saída do broadcast (plugins/broadcast/components/admin/outputs-section.tsx,
 // PREVIEW_DESIGN_WIDTH/HEIGHT), só que aqui é a view real, não uma miniatura.
 //
-// bg-background (token já existente do tema, não um valor de cor novo do plugin) — a view segue
-// o light/dark do site como qualquer outra tela; um fundo sempre-escuro exigiria um token próprio
-// em theme.css, fora do que um plugin pode tocar.
+// bg-presentation-ground — vocabulário oficial "apresentação" do sistema de temas (declarado por
+// todo tema instalado, ver theme.css), sempre a versão escura do tema ativo, independente do
+// light/dark corrente. Não é cor própria do plugin: é o sistema de temas que oficializa esse
+// token, o plugin só consome.
 export function PresentationCanvas({ children }: { children: ReactNode }) {
   const [scale, setScale] = useState(1);
 
@@ -28,9 +29,9 @@ export function PresentationCanvas({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-background">
+    <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-presentation-ground">
       <div
-        className="overflow-hidden bg-background"
+        className="overflow-hidden bg-presentation-ground"
         style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, transform: `scale(${scale})`, transformOrigin: "center center" }}
       >
         {children}

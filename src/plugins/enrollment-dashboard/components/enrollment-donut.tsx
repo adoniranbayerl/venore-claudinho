@@ -4,15 +4,15 @@ const STROKE_WIDTH = 13;
 
 // Anel só (sem chart lib) — mesma técnica de stroke-dasharray/dashoffset em dois <circle>
 // sobrepostos que layer-renderer.tsx/course-dashboard-chart-client.tsx já usam pra cor via
-// var(...) em atributo SVG (aqui var(--border)/var(--muted-foreground)/var(--primary), tokens já
-// existentes no tema — plugin não declara cor nova). O preenchimento vai até o ponto da meta
-// (sobra de anel = quanto falta); dentro do preenchido, duas cores marcam rematrícula x nova —
-// mesma leitura da barra do EnrollmentStatusCard, só que em formato de "hero" pro cabeçalho.
+// var(...) em atributo SVG. Track e texto usam o vocabulário oficial "apresentação" (superfície
+// sempre escura, ver theme.css); o preenchimento usa chart-6/chart-7 (mesmo par categórico dos
+// cartões) — vai até o ponto da meta (sobra de anel = quanto falta), dividido em rematrícula x
+// nova dentro do que já foi preenchido.
 export function EnrollmentDonut({
   goal,
   renewed,
   newEnrollments,
-  size = 104,
+  size = 128,
 }: {
   goal: number;
   renewed: number;
@@ -27,13 +27,13 @@ export function EnrollmentDonut({
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg viewBox="0 0 120 120" className="h-full w-full">
-        <circle cx="60" cy="60" r={RADIUS} fill="none" stroke="var(--border)" strokeWidth={STROKE_WIDTH} />
+        <circle cx="60" cy="60" r={RADIUS} fill="none" stroke="var(--presentation-border)" strokeWidth={STROKE_WIDTH} />
         <circle
           cx="60"
           cy="60"
           r={RADIUS}
           fill="none"
-          stroke="var(--muted-foreground)"
+          stroke="var(--chart-6)"
           strokeWidth={STROKE_WIDTH}
           strokeLinecap="round"
           strokeDasharray={`${renewedLength} ${CIRCUMFERENCE}`}
@@ -44,7 +44,7 @@ export function EnrollmentDonut({
           cy="60"
           r={RADIUS}
           fill="none"
-          stroke="var(--primary)"
+          stroke="var(--chart-7)"
           strokeWidth={STROKE_WIDTH}
           strokeLinecap="round"
           strokeDasharray={`${newLength} ${CIRCUMFERENCE}`}
@@ -53,8 +53,8 @@ export function EnrollmentDonut({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center leading-none">
-        <span className="text-lg font-extrabold tabular-nums text-foreground">{total.toLocaleString("pt-BR")}</span>
-        <span className="mt-1 text-[0.6rem] font-semibold text-muted-foreground/56">de {goal.toLocaleString("pt-BR")}</span>
+        <span className="text-2xl font-extrabold tabular-nums text-presentation-foreground">{total.toLocaleString("pt-BR")}</span>
+        <span className="mt-1 text-xs font-semibold text-presentation-muted-foreground">de {goal.toLocaleString("pt-BR")}</span>
       </div>
     </div>
   );

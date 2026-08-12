@@ -126,6 +126,29 @@
   --chart-4: var(--warning);
   --chart-5: var(--destructive);
 
+  /* chart-6/chart-7 — par categórico oficial do sistema de temas (todo tema instalado declara os
+     dois, ver src/themes/venore-slime/theme.css para o racional completo). */
+  --chart-6: oklch(0.58 0.16 235);
+  --chart-7: oklch(0.6 0.18 350);
+
+  /* Superfície "apresentação" — telão/projetor/slide, sempre a versão escura deste tema,
+     independente do light/dark ativo (ver racional completo em venore-slime/theme.css). */
+  --presentation-ground: oklch(0.18 0.018 225.7);
+  --presentation-card: oklch(0.225 0.02 225.7);
+  --presentation-border: oklch(0.34 0.024 225.7);
+  --presentation-foreground: oklch(0.973 0.01 219.6);
+  --presentation-muted-foreground: oklch(0.84 0.02 219.6);
+
+  --presentation-success: oklch(0.84 0.075 142.4);
+  --presentation-success-soft: color-mix(in oklch, var(--presentation-success) 16%, var(--presentation-card));
+  --presentation-success-border: color-mix(in oklch, var(--presentation-success) 34%, var(--presentation-border));
+
+  --presentation-warning: oklch(0.88 0.11 65);
+  --presentation-warning-soft: color-mix(in oklch, var(--presentation-warning) 16%, var(--presentation-card));
+  --presentation-warning-border: color-mix(in oklch, var(--presentation-warning) 34%, var(--presentation-border));
+
+  --presentation-destructive: oklch(0.695 0.16 38.3);
+
   /* identidade — gradiente de fundo do app e família de tokens do header. Só o que é IDENTIDADE
      deste tema mora aqui à parte do vocabulário shadcn acima; o vocabulário shadcn também só
      existe neste arquivo (é o único tema instalado), mas continua nomeado de forma genérica —
@@ -210,6 +233,8 @@
   --chart-3: var(--muted-foreground);
   --chart-4: var(--warning);
   --chart-5: var(--destructive);
+  --chart-6: oklch(0.62 0.17 235);
+  --chart-7: oklch(0.64 0.18 350);
 
   --app-bg-start: oklch(0.18 0.018 225.7);
   --app-bg-mid: oklch(0.22 0.024 225.7);

@@ -82,12 +82,40 @@
   --color-warning-soft: var(--warning-soft);
   --color-warning-border: var(--warning-border);
 
+  /* charts — chart-1..5 já existiam (reaproveitam o vocabulário shadcn acima, direto via var() em
+     Recharts, nunca precisaram de classe Tailwind). chart-6/chart-7 são o par categórico oficial
+     novo (ver src/themes/venore-slime/theme.css) — mapeados aqui pra também dar bg-chart-6/
+     text-chart-7 etc. quando o consumo é className, não só atributo SVG. */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-success-soft: var(--success-soft);
   --color-success-border: var(--success-border);
 
   --color-overlay-foreground: var(--overlay-foreground);
+
+  /* Superfície "apresentação" (telão/projetor/slide) — vocabulário oficial do sistema de temas,
+     declarado por todo tema instalado (theme.css de cada um em src/themes/), sempre a versão
+     escura do tema ativo, independente do light/dark corrente. */
+  --color-presentation-ground: var(--presentation-ground);
+  --color-presentation-card: var(--presentation-card);
+  --color-presentation-border: var(--presentation-border);
+  --color-presentation-foreground: var(--presentation-foreground);
+  --color-presentation-muted-foreground: var(--presentation-muted-foreground);
+  --color-presentation-success: var(--presentation-success);
+  --color-presentation-success-soft: var(--presentation-success-soft);
+  --color-presentation-success-border: var(--presentation-success-border);
+  --color-presentation-warning: var(--presentation-warning);
+  --color-presentation-warning-soft: var(--presentation-warning-soft);
+  --color-presentation-warning-border: var(--presentation-warning-border);
+  --color-presentation-destructive: var(--presentation-destructive);
 
   --radius-sm: calc(var(--radius) * var(--ui-radius-scale-sm));
   --radius-md: calc(var(--radius) * var(--ui-radius-scale-md));

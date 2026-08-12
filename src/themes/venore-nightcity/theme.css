@@ -118,6 +118,38 @@
   --success-soft: color-mix(in oklch, var(--success) 12%, var(--card));
   --success-border: color-mix(in oklch, var(--success) 30%, var(--border));
 
+  /* charts — reaproveita o vocabulário shadcn já declarado acima; faltava neste tema. chart-6/
+     chart-7 são o par categórico oficial (todo tema declara os dois) — hue 250/300 (azul/violeta),
+     não o padrão 235/350 dos outros temas: primary(196)/accent(340) já ocupam quase a roda toda
+     neste tema saturado, então o par default colidia (falhava scripts/validate_palette.js do
+     skill de dataviz). 250/300 com bastante distância de luminosidade entre os dois é o par que
+     passou validado (ΔE normal 16.9, protanopia 8.4). */
+  --chart-1: var(--primary);
+  --chart-2: var(--accent);
+  --chart-3: var(--muted-foreground);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
+  --chart-6: oklch(0.45 0.15 250);
+  --chart-7: oklch(0.56 0.13 300);
+
+  /* Superfície "apresentação" — telão/projetor/slide, sempre a versão escura deste tema,
+     independente do light/dark ativo (ver racional completo em venore-slime/theme.css). */
+  --presentation-ground: oklch(0.07 0.02 278);
+  --presentation-card: oklch(0.1 0.024 280);
+  --presentation-border: oklch(0.22 0.04 280);
+  --presentation-foreground: oklch(0.95 0.018 200);
+  --presentation-muted-foreground: oklch(0.68 0.03 255);
+
+  --presentation-success: oklch(0.75 0.19 150);
+  --presentation-success-soft: color-mix(in oklch, var(--presentation-success) 16%, var(--presentation-card));
+  --presentation-success-border: color-mix(in oklch, var(--presentation-success) 34%, var(--presentation-border));
+
+  --presentation-warning: oklch(0.84 0.18 97);
+  --presentation-warning-soft: color-mix(in oklch, var(--presentation-warning) 16%, var(--presentation-card));
+  --presentation-warning-border: color-mix(in oklch, var(--presentation-warning) 34%, var(--presentation-border));
+
+  --presentation-destructive: oklch(0.63 0.25 25);
+
   /* identidade — céu poluído com neon já ligado por cima, discreto contra o céu ainda claro */
   --app-bg-start: oklch(0.95 0.008 255);
   --app-bg-mid: oklch(0.91 0.014 262);
@@ -196,6 +228,14 @@
   --success-foreground: oklch(0.15 0.02 150);
   --success-soft: color-mix(in oklch, var(--success) 16%, var(--card));
   --success-border: color-mix(in oklch, var(--success) 34%, var(--border));
+
+  --chart-1: var(--primary);
+  --chart-2: var(--accent);
+  --chart-3: var(--muted-foreground);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
+  --chart-6: oklch(0.52 0.15 250);
+  --chart-7: oklch(0.66 0.13 300);
 
   /* identidade — skyline sob luz neon plena: glow ciano e magenta cortando o azul-violeta quase
      preto do céu poluído, ainda mais escuro que a primeira versão (pedido desta sessão) */

@@ -36,9 +36,9 @@ export function SchoolPresentationSlide({ institution, logoUrl }: { institution:
 
           return (
             <div key={group} className="flex min-h-0 flex-col">
-              <div className="mb-2.5 flex items-baseline justify-between gap-2">
-                <h2 className="truncate text-xs font-bold tracking-caps text-foreground uppercase">{group}</h2>
-                <span className="shrink-0 text-xs font-bold tabular-nums text-muted-foreground">{Math.round(groupRetention * 100)}% ret.</span>
+              <div className="mb-3 flex items-baseline justify-between gap-2">
+                <h2 className="truncate text-sm font-bold tracking-caps text-presentation-foreground uppercase">{group}</h2>
+                <span className="shrink-0 text-sm font-bold tabular-nums text-chart-6">{Math.round(groupRetention * 100)}% ret.</span>
               </div>
               <div className="flex flex-1 flex-col justify-start gap-2">
                 {programs.map((program) => (

@@ -125,6 +125,35 @@
   --success-soft: color-mix(in oklch, var(--success) 12%, var(--card));
   --success-border: color-mix(in oklch, var(--success) 30%, var(--border));
 
+  /* charts — reaproveita o vocabulário shadcn já declarado acima (mesmo padrão de venore-slime/
+     theme.css); faltava neste tema. chart-6/chart-7 são o par categórico oficial (todo tema
+     declara os dois). */
+  --chart-1: var(--primary);
+  --chart-2: var(--accent);
+  --chart-3: var(--muted-foreground);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
+  --chart-6: oklch(0.58 0.16 235);
+  --chart-7: oklch(0.6 0.18 350);
+
+  /* Superfície "apresentação" — telão/projetor/slide, sempre a versão escura deste tema,
+     independente do light/dark ativo (ver racional completo em venore-slime/theme.css). */
+  --presentation-ground: oklch(0.19 0.014 258);
+  --presentation-card: oklch(0.23 0.016 258);
+  --presentation-border: oklch(0.33 0.02 258);
+  --presentation-foreground: oklch(0.94 0.008 250);
+  --presentation-muted-foreground: oklch(0.68 0.014 255);
+
+  --presentation-success: oklch(0.7 0.15 155);
+  --presentation-success-soft: color-mix(in oklch, var(--presentation-success) 16%, var(--presentation-card));
+  --presentation-success-border: color-mix(in oklch, var(--presentation-success) 34%, var(--presentation-border));
+
+  --presentation-warning: oklch(0.78 0.16 68);
+  --presentation-warning-soft: color-mix(in oklch, var(--presentation-warning) 16%, var(--presentation-card));
+  --presentation-warning-border: color-mix(in oklch, var(--presentation-warning) 34%, var(--presentation-border));
+
+  --presentation-destructive: oklch(0.65 0.22 25);
+
   /* identidade — degradê mínimo: um único linear-gradient vertical, quase imperceptível (não os
      múltiplos radiais do Nightcity, nem zero como o Kazordoon) */
   --app-bg-start: oklch(0.99 0.004 250);
@@ -178,6 +207,14 @@
   --success-foreground: oklch(0.15 0.02 155);
   --success-soft: color-mix(in oklch, var(--success) 16%, var(--card));
   --success-border: color-mix(in oklch, var(--success) 34%, var(--border));
+
+  --chart-1: var(--primary);
+  --chart-2: var(--accent);
+  --chart-3: var(--muted-foreground);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
+  --chart-6: oklch(0.62 0.17 235);
+  --chart-7: oklch(0.64 0.18 350);
 
   --app-bg-start: oklch(0.185 0.014 258);
   --app-bg-end: oklch(0.165 0.014 260);

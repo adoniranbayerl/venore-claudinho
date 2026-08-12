@@ -79,6 +79,44 @@
   --warning-foreground: oklch(0.98 0 0);
   --warning-soft: color-mix(in oklch, var(--warning) 12%, var(--card));
   --warning-border: color-mix(in oklch, var(--warning) 30%, var(--border));
+
+  /* sucesso — faltava neste tema (prova mínima da Fase 2, nunca precisou até agora); completando
+     o vocabulário porque o sistema de temas agora oficializa charts/apresentação, que dependem
+     dele. Verde simples, mesmo padrão cinza-com-um-hue dos outros tokens de status daqui. */
+  --success: oklch(0.5 0.15 150);
+  --success-foreground: oklch(0.98 0 0);
+  --success-soft: color-mix(in oklch, var(--success) 12%, var(--card));
+  --success-border: color-mix(in oklch, var(--success) 30%, var(--border));
+
+  /* charts — reaproveita o vocabulário shadcn já declarado acima (mesmo padrão de venore-slime/
+     theme.css). chart-6/chart-7 são o par categórico oficial (todo tema declara os dois); hue 210
+     (não 235, o padrão dos outros temas) porque --primary já é azul (260) neste tema — precisa de
+     mais distância pra não ler como "outro azul de marca". */
+  --chart-1: var(--primary);
+  --chart-2: var(--accent);
+  --chart-3: var(--muted-foreground);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
+  --chart-6: oklch(0.58 0.16 210);
+  --chart-7: oklch(0.6 0.18 350);
+
+  /* Superfície "apresentação" — telão/projetor/slide, sempre a versão escura deste tema,
+     independente do light/dark ativo (ver racional completo em venore-slime/theme.css). */
+  --presentation-ground: oklch(0.16 0 0);
+  --presentation-card: oklch(0.21 0 0);
+  --presentation-border: oklch(0.4 0 0);
+  --presentation-foreground: oklch(0.95 0 0);
+  --presentation-muted-foreground: oklch(0.72 0 0);
+
+  --presentation-success: oklch(0.72 0.13 150);
+  --presentation-success-soft: color-mix(in oklch, var(--presentation-success) 16%, var(--presentation-card));
+  --presentation-success-border: color-mix(in oklch, var(--presentation-success) 34%, var(--presentation-border));
+
+  --presentation-warning: oklch(0.75 0.13 65);
+  --presentation-warning-soft: color-mix(in oklch, var(--presentation-warning) 16%, var(--presentation-card));
+  --presentation-warning-border: color-mix(in oklch, var(--presentation-warning) 34%, var(--presentation-border));
+
+  --presentation-destructive: oklch(0.6 0.2 25);
 }
 
 [data-theme="venore-basic"].dark {
@@ -114,4 +152,17 @@
   --warning-foreground: oklch(0.16 0 0);
   --warning-soft: color-mix(in oklch, var(--warning) 16%, var(--card));
   --warning-border: color-mix(in oklch, var(--warning) 34%, var(--border));
+
+  --success: oklch(0.72 0.13 150);
+  --success-foreground: oklch(0.16 0 0);
+  --success-soft: color-mix(in oklch, var(--success) 16%, var(--card));
+  --success-border: color-mix(in oklch, var(--success) 34%, var(--border));
+
+  --chart-1: var(--primary);
+  --chart-2: var(--accent);
+  --chart-3: var(--muted-foreground);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
+  --chart-6: oklch(0.62 0.17 210);
+  --chart-7: oklch(0.64 0.18 350);
 }

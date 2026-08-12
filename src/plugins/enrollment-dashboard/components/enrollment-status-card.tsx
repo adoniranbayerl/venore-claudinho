@@ -3,44 +3,45 @@ import { cn } from "@/lib/utils";
 import type { EnrollmentGoalStatus, EnrollmentProgramMetrics } from "../contracts/types";
 import { compositionBarWidths, goalStatus, totalEnrollments } from "../shared/enrollment-metrics";
 
-// Só tokens já existentes no tema (AGENTS.md — plugin não pode declarar valor de design novo):
-// status usa success/warning/destructive, já com par -soft/-border pronto pros dois primeiros;
-// destructive não tem -soft/-border próprio, então usa opacidade sobre o token base (mesmo padrão
-// já usado em goal-status-badge.tsx). Composição (rematrícula x nova) reaproveita
-// muted-foreground/primary — não é o par mais contrastante possível, mas é o que o tema já
-// declara; não dá pra inventar --renewed/--new sem tocar em theme.css (fora do escopo do plugin).
+// Vocabulário oficial "apresentação" do sistema de temas (src/themes/*/theme.css) — status usa
+// success/warning/destructive (com par -soft/-border já pronto pros dois primeiros; destructive
+// usa opacidade sobre o token base, mesmo padrão do resto do app pra esse caso). Composição
+// (rematrícula x nova) usa chart-6/chart-7, o par categórico dedicado — cor de status nunca se
+// mistura com cor de composição, são famílias diferentes de propósito.
 const STATUS_STYLES: Record<
   EnrollmentGoalStatus,
-  { icon: LucideIcon; text: string; pill: string; cardBg: string; cardBorder: string }
+  { icon: LucideIcon; label: string; text: string; pill: string; cardBg: string; cardBorder: string }
 > = {
   met: {
     icon: CircleCheckBig,
-    text: "text-success",
-    pill: "bg-success/20 text-success",
-    cardBg: "bg-success-soft",
-    cardBorder: "border-success-border",
+    label: "Meta atingida",
+    text: "text-presentation-success",
+    pill: "bg-presentation-success/20 text-presentation-success",
+    cardBg: "bg-presentation-success-soft",
+    cardBorder: "border-presentation-success-border",
   },
   "on-track": {
     icon: Circle,
-    text: "text-warning",
-    pill: "bg-warning/20 text-warning",
-    cardBg: "bg-warning-soft",
-    cardBorder: "border-warning-border",
+    label: "Em andamento",
+    text: "text-presentation-warning",
+    pill: "bg-presentation-warning/20 text-presentation-warning",
+    cardBg: "bg-presentation-warning-soft",
+    cardBorder: "border-presentation-warning-border",
   },
   below: {
     icon: TriangleAlert,
-    text: "text-destructive",
-    pill: "bg-destructive/20 text-destructive",
-    cardBg: "bg-destructive/10",
-    cardBorder: "border-destructive/30",
+    label: "Abaixo da meta",
+    text: "text-presentation-destructive",
+    pill: "bg-presentation-destructive/20 text-presentation-destructive",
+    cardBg: "bg-presentation-destructive/10",
+    cardBorder: "border-presentation-destructive/30",
   },
 };
 
-// Cartão único de meta — mesmo componente pra turma (colégio) e curso (faculdade), só o
-// tamanho muda (size="lg" quando a instituição tem poucos programas e cada um ganha mais
-// espaço). Cor de status (fundo/número/pill) é uma família; cor de composição (barra/pontinhos)
-// é outra, de propósito — nunca a mesma, senão "de onde veio a matrícula" se confunde com "está
-// indo bem".
+// Cartão único de meta — mesmo componente pra turma (colégio) e curso (faculdade), só o tamanho
+// muda (size="lg" quando a instituição tem poucos programas e cada um ganha mais espaço). Cada
+// número tem um rótulo explícito acima (TOTAL/META) — antes a meta era só um sufixo pequeno e
+// apagado, difícil de identificar o que era o quê.
 export function EnrollmentStatusCard({ program, size = "sm" }: { program: EnrollmentProgramMetrics; size?: "sm" | "lg" }) {
   const status = goalStatus(program);
   const styles = STATUS_STYLES[status];
@@ -53,41 +54,54 @@ export function EnrollmentStatusCard({ program, size = "sm" }: { program: Enroll
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-col rounded-xl border",
+        "flex min-w-0 flex-col rounded-2xl border",
         styles.cardBg,
         styles.cardBorder,
-        isLarge ? "gap-3 p-5" : "gap-1.5 p-3",
+        isLarge ? "gap-4 p-6" : "gap-2 p-3.5",
       )}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className={cn("truncate font-semibold text-foreground", isLarge ? "text-lg" : "text-sm")}>{program.label}</span>
-        <span className={cn("flex shrink-0 items-center gap-1 rounded-full font-bold", styles.pill, isLarge ? "px-2.5 py-1 text-xs" : "px-1.5 py-0.5 text-[0.62rem]")}>
-          <Icon className={isLarge ? "size-3.5" : "size-2.5"} />
+        <span className={cn("truncate font-bold text-presentation-foreground", isLarge ? "text-2xl" : "text-sm")}>{program.label}</span>
+        <span
+          className={cn("flex shrink-0 items-center gap-1.5 rounded-full font-bold", styles.pill, isLarge ? "px-3 py-1.5 text-sm" : "px-1.5 py-0.5 text-[0.68rem]")}
+        >
+          <Icon className={isLarge ? "size-4" : "size-2.5"} />
           {Math.round(ratio * 100)}%
         </span>
       </div>
 
-      <div className={cn("flex items-baseline gap-1.5 font-extrabold tabular-nums", styles.text, isLarge ? "text-4xl" : "text-2xl")}>
-        {total.toLocaleString("pt-BR")}
-        <span className="text-[0.5em] font-bold tracking-wide text-muted-foreground uppercase">meta {program.goal.toLocaleString("pt-BR")}</span>
+      <div className="flex items-end gap-5">
+        <div>
+          <p className={cn("font-bold tracking-wide text-presentation-muted-foreground uppercase", isLarge ? "text-xs" : "text-[0.6rem]")}>Total</p>
+          <p className={cn("font-extrabold tabular-nums leading-none", styles.text, isLarge ? "text-6xl" : "text-2xl")}>
+            {total.toLocaleString("pt-BR")}
+          </p>
+        </div>
+        <div>
+          <p className={cn("font-bold tracking-wide text-presentation-muted-foreground uppercase", isLarge ? "text-xs" : "text-[0.6rem]")}>Meta</p>
+          <p className={cn("font-bold tabular-nums leading-none text-presentation-foreground/70", isLarge ? "text-3xl" : "text-base")}>
+            {program.goal.toLocaleString("pt-BR")}
+          </p>
+        </div>
       </div>
 
-      <div className={cn("flex overflow-hidden rounded-full bg-background", isLarge ? "h-2" : "h-1.5")}>
-        <div className="h-full bg-muted-foreground" style={{ width: `${renewedPercent}%` }} />
-        <div className="h-full bg-primary" style={{ width: `${newPercent}%` }} />
-      </div>
-
-      <div className={cn("flex items-center gap-2.5 font-bold tabular-nums", isLarge ? "text-sm" : "text-[0.68rem]")}>
-        <span className="flex items-center gap-1 text-muted-foreground">
-          <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground" />
-          {program.renewed.toLocaleString("pt-BR")}
-          {isLarge && " rematr."}
-        </span>
-        <span className="flex items-center gap-1 text-primary">
-          <span className="size-1.5 shrink-0 rounded-full bg-primary" />
-          {program.newEnrollments.toLocaleString("pt-BR")}
-          {isLarge && " novas"}
-        </span>
+      <div>
+        <div className={cn("flex overflow-hidden rounded-full bg-presentation-ground", isLarge ? "h-2.5" : "h-1.5")}>
+          <div className="h-full bg-chart-6" style={{ width: `${renewedPercent}%` }} />
+          <div className="h-full bg-chart-7" style={{ width: `${newPercent}%` }} />
+        </div>
+        <div className={cn("mt-1.5 flex items-center gap-3 font-bold tabular-nums", isLarge ? "text-base" : "text-xs")}>
+          <span className="flex items-center gap-1.5 text-chart-6">
+            <span className="size-2 shrink-0 rounded-full bg-chart-6" />
+            {program.renewed.toLocaleString("pt-BR")}
+            {isLarge && " rematrículas"}
+          </span>
+          <span className="flex items-center gap-1.5 text-chart-7">
+            <span className="size-2 shrink-0 rounded-full bg-chart-7" />
+            {program.newEnrollments.toLocaleString("pt-BR")}
+            {isLarge && " novas"}
+          </span>
+        </div>
       </div>
     </div>
   );

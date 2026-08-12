@@ -128,11 +128,44 @@
   --chart-4: var(--warning);
   --chart-5: var(--destructive);
 
+  /* chart-6/chart-7 — par categórico dedicado (ex: rematrícula x nova matrícula no dashboard de
+     matrícula), pra quando duas séries precisam de cor própria SEM significar status (bom/ruim) —
+     chart-1..5 acima reaproveitam primary/accent/warning/destructive, que já carregam esse
+     significado. Azul/rosa, fora da família verde (primary/success) e âmbar/vermelho (warning/
+     destructive) deste tema. Validado com scripts/validate_palette.js do skill de dataviz (ΔE
+     normal 26.0, protanopia 11.1 — acima do piso de 15/8) contra a superfície clara. Par oficial
+     do sistema de temas: todo tema instalado declara os dois (ver theme.css de cada um em
+     src/themes/). */
+  --chart-6: oklch(0.58 0.16 235);
+  --chart-7: oklch(0.6 0.18 350);
+
   /* Texto/borda sobre imagem com véu escuro (ex: capa de curso na Academy) — precisa continuar
      claro em cima de uma foto arbitrária independente do tema estar em light ou dark, por isso
      um token à parte em vez de reaproveitar --foreground (que inverte entre os dois). Só no
      bloco base pelo mesmo motivo de --sidebar-width-* acima: não muda entre light/dark. */
   --overlay-foreground: oklch(1 0 0);
+
+  /* Superfície "apresentação" — telão/projetor/slide (ex: dashboard de matrícula em modo TV),
+     sempre a versão escura do tema, independente do light/dark ativo no admin — mesmo racional de
+     --overlay-foreground acima, por isso só existe no bloco base. Não é dark mode "congelado" por
+     acaso: um plugin/tela nunca declara isso sozinho (AGENTS.md — plugin não toca em tema), é o
+     próprio sistema de temas que oficializa esse vocabulário e o inclui em todo tema instalado.
+     Valores = os mesmos tokens de --background/--card/etc já usados no bloco .dark abaixo. */
+  --presentation-ground: oklch(0.145 0.016 162);
+  --presentation-card: oklch(0.182 0.015 171);
+  --presentation-border: oklch(0.318 0.029 161);
+  --presentation-foreground: oklch(0.95 0.017 146);
+  --presentation-muted-foreground: oklch(0.82 0.03 154);
+
+  --presentation-success: oklch(0.72 0.18 155);
+  --presentation-success-soft: color-mix(in oklch, var(--presentation-success) 16%, var(--presentation-card));
+  --presentation-success-border: color-mix(in oklch, var(--presentation-success) 34%, var(--presentation-border));
+
+  --presentation-warning: oklch(0.78 0.16 65);
+  --presentation-warning-soft: color-mix(in oklch, var(--presentation-warning) 16%, var(--presentation-card));
+  --presentation-warning-border: color-mix(in oklch, var(--presentation-warning) 34%, var(--presentation-border));
+
+  --presentation-destructive: oklch(0.64 0.226 26);
 
   /* identidade — gradiente de fundo do app e família de tokens do header. Só o que é IDENTIDADE
      deste tema mora aqui à parte do vocabulário shadcn acima; o vocabulário shadcn também só
@@ -218,6 +251,8 @@
   --chart-3: var(--muted-foreground);
   --chart-4: var(--warning);
   --chart-5: var(--destructive);
+  --chart-6: oklch(0.62 0.17 235);
+  --chart-7: oklch(0.64 0.18 350);
 
   --app-bg-start: oklch(0.136 0.018 170);
   --app-bg-mid: oklch(0.136 0.018 170);

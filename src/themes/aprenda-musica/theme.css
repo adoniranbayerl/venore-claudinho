@@ -125,7 +125,31 @@
   --chart-4: var(--warning);
   --chart-5: var(--destructive);
 
+  /* chart-6/chart-7 — par categórico oficial do sistema de temas (todo tema instalado declara os
+     dois, ver src/themes/venore-slime/theme.css para o racional completo): azul/rosa, fora das
+     famílias laranja/violeta/dourado/verde já usadas acima. */
+  --chart-6: oklch(0.58 0.16 235);
+  --chart-7: oklch(0.6 0.18 350);
+
   --overlay-foreground: oklch(1 0 0);
+
+  /* Superfície "apresentação" — telão/projetor/slide, sempre a versão escura deste tema,
+     independente do light/dark ativo (ver racional completo em venore-slime/theme.css). */
+  --presentation-ground: oklch(0.15 0.025 305);
+  --presentation-card: oklch(0.19 0.022 305);
+  --presentation-border: oklch(0.32 0.03 300);
+  --presentation-foreground: oklch(0.95 0.02 75);
+  --presentation-muted-foreground: oklch(0.78 0.03 80);
+
+  --presentation-success: oklch(0.72 0.18 150);
+  --presentation-success-soft: color-mix(in oklch, var(--presentation-success) 16%, var(--presentation-card));
+  --presentation-success-border: color-mix(in oklch, var(--presentation-success) 34%, var(--presentation-border));
+
+  --presentation-warning: oklch(0.8 0.15 90);
+  --presentation-warning-soft: color-mix(in oklch, var(--presentation-warning) 16%, var(--presentation-card));
+  --presentation-warning-border: color-mix(in oklch, var(--presentation-warning) 34%, var(--presentation-border));
+
+  --presentation-destructive: oklch(0.64 0.226 26);
 
   /* fundo do app — quase plano de propósito: um único degradê vertical muito sutil (mesma ideia do
      Venore Pulse), não o glow radial multi-camada da 1ª versão deste tema */
@@ -182,6 +206,8 @@
   --chart-3: var(--muted-foreground);
   --chart-4: var(--warning);
   --chart-5: var(--destructive);
+  --chart-6: oklch(0.62 0.17 235);
+  --chart-7: oklch(0.64 0.18 350);
 
   --app-bg-start: oklch(0.145 0.024 305);
   --app-bg-end: oklch(0.125 0.026 300);

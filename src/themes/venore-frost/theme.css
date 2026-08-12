@@ -112,6 +112,35 @@
   --success-soft: color-mix(in oklch, var(--success) 12%, var(--card));
   --success-border: color-mix(in oklch, var(--success) 30%, var(--border));
 
+  /* charts — reaproveita o vocabulário shadcn já declarado acima (mesmo padrão de venore-slime/
+     theme.css); faltava neste tema. chart-6/chart-7 são o par categórico oficial (todo tema
+     declara os dois). */
+  --chart-1: var(--primary);
+  --chart-2: var(--accent);
+  --chart-3: var(--muted-foreground);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
+  --chart-6: oklch(0.58 0.16 235);
+  --chart-7: oklch(0.6 0.18 350);
+
+  /* Superfície "apresentação" — telão/projetor/slide, sempre a versão escura deste tema,
+     independente do light/dark ativo (ver racional completo em venore-slime/theme.css). */
+  --presentation-ground: oklch(0.13 0.018 245);
+  --presentation-card: oklch(0.17 0.02 245);
+  --presentation-border: oklch(0.28 0.024 245);
+  --presentation-foreground: oklch(0.95 0.01 225);
+  --presentation-muted-foreground: oklch(0.62 0.02 230);
+
+  --presentation-success: oklch(0.68 0.13 165);
+  --presentation-success-soft: color-mix(in oklch, var(--presentation-success) 16%, var(--presentation-card));
+  --presentation-success-border: color-mix(in oklch, var(--presentation-success) 34%, var(--presentation-border));
+
+  --presentation-warning: oklch(0.78 0.16 68);
+  --presentation-warning-soft: color-mix(in oklch, var(--presentation-warning) 16%, var(--presentation-card));
+  --presentation-warning-border: color-mix(in oklch, var(--presentation-warning) 34%, var(--presentation-border));
+
+  --presentation-destructive: oklch(0.65 0.22 25);
+
   /* identidade — degradê mínimo, mesmo espírito do Pulse: um único linear-gradient vertical */
   --app-bg-start: oklch(0.975 0.008 228);
   --app-bg-end: oklch(0.945 0.014 222);
@@ -165,6 +194,14 @@
   --success-foreground: oklch(0.14 0.02 165);
   --success-soft: color-mix(in oklch, var(--success) 16%, var(--card));
   --success-border: color-mix(in oklch, var(--success) 34%, var(--border));
+
+  --chart-1: var(--primary);
+  --chart-2: var(--accent);
+  --chart-3: var(--muted-foreground);
+  --chart-4: var(--warning);
+  --chart-5: var(--destructive);
+  --chart-6: oklch(0.62 0.17 235);
+  --chart-7: oklch(0.64 0.18 350);
 
   --app-bg-start: oklch(0.125 0.018 245);
   --app-bg-end: oklch(0.105 0.016 248);
