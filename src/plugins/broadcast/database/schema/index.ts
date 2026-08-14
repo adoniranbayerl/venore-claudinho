@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, integer, jsonb, pgSchema, primaryKey, real, text, time, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, check, integer, jsonb, pgSchema, primaryKey, real, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const broadcastSchema = pgSchema("broadcast");
 
@@ -82,24 +82,36 @@ export const broadcastPlaylistItems = broadcastSchema.table(
     relativePath: text("relative_path"),
     mediaAssetId: text("media_asset_id"),
     url: text("url"),
+    // Só preenchido quando sourceType = "agenda-event" — FK de verdade (diferente de mediaAssetId
+    // acima): broadcastAgendaEvents é do MESMO plugin, então referenciar direto não viola a regra
+    // 7/8 do AGENTS.md (que só proíbe cruzar pra dentro de OUTRO context/plugin). Cascade: apagar o
+    // evento apaga o item da playlist que o exibia (não faz sentido um card "em destaque" sobreviver
+    // ao evento que ele mostra).
+    agendaEventId: text("agenda_event_id").references(() => broadcastAgendaEvents.id, { onDelete: "cascade" }),
     durationSeconds: real("duration_seconds"),
     hidden: boolean("hidden").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    check("broadcast_playlist_items_source_type_check", sql`${table.sourceType} in ('local','media-asset','webpage','news')`),
-    // Exatamente um de relativePath/mediaAssetId/url preenchido, de acordo com sourceType — impede
-    // linha ambígua ou órfã direto no banco. "news" não referencia arquivo/URL nenhum: é um marcador
-    // de posição no rodízio da playlist, os artigos vêm de runtime/region-news.ts (mesma fonte da
-    // layer "news" standalone) — durationSeconds aqui é o teto do bloco inteiro (todas as manchetes
-    // juntas), não por manchete.
+    check(
+      "broadcast_playlist_items_source_type_check",
+      sql`${table.sourceType} in ('local','media-asset','webpage','news','agenda-event')`,
+    ),
+    // Exatamente um de relativePath/mediaAssetId/url/agendaEventId preenchido, de acordo com
+    // sourceType — impede linha ambígua ou órfã direto no banco. "news" não referencia arquivo/URL
+    // nenhum: é um marcador de posição no rodízio da playlist, os artigos vêm de
+    // runtime/region-news.ts (mesma fonte da layer "news" standalone) — durationSeconds aqui é o
+    // teto do bloco inteiro (todas as manchetes juntas), não por manchete. "agenda-event" referencia
+    // um único evento (agendaEventId) — pedido explícito: "não quero que entre a agenda, apenas um
+    // item da agenda, com todas as informações".
     check(
       "broadcast_playlist_items_source_shape_check",
-      sql`(${table.sourceType} = 'local' AND ${table.relativePath} IS NOT NULL AND ${table.mediaAssetId} IS NULL AND ${table.url} IS NULL)
-        OR (${table.sourceType} = 'media-asset' AND ${table.mediaAssetId} IS NOT NULL AND ${table.relativePath} IS NULL AND ${table.url} IS NULL)
-        OR (${table.sourceType} = 'webpage' AND ${table.url} IS NOT NULL AND ${table.relativePath} IS NULL AND ${table.mediaAssetId} IS NULL)
-        OR (${table.sourceType} = 'news' AND ${table.relativePath} IS NULL AND ${table.mediaAssetId} IS NULL AND ${table.url} IS NULL)`,
+      sql`(${table.sourceType} = 'local' AND ${table.relativePath} IS NOT NULL AND ${table.mediaAssetId} IS NULL AND ${table.url} IS NULL AND ${table.agendaEventId} IS NULL)
+        OR (${table.sourceType} = 'media-asset' AND ${table.mediaAssetId} IS NOT NULL AND ${table.relativePath} IS NULL AND ${table.url} IS NULL AND ${table.agendaEventId} IS NULL)
+        OR (${table.sourceType} = 'webpage' AND ${table.url} IS NOT NULL AND ${table.relativePath} IS NULL AND ${table.mediaAssetId} IS NULL AND ${table.agendaEventId} IS NULL)
+        OR (${table.sourceType} = 'news' AND ${table.relativePath} IS NULL AND ${table.mediaAssetId} IS NULL AND ${table.url} IS NULL AND ${table.agendaEventId} IS NULL)
+        OR (${table.sourceType} = 'agenda-event' AND ${table.agendaEventId} IS NOT NULL AND ${table.relativePath} IS NULL AND ${table.mediaAssetId} IS NULL AND ${table.url} IS NULL)`,
     ),
   ],
 );
@@ -147,12 +159,20 @@ export const broadcastAgendaEvents = broadcastSchema.table("agenda_events", {
   description: text("description"),
   startAt: timestamp("start_at", { withTimezone: true }).notNull(),
   recurring: boolean("recurring").notNull().default(false),
-  // Só a hora do fim (sem data) — opcional, independe de recorrência: um evento recorrente já não
-  // guarda uma data própria pro início (startAt é só a âncora dia-da-semana+horário, ver
-  // shared/weekly-recurrence.ts), então o fim também não deveria precisar de uma. Usado só pra
-  // exibição ("19:30–21:00"), nunca em filtro/expiração — diferente de broadcastAlerts.expiresAt.
-  endTime: time("end_time"),
+  // Timestamp completo (não só hora) — pode ser em qualquer data posterior ao início, inclusive
+  // dias depois (pedido explícito: "o término pode acontecer em qualquer data posterior... pode
+  // haver eventos que duram dias"; antes era só uma hora sem data, limitado a "termina no mesmo
+  // dia ou no dia seguinte"). Opcional; usado só pra exibição ("19:30–21:00" ou "12/03 09:00 –
+  // 14/03 18:00"), nunca em filtro/expiração — diferente de broadcastAlerts.expiresAt. Pra evento
+  // recorrente (recurring=true), isso também é só uma ÂNCORA (mesmo racional de startAt) — o que
+  // se repete toda semana é a DURAÇÃO (endAt - startAt), não a data do término em si; ver
+  // shared/weekly-recurrence.ts (resolveEventEndDate).
+  endAt: timestamp("end_at", { withTimezone: true }),
   coverMediaAssetId: text("cover_media_asset_id"),
+  // Local/sala do evento — texto livre, opcional, só exibição (nenhum filtro/agrupamento depende
+  // disso). Pedido explícito: "aumentar o tamanho das informações nos cards de eventos e
+  // acrescentar o local (informação de sala, etc)".
+  location: text("location"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -188,6 +208,28 @@ export const broadcastOutputs = broadcastSchema.table(
     // Mesmo mecanismo de drawerOpen, pra BrandFooterBar (logo+relógio+data+temperatura) — default
     // true (comportamento anterior era sempre mostrar a barra).
     footerOpen: boolean("footer_open").notNull().default(true),
+    // Ticker de agenda no rodapé (texto rolando com os próximos eventos) — opt-in, desligado por
+    // padrão (pedido explícito: "esse componente deve ser desligado por padrão, ligado apenas
+    // quando eu quiser colocar"). Independente de drawerOpen: mostra dado de agenda mesmo com a
+    // coluna lateral fechada (ver needsAgenda em get-output-state/service.ts).
+    tickerEnabled: boolean("ticker_enabled").notNull().default(false),
+    // Ciclo fixo de abrir/pausar a coluna lateral — pedido explícito: "quero escolher quando essa
+    // pausa acontece [...] deixar a agenda aberta por uns 3 min, depois 1 min de pausa" (correção
+    // de uma 1ª versão que pausava depois de CADA agenda individual, ligada a agendas.
+    // display_seconds — o operador não conseguia controlar quando a pausa de fato acontecia).
+    // agendaOpenSeconds é quanto tempo a coluna fica aberta (o rodízio interno entre agendas roda
+    // livre por dentro dessa janela, sem relação nenhuma com o número de agendas ou o
+    // displaySeconds de cada uma); agendaPauseSeconds é quanto tempo fica fechada (só vídeo+
+    // rodapé aparecem) antes de reabrir. Os dois precisam estar preenchidos (>0) pro ciclo ligar —
+    // qualquer um null/0 desliga o ciclo inteiro, volta ao rodízio contínuo sem pausa (comportamento
+    // original) — ver set-output-agenda-schedule/service.ts (valida o par) e o scheduler client em
+    // output-canvas.tsx.
+    agendaOpenSeconds: integer("agenda_open_seconds"),
+    agendaPauseSeconds: integer("agenda_pause_seconds"),
+    // PIN opcional pra acessar a view pública desta saída (texto plano — mesmo nível de simplicidade
+    // do resto do plugin, token já é plaintext na URL; ver shared/output-pin-cookie.ts e a feature
+    // verify-output-pin). null = sem proteção, comportamento anterior inalterado.
+    pin: text("pin"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -244,4 +286,18 @@ export const broadcastOutputEditors = broadcastSchema.table(
     userId: text("user_id").notNull(),
   },
   (table) => [primaryKey({ columns: [table.outputId, table.userId] })],
+);
+
+// Mesmo racional de broadcastAgendaEditors/broadcastOutputEditors, só que pra playlist —
+// permission correspondente é broadcast.playlists.manage. Paridade pedida explicitamente:
+// "Superadmin pode definir quem são os administradores de telas, playlists e agendas".
+export const broadcastPlaylistEditors = broadcastSchema.table(
+  "playlist_editors",
+  {
+    playlistId: text("playlist_id")
+      .notNull()
+      .references(() => broadcastPlaylists.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.playlistId, table.userId] })],
 );

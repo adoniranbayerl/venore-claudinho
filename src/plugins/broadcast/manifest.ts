@@ -29,6 +29,9 @@ export const broadcastManifest: PluginManifest = {
     // com acesso total, sem precisar de atribuição nenhuma.
     { key: "broadcast.agenda.manage", label: "Editar agendas atribuídas no Broadcast Studio (sem acesso ao restante)" },
     { key: "broadcast.outputs.manage", label: "Editar telas atribuídas no Broadcast Studio (sem acesso ao restante)" },
+    // Mesmo racional das duas acima, pra playlist — paridade pedida explicitamente: "Superadmin
+    // pode definir quem são os administradores de telas, playlists e agendas".
+    { key: "broadcast.playlists.manage", label: "Editar playlists atribuídas no Broadcast Studio (sem acesso ao restante)" },
   ],
   settings: Object.values(BROADCAST_SETTINGS).map(({ key, defaultValue }) => ({ key, defaultValue })),
   // Um único link — pedido explícito: "não separe os links na navegação admin". As três
@@ -46,7 +49,7 @@ export const broadcastManifest: PluginManifest = {
       groupLabel: "Plugins",
       groupOrder: 30,
       order: 30,
-      requiredPermission: ["broadcast.manage", "broadcast.agenda.manage", "broadcast.outputs.manage"],
+      requiredPermission: ["broadcast.manage", "broadcast.agenda.manage", "broadcast.outputs.manage", "broadcast.playlists.manage"],
     },
   ],
 };

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getOutputState } from "@/plugins/broadcast";
+import { getOutputState, verifyOutputPin } from "@/plugins/broadcast";
+import { readOutputPinCookie } from "@/plugins/broadcast/shared/output-pin-cookie";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 
 // Snapshot HTTP normal do estado de uma saída — usado pelo client da view de saída (Fase 4) pra
@@ -12,6 +13,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
   }
 
   const { token } = await params;
+
+  // Mesma checagem de routes/out/page.tsx — o client já passou pelo gate na primeira carga da
+  // página, mas esta rota é acessível direto por qualquer request com o token, então precisa
+  // repetir a checagem aqui em vez de confiar que só o browser autorizado vai chamar.
+  const pinCookie = await readOutputPinCookie(token);
+  const pinCheck = await verifyOutputPin({ token, candidate: pinCookie });
+  if (pinCheck.success && pinCheck.data.required && !pinCheck.data.valid) {
+    return NextResponse.json({ error: "PIN necessário." }, { status: 401 });
+  }
+
   const result = await getOutputState({ token });
   if (!result.success) {
     return NextResponse.json({ error: result.error.message }, { status: 404 });

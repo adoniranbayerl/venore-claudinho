@@ -10,5 +10,14 @@ export function validateUpdateAgendaEventInput(input: UpdateAgendaEventInput): {
   if (!(input.startAt instanceof Date) || Number.isNaN(input.startAt.getTime())) {
     return { code: "broadcast.update-agenda-event.invalid_date", message: "Informe uma data válida." };
   }
+  // Mesmo racional de create-agenda-event/validation.ts.
+  if (input.endAt) {
+    if (!(input.endAt instanceof Date) || Number.isNaN(input.endAt.getTime())) {
+      return { code: "broadcast.update-agenda-event.invalid_end_date", message: "Término inválido." };
+    }
+    if (input.endAt.getTime() <= input.startAt.getTime()) {
+      return { code: "broadcast.update-agenda-event.invalid_end_date", message: "O término precisa ser depois do início." };
+    }
+  }
   return null;
 }

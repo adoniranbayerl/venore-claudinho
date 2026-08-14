@@ -1,4 +1,4 @@
-import { authorizeActor } from "@/contexts/rbac";
+import { authorizePlaylistActor } from "../../../shared/scoped-authorization";
 import { reorderPlaylistItemsService } from "./service";
 import type { ReorderPlaylistItemsInput, ReorderPlaylistItemsResult } from "./types";
 
@@ -13,7 +13,7 @@ export async function reorderPlaylistItemsHandler(input: ReorderPlaylistItemsInp
     };
   }
 
-  const authz = await authorizeActor("broadcast.manage");
+  const authz = await authorizePlaylistActor(input.playlistId);
   if (!authz.authorized) {
     return { success: false, error: authz.error };
   }

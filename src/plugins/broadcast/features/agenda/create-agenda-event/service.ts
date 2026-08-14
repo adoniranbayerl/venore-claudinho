@@ -15,8 +15,9 @@ export async function createAgendaEvent(command: CreateAgendaEventCommand): Prom
     description: command.description?.trim() || null,
     startAt: command.startAt,
     recurring: command.recurring ?? false,
-    endTime: command.endTime?.trim() || null,
+    endAt: command.endAt ?? null,
     coverMediaAssetId: command.coverMediaAssetId?.trim() || null,
+    location: command.location?.trim() || null,
   });
 
   endOperation(handle, { success: true });

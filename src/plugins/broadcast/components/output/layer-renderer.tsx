@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Clock } from "lucide-react";
+import { Clock, MapPin } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 // Importa direto de contracts/ e shared/, nunca do barrel (@/plugins/broadcast) — este é um "use
 // client" component, e o barrel reexporta handlers server-only (Drizzle/pg) que quebram o bundle
@@ -12,8 +12,10 @@ import {
   type BroadcastAgendaAnimationStyle,
   type BroadcastAgendaViewSize,
 } from "@/plugins/broadcast/shared/settings";
+import { isEventHappeningNow } from "@/plugins/broadcast/shared/weekly-recurrence";
 import type {
   AgendaRotationEntry,
+  AgendaRotationEvent,
   BroadcastLayerRecord,
   PlaylistItemSummary,
   RegionNewsArticle,
@@ -45,16 +47,31 @@ function readGeometry(config: Record<string, unknown>): Partial<LayerGeometry> |
 // percentual já resolvido por useZeroBarAgendaWidthPercent (estático ou medido em tempo real),
 // ignorando o x/width gravado por saída na criação (create-output/store.ts) — assim um ajuste de
 // tamanho vale pra saídas já existentes também, não só pras criadas depois de mudar a
-// configuração. Só entra em jogo com a coluna de agenda aberta; fechada, o vídeo já ocupa 100% por
-// conta própria, sem precisar de override.
+// configuração.
+//
+// O drawer EMPURRA o vídeo (encolhe a caixa dele, ancorada em x=0), não sobrepõe — tentativa de
+// virar overlay foi revertida (pedido explícito: "deve empurrar o vídeo e não deve estar sobre o
+// footer" — o footer mora DENTRO da caixa do vídeo, ver VideoZoneLayer, então um overlay de agenda
+// cobrindo a largura toda também cobria a fatia do footer que caía sob ele).
+//
+// Agenda fechada não é mais "sem largura nenhuma calculada" — vira x:100/width:0 (colapsada,
+// encostada na borda direita) em vez de deixar a geometria como veio do banco. Isso é o que dá a
+// animação de entrada/saída (pedido explícito: "inclua animação de entrada e saída para o
+// drawer"): LayerRenderer não desmonta mais a camada "agenda" ao fechar (ver comentário lá), então
+// a transição CSS já aplicada em todo LayerRenderer (GEOMETRY_TRANSITION) anima x/width sozinha
+// entre as duas geometrias — sem overlay, sem JS extra pra abrir/fechar.
 function applyAgendaViewSizeOverride(
   layer: BroadcastLayerRecord,
   geometry: LayerGeometry,
   drawerOpen: boolean,
   agendaWidthPercent: number,
 ): LayerGeometry {
-  if (!drawerOpen || (layer.type !== "agenda" && layer.type !== "video")) return geometry;
-  if (layer.type === "agenda") return { ...geometry, x: 100 - agendaWidthPercent, width: agendaWidthPercent };
+  if (layer.type === "agenda") {
+    return drawerOpen
+      ? { ...geometry, x: 100 - agendaWidthPercent, width: agendaWidthPercent }
+      : { ...geometry, x: 100, width: 0 };
+  }
+  if (!drawerOpen || layer.type !== "video") return geometry;
   return { ...geometry, width: 100 - agendaWidthPercent };
 }
 
@@ -124,7 +141,20 @@ function useZeroBarAgendaWidthPercent(agendaViewSize: BroadcastAgendaViewSize, f
 // constante aqui, não em theme.css. Cor branca/preta neste arquivo é sempre inline `style`, nunca
 // `className` — é overlay fixo sobre vídeo, não deve variar com o tema shadcn do admin (mesmo
 // racional de layer "text" usar config.color por instância).
-const GEOMETRY_TRANSITION = "left 400ms ease, top 400ms ease, width 400ms ease, height 400ms ease";
+// opacity entra na mesma transição — usada só pela camada "agenda" (fade junto do slide ao abrir/
+// fechar o drawer, ver LayerRenderer); as demais camadas ficam sempre opacity:1, então o valor
+// nunca muda pra elas e a propriedade extra na lista não tem efeito nenhum.
+const GEOMETRY_TRANSITION = "left 400ms ease, top 400ms ease, width 400ms ease, height 400ms ease, opacity 400ms ease";
+// Mesma duração de GEOMETRY_TRANSITION — a entrada dos eventos da agenda (AgendaLayer) só começa
+// depois que o drawer termina de abrir, não ao mesmo tempo (pedido explícito: "inicia a animação
+// dos eventos só após terminar a animação do drawer"). Usado como animation-delay base do bloco
+// "fade" e somado ao delay escalonado de cada card no "cascade".
+const AGENDA_ENTRY_ANIMATION_DELAY_MS = 400;
+// Altura (px) da barra de marca compacta (drawer fechado, BrandFooterBar `compact`) — precisa
+// bater com a classe `h-12` usada lá (48px = 3rem), porque PlaylistLayer usa este número pra
+// deslocar a barra de progresso pra cima do footer, que sobrepõe a base da view nesse modo (ver
+// VideoZoneLayer). Par className+px, mesmo padrão de BROADCAST_AGENDA_VIEW_SIZE_SCALE.
+const COMPACT_FOOTER_HEIGHT_PX = 48;
 // Rotação interna de manchete dentro de um bloco de notícias (tanto a layer "news" standalone
 // quanto o slide "news" dentro da playlist usam o mesmo componente/timer). O teto do bloco inteiro
 // (quantos segundos o slide "news" fica no ar dentro do rodízio da playlist) é outra coisa — vem
@@ -151,7 +181,9 @@ const NEWS_ARTICLE_ROTATION_MS = 6000;
 // muda o vídeo, se clicar na agenda muda a agenda"): incrementar o contador reinicia a contagem
 // automática do zero a partir do clique, em vez de deixar o timer automático (que continuaria
 // contando desde o ciclo anterior) disparar de novo logo em seguida e "engolir" um item.
-function useTimedAdvance(durationMs: number, onDone: () => void, active = true, resetKey: number = 0) {
+// Exportado pra output-canvas.tsx reaproveitar no scheduler de pausa entre agendas
+// (useAgendaRotationSchedule) — mesmo mecanismo, evita reimplementar o reagendamento recursivo.
+export function useTimedAdvance(durationMs: number, onDone: () => void, active = true, resetKey: number = 0) {
   const onDoneRef = useRef(onDone);
 
   // Ref só é escrita dentro de efeito (nunca durante o render — react-hooks/refs), roda depois de
@@ -183,12 +215,15 @@ type PlaylistSlide =
   | { key: string; kind: "video"; itemId: string }
   | { key: string; kind: "image"; itemId: string; durationSeconds: number }
   | { key: string; kind: "webpage"; url: string; durationSeconds: number }
-  | { key: string; kind: "news"; durationSeconds: number };
+  | { key: string; kind: "news"; durationSeconds: number }
+  | { key: string; kind: "agenda-event"; durationSeconds: number; event: AgendaRotationEvent | null };
 
 // "news" já chega aqui como mais um item da playlist (sourceType "news", posição/duração próprias
 // no admin) — não é mais injetado à parte no fim do rodízio. O texto/imagem de cada manchete vem
 // de regionNews (resolvido uma vez por saída), o slide só decide por quanto tempo o bloco inteiro
-// fica no ar antes de avançar pro próximo item.
+// fica no ar antes de avançar pro próximo item. "agenda-event" (um único evento "em destaque", não
+// a agenda inteira — pedido explícito) já chega com o evento resolvido em item.event (get-output-
+// state), o slide só carrega adiante.
 function buildPlaylistSlides(items: PlaylistItemSummary[]): PlaylistSlide[] {
   return items.map((item) =>
     item.kind === "video"
@@ -197,7 +232,9 @@ function buildPlaylistSlides(items: PlaylistItemSummary[]): PlaylistSlide[] {
         ? { key: item.id, kind: "image", itemId: item.id, durationSeconds: item.durationSeconds ?? 15 }
         : item.kind === "webpage"
           ? { key: item.id, kind: "webpage", url: item.url ?? "", durationSeconds: item.durationSeconds ?? 60 }
-          : { key: item.id, kind: "news", durationSeconds: item.durationSeconds ?? 30 },
+          : item.kind === "news"
+            ? { key: item.id, kind: "news", durationSeconds: item.durationSeconds ?? 30 }
+            : { key: item.id, kind: "agenda-event", durationSeconds: item.durationSeconds ?? 20, event: item.event },
   );
 }
 
@@ -212,7 +249,7 @@ function buildPlaylistSlides(items: PlaylistItemSummary[]): PlaylistSlide[] {
 // não por um setPercent(0) síncrono no corpo do efeito — cada componente já nasce com percent=0,
 // que é o próprio valor inicial de useState. Evita o padrão que react-hooks/set-state-in-effect
 // sinaliza (setState síncrono logo na entrada do efeito, disparando um render em cascata extra).
-function TimedProgressFill({ durationMs }: { durationMs: number }) {
+function TimedProgressFill({ durationMs, bottomOffsetPx = 0 }: { durationMs: number; bottomOffsetPx?: number }) {
   const [percent, setPercent] = useState(0);
 
   useEffect(() => {
@@ -224,10 +261,16 @@ function TimedProgressFill({ durationMs }: { durationMs: number }) {
     return () => clearInterval(interval);
   }, [durationMs]);
 
-  return <ProgressOverlay percent={percent} />;
+  return <ProgressOverlay percent={percent} bottomOffsetPx={bottomOffsetPx} />;
 }
 
-function VideoProgressFill({ videoRef }: { videoRef: React.RefObject<HTMLVideoElement | null> }) {
+function VideoProgressFill({
+  videoRef,
+  bottomOffsetPx = 0,
+}: {
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  bottomOffsetPx?: number;
+}) {
   const [percent, setPercent] = useState(0);
 
   useEffect(() => {
@@ -240,7 +283,7 @@ function VideoProgressFill({ videoRef }: { videoRef: React.RefObject<HTMLVideoEl
     return () => element.removeEventListener("timeupdate", update);
   }, [videoRef]);
 
-  return <ProgressOverlay percent={percent} />;
+  return <ProgressOverlay percent={percent} bottomOffsetPx={bottomOffsetPx} />;
 }
 
 // Overlay fino, LARGURA CHEIA e rente à borda inferior do slide (sem padding/cantos arredondados —
@@ -249,9 +292,14 @@ function VideoProgressFill({ videoRef }: { videoRef: React.RefObject<HTMLVideoEl
 // versão usava TV_ACCENT_COLOR sólido e ficou "muito chamativa" (feedback direto). Trilho e cor do
 // indicador vêm por style inline, nunca className, mesma convenção do resto deste arquivo
 // (globals/no-restricted-syntax só permite cor crua fora de className).
-function ProgressOverlay({ percent }: { percent: number }) {
+//
+// bottomOffsetPx sobe a barra pra cima do footer compacto quando ele sobrepõe a base da view
+// (drawer fechado, ver VideoZoneLayer) — pedido explícito: "a barra de progresso fica escondida
+// quando o vídeo fica full width [...] fixe ela no topo do footer". 0 (padrão) = rente à borda,
+// igual sempre foi quando não há footer sobrepondo.
+function ProgressOverlay({ percent, bottomOffsetPx = 0 }: { percent: number; bottomOffsetPx?: number }) {
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0">
+    <div className="pointer-events-none absolute inset-x-0" style={{ bottom: bottomOffsetPx }}>
       <Progress
         value={percent}
         className="h-0.5 rounded-none *:data-[slot=progress-indicator]:rounded-none *:data-[slot=progress-indicator]:bg-(--tv-progress-color)"
@@ -261,7 +309,28 @@ function ProgressOverlay({ percent }: { percent: number }) {
   );
 }
 
-function PlaylistLayer({ items, newsArticles }: { items: PlaylistItemSummary[]; newsArticles: RegionNewsArticle[] }) {
+function PlaylistLayer({
+  items,
+  newsArticles,
+  fillMode = "contain",
+  progressBarBottomOffsetPx = 0,
+}: {
+  items: PlaylistItemSummary[];
+  newsArticles: RegionNewsArticle[];
+  // "cover" preenche a caixa cortando o excesso — usado só com o drawer fechado (ver
+  // VideoZoneLayer): a caixa já É a tela inteira ali, então cortar levemente é o comportamento
+  // esperado de "fullscreen" (pedido explícito: "quando o drawer/agenda some o vídeo deve ficar
+  // full screen" — sem barra nenhuma). "contain" (default, drawer aberto) preserva a proporção do
+  // arquivo com barras pretas — a caixa do vídeo não é mais 16:9 quando a agenda abre, e cortar
+  // agressivamente nesse caso já causou reclamação real ("a view do vídeo precisa permanecer
+  // 16:9, o vídeo está cortando para a esquerda").
+  fillMode?: "contain" | "cover";
+  // Desloca a barra de progresso pra cima do footer compacto (que sobrepõe a base da view em
+  // overlay quando o drawer está fechado, ver VideoZoneLayer/BrandFooterBar) — sem isso a barra
+  // ficava colada no bottom:0 da própria caixa, e o footer (fundo sólido, DOM depois dela) pintava
+  // por cima e a escondia. 0 (padrão) quando não há footer compacto sobrepondo.
+  progressBarBottomOffsetPx?: number;
+}) {
   const [index, setIndex] = useState(0);
   // Incrementado a cada avanço manual por clique — vira resetKey de useTimedAdvance, reiniciando a
   // contagem automática a partir do clique (ver comentário na definição do hook).
@@ -271,12 +340,15 @@ function PlaylistLayer({ items, newsArticles }: { items: PlaylistItemSummary[]; 
 
   const advance = () => setIndex((previous) => (previous + 1) % slides.length);
   const current = slides.length > 0 ? slides[index % slides.length] : null;
-  // Bloco de notícias sem nenhuma manchete não tem o que mostrar — sem isso, ele ficava "SEM
-  // NOTÍCIAS NO MOMENTO" em texto apagado sobre tela preta pelos 30s inteiros configurados,
-  // fácil de confundir com "travou" vendo de longe (achado real relatado numa TV). Some rápido
-  // (1s) e segue pro próximo item em vez de ocupar o tempo todo sem nada.
-  const isEmptyNewsBlock = current?.kind === "news" && newsArticles.length === 0;
-  const timedDurationMs = current && current.kind !== "video" ? (isEmptyNewsBlock ? 1000 : current.durationSeconds * 1000) : 0;
+  // Bloco de notícias sem nenhuma manchete, ou evento "em destaque" cujo evento referenciado sumiu
+  // (apagado depois do item ter sido criado na playlist — ver classifyPlaylistItem), não têm o que
+  // mostrar — sem isso, ficava um texto apagado sobre tela preta pelos segundos inteiros
+  // configurados, fácil de confundir com "travou" vendo de longe (achado real relatado numa TV
+  // pro caso de notícias). Some rápido (1s) e segue pro próximo item em vez de ocupar o tempo todo
+  // sem nada.
+  const isEmptySlide =
+    (current?.kind === "news" && newsArticles.length === 0) || (current?.kind === "agenda-event" && !current.event);
+  const timedDurationMs = current && current.kind !== "video" ? (isEmptySlide ? 1000 : current.durationSeconds * 1000) : 0;
   const timedActive = current !== null && current.kind !== "video";
 
   useTimedAdvance(timedDurationMs, advance, timedActive, manualTick);
@@ -289,19 +361,17 @@ function PlaylistLayer({ items, newsArticles }: { items: PlaylistItemSummary[]; 
     );
   }
 
-  // object-contain (letterbox/pillarbox com barras pretas) — object-cover (preenche o quadro,
-  // cortando o excesso) tinha sido escolhido antes a pedido, mas parou de funcionar depois que a
-  // coluna de agenda ficou mais larga (BROADCAST_AGENDA_VIEW_SIZE_SCALE): a caixa do vídeo deixou
-  // de ficar perto de 16:9 e o corte passou de "borda discreta" pra "perde 40%+ do quadro,
-  // cortando pro lado" — achado real: "a view do vídeo precisa permanecer 16:9, o vídeo está
-  // cortando para a esquerda". O canvas inteiro já é preto (bg-black aqui e no canvas raiz), então
-  // a barra do letterbox não aparece como uma "borda" isolada — se funde no fundo.
+  // fillMode decide object-contain (barras pretas, drawer aberto) vs object-cover (preenche
+  // cortando o excesso, drawer fechado/fullscreen) — ver o racional completo na prop acima. O
+  // canvas inteiro já é preto (bg-black aqui e no canvas raiz), então uma eventual barra do
+  // letterbox não aparece como uma "borda" isolada — se funde no fundo.
+  const objectFitClassName = fillMode === "cover" ? "object-cover" : "object-contain";
   const content =
     current.kind === "video" ? (
       <video
         key={current.key}
         ref={videoRef}
-        className="h-full w-full object-contain"
+        className={`h-full w-full ${objectFitClassName}`}
         src={`/api/broadcast/stream/${current.itemId}`}
         autoPlay
         muted
@@ -311,11 +381,13 @@ function PlaylistLayer({ items, newsArticles }: { items: PlaylistItemSummary[]; 
     ) : current.kind === "image" ? (
       // fonte é a rota de stream do plugin (arquivo local ou Blob), não um asset estático do bundle.
       // eslint-disable-next-line @next/next/no-img-element
-      <img key={current.key} src={`/api/broadcast/stream/${current.itemId}`} alt="" className="h-full w-full object-contain" />
+      <img key={current.key} src={`/api/broadcast/stream/${current.itemId}`} alt="" className={`h-full w-full ${objectFitClassName}`} />
     ) : current.kind === "webpage" ? (
       <iframe key={current.key} src={current.url} className="h-full w-full border-0" title="Página web da playlist" />
-    ) : (
+    ) : current.kind === "news" ? (
       <NewsCardRotator key={current.key} articles={newsArticles} />
+    ) : (
+      <FeaturedAgendaEventSlide key={current.key} event={current.event} durationSeconds={current.durationSeconds} />
     );
 
   // Clicável quando há mais de um item — pedido explícito: "se clicar na view muda o vídeo". Uma
@@ -344,9 +416,13 @@ function PlaylistLayer({ items, newsArticles }: { items: PlaylistItemSummary[]; 
         // Sufixo "-progress" evita colidir com a key de `content` acima (mesmo current.key, mesmo
         // pai) — duas keys iguais entre irmãos faziam o React reportar "two children with the same
         // key" e arriscar duplicar/omitir um dos dois.
-        <VideoProgressFill key={`${current.key}-progress`} videoRef={videoRef} />
+        <VideoProgressFill key={`${current.key}-progress`} videoRef={videoRef} bottomOffsetPx={progressBarBottomOffsetPx} />
       ) : (
-        <TimedProgressFill key={`${current.key}-${manualTick}-progress`} durationMs={timedDurationMs} />
+        <TimedProgressFill
+          key={`${current.key}-${manualTick}-progress`}
+          durationMs={timedDurationMs}
+          bottomOffsetPx={progressBarBottomOffsetPx}
+        />
       )}
     </div>
   );
@@ -357,6 +433,24 @@ function PlaylistLayer({ items, newsArticles }: { items: PlaylistItemSummary[]; 
 // fica APENAS na parte da view do Vídeo, a Agenda vai do canto superior até o inferior". Empilhado
 // em flex-col: playlist (flex-1) + footer (altura fixa do tier, shrink-0) — a agenda (AgendaLayer,
 // caixa totalmente separada na geometria de LayerRenderer) nunca é afetada pela altura do footer.
+//
+// drawerOpen decide o MODO do footer, não só a agenda: com a agenda aberta, comportamento normal
+// (footer empurra a playlist, altura do tier). Com a agenda fechada, pedido explícito: "a view do
+// vídeo deve preencher toda a tela. O footer [...] pode sobrepor, mas com um height menor (quase
+// como uma barra de tarefas)" — a playlist ocupa 100% da coluna e o footer vira um overlay
+// absoluto compacto por cima, sem roubar altura do vídeo.
+//
+// <PlaylistLayer> SEMPRE fica na mesma posição/profundidade da árvore, único filho do MESMO
+// wrapper (mesmo tipo de elemento, "div"), em vez de um `if (!drawerOpen) return <árvore A>;
+// return <árvore B>` com PlaylistLayer em profundidades diferentes em cada árvore — bug real
+// encontrado: abrir/fechar a agenda reiniciava o vídeo/playlist do zero, porque as duas árvores
+// tinham formatos diferentes (branch fechado: PlaylistLayer filho direto do wrapper; branch
+// aberto: PlaylistLayer dentro de uma div extra) e o React, ao trocar de branch, via um elemento
+// de tipo diferente na mesma posição (era PlaylistLayer, virou uma div "min-h-0 flex-1" ou
+// vice-versa) e desmontava/remontava tudo por baixo, incluindo o <video> real — perdendo
+// currentTime e reiniciando a reprodução. Só className/style mudam por drawerOpen agora, nunca a
+// FORMA da árvore — PlaylistLayer (e o <video>/<img> dentro dele, via seus próprios key={current.
+// key} que não dependem de drawerOpen) nunca remonta só por causa do drawer abrir/fechar.
 function VideoZoneLayer({
   items,
   newsArticles,
@@ -365,6 +459,9 @@ function VideoZoneLayer({
   brandColor,
   weather,
   agendaViewSize,
+  drawerOpen,
+  tickerEnabled,
+  agendaRotation,
 }: {
   items: PlaylistItemSummary[];
   newsArticles: RegionNewsArticle[];
@@ -373,14 +470,39 @@ function VideoZoneLayer({
   brandColor: string;
   weather: RegionWeather | null;
   agendaViewSize: BroadcastAgendaViewSize;
+  drawerOpen: boolean;
+  tickerEnabled: boolean;
+  agendaRotation: AgendaRotationEntry[];
 }) {
+  // Footer compacto (drawer fechado) sobrepõe a base da view em vez de empurrá-la — a barra de
+  // progresso precisa saber a altura dele pra não ficar escondida atrás (ver PlaylistLayer/
+  // ProgressOverlay). Sem footer ali (footerOpen=false ou drawer aberto, onde o footer empurra em
+  // vez de sobrepor), offset 0 — barra rente à borda, como sempre foi.
+  const compactFooterVisible = !drawerOpen && footerOpen;
+
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden" style={{ background: brandColor }}>
-      <div className="min-h-0 flex-1 overflow-hidden">
-        <PlaylistLayer items={items} newsArticles={newsArticles} />
+    <div
+      className={`relative h-full w-full overflow-hidden ${drawerOpen ? "flex flex-col" : ""}`}
+      style={drawerOpen ? { background: brandColor } : undefined}
+    >
+      <div className={drawerOpen ? "min-h-0 flex-1 overflow-hidden" : "h-full w-full overflow-hidden"}>
+        <PlaylistLayer
+          items={items}
+          newsArticles={newsArticles}
+          fillMode={drawerOpen ? "contain" : "cover"}
+          progressBarBottomOffsetPx={compactFooterVisible ? COMPACT_FOOTER_HEIGHT_PX : 0}
+        />
       </div>
       {footerOpen && (
-        <BrandFooterBar brandLogoUrl={brandLogoUrl} brandColor={brandColor} weather={weather} agendaViewSize={agendaViewSize} />
+        <BrandFooterBar
+          brandLogoUrl={brandLogoUrl}
+          brandColor={brandColor}
+          weather={weather}
+          agendaViewSize={agendaViewSize}
+          tickerEnabled={tickerEnabled}
+          agendaRotation={agendaRotation}
+          compact={!drawerOpen}
+        />
       )}
     </div>
   );
@@ -393,16 +515,86 @@ function VideoZoneLayer({
 // ocupar ~30% da tela numa agenda larga; pedido explícito: "o footer pode ser menor, no tamanho
 // que estava antes"). Alternável por saída (output.footerOpen) — quando fechada, esta função nem é
 // montada (ver VideoZoneLayer), a playlist recupera 100% da altura da coluna de vídeo.
+//
+// Bloco relógio+data+clima, MESMA estrutura com o drawer aberto ou fechado — pedido explícito: "o
+// layout do Relógio e Clima não deve alterar quando o drawer estiver off" (antes, a variante
+// "compact" só mostrava hora+temperatura numa linha só, sem data nem o rótulo da condição do
+// tempo). "Layout" ali é a ESTRUTURA (hora+data empilhados, clima com divisor+rótulo) — o TAMANHO
+// do texto continua acompanhando a altura da barra ao redor (pedido explícito: "elementos no
+// footer devem seguir o tamanho do height do footer"), já que a compacta (h-12/48px,
+// COMPACT_FOOTER_HEIGHT_PX) é bem mais baixa que qualquer tier aberto (BROADCAST_AGENDA_VIEW_SIZE_SCALE,
+// 80-160px) — o mesmo texto-2xl/4xl que cabe folgado numa barra alta ficaria espremido/cortando
+// numa de 48px.
+function ClockWeatherBlock({
+  time,
+  date,
+  weather,
+  palette,
+  compact = false,
+}: {
+  time: string;
+  date: string;
+  weather: RegionWeather | null;
+  palette: ReturnType<typeof resolveContrastPalette>;
+  compact?: boolean;
+}) {
+  return (
+    <div className={`flex shrink-0 items-center ${compact ? "gap-2.5" : "gap-4 sm:gap-6"}`}>
+      <div className="text-right leading-none">
+        <div
+          className={`font-bold tracking-tight tabular-nums ${compact ? "text-base" : "text-2xl"}`}
+          style={{ color: palette.foreground }}
+        >
+          {time}
+        </div>
+        <div className={`mt-1 font-medium capitalize ${compact ? "text-[10px]" : "text-xs"}`} style={{ color: palette.muted }}>
+          {date}
+        </div>
+      </div>
+      {weather && (
+        // UX "premium" — mesmo par tipográfico do horário ao lado (número grande em cima, rótulo
+        // pequeno e discreto embaixo) em vez de só emoji+número soltos, pra ficar visualmente
+        // consistente com o resto da barra.
+        <>
+          <span aria-hidden="true" className={`w-px shrink-0 ${compact ? "h-5" : "h-8"}`} style={{ background: palette.subtle }} />
+          <div className={`flex items-center ${compact ? "gap-1.5" : "gap-3"}`}>
+            <span className={`leading-none ${compact ? "text-xl" : "text-4xl"}`}>{weather.emoji}</span>
+            <div className="text-left leading-none">
+              <div className={`font-bold tabular-nums ${compact ? "text-base" : "text-2xl"}`} style={{ color: palette.foreground }}>
+                {Math.round(weather.temperatureC)}°
+              </div>
+              <div className={`mt-1 font-medium capitalize ${compact ? "text-[10px]" : "text-xs"}`} style={{ color: palette.muted }}>
+                {weather.conditionLabel}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Ticker de agenda (tickerEnabled) mora DENTRO deste componente, na MESMA linha da logo e do
+// relógio (não mais uma segunda linha abaixo) — pedido explícito: "o ticker deve ser rotativo
+// dentro do footer, entre o brand e o relógio, alinhado à direita (junto do relógio)" (ver
+// AgendaTickerInline). Continua herdando o mesmo escopo do footer — só aparece quando
+// footerOpen=true, e só ocupa a largura do vídeo (não a da agenda), nunca a tela inteira.
 export function BrandFooterBar({
   brandLogoUrl,
   brandColor,
   weather,
   agendaViewSize,
+  tickerEnabled,
+  agendaRotation,
+  compact = false,
 }: {
   brandLogoUrl: string | null;
   brandColor: string;
   weather: RegionWeather | null;
   agendaViewSize: BroadcastAgendaViewSize;
+  tickerEnabled: boolean;
+  agendaRotation: AgendaRotationEntry[];
+  compact?: boolean;
 }) {
   const now = useClock();
   const palette = resolveContrastPalette(brandColor);
@@ -410,47 +602,52 @@ export function BrandFooterBar({
   const date = now?.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }) ?? "";
   const { footerHeightClassName, footerLogoHeightClassName } = BROADCAST_AGENDA_VIEW_SIZE_SCALE[agendaViewSize];
 
-  return (
-    <div
-      className={`flex ${footerHeightClassName} w-full shrink-0 items-center justify-between gap-4 px-7`}
-      style={{ background: brandColor }}
-    >
-      {brandLogoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- logo vem de contexts/media (Blob), domínio arbitrário.
-        <img
-          src={brandLogoUrl}
-          alt=""
-          className={`${footerLogoHeightClassName} w-auto object-contain`}
-          style={palette.isLight ? undefined : { filter: "brightness(0) invert(1)" }}
-        />
-      ) : (
-        <span />
-      )}
-      {now && (
-        <div className="flex items-center gap-4 sm:gap-6">
-          <div className="text-right leading-none">
-            <div className="text-2xl font-bold tracking-tight tabular-nums" style={{ color: palette.foreground }}>{time}</div>
-            <div className="mt-1 text-xs font-medium capitalize" style={{ color: palette.muted }}>{date}</div>
-          </div>
-          {weather && (
-            // UX "premium" — mesmo par tipográfico do horário ao lado (número grande em cima,
-            // rótulo pequeno e discreto embaixo) em vez de só emoji+número soltos, pra ficar
-            // visualmente consistente com o resto da barra.
-            <>
-              <span aria-hidden="true" className="h-8 w-px shrink-0" style={{ background: palette.subtle }} />
-              <div className="flex items-center gap-3">
-                <span className="text-4xl leading-none">{weather.emoji}</span>
-                <div className="text-left leading-none">
-                  <div className="text-2xl font-bold tabular-nums" style={{ color: palette.foreground }}>
-                    {Math.round(weather.temperatureC)}°
-                  </div>
-                  <div className="mt-1 text-xs font-medium capitalize" style={{ color: palette.muted }}>{weather.conditionLabel}</div>
-                </div>
-              </div>
-            </>
+  if (compact) {
+    return (
+      <div className="absolute inset-x-0 bottom-0 flex w-full shrink-0 flex-col" style={{ background: brandColor }}>
+        {/* h-12 (COMPACT_FOOTER_HEIGHT_PX=48, os dois precisam bater — ver a constante) — pedido
+            explícito: "quando a view ficar full width, o height do footer deve diminuir 40%"
+            (era h-20/80px). Logo e ClockWeatherBlock (compact) escalam junto com a barra menor —
+            pedido explícito: "elementos no footer devem seguir o tamanho do height do footer" —
+            mas a ESTRUTURA do relógio/clima continua a mesma do modo aberto, só o tamanho do
+            texto muda (pedido anterior: "o layout do Relógio e Clima não deve alterar quando o
+            drawer estiver off" — layout = estrutura, não tamanho). */}
+        <div className="flex h-12 w-full items-center justify-between gap-3 px-6">
+          {brandLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- logo vem de contexts/media (Blob), domínio arbitrário.
+            <img
+              src={brandLogoUrl}
+              alt=""
+              className="h-6 w-auto shrink-0 object-contain"
+              style={palette.isLight ? undefined : { filter: "brightness(0) invert(1)" }}
+            />
+          ) : (
+            <span />
           )}
+          {tickerEnabled && <AgendaTickerInline rotation={agendaRotation} palette={palette} compact />}
+          {now && <ClockWeatherBlock time={time} date={date} weather={weather} palette={palette} compact />}
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex w-full shrink-0 flex-col" style={{ background: brandColor }}>
+      <div className={`flex ${footerHeightClassName} w-full items-center justify-between gap-4 px-7`}>
+        {brandLogoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- logo vem de contexts/media (Blob), domínio arbitrário.
+          <img
+            src={brandLogoUrl}
+            alt=""
+            className={`${footerLogoHeightClassName} w-auto shrink-0 object-contain`}
+            style={palette.isLight ? undefined : { filter: "brightness(0) invert(1)" }}
+          />
+        ) : (
+          <span />
+        )}
+        {tickerEnabled && <AgendaTickerInline rotation={agendaRotation} palette={palette} compact={false} />}
+        {now && <ClockWeatherBlock time={time} date={date} weather={weather} palette={palette} />}
+      </div>
     </div>
   );
 }
@@ -540,6 +737,139 @@ function NewsCardRotator({ articles }: { articles: RegionNewsArticle[] }) {
   return <NewsSlideCard key={current.link} article={current} />;
 }
 
+// Slide "em destaque" de UM evento único da agenda, no meio do rodízio de vídeos — pedido
+// explícito: "não quero que entre a agenda [inteira], apenas um item da agenda, com todas as
+// informações". 2º redesenho (pedido explícito: "mais ênfase no texto" + "a imagem... você está
+// usando apenas o corte que usamos no quadrado pequeno, essa imagem é maior e wide, aproveita
+// melhor"): a 1ª versão (capa full-bleed atrás de tudo + scrim) cropava a foto pro aspect-ratio da
+// CAIXA do slide, que na prática é estreita/alta quando a gaveta de agenda está aberta (o vídeo
+// encolhe em largura, ver applyAgendaViewSizeOverride) — uma capa larga acabava reduzida a uma
+// fatia vertical estreita do meio, o mesmo problema visual do card pequeno antigo. A correção é dar
+// à imagem uma CAIXA LARGA de verdade (banda horizontal no topo, ~58% da altura, largura cheia) em
+// vez de deixá-la se espremer na caixa inteira do slide — um object-cover numa banda larga mostra
+// muito mais da foto original (que é wide) do que o mesmo object-cover numa caixa alta e estreita.
+// O texto ganha um painel PRÓPRIO sólido embaixo (não mais sobreposto à foto com scrim) — contraste
+// garantido sem depender da exposição da capa, e libera peso tipográfico bem maior (title 7xl
+// extrabold, meta em 3xl com o horário na cor de destaque) sem competir visualmente com a imagem.
+// Zoom lento (Ken Burns) mantido, esticado pra duração REAL do slide (durationSeconds do item).
+// Evento sem capa: o painel de texto ocupa a tela inteira, centralizado.
+//
+// event null (evento apagado depois do item criado, ver classifyPlaylistItem) nunca chega a
+// renderizar de fato: PlaylistLayer detecta isEmptySlide e avança em 1s antes que isto apareça por
+// tempo perceptível — o fundo preto abaixo é só a rede de segurança desse instante.
+function FeaturedAgendaEventSlide({ event, durationSeconds }: { event: AgendaRotationEvent | null; durationSeconds: number }) {
+  // useClock (não Date.now() direto) — precisa ser reativo pro badge trocar sozinho pra
+  // "Acontecendo" no instante em que o evento começa e voltar quando termina, sem esperar o
+  // próximo refetch de estado. Hook sempre chamado antes do guard `if (!event)` (regra de hooks).
+  const now = useClock();
+  if (!event) return <div className="h-full w-full bg-black" />;
+
+  const { day, month, weekday, time } = formatEventDay(event.startAt);
+  const today = isSameDay(event.startAt);
+  // "Acontecendo agora" — pedido explícito: "quando o evento começar, coloque o status
+  // 'acontecendo', e destaque as cores". Prevalece sobre "Hoje"/"Agenda" quando true (ver o badge
+  // abaixo) — laranja (TV_HAPPENING_NOW_COLOR) em vez da cor de destaque padrão, pra ficar
+  // visualmente distinto dos outros dois estados.
+  const happeningNow = now !== null && isEventHappeningNow(event.startAt, event.endAt, now);
+  const weekdayAndTime = `${weekday} • ${time}${formatEndTimeSuffix(event.startAt, event.endAt)}`;
+  const hasCover = Boolean(event.coverUrl);
+
+  // Badge "Acontecendo"/"Hoje"/"Agenda" — mesma regra visual do card da gaveta lateral
+  // (AgendaLayer), agora em fluxo normal como a PRIMEIRA linha da coluna de texto (pedido
+  // explícito, mesma sessão: "quero que a badge do acontecendo esteja sobre o título no Card") —
+  // sempre a primeira coisa antes do título, nunca flutuando solto em outro canto.
+  const statusBadge = (
+    <span
+      className="w-fit rounded-full px-6 py-2.5 text-2xl font-bold uppercase tracking-wide"
+      style={
+        happeningNow
+          ? { background: TV_HAPPENING_NOW_COLOR, color: TV_HAPPENING_NOW_FOREGROUND }
+          : { background: today ? TV_ACCENT_COLOR : TV_ACCENT_COLOR_SOFT, color: today ? TV_ACCENT_FOREGROUND : TV_ACCENT_COLOR }
+      }
+    >
+      {happeningNow ? "Acontecendo" : today ? "Hoje" : "Agenda"}
+    </span>
+  );
+
+  // Layout novo (pedido explícito: "cria um novo layout para a view do evento em destaque") —
+  // troca de empilhado (imagem em cima, texto embaixo) para lado a lado: a foto vira um painel
+  // full-height à esquerda, o texto ocupa a altura INTEIRA do slide à direita. Isso resolve por
+  // construção o bug da versão anterior (badges vazando por cima da imagem quando o bloco de
+  // texto não cabia na fatia vertical que sobrava): imagem e texto não competem mais pelo mesmo
+  // eixo, um overflow vertical do texto nunca mais pode visualmente invadir a imagem, porque eles
+  // não são mais vizinhos no eixo vertical. object-contain (não -cover) preserva o pedido anterior
+  // de mostrar a foto inteira, sem cortar — a folga vira letterbox no fundo do próprio painel
+  // (mesma cor do resto do slide). Tamanhos recalibrados pra essa geometria: a coluna de texto
+  // agora tem 100% da altura do slide pra trabalhar (era ~62% no layout empilhado), então um
+  // título grande cabe com folga sem precisar do valor extremo (18rem) que só existia pra
+  // compensar a pouca altura que sobrava ali.
+  return (
+    <div className="flex h-full w-full overflow-hidden" style={{ background: DEFAULT_AGENDA_BACKGROUND }}>
+      {hasCover && (
+        <div className="relative h-full w-[42%] shrink-0 overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element -- capa vem de contexts/media (Blob), domínio arbitrário. */}
+          <img
+            src={event.coverUrl as string}
+            alt=""
+            className="absolute inset-0 h-full w-full object-contain"
+            style={{ animation: `broadcast-news-parallax ${Math.max(durationSeconds, 1) * 1000}ms ease-in-out forwards` }}
+          />
+          {/* Costura com a coluna de texto — degradê horizontal (era vertical no layout
+              empilhado), mesma cor de fundo do painel. */}
+          <div
+            className="pointer-events-none absolute inset-y-0 right-0 w-24"
+            style={{ background: `linear-gradient(90deg, rgba(15,15,15,0) 0%, ${DEFAULT_AGENDA_BACKGROUND} 100%)` }}
+          />
+        </div>
+      )}
+
+      <div
+        className={`flex min-h-0 flex-1 flex-col justify-center gap-8 overflow-hidden px-16 py-14 ${hasCover ? "" : "items-center text-center"}`}
+      >
+        <div className={`flex items-center gap-4 ${hasCover ? "" : "justify-center"}`}>
+          {statusBadge}
+          <span
+            className="w-fit rounded-full px-6 py-2.5 text-2xl font-bold uppercase tracking-wide"
+            style={{ background: TV_ACCENT_COLOR_SOFT, color: TV_ACCENT_COLOR }}
+          >
+            {day} {month}
+          </span>
+        </div>
+        {/* Pedido explícito: "diminua o tamanho do texto do título" (era text-[7rem]/112px) +
+            "não corte as palavras, quebre a linha" — removido o line-clamp-2 que truncava com
+            "..." depois de 2 linhas; agora quebra livremente em quantas linhas o título precisar,
+            nunca corta palavra nenhuma. Seguro fazer isso aqui: a coluna de texto já tem
+            overflow-hidden (proteção contra um título absurdamente longo), e o layout lado-a-lado
+            (ver comentário acima da função) garante que um eventual corte por overflow nunca mais
+            vaza visualmente sobre a imagem, só sobre o próprio espaço vazio da coluna. */}
+        <p
+          className="text-6xl leading-[1.15] font-extrabold tracking-tight"
+          style={{ color: "#FFFFFF", animation: "broadcast-news-title-in 600ms ease both" }}
+        >
+          {event.title}
+        </p>
+        {event.description && (
+          <p className="line-clamp-2 max-w-4xl text-4xl" style={{ color: "rgba(255,255,255,0.8)" }}>
+            {event.description}
+          </p>
+        )}
+        <div className={`flex flex-wrap items-center gap-x-10 gap-y-4 ${hasCover ? "" : "justify-center"}`}>
+          <span className="flex items-center gap-4 text-3xl font-bold" style={{ color: TV_ACCENT_COLOR }}>
+            <Clock className="size-10 shrink-0" aria-hidden />
+            {weekdayAndTime}
+          </span>
+          {event.location && (
+            <span className="flex items-center gap-4 text-3xl font-bold" style={{ color: "rgba(255,255,255,0.95)" }}>
+              <MapPin className="size-10 shrink-0" aria-hidden />
+              {event.location}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Compartilhado por InfoLayer/AgendaLayer. Começa null (não em new Date()) de propósito: SSR e o
 // primeiro render client hidratam com "sem hora ainda" idêntico, só o efeito (client-only) enche
 // depois — evita mismatch de hidratação por fuso/instante de render diferentes.
@@ -592,11 +922,30 @@ function formatEventDay(startAt: string | Date): { day: string; month: string; w
   };
 }
 
+// "" quando não tem término definido. endAt agora é um timestamp completo (pode cair em qualquer
+// data posterior ao início, inclusive dias depois — pedido explícito: "o término pode acontecer em
+// qualquer data posterior... pode haver eventos que duram dias") — quando cai no MESMO dia do
+// início, mostra só a hora ("–15:30"), igual sempre foi; quando cai em outro dia, mostra a data do
+// término também ("–14/03 18:00"), senão um evento overnight ("22:00–02:00") parece um término
+// antes do início por engano. Mesmo racional de formatEndTimeSuffix no admin (agenda-section.tsx).
+// startAt/endAt chegam como string depois de um round-trip JSON (fetch/SSE não revivem Date
+// automaticamente) — mesmo racional de formatEventDay aceitar "string | Date".
+function formatEndTimeSuffix(startAt: string | Date, endAt: string | Date | null): string {
+  if (!endAt) return "";
+  const start = typeof startAt === "string" ? new Date(startAt) : startAt;
+  const end = typeof endAt === "string" ? new Date(endAt) : endAt;
+  const endTime = end.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  if (end.toDateString() === start.toDateString()) return `–${endTime}`;
+  const endDay = end.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  return ` – ${endDay} ${endTime}`;
+}
+
 function isSameDay(startAt: string | Date): boolean {
   const date = typeof startAt === "string" ? new Date(startAt) : startAt;
   const now = new Date();
   return date.toDateString() === now.toDateString();
 }
+
 
 const DEFAULT_AGENDA_BACKGROUND = "#0f0f0f";
 
@@ -612,6 +961,17 @@ const TV_ACCENT_FOREGROUND = "#0F0F0F";
 
 // Gradiente do AlertBanner (vermelho/laranja de aviso) — mesmo racional de TV_ACCENT_COLOR acima.
 const TV_ALERT_GRADIENT = "linear-gradient(90deg, #B3261E, #E8482C)";
+
+// Cor do status "Acontecendo" (evento em andamento) — pedido explícito: "altere a cor do
+// 'acontecendo', em laranja ou amarelo ovo". Antes reusava TV_ALERT_GRADIENT (vermelho), a mesma
+// cor do AlertBanner de aviso urgente — deliberadamente NÃO trocado ali, só nos 3 usos de
+// "Acontecendo" (aqui, no dateBadge/statusPill do AgendaLayer), já que são estados semânticos
+// diferentes (evento em curso vs. aviso/atenção). Laranja vívido, distinto o bastante do dourado de
+// TV_ACCENT_COLOR (usado no badge "Hoje") pra continuar dando pra diferenciar os dois status de
+// relance. Foreground escuro (mesmo valor de TV_ACCENT_FOREGROUND) — texto branco teria contraste
+// ruim num fundo laranja/amarelo claro.
+const TV_HAPPENING_NOW_COLOR = "#FF8A00";
+const TV_HAPPENING_NOW_FOREGROUND = "#0F0F0F";
 
 // Paleta derivada de uma cor de fundo escolhida pelo operador (agenda.backgroundColor ou
 // broadcast.brandColor, ambas hex livres) — luminância relativa decide se o texto vai em branco
@@ -645,23 +1005,37 @@ function AgendaLayer({
   rotation,
   brandLogoUrl,
   animationStyle,
+  drawerOpen,
 }: {
   rotation: AgendaRotationEntry[];
   brandLogoUrl: string | null;
   animationStyle: BroadcastAgendaAnimationStyle;
+  // Só usado pra fazer a entrada dos eventos REPETIR a cada vez que o drawer abre (ver a key do
+  // bloco de eventos logo abaixo) — a geometria/abertura em si (LayerRenderer) já lê drawerOpen
+  // direto, não precisa dele pra mais nada aqui.
+  drawerOpen: boolean;
 }) {
   const [index, setIndex] = useState(0);
   // Mesmo mecanismo de PlaylistLayer — reinicia a contagem automática a partir de um clique manual.
   const [manualTick, setManualTick] = useState(0);
+  // Pro badge "Acontecendo" de cada evento (ver isEventHappeningNow logo abaixo, no .map) — hook
+  // sempre chamado, antes do guard `if (!current) return null` (regra de hooks).
+  const now = useClock();
   const current = rotation.length > 0 ? rotation[index % rotation.length] : null;
   const advanceAgenda = () => setIndex((previous) => (previous + 1) % rotation.length);
 
+  // Rodízio 100% interno e contínuo — o scheduler de pausa em output-canvas.tsx (useAgendaRotationSchedule)
+  // só decide QUANDO a coluna abre/fecha (janela fixa de segundos, ver o hook), nunca QUAL agenda
+  // mostrar dentro da janela; isso continua sendo decisão exclusivamente desta layer, igual antes
+  // de o ciclo de pausa existir.
   useTimedAdvance(current ? current.agenda.displaySeconds * 1000 : 0, advanceAgenda, rotation.length > 1, manualTick);
 
-  // LayerRenderer só monta esta layer quando drawerOpen=true, e drawerOpen agora já exige
-  // rotation.length > 0 (ver effectiveDrawerOpen em output-canvas.tsx — "se não houver agenda
-  // ativa, feche a agenda no View") — current nunca é null na prática, mas o guard evita depender
-  // dessa garantia implícita entre arquivos.
+  // Esta layer fica sempre montada agora, mesmo com o drawer fechado (ver LayerRenderer/
+  // applyAgendaViewSizeOverride — a gaveta anima abrindo/fechando via CSS, não via mount/unmount);
+  // current só é null quando a rotação está genuinamente vazia (nenhuma agenda com evento futuro).
+  // O rodízio continua avançando em segundo plano mesmo com a coluna fechada/pausada (mesmo
+  // racional do vídeo, que também não pausa quando o drawer fecha) — reabrir mostra a agenda que
+  // estiver "em cartaz" naquele momento, não necessariamente a mesma de antes de fechar.
   if (!current) return null;
 
   const backgroundColor = current.agenda.backgroundColor ?? DEFAULT_AGENDA_BACKGROUND;
@@ -672,19 +1046,20 @@ function AgendaLayer({
   // muda a agenda". onClick direto no container (diferente de PlaylistLayer): aqui não existe
   // sub-elemento tipo <iframe> que engoliria o clique, então não precisa de uma camada extra por
   // cima.
+  const clickable = rotation.length > 1;
   return (
     <div
-      role={rotation.length > 1 ? "button" : undefined}
-      aria-label={rotation.length > 1 ? "Avançar para a próxima agenda" : undefined}
+      role={clickable ? "button" : undefined}
+      aria-label={clickable ? "Avançar para a próxima agenda" : undefined}
       onClick={
-        rotation.length > 1
+        clickable
           ? () => {
               advanceAgenda();
               setManualTick((tick) => tick + 1);
             }
           : undefined
       }
-      className={`relative flex h-full w-full flex-col overflow-hidden ${rotation.length > 1 ? "cursor-pointer" : ""}`}
+      className={`relative flex h-full w-full flex-col overflow-hidden ${clickable ? "cursor-pointer" : ""}`}
       style={{ background: backgroundColor, transition: "background 500ms ease" }}
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-7 pt-7">
@@ -693,11 +1068,24 @@ function AgendaLayer({
             sequência (animation-delay crescente por índice), então NÃO dá pra por animação aqui
             também (dobraria a animação: o bloco inteiro deslizando E os itens em cascata dentro
             dele ao mesmo tempo). Pedido explícito: "opção no sistema de colocar o fade atual ou
-            essa [cascata]". */}
+            essa [cascata]".
+
+            key inclui drawerOpen (não só current.agenda.id) — remonta este bloco toda vez que o
+            drawer abre, fazendo a animação de entrada repetir a cada abertura (pedido explícito:
+            "já é para existir animação de entrada dos eventos"), não só na primeira vez que essa
+            agenda apareceu na rotação. animationDelay = AGENDA_ENTRY_ANIMATION_DELAY_MS (mesma
+            duração de GEOMETRY_TRANSITION) — sem isso a entrada dos eventos começava junto com o
+            slide do drawer; "both" faz o elemento já nascer no estado inicial da animação (opacity
+            0) durante o delay, em vez de aparecer cheio e só sumir/reaparecer no instante em que a
+            animação de fato começa. */}
         <div
-          key={current.agenda.id}
+          key={`${current.agenda.id}-${drawerOpen}`}
           className="flex h-full min-h-0 flex-col gap-4"
-          style={animationStyle === "fade" ? { animation: "broadcast-agenda-fade 500ms ease" } : undefined}
+          style={
+            animationStyle === "fade"
+              ? { animation: `broadcast-agenda-fade 500ms ease ${AGENDA_ENTRY_ANIMATION_DELAY_MS}ms both` }
+              : undefined
+          }
         >
           {/* Redesenho "moderno e premium" (pedido explícito) — o text-4xl solto anterior ficou
               grande demais/pesado; troca por um kicker discreto ("AGENDA") em caixa alta com
@@ -726,125 +1114,146 @@ function AgendaLayer({
             {current.events.map((event, eventIndex) => {
               const { day, month, weekday, time: eventTime } = formatEventDay(event.startAt);
               const today = isSameDay(event.startAt);
+              // "Acontecendo agora" — mesmo racional/helper de FeaturedAgendaEventSlide (pedido
+              // explícito: "quando o evento começar, coloque o status 'acontecendo', e destaque
+              // as cores"). Prevalece sobre "Hoje" no badge/pill abaixo quando true.
+              const happeningNow = now !== null && isEventHappeningNow(event.startAt, event.endAt, now);
               // "seg • 14:00" — pedido explícito: eventos recorrentes toda semana ficam óbvios de
               // bater o olho ("toda seg") sem precisar calcular a partir do número do dia. Com
               // horário de término opcional, vira "seg • 14:00–15:30".
-              const weekdayAndTime = `${weekday} • ${eventTime}${event.endTime ? `–${event.endTime.slice(0, 5)}` : ""}`;
+              const weekdayAndTime = `${weekday} • ${eventTime}${formatEndTimeSuffix(event.startAt, event.endAt)}`;
               // 120ms entre cada card (mais espaçado que a primeira versão, pedido explícito: "mais
               // expressiva") — devagar o bastante pra cada entrada da direita ser individualmente
-              // percebida, não só um blur de movimento.
+              // percebida, não só um blur de movimento. Delay base de AGENDA_ENTRY_ANIMATION_DELAY_MS
+              // (mesmo racional do bloco "fade" acima) soma-se ao escalonamento por card — a
+              // cascata só começa depois que o drawer termina de abrir.
               const cascadeStyle: React.CSSProperties | undefined =
                 animationStyle === "cascade"
                   ? {
                       animation: "broadcast-agenda-cascade-item 600ms cubic-bezier(0.16, 1, 0.3, 1) both",
-                      animationDelay: `${eventIndex * 120}ms`,
+                      animationDelay: `${AGENDA_ENTRY_ANIMATION_DELAY_MS + eventIndex * 120}ms`,
                     }
                   : undefined;
 
-              // Com capa: banner full-width com título/data sobrepostos num gradiente. Altura FIXA
-              // (h-28), não mais aspectRatio (pedido explícito: "os itens da agenda devem ter um
-              // height menor, para caber pelo menos umas 7 entradas com as imagens") — com
-              // aspectRatio, uma coluna de agenda mais larga (BROADCAST_AGENDA_VIEW_SIZE_SCALE)
-              // deixava CADA card proporcionalmente mais alto, brigando direto com "caber mais
-              // itens"; altura fixa desacopla as duas coisas. Mantém a informação de data/hora que
-              // o card sem capa tem — dia da semana + horário abaixo do título, não só dia/mês no
-              // badge.
-              if (event.coverUrl) {
-                return (
-                  <div
-                    key={event.id}
-                    className="relative h-28 w-full shrink-0 overflow-hidden rounded-lg"
-                    style={cascadeStyle}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element -- cover vem de contexts/media (Blob), domínio arbitrário. */}
-                    <img src={event.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                    {/* Gradiente mais forte e mais alto (chegava só a 55% da altura, deixando o título
-                        raso em foto clara) + text-shadow no texto solto (título/dia da semana) — pedido
-                        explícito: "existe pouca legibilidade" numa foto de fundo arbitrária. */}
-                    <div
-                      className="absolute inset-0"
-                      style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.35) 70%, transparent)" }}
-                    />
-                    {today && (
-                      <span
-                        className="absolute right-2 top-2 rounded-full px-2.5 py-1 text-xs font-bold uppercase"
-                        style={{ background: TV_ACCENT_COLOR, color: TV_ACCENT_FOREGROUND }}
-                      >
-                        Hoje
+              // Redesenho completo — pedido explícito: "as informações em ordem hierárquica: Data,
+              // Título, Local e horário" (não necessariamente ordem de LUGAR no card, só de
+              // hierarquia visual). Ajuste seguinte: "Data está ótimo, o restante ainda está
+              // pequeno, principalmente o horário — a pessoa precisa conseguir ler de longe" — a
+              // hierarquia título > local > horário passou a vir só do tamanho do título (maior) e
+              // do peso da fonte, nunca de deixar local/horário pequenos ou de baixo contraste
+              // (isso é ilegível numa TV vista de longe, incompatível com o pedido).
+              // Card com capa: a imagem full-bleed atrás do texto (versão anterior) foi abandonada
+              // de propósito — pedido explícito: "a imagem de fundo é muito legal, mas dificulta
+              // MUITO a leitura". Agora a imagem fica isolada num terço esquerdo (nunca mais atrás
+              // de texto), com um leve véu de cor por cima (harmoniza com a paleta do card, não
+              // compete visualmente com o lado de texto); o resto do card (2/3) é fundo sólido —
+              // mesma legibilidade do card sem capa, sempre.
+              const dateBadge = (
+                <div
+                  className="flex shrink-0 flex-col items-center justify-center rounded-md px-3.5 py-2.5 text-center leading-none"
+                  style={
+                    happeningNow
+                      ? { background: TV_HAPPENING_NOW_COLOR, color: TV_HAPPENING_NOW_FOREGROUND, minWidth: "5.5rem" }
+                      : {
+                          background: today ? TV_ACCENT_COLOR : palette.subtle,
+                          color: today ? TV_ACCENT_FOREGROUND : palette.foreground,
+                          minWidth: "5.5rem",
+                        }
+                  }
+                >
+                  <span className="text-4xl font-bold">{day}</span>
+                  {/* Maior e mais pesado que antes (era text-sm font-semibold, opacity 0.85) —
+                      pedido explícito: "aumente e dê mais peso para o mês embaixo do dia". */}
+                  <span className="mt-0.5 text-lg font-bold uppercase">{month}</span>
+                </div>
+              );
+
+              // Título agora fica ACIMA da data e das informações (pedido explícito: "joga o
+              // título sobre a data e as informações") — deixou de dividir a largura do card com o
+              // badge de data ao lado; ocupa a linha inteira, sozinho, no topo. Data+local+horário
+              // formam a segunda linha, abaixo. Local/horário continuam com contraste total
+              // (palette.foreground) e tamanho grande — pedido anterior: "a pessoa precisa
+              // conseguir ler de longe". Sem truncate em lugar nenhum (pedido explícito: "ajuste as
+              // informações para quebrar linha") — título/local longos agora quebram em várias
+              // linhas em vez de cortar com "..."; por isso os itens usam items-start (não
+              // items-center) quando têm ícone, senão o ícone ficaria "flutuando" no meio de um
+              // texto de duas linhas. O card com capa trocou de altura FIXA pra min-height (ver
+              // abaixo) pra crescer junto com o texto, em vez de cortar o excesso por baixo.
+              const metaRow = (
+                <div className="flex items-center gap-3">
+                  {dateBadge}
+                  <div className="min-w-0 flex-1">
+                    {event.location && (
+                      <span className="flex items-start gap-2 text-xl font-medium" style={{ color: palette.foreground }}>
+                        <MapPin className="mt-1 size-5 shrink-0" aria-hidden />
+                        <span>{event.location}</span>
                       </span>
                     )}
-                    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
-                      <div className="min-w-0">
-                        <p
-                          className="truncate text-xl font-semibold"
-                          style={{ color: "#FFFFFF", textShadow: "0 1px 6px rgba(0,0,0,0.8)" }}
-                        >
-                          {event.title}
-                        </p>
-                        {/* Badge com ícone de relógio (não mais texto solto) — mesmo racional do
-                            card sem capa: pedido explícito "crie recursos para evidenciar melhor
-                            a data, dia da semana e hora". */}
-                        <span
-                          className="mt-1.5 inline-flex max-w-full items-center gap-1.5 truncate rounded-full px-2.5 py-1 text-sm font-semibold capitalize"
-                          style={{ background: "rgba(255,255,255,0.18)", color: "#FFFFFF", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}
-                        >
-                          <Clock className="size-3.5 shrink-0" aria-hidden />
-                          <span className="truncate">{weekdayAndTime}</span>
-                        </span>
-                      </div>
-                      {/* Data em badge sólido (não texto solto sobre o gradiente) — garante
-                          contraste igual ao do card sem capa, independente do que estiver por
-                          trás na foto. */}
-                      <div
-                        className="flex shrink-0 flex-col items-center justify-center rounded-md px-3 py-2 text-center leading-none"
-                        style={{ background: today ? TV_ACCENT_COLOR : "rgba(0,0,0,0.55)", color: today ? TV_ACCENT_FOREGROUND : "#FFFFFF" }}
-                      >
-                        <span className="text-3xl font-bold">{day}</span>
-                        <span className="mt-0.5 text-xs font-semibold uppercase" style={{ opacity: 0.85 }}>
-                          {month}
-                        </span>
-                      </div>
+                    <span className="mt-1.5 flex items-start gap-2 text-xl font-semibold" style={{ color: palette.foreground }}>
+                      <Clock className="mt-1 size-5 shrink-0" aria-hidden />
+                      <span>{weekdayAndTime}</span>
+                    </span>
+                  </div>
+                </div>
+              );
+
+              // Descrição, quando houver, entra entre o título e a data/local/horário — pedido
+              // explícito: "a descrição quando houver deve aparecer no card" (já aparecia no card
+              // "em destaque" de FeaturedAgendaEventSlide e no admin, faltava só aqui, o card da
+              // gaveta lateral). line-clamp-2 (não sem-truncate como título/local acima) — vários
+              // eventos empilham no mesmo painel, uma descrição longa sem limite empurraria os
+              // cards seguintes pra fora da área visível.
+              //
+              // "Acontecendo"/"Hoje" — pedido explícito: "quero que a badge do acontecendo esteja
+              // sobre o título no Card". Antes era um <span> `absolute right-2 top-2` ancorado no
+              // canto do CARD inteiro (podia ficar longe do título dependendo da altura do card,
+              // ver captura de tela); agora entra em fluxo normal, primeira linha do próprio
+              // `cardBody`, sempre imediatamente acima do título — nunca mais desalinha dele.
+              const statusPill = (today || happeningNow) && (
+                <span
+                  className="w-fit rounded-full px-2.5 py-1 text-xs font-bold uppercase"
+                  style={
+                    happeningNow
+                      ? { background: TV_HAPPENING_NOW_COLOR, color: TV_HAPPENING_NOW_FOREGROUND }
+                      : { background: TV_ACCENT_COLOR, color: TV_ACCENT_FOREGROUND }
+                  }
+                >
+                  {happeningNow ? "Acontecendo" : "Hoje"}
+                </span>
+              );
+              const cardBody = (
+                <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
+                  {event.coverUrl && statusPill}
+                  <p className="text-3xl leading-tight font-bold" style={{ color: palette.foreground }}>{event.title}</p>
+                  {event.description && (
+                    <p className="line-clamp-2 text-lg font-medium" style={{ color: palette.muted }}>{event.description}</p>
+                  )}
+                  {metaRow}
+                </div>
+              );
+
+              if (event.coverUrl) {
+                return (
+                  <div key={event.id} className="relative flex min-h-44 w-full shrink-0 overflow-hidden rounded-lg" style={cascadeStyle}>
+                    <div className="relative w-1/3 shrink-0 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- cover vem de contexts/media (Blob), domínio arbitrário. */}
+                      <img src={event.coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                      <div className="absolute inset-0" style={{ background: DEFAULT_AGENDA_BACKGROUND, opacity: 0.3 }} />
+                    </div>
+                    <div className="flex flex-1 items-center p-4" style={{ background: today ? palette.todayBg : palette.subtle }}>
+                      {cardBody}
                     </div>
                   </div>
                 );
               }
 
-              // Sem capa: card compacto (pedido: "os itens da agenda devem ter um height menor,
-              // para caber... umas 12 sem imagens"), mas com texto maior que a primeira versão
-              // compacta (pedido: "aumente o texto dos cards de eventos") — o que sobrou pra
-              // encolher foi o padding/gap ao redor, não mais o texto em si. Dia da semana + hora
-              // ganharam um badge próprio com ícone de relógio, mesmo tratamento visual da fonte
-              // de notícia (TV_ACCENT_COLOR/TV_ACCENT_COLOR_SOFT) — pedido explícito: "crie
-              // recursos para evidenciar melhor a data, dia da semana e hora".
               return (
                 <div
                   key={event.id}
-                  className="flex items-center gap-3.5 rounded-lg p-3"
+                  className="flex items-center rounded-lg p-4"
                   style={{ background: today ? palette.todayBg : palette.subtle, ...cascadeStyle }}
                 >
-                  <div
-                    className="flex shrink-0 flex-col items-center justify-center rounded-md px-3 py-2"
-                    style={{
-                      background: today ? TV_ACCENT_COLOR : palette.subtle,
-                      color: today ? TV_ACCENT_FOREGROUND : palette.foreground,
-                      minWidth: "4.75rem",
-                    }}
-                  >
-                    <span className="text-3xl font-bold leading-none">{day}</span>
-                    <span className="mt-0.5 text-sm font-semibold uppercase leading-none" style={{ opacity: 0.85 }}>
-                      {month}
-                    </span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-lg font-medium" style={{ color: palette.foreground }}>{event.title}</p>
-                    <span
-                      className="mt-1.5 inline-flex max-w-full items-center gap-1.5 truncate rounded-full px-2.5 py-1 text-sm font-semibold capitalize"
-                      style={{ background: TV_ACCENT_COLOR_SOFT, color: TV_ACCENT_COLOR }}
-                    >
-                      <Clock className="size-3.5 shrink-0" aria-hidden />
-                      <span className="truncate">{weekdayAndTime}</span>
-                    </span>
-                  </div>
+                  {cardBody}
                 </div>
               );
             })}
@@ -908,6 +1317,74 @@ export function AlertBanner({ message }: { message: string | null }) {
   );
 }
 
+// Timings pedidos explicitamente: "intervalo de 15s entre cada evento, e de 30s entre cada
+// lista [agenda]". Dois timers independentes, mesmo mecanismo de useTimedAdvance de AgendaLayer:
+// o de agenda (30s) reseta o índice de evento a cada troca — resetKey=agendaIndex faz o timer
+// interno reiniciar do zero junto, em vez de continuar de onde estava.
+const TICKER_EVENT_DWELL_MS = 15_000;
+const TICKER_AGENDA_DWELL_MS = 30_000;
+
+// DENTRO da mesma linha de BrandFooterBar que já tem logo+relógio (não mais uma segunda linha
+// abaixo, com borda própria) — pedido explícito original: "o ticker deve ser rotativo dentro do
+// footer, entre o brand e o relógio". Ocupa o espaço flexível ENTRE a logo e o bloco de
+// relógio/clima (flex-1, ver os dois pontos de uso em BrandFooterBar); o texto fica centralizado
+// dentro dessa área (era alinhado à direita, colado no relógio — pedido explícito posterior:
+// "centraliza o ticker dentro do footer"). Usa a paleta já resolvida do footer (mesma cor de fundo
+// da marca) em vez de cor fixa própria. Renderiza null quando não há nenhuma agenda com evento futuro — quem
+// monta este componente (BrandFooterBar) já só faz isso condicionado a tickerEnabled, este null
+// extra cobre "ligado mas sem dado ainda".
+function AgendaTickerInline({
+  rotation,
+  palette,
+  compact,
+}: {
+  rotation: AgendaRotationEntry[];
+  palette: ReturnType<typeof resolveContrastPalette>;
+  compact: boolean;
+}) {
+  const [agendaIndex, setAgendaIndex] = useState(0);
+  const [eventIndex, setEventIndex] = useState(0);
+
+  const currentAgenda = rotation.length > 0 ? rotation[agendaIndex % rotation.length] : null;
+  const events = currentAgenda?.events ?? [];
+  const currentEvent = events.length > 0 ? events[eventIndex % events.length] : null;
+
+  const advanceAgenda = () => {
+    setAgendaIndex((previous) => (previous + 1) % rotation.length);
+    setEventIndex(0);
+  };
+  const advanceEvent = () => setEventIndex((previous) => (previous + 1) % events.length);
+
+  useTimedAdvance(TICKER_AGENDA_DWELL_MS, advanceAgenda, rotation.length > 1);
+  useTimedAdvance(TICKER_EVENT_DWELL_MS, advanceEvent, events.length > 1, agendaIndex);
+
+  if (!currentAgenda || !currentEvent) return null;
+
+  const { weekday, time } = formatEventDay(currentEvent.startAt);
+  const parts = [currentAgenda.agenda.name, currentEvent.title, `${weekday} • ${time}`, currentEvent.location].filter(
+    (part): part is string => Boolean(part),
+  );
+
+  return (
+    // text-center (era text-right) — pedido explícito: "centraliza o ticker dentro do footer".
+    // Ocupa a mesma área flex-1 entre a logo e o relógio; o texto agora fica centralizado NESSA
+    // área (não colado no relógio à direita como antes).
+    <div className="min-w-0 flex-1 overflow-hidden text-center">
+      {/* Fade+slide (broadcast-news-title-in, mesma animação já usada nos títulos de notícia/
+          evento em destaque) em vez do fade plano anterior — pedido explícito: "ticker: adiciona
+          animação". key={currentEvent.id} força remount a cada troca, o que já retrigger a
+          animação sozinho. */}
+      <span
+        key={currentEvent.id}
+        className={`block truncate font-medium ${compact ? "text-xs" : "text-sm"}`}
+        style={{ color: palette.muted, animation: "broadcast-news-title-in 500ms ease both" }}
+      >
+        {parts.join("   •   ")}
+      </span>
+    </div>
+  );
+}
+
 export function LayerRenderer({
   layer,
   drawerOpen,
@@ -921,6 +1398,7 @@ export function LayerRenderer({
   agendaAnimationStyle,
   agendaViewSize,
   footerOpen,
+  tickerEnabled,
 }: {
   layer: BroadcastLayerRecord;
   drawerOpen: boolean;
@@ -936,11 +1414,15 @@ export function LayerRenderer({
   // BrandFooterBar agora mora dentro da camada "video" (ver VideoZoneLayer) — precisa saber se
   // deve montar, mesmo mecanismo de output.drawerOpen pra agenda.
   footerOpen: boolean;
+  // Ticker de agenda — mora dentro de BrandFooterBar (ver comentário lá), então chega até aqui
+  // pelo mesmo caminho de footerOpen.
+  tickerEnabled: boolean;
 }) {
-  // Hook sempre chamado, antes de qualquer return condicional (regra de hooks) — só faz trabalho
-  // de verdade (listener de resize) quando a camada é agenda/vídeo E a gaveta está aberta; nos
-  // demais casos devolve o estático na hora, sem tocar em window.
-  const needsAgendaWidthMeasurement = drawerOpen && (layer.type === "agenda" || layer.type === "video");
+  // Hook sempre chamado, antes de qualquer return condicional (regra de hooks) — a agenda mede o
+  // tempo todo agora (não só quando aberta), pra já saber o tamanho certo assim que a gaveta abrir
+  // (sem isso, o primeiro "abrir" pularia de 0% direto pro valor medido, sem transição suave); o
+  // vídeo só precisa medir quando a gaveta está de fato aberta (é quando ele encolhe).
+  const needsAgendaWidthMeasurement = layer.type === "agenda" || (drawerOpen && layer.type === "video");
   const agendaWidthPercent = useZeroBarAgendaWidthPercent(agendaViewSize, footerOpen, needsAgendaWidthMeasurement);
 
   if (!layer.visible) return null;
@@ -949,17 +1431,18 @@ export function LayerRenderer({
   // canvas (OutputCanvas filtra layers.type !== "alert" antes de mapear pra LayerRenderer), pra
   // poder empurrar o layout em vez de sobrepor (ver comentário em AlertBanner acima).
   // drawerOpen agora é "a coluna de agenda está aberta" (renomeado de conceito só na UI/comentários
-  // — o campo no banco continua se chamando drawerOpen, ver outputs-section.tsx). Com a coluna
-  // fechada, a camada "agenda" simplesmente não renderiza (senão ficaria sobrepondo o vídeo, que
-  // nessa hora volta a ocupar 100% de largura via config.agendaOpenVariant, ver readGeometry acima).
-  if (layer.type === "agenda" && !drawerOpen) return null;
-
+  // — o campo no banco continua se chamando drawerOpen, ver outputs-section.tsx). A camada "agenda"
+  // NÃO desmonta mais quando fecha (pedido explícito: "inclua animação de entrada e saída para o
+  // drawer") — continua montada em x:100/width:0 (ver applyAgendaViewSizeOverride), colapsada e
+  // invisível (overflow-hidden abaixo + opacity 0), e a mesma transição CSS que já anima
+  // left/top/width/height anima o slide + fade de entrada/saída sozinha.
   const geometry = applyAgendaViewSizeOverride(
     layer,
     resolveLayerGeometry(layer, readGeometry(layer.config), drawerOpen),
     drawerOpen,
     agendaWidthPercent,
   );
+  const opacity = layer.type === "agenda" && !drawerOpen ? 0 : 1;
 
   return (
     <div
@@ -970,6 +1453,7 @@ export function LayerRenderer({
         width: `${geometry.width}%`,
         height: `${geometry.height}%`,
         zIndex: layer.zIndex,
+        opacity,
         transition: GEOMETRY_TRANSITION,
       }}
     >
@@ -985,6 +1469,8 @@ export function LayerRenderer({
         agendaAnimationStyle,
         agendaViewSize,
         footerOpen,
+        drawerOpen,
+        tickerEnabled,
       )}
     </div>
   );
@@ -1002,6 +1488,8 @@ function renderLayerContent(
   agendaAnimationStyle: BroadcastAgendaAnimationStyle,
   agendaViewSize: BroadcastAgendaViewSize,
   footerOpen: boolean,
+  drawerOpen: boolean,
+  tickerEnabled: boolean,
 ) {
   switch (layer.type) {
     case "video": {
@@ -1020,6 +1508,9 @@ function renderLayerContent(
           brandColor={brandColor}
           weather={regionWeather}
           agendaViewSize={agendaViewSize}
+          drawerOpen={drawerOpen}
+          tickerEnabled={tickerEnabled}
+          agendaRotation={agendaRotation}
         />
       );
     }
@@ -1045,7 +1536,9 @@ function renderLayerContent(
     case "news":
       return <NewsLayer articles={regionNews} />;
     case "agenda":
-      return <AgendaLayer rotation={agendaRotation} brandLogoUrl={brandLogoUrl} animationStyle={agendaAnimationStyle} />;
+      return (
+        <AgendaLayer rotation={agendaRotation} brandLogoUrl={brandLogoUrl} animationStyle={agendaAnimationStyle} drawerOpen={drawerOpen} />
+      );
     default:
       return null;
   }

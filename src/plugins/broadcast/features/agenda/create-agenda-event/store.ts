@@ -8,8 +8,9 @@ export async function insertAgendaEvent(input: {
   description: string | null;
   startAt: Date;
   recurring: boolean;
-  endTime: string | null;
+  endAt: Date | null;
   coverMediaAssetId: string | null;
+  location: string | null;
 }): Promise<BroadcastAgendaEventRecord> {
   const [row] = await db.insert(broadcastAgendaEvents).values(input).returning();
   return row as BroadcastAgendaEventRecord;

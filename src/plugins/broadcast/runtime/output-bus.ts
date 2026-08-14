@@ -7,6 +7,12 @@ import type { BroadcastOutputEvent } from "../contracts/types";
 // registrado como suposição, não como Known Gap ainda, porque bate com o requisito atual.
 type Subscriber = (event: BroadcastOutputEvent) => void;
 
+// Cada conexão carrega o IP de quem abriu (pedido explícito: "quero poder saber qual é a TV que
+// conectou. Pode ser com o dado de IP local") — capturado uma vez na rota SSE (ver
+// routes/api/output-events/route.ts) e guardado junto do subscriber, não um registro à parte:
+// a conexão SSE em si já É a "presença" da TV, o IP é só um dado a mais sobre ela.
+type Connection = { subscriber: Subscriber; ip: string };
+
 // Guardado em globalThis, não numa variável de módulo comum — bug real observado: uma server
 // action (setOutputPlaylist/setOutputDrawer) e a rota SSE (app/api/broadcast/output/[token]/events)
 // ficam em "camadas" de bundle diferentes no Next.js (Server Action vs. Route Handler), e cada
@@ -15,33 +21,48 @@ type Subscriber = (event: BroadcastOutputEvent) => void;
 // objeto garantidamente compartilhado entre todas as camadas dentro do mesmo processo Node (mesmo
 // truque já usado pra singleton de client de banco em apps Next.js).
 type OutputBusGlobal = typeof globalThis & {
-  __broadcastOutputSubscribers?: Map<string, Set<Subscriber>>;
+  __broadcastOutputConnections?: Map<string, Set<Connection>>;
 };
 
-function getSubscribersByToken(): Map<string, Set<Subscriber>> {
+function getConnectionsByToken(): Map<string, Set<Connection>> {
   const globalWithBus = globalThis as OutputBusGlobal;
-  if (!globalWithBus.__broadcastOutputSubscribers) {
-    globalWithBus.__broadcastOutputSubscribers = new Map();
+  if (!globalWithBus.__broadcastOutputConnections) {
+    globalWithBus.__broadcastOutputConnections = new Map();
   }
-  return globalWithBus.__broadcastOutputSubscribers;
+  return globalWithBus.__broadcastOutputConnections;
 }
 
-export function subscribeToOutputEvents(token: string, subscriber: Subscriber): () => void {
-  const subscribersByToken = getSubscribersByToken();
-  const subscribers = subscribersByToken.get(token) ?? new Set<Subscriber>();
-  subscribers.add(subscriber);
-  subscribersByToken.set(token, subscribers);
+export function subscribeToOutputEvents(token: string, subscriber: Subscriber, ip = "desconhecido"): () => void {
+  const connectionsByToken = getConnectionsByToken();
+  const connections = connectionsByToken.get(token) ?? new Set<Connection>();
+  const connection: Connection = { subscriber, ip };
+  connections.add(connection);
+  connectionsByToken.set(token, connections);
 
   return () => {
-    subscribers.delete(subscriber);
-    if (subscribers.size === 0) {
-      subscribersByToken.delete(token);
+    connections.delete(connection);
+    if (connections.size === 0) {
+      connectionsByToken.delete(token);
     }
   };
 }
 
 export function publishOutputEvent(token: string, event: BroadcastOutputEvent): void {
-  const subscribers = getSubscribersByToken().get(token);
-  if (!subscribers) return;
-  for (const subscriber of subscribers) subscriber(event);
+  const connections = getConnectionsByToken().get(token);
+  if (!connections) return;
+  for (const connection of connections) connection.subscriber(event);
+}
+
+// IPs conectados agora mesmo, por token — pedido explícito: "vamos criar um sistema em que mostra
+// também a quantidade de TVs conectadas" + depois "quero poder saber qual é a TV que conectou".
+// Cada conexão já É uma TV com a tela aberta (rota GET .../output-events) — não precisa de um
+// mecanismo de presença à parte; a quantidade é só o tamanho da lista, calculado por quem consome
+// (ver components/admin/actions.ts). Mesma suposição de processo único documentada no topo do
+// arquivo.
+export function getConnectedOutputIps(): Record<string, string[]> {
+  const ipsByToken: Record<string, string[]> = {};
+  for (const [token, connections] of getConnectionsByToken()) {
+    ipsByToken[token] = [...connections].map((connection) => connection.ip);
+  }
+  return ipsByToken;
 }

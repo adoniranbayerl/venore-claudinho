@@ -25,4 +25,26 @@ describe("validateCreateAgendaEventInput", () => {
       "broadcast.create-agenda-event.invalid_date",
     );
   });
+
+  it("accepts an endAt several days after startAt", () => {
+    expect(
+      validateCreateAgendaEventInput({
+        agendaId: "a1",
+        title: "Retiro",
+        startAt: new Date("2026-09-01T09:00:00Z"),
+        endAt: new Date("2026-09-04T18:00:00Z"),
+      }),
+    ).toBeNull();
+  });
+
+  it("rejects an endAt at or before startAt", () => {
+    expect(
+      validateCreateAgendaEventInput({
+        agendaId: "a1",
+        title: "Evento",
+        startAt: new Date("2026-09-01T09:00:00Z"),
+        endAt: new Date("2026-09-01T09:00:00Z"),
+      })?.code,
+    ).toBe("broadcast.create-agenda-event.invalid_end_date");
+  });
 });

@@ -7,13 +7,18 @@ vi.mock("@/contexts/rbac", () => ({
 
 const isUserAssignedToAgenda = vi.fn();
 const isUserAssignedToOutput = vi.fn();
+const isUserAssignedToPlaylist = vi.fn();
 const findAgendaIdByEventId = vi.fn();
+const findPlaylistIdByItemId = vi.fn();
 vi.mock("./store", () => ({
   isUserAssignedToAgenda: (...args: unknown[]) => isUserAssignedToAgenda(...args),
   isUserAssignedToOutput: (...args: unknown[]) => isUserAssignedToOutput(...args),
+  isUserAssignedToPlaylist: (...args: unknown[]) => isUserAssignedToPlaylist(...args),
   findAgendaIdByEventId: (...args: unknown[]) => findAgendaIdByEventId(...args),
+  findPlaylistIdByItemId: (...args: unknown[]) => findPlaylistIdByItemId(...args),
   findAgendaIdsAssignedToUser: vi.fn(),
   findOutputIdsAssignedToUser: vi.fn(),
+  findPlaylistIdsAssignedToUser: vi.fn(),
 }));
 
 describe("authorizeAgendaActor", () => {
@@ -137,5 +142,94 @@ describe("authorizeOutputActor", () => {
 
     expect(result.authorized).toBe(false);
     if (!result.authorized) expect(result.error.code).toBe("broadcast.outputs.forbidden_resource");
+  });
+});
+
+describe("authorizePlaylistActor", () => {
+  beforeEach(() => {
+    authorizeActor.mockReset();
+    isUserAssignedToPlaylist.mockReset();
+  });
+
+  it("authorizes immediately when the actor has broadcast.manage, without checking assignment", async () => {
+    authorizeActor.mockImplementation(async (permission: string) =>
+      permission === "broadcast.manage" ? { authorized: true, actorId: "admin-1" } : { authorized: false, error: {} },
+    );
+
+    const { authorizePlaylistActor } = await import("./index");
+    const result = await authorizePlaylistActor("playlist-1");
+
+    expect(result).toEqual({ authorized: true, actorId: "admin-1" });
+    expect(isUserAssignedToPlaylist).not.toHaveBeenCalled();
+  });
+
+  it("denies a scoped editor who is not assigned to the target playlist, even with broadcast.playlists.manage", async () => {
+    authorizeActor.mockImplementation(async (permission: string) =>
+      permission === "broadcast.playlists.manage"
+        ? { authorized: true, actorId: "editor-3" }
+        : { authorized: false, error: { code: "rbac.authorization.forbidden", message: "forbidden" } },
+    );
+    isUserAssignedToPlaylist.mockResolvedValue(false);
+
+    const { authorizePlaylistActor } = await import("./index");
+    const result = await authorizePlaylistActor("playlist-1");
+
+    expect(result.authorized).toBe(false);
+    if (!result.authorized) expect(result.error.code).toBe("broadcast.playlists.forbidden_resource");
+    expect(isUserAssignedToPlaylist).toHaveBeenCalledWith("playlist-1", "editor-3");
+  });
+
+  it("authorizes a scoped editor who IS assigned to the target playlist", async () => {
+    authorizeActor.mockImplementation(async (permission: string) =>
+      permission === "broadcast.playlists.manage"
+        ? { authorized: true, actorId: "editor-3" }
+        : { authorized: false, error: { code: "rbac.authorization.forbidden", message: "forbidden" } },
+    );
+    isUserAssignedToPlaylist.mockResolvedValue(true);
+
+    const { authorizePlaylistActor } = await import("./index");
+    const result = await authorizePlaylistActor("playlist-1");
+
+    expect(result).toEqual({ authorized: true, actorId: "editor-3" });
+  });
+});
+
+describe("authorizePlaylistItemActor", () => {
+  beforeEach(() => {
+    authorizeActor.mockReset();
+    isUserAssignedToPlaylist.mockReset();
+    findPlaylistIdByItemId.mockReset();
+  });
+
+  it("resolves the item's parent playlist before checking assignment", async () => {
+    authorizeActor.mockImplementation(async (permission: string) =>
+      permission === "broadcast.playlists.manage"
+        ? { authorized: true, actorId: "editor-3" }
+        : { authorized: false, error: { code: "rbac.authorization.forbidden", message: "forbidden" } },
+    );
+    findPlaylistIdByItemId.mockResolvedValue("playlist-1");
+    isUserAssignedToPlaylist.mockResolvedValue(true);
+
+    const { authorizePlaylistItemActor } = await import("./index");
+    const result = await authorizePlaylistItemActor("item-1");
+
+    expect(findPlaylistIdByItemId).toHaveBeenCalledWith("item-1");
+    expect(isUserAssignedToPlaylist).toHaveBeenCalledWith("playlist-1", "editor-3");
+    expect(result).toEqual({ authorized: true, actorId: "editor-3" });
+  });
+
+  it("fails when the item does not exist", async () => {
+    authorizeActor.mockImplementation(async (permission: string) =>
+      permission === "broadcast.playlists.manage"
+        ? { authorized: true, actorId: "editor-3" }
+        : { authorized: false, error: { code: "rbac.authorization.forbidden", message: "forbidden" } },
+    );
+    findPlaylistIdByItemId.mockResolvedValue(null);
+
+    const { authorizePlaylistItemActor } = await import("./index");
+    const result = await authorizePlaylistItemActor("missing-item");
+
+    expect(result.authorized).toBe(false);
+    if (!result.authorized) expect(result.error.code).toBe("broadcast.playlists.item_not_found");
   });
 });

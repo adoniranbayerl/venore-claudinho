@@ -1,4 +1,4 @@
-import { authorizeActor } from "@/contexts/rbac";
+import { authorizePlaylistActor } from "../../../shared/scoped-authorization";
 import { addNewsPlaylistItem } from "./service";
 import { validateAddNewsPlaylistItemInput } from "./validation";
 import type { AddNewsPlaylistItemInput, AddNewsPlaylistItemResult } from "./types";
@@ -11,7 +11,7 @@ export async function addNewsPlaylistItemHandler(
     return { success: false, error: validationError };
   }
 
-  const authz = await authorizeActor("broadcast.manage");
+  const authz = await authorizePlaylistActor(input.playlistId);
   if (!authz.authorized) {
     return { success: false, error: authz.error };
   }

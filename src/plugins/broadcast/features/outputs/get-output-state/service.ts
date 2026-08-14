@@ -5,16 +5,18 @@ import { getBrandConfig } from "@/platform/brand/get-brand-config";
 import { resolveRegionNews } from "../../../runtime/region-news";
 import { resolveRegionWeather } from "../../../runtime/region-weather";
 import {
+  DEFAULT_AGENDA_EVENT_SLIDE_DURATION_SECONDS,
   DEFAULT_NEWS_BLOCK_DURATION_SECONDS,
   DEFAULT_SLIDE_DURATION_SECONDS,
   DEFAULT_WEBPAGE_SLIDE_DURATION_SECONDS,
 } from "../../../shared/playback-defaults";
 import { BROADCAST_SETTINGS, type BroadcastAgendaAnimationStyle, type BroadcastAgendaViewSize } from "../../../shared/settings";
 import { streamableContentTypeForExtension } from "../../../shared/video-extensions";
-import { resolveEventOccurrenceDate } from "../../../shared/weekly-recurrence";
+import { resolveEventEndDate, resolveEventOccurrenceDate } from "../../../shared/weekly-recurrence";
 import type { BroadcastAgendaEventRecord, BroadcastPlaylistItemRecord, PlaylistItemKind } from "../../../contracts/types";
 import {
   findActiveAlertMessage,
+  findAgendaEventById,
   findAllAgendas,
   findAllOutputAgendaLinks,
   findAllUpcomingAgendaEvents,
@@ -25,7 +27,7 @@ import {
 } from "./store";
 import type { AgendaRotationEntry, AgendaRotationEvent, GetOutputStateQuery, GetOutputStateResult, PlaylistItemSummary } from "./types";
 
-const AGENDA_EVENTS_PER_ROTATION_LIMIT = 6;
+const AGENDA_EVENTS_PER_ROTATION_LIMIT = 4;
 
 function readStringConfig(config: Record<string, unknown>, key: string): string | null {
   const value = config[key];
@@ -44,6 +46,7 @@ async function classifyPlaylistItem(item: BroadcastPlaylistItemRecord): Promise<
       kind: "webpage",
       durationSeconds: item.durationSeconds ?? DEFAULT_WEBPAGE_SLIDE_DURATION_SECONDS,
       url: item.url,
+      event: null,
     };
   }
 
@@ -54,6 +57,19 @@ async function classifyPlaylistItem(item: BroadcastPlaylistItemRecord): Promise<
       kind: "news",
       durationSeconds: item.durationSeconds ?? DEFAULT_NEWS_BLOCK_DURATION_SECONDS,
       url: null,
+      event: null,
+    };
+  }
+
+  if (item.sourceType === "agenda-event") {
+    const event = item.agendaEventId ? await findAgendaEventById(item.agendaEventId) : null;
+    return {
+      id: item.id,
+      order: item.order,
+      kind: "agenda-event",
+      durationSeconds: item.durationSeconds ?? DEFAULT_AGENDA_EVENT_SLIDE_DURATION_SECONDS,
+      url: null,
+      event: event ? await resolveAgendaRotationEvent(event) : null,
     };
   }
 
@@ -72,6 +88,7 @@ async function classifyPlaylistItem(item: BroadcastPlaylistItemRecord): Promise<
     kind,
     durationSeconds: kind === "image" ? (item.durationSeconds ?? DEFAULT_SLIDE_DURATION_SECONDS) : null,
     url: null,
+    event: null,
   };
 }
 
@@ -79,6 +96,21 @@ async function resolveMediaAssetUrl(mediaAssetId: string | null): Promise<string
   if (!mediaAssetId) return null;
   const asset = await getMediaAsset({ id: mediaAssetId });
   return asset.success && asset.data ? asset.data.url : null;
+}
+
+// Resolução por-evento compartilhada entre resolveAgendaRotation (rodízio da coluna lateral, um
+// bucket por agenda) e classifyPlaylistItem (um único evento "em destaque" no meio da playlist) —
+// mesmas transformações nos dois casos: startAt/endAt viram a ocorrência EFETIVA (nunca a âncora
+// crua de um evento recorrente — endAt preserva a DURAÇÃO original mesmo cruzando pra outra
+// semana, ver resolveEventEndDate) e coverMediaAssetId vira coverUrl (client nunca resolve mídia
+// sozinho).
+async function resolveAgendaRotationEvent(event: BroadcastAgendaEventRecord): Promise<AgendaRotationEvent> {
+  return {
+    ...event,
+    startAt: resolveEventOccurrenceDate(event),
+    endAt: resolveEventEndDate(event),
+    coverUrl: await resolveMediaAssetUrl(event.coverMediaAssetId),
+  };
 }
 
 // Agrupa os próximos eventos por agenda (uma query só pras duas tabelas, sem N+1) e descarta
@@ -125,15 +157,7 @@ async function resolveAgendaRotation(outputId: string): Promise<AgendaRotationEn
       const rawEvents = eventsByAgendaId.get(agenda.id) ?? [];
       const [logoUrl, resolvedEvents] = await Promise.all([
         resolveMediaAssetUrl(agenda.logoMediaAssetId),
-        Promise.all(
-          rawEvents.map(async (event): Promise<AgendaRotationEvent> => ({
-            ...event,
-            // Client (layer-renderer.tsx) nunca sabe de recorrência — sempre recebe um startAt
-            // que já é "a próxima vez que isso acontece", nunca a âncora crua do padrão.
-            startAt: resolveEventOccurrenceDate(event),
-            coverUrl: await resolveMediaAssetUrl(event.coverMediaAssetId),
-          })),
-        ),
+        Promise.all(rawEvents.map(resolveAgendaRotationEvent)),
       ]);
       return { agenda, events: resolvedEvents, logoUrl };
     }),
@@ -210,7 +234,12 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
   const needsNews = layers.some((layer) => layer.type === "news") || anyPlaylistHasNewsItem;
   // Além de existir na cena, a coluna de agenda só é de fato mostrada quando drawerOpen=true (ver
   // LayerRenderer) — resolver a rotação/logo com a coluna fechada seria trabalho desperdiçado.
-  const needsAgenda = layers.some((layer) => layer.type === "agenda") && output.drawerOpen;
+  // Exceção: o ticker também consome agendaRotation, independente do estado da coluna lateral —
+  // mas o ticker mora DENTRO de BrandFooterBar (pedido explícito: "o ticker deve estar dentro do
+  // footer, não fora"), então só existe de fato quando footerOpen=true também; sem isso, resolver
+  // a rotação seria trabalho desperdiçado do mesmo jeito.
+  const needsAgenda =
+    (layers.some((layer) => layer.type === "agenda") && output.drawerOpen) || (output.tickerEnabled && output.footerOpen);
   const needsAlert = layers.some((layer) => layer.type === "alert");
   // Logo da plataforma é usada tanto como fallback de agenda sem logo própria quanto na BrandFooterBar.
   const needsBrandLogo = needsAgenda || output.footerOpen;
@@ -239,6 +268,7 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
       outputId: output.id,
       drawerOpen: output.drawerOpen,
       footerOpen: output.footerOpen,
+      tickerEnabled: output.tickerEnabled,
       scene,
       layers,
       playlistItemsByPlaylistId,
@@ -251,6 +281,8 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
       brandColor,
       agendaAnimationStyle,
       agendaViewSize,
+      agendaOpenSeconds: output.agendaOpenSeconds,
+      agendaPauseSeconds: output.agendaPauseSeconds,
     },
   };
 }

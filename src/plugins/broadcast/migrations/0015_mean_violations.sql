@@ -1,0 +1,1 @@
+ALTER TABLE "broadcast"."agenda_events" DROP COLUMN "end_time";

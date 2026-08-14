@@ -23,4 +23,26 @@ describe("validateUpdateAgendaEventInput", () => {
       "broadcast.update-agenda-event.invalid_date",
     );
   });
+
+  it("accepts an endAt several days after startAt", () => {
+    expect(
+      validateUpdateAgendaEventInput({
+        eventId: "e1",
+        title: "Retiro",
+        startAt: new Date("2026-09-01T09:00:00Z"),
+        endAt: new Date("2026-09-04T18:00:00Z"),
+      }),
+    ).toBeNull();
+  });
+
+  it("rejects an endAt at or before startAt", () => {
+    expect(
+      validateUpdateAgendaEventInput({
+        eventId: "e1",
+        title: "Evento",
+        startAt: new Date("2026-09-01T09:00:00Z"),
+        endAt: new Date("2026-09-01T08:00:00Z"),
+      })?.code,
+    ).toBe("broadcast.update-agenda-event.invalid_end_date");
+  });
 });

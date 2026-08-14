@@ -1,4 +1,4 @@
-import { authorizeActor } from "@/contexts/rbac";
+import { authorizePlaylistActor } from "../../../shared/scoped-authorization";
 import { addScannedPlaylistItems } from "./service";
 import { validateAddScannedPlaylistItemsInput } from "./validation";
 import type { AddScannedPlaylistItemsInput, AddScannedPlaylistItemsResult } from "./types";
@@ -11,7 +11,7 @@ export async function addScannedPlaylistItemsHandler(
     return { success: false, error: validationError };
   }
 
-  const authz = await authorizeActor("broadcast.manage");
+  const authz = await authorizePlaylistActor(input.playlistId);
   if (!authz.authorized) {
     return { success: false, error: authz.error };
   }

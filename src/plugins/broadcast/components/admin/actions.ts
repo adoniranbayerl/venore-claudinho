@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  addAgendaEventPlaylistItem,
   addMediaAssetPlaylistItem,
   addNewsPlaylistItem,
   addScannedPlaylistItems,
@@ -16,16 +17,21 @@ import {
   deleteOutput,
   deletePlaylist,
   deletePlaylistItem,
+  getConnectedOutputIps,
   publishAlert,
   reorderAgendas,
   reorderPlaylistItems,
   scanPlaylistFolder,
   setAgendaEditors,
   setAgendaOutputs,
+  setOutputAgendaSchedule,
   setOutputDrawer,
   setOutputEditors,
   setOutputFooter,
+  setOutputPin,
   setOutputPlaylist,
+  setOutputTicker,
+  setPlaylistEditors,
   togglePlaylistItemVisibility,
   updateAgenda,
   updateAgendaEvent,
@@ -58,10 +64,40 @@ function optionalNumber(formData: FormData, field: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
+// "" (campo de término vazio, opcional) vira undefined — mesmo racional de optionalNumber, mas
+// pra data. new Date(datetimeLocalString) interpreta como hora LOCAL (sem timezone no formato
+// "YYYY-MM-DDTHH:mm", regra do próprio spec de Date), mesmo comportamento já usado pro startAt.
+function optionalDate(formData: FormData, field: string): Date | undefined {
+  const raw = requireString(formData, field);
+  if (!raw) return undefined;
+  const value = new Date(raw);
+  return Number.isNaN(value.getTime()) ? undefined : value;
+}
+
 export async function createPlaylistAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
   if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
 
   const result = await createPlaylist({ name: requireString(formData, "name") });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
+// Substitui o conjunto inteiro de responsáveis desta playlist — mesmo padrão de
+// setAgendaEditorsAction/setOutputEditorsAction.
+export async function setPlaylistEditorsAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const playlistId = requireString(formData, "playlistId");
+  let userIds: string[];
+  try {
+    userIds = JSON.parse(String(formData.get("userIds") ?? "[]"));
+  } catch {
+    return { error: "Seleção de responsáveis inválida." };
+  }
+
+  const result = await setPlaylistEditors({ playlistId, userIds });
   if (!result.success) return { error: result.error.message };
 
   revalidatePath(returnTo);
@@ -192,6 +228,23 @@ export async function addNewsPlaylistItemAction(
   return { error: null };
 }
 
+export async function addAgendaEventPlaylistItemAction(
+  _prevState: BroadcastActionState,
+  formData: FormData,
+): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await addAgendaEventPlaylistItem({
+    playlistId: requireString(formData, "playlistId"),
+    agendaEventId: requireString(formData, "agendaEventId"),
+    durationSeconds: optionalNumber(formData, "durationSeconds"),
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
 export async function togglePlaylistItemVisibilityAction(
   _prevState: BroadcastActionState,
   formData: FormData,
@@ -284,12 +337,56 @@ export async function setOutputDrawerAction(_prevState: BroadcastActionState, fo
   return { error: null };
 }
 
+// "" (campo vazio) ou "0" viram null — mesmo racional de SetOutputPinForm/RemoveOutputPinButton
+// (campo vazio remove a configuração, não é erro). Os dois campos formam um par (ver
+// service.ts) — o form sempre manda os dois juntos.
+export async function setOutputAgendaScheduleAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await setOutputAgendaSchedule({
+    outputId: requireString(formData, "outputId"),
+    agendaOpenSeconds: optionalNumber(formData, "agendaOpenSeconds"),
+    agendaPauseSeconds: optionalNumber(formData, "agendaPauseSeconds"),
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
 export async function setOutputFooterAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
   if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
 
   const result = await setOutputFooter({
     outputId: requireString(formData, "outputId"),
     footerOpen: formData.get("footerOpen") === "true",
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
+export async function setOutputTickerAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await setOutputTicker({
+    outputId: requireString(formData, "outputId"),
+    tickerEnabled: formData.get("tickerEnabled") === "true",
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
+// "" (campo vazio, ou o form dedicado de RemoveOutputPinButton) vira null — remove a proteção.
+export async function setOutputPinAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await setOutputPin({
+    outputId: requireString(formData, "outputId"),
+    pin: requireString(formData, "pin") || null,
   });
   if (!result.success) return { error: result.error.message };
 
@@ -439,8 +536,9 @@ export async function createAgendaEventAction(_prevState: BroadcastActionState, 
     description: requireString(formData, "description") || undefined,
     startAt,
     recurring: formData.get("recurring") === "on",
-    endTime: requireString(formData, "endTime") || undefined,
+    endAt: optionalDate(formData, "endAt"),
     coverMediaAssetId: requireString(formData, "coverMediaAssetId") || undefined,
+    location: requireString(formData, "location") || undefined,
   });
   if (!result.success) return { error: result.error.message };
 
@@ -460,8 +558,9 @@ export async function updateAgendaEventAction(_prevState: BroadcastActionState, 
     description: requireString(formData, "description") || undefined,
     startAt,
     recurring: formData.get("recurring") === "on",
-    endTime: requireString(formData, "endTime") || undefined,
+    endAt: optionalDate(formData, "endAt"),
     coverMediaAssetId: requireString(formData, "coverMediaAssetId") || undefined,
+    location: requireString(formData, "location") || undefined,
   });
   if (!result.success) return { error: result.error.message };
 
@@ -607,4 +706,14 @@ export async function getBroadcastAgendaViewSize(): Promise<string> {
 export async function getBroadcastNewsExcludeKeywords(): Promise<string> {
   const result = await getSetting({ key: BROADCAST_SETTINGS.newsExcludeKeywords.key });
   return result.success && typeof result.data?.value === "string" ? result.data.value : "";
+}
+
+// IPs conectados agora mesmo, por token — pedido explícito: "vamos criar um sistema em que mostra
+// também a quantidade de TVs conectadas" + depois "quero poder saber qual é a TV que conectou.
+// Pode ser com o dado de IP local". Chamado direto pelo client (useEffect com polling, ver
+// outputs-section.tsx), não por um <form>/useActionState — é só leitura, sem prevState/FormData
+// pra combinar. getConnectedOutputIps em si não faz I/O nenhum (lê um Map em memória), então não
+// precisa de try/catch nem de OperationResult aqui.
+export async function getConnectedOutputIpsAction(): Promise<Record<string, string[]>> {
+  return getConnectedOutputIps();
 }

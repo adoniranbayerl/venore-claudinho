@@ -1,29 +1,48 @@
 "use client";
 
-import { useActionState, useState, type ReactNode } from "react";
+import { useActionState, useMemo, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
 import {
   Clapperboard,
+  CalendarDays,
   ChevronDown,
   ChevronUp,
   Eye,
   EyeOff,
   Globe,
+  MoreVertical,
   Newspaper,
   Pencil,
+  Plus,
   RefreshCw,
   Trash2,
+  Tv,
   Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { MediaPickerField } from "@/components/media-picker-field";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { ConfirmAlertDialog, ConfirmDeleteButton } from "./confirm-delete-form";
+import { ListDropdownBadge } from "./list-badge";
+import { SortableList } from "./sortable-list";
 // Importa direto de contracts/ e shared/, nunca do barrel (@/plugins/broadcast) — mesmo racional
 // de outputs-section.tsx/layer-renderer.tsx: este é um "use client" component, e o barrel arrasta
 // handlers server-only pro bundle do browser.
 import { streamableContentTypeForExtension } from "@/plugins/broadcast/shared/video-extensions";
-import type { BroadcastPlaylistItemRecord, BroadcastPlaylistRecord } from "@/plugins/broadcast/contracts/types";
+import { resolveEventOccurrenceDate } from "@/plugins/broadcast/shared/weekly-recurrence";
+import type {
+  BroadcastAgendaEventRecord,
+  BroadcastAgendaRecord,
+  BroadcastPlaylistItemRecord,
+  BroadcastPlaylistRecord,
+} from "@/plugins/broadcast/contracts/types";
+import { STATUS_BORDER_CLASSNAME, StatusBadge } from "./status-dot";
+import { playlistItemStatus } from "./status";
 import {
+  addAgendaEventPlaylistItemAction,
   addMediaAssetPlaylistItemAction,
   addNewsPlaylistItemAction,
   addScannedPlaylistItemsAction,
@@ -62,90 +81,101 @@ function CreatePlaylistForm() {
 }
 
 function DeletePlaylistButton({ playlistId }: { playlistId: string }) {
-  const [state, formAction, pending] = useActionState(deletePlaylistAction, initialState);
-  useActionToast({ pending, error: state.error, successMessage: "Playlist removida." });
-
   return (
-    <form
-      action={formAction}
-      onSubmit={(event) => {
-        if (!confirm("Apagar esta playlist e todos os seus itens? Saídas que a tocam ficam sem playlist até você trocar.")) {
-          event.preventDefault();
-        }
-      }}
-    >
-      <input type="hidden" name="playlistId" value={playlistId} />
-      <Button type="submit" variant="destructive" size="icon" disabled={pending} aria-label="Apagar playlist">
-        <Trash2 className="size-4" />
-      </Button>
-    </form>
+    <ConfirmDeleteButton
+      action={deletePlaylistAction}
+      fields={{ playlistId }}
+      title="Apagar playlist"
+      description="Apagar esta playlist e todos os seus itens? Saídas que a tocam ficam sem playlist até você trocar."
+      successMessage="Playlist removida."
+      icon={<Trash2 className="size-4" />}
+      label="Apagar playlist"
+    />
   );
 }
 
 function DeletePlaylistItemButton({ itemId }: { itemId: string }) {
-  const [state, formAction, pending] = useActionState(deletePlaylistItemAction, initialState);
-  useActionToast({ pending, error: state.error, successMessage: "Item removido." });
-
   return (
-    <form action={formAction}>
-      <input type="hidden" name="itemId" value={itemId} />
-      <Button type="submit" variant="destructive" size="icon" disabled={pending} aria-label="Remover item">
-        <Trash2 className="size-4" />
-      </Button>
-    </form>
+    <ConfirmDeleteButton
+      action={deletePlaylistItemAction}
+      fields={{ itemId }}
+      title="Remover item"
+      description="Remover este item da playlist?"
+      confirmLabel="Remover"
+      successMessage="Item removido."
+      icon={<Trash2 className="size-4" />}
+      label="Remover item"
+    />
   );
 }
 
-function ToggleItemVisibilityButton({ item }: { item: BroadcastPlaylistItemRecord }) {
-  const [state, formAction, pending] = useActionState(togglePlaylistItemVisibilityAction, initialState);
-  useActionToast({ pending, error: state.error, successMessage: item.hidden ? "Item exibido de novo." : "Item escondido." });
+// Esconder/mostrar + remover atrás de um único menu (pedido explícito: "use cards, dropdown,
+// sanfona") — antes eram dois ícones sempre visíveis na linha; junto com a alça de arrastar e o
+// lápis de editar, cinco ícones por item era ruído demais. Cada ação continua sendo o mesmo
+// server action de sempre (togglePlaylistItemVisibilityAction/deletePlaylistItemAction), só que
+// disparado via requestSubmit() num form escondido em vez de um <button type="submit"> visível —
+// mesmo padrão já usado em admin/media/_components/delete-media-button.tsx.
+function PlaylistItemActionsMenu({ item }: { item: BroadcastPlaylistItemRecord }) {
+  const [toggleState, toggleAction, togglePending] = useActionState(togglePlaylistItemVisibilityAction, initialState);
+  useActionToast({ pending: togglePending, error: toggleState.error, successMessage: item.hidden ? "Item exibido de novo." : "Item escondido." });
+  const toggleFormRef = useRef<HTMLFormElement>(null);
+
+  const [deleteState, deleteAction, deletePending] = useActionState(deletePlaylistItemAction, initialState);
+  useActionToast({ pending: deletePending, error: deleteState.error, successMessage: "Item removido." });
+  const deleteFormRef = useRef<HTMLFormElement>(null);
+  // "Remover item" abre o AlertDialog em vez de submeter na hora — o próprio DropdownMenu já
+  // fecha sozinho ao selecionar um item (comportamento padrão do Radix); o diálogo de confirmação
+  // abre por cima, controlado por este estado local (mesmo padrão documentado em
+  // confirm-delete-form.tsx, só que aqui o gatilho é um item de menu, não um botão isolado).
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
-    <form action={formAction}>
-      <input type="hidden" name="itemId" value={item.id} />
-      <input type="hidden" name="hidden" value={item.hidden ? "false" : "true"} />
-      <Button
-        type="submit"
-        variant="outline"
-        size="icon"
-        disabled={pending}
-        aria-label={item.hidden ? "Mostrar item" : "Esconder item"}
-      >
-        {item.hidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-      </Button>
-    </form>
-  );
-}
-
-// Reenvia a playlist inteira já reordenada (JSON) — mesmo padrão de academy
-// (reorderLessonSectionsAction/MoveSectionButton): mais simples e mais robusto que uma lib de
-// arrastar-soltar só pra isto.
-function MovePlaylistItemButton({
-  playlistId,
-  itemIds,
-  direction,
-}: {
-  playlistId: string;
-  itemIds: string[];
-  direction: "up" | "down";
-}) {
-  const [state, formAction, pending] = useActionState(reorderPlaylistItemsAction, initialState);
-  useActionToast({ pending, error: state.error });
-
-  return (
-    <form action={formAction}>
-      <input type="hidden" name="playlistId" value={playlistId} />
-      <input type="hidden" name="itemIds" value={JSON.stringify(itemIds)} />
-      <Button
-        type="submit"
-        variant="outline"
-        size="icon"
-        disabled={pending}
-        aria-label={direction === "up" ? "Mover item para cima" : "Mover item para baixo"}
-      >
-        {direction === "up" ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-      </Button>
-    </form>
+    <>
+      <form ref={toggleFormRef} action={toggleAction} className="hidden">
+        <input type="hidden" name="itemId" value={item.id} />
+        <input type="hidden" name="hidden" value={item.hidden ? "false" : "true"} />
+      </form>
+      <form ref={deleteFormRef} action={deleteAction} className="hidden">
+        <input type="hidden" name="itemId" value={item.id} />
+      </form>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            disabled={togglePending || deletePending}
+            aria-label="Mais ações do item"
+            // Mesmo sinal de aviso de antes quando escondido, agora no próprio gatilho do menu.
+            className={item.hidden ? "border-warning-border bg-warning-soft text-warning hover:bg-warning-soft" : undefined}
+          >
+            <MoreVertical className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => toggleFormRef.current?.requestSubmit()}>
+            {item.hidden ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+            {item.hidden ? "Mostrar item" : "Esconder item"}
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={() => setConfirmOpen(true)}>
+            <Trash2 className="size-4" />
+            Remover item
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ConfirmAlertDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          deleteFormRef.current?.requestSubmit();
+        }}
+        title="Remover item"
+        description="Remover este item da playlist?"
+        confirmLabel="Remover"
+        pending={deletePending}
+      />
+    </>
   );
 }
 
@@ -163,6 +193,7 @@ function renderItemIcon(item: BroadcastPlaylistItemRecord): ReactNode {
   const className = "size-4";
   if (item.sourceType === "webpage") return <Globe className={className} aria-hidden="true" />;
   if (item.sourceType === "news") return <Newspaper className={className} aria-hidden="true" />;
+  if (item.sourceType === "agenda-event") return <CalendarDays className={className} aria-hidden="true" />;
   if (item.sourceType === "local" && item.relativePath) {
     const contentType = streamableContentTypeForExtension(extensionOf(item.relativePath));
     if (contentType?.startsWith("video/")) return <Clapperboard className={className} aria-hidden="true" />;
@@ -243,18 +274,30 @@ function EditPlaylistItemForm({ item, onDone }: { item: BroadcastPlaylistItemRec
 }
 
 function PlaylistItemRow({
-  playlistId,
   item,
-  upOrder,
-  downOrder,
+  agendaEventById,
+  dragHandle,
+  dragRootProps,
+  setNodeRef,
+  style,
+  isDragging,
 }: {
-  playlistId: string;
   item: BroadcastPlaylistItemRecord;
-  upOrder: string[] | null;
-  downOrder: string[] | null;
+  agendaEventById: Record<string, BroadcastAgendaEventRecord>;
+  dragHandle: ReactNode;
+  dragRootProps: HTMLAttributes<HTMLElement>;
+  setNodeRef: (node: HTMLElement | null) => void;
+  style: CSSProperties;
+  isDragging: boolean;
 }) {
   const [editing, setEditing] = useState(false);
-  const label = item.title ?? item.relativePath ?? item.url ?? (item.sourceType === "news" ? "Bloco de notícias" : "Item da biblioteca de mídia (sem título)");
+  const referencedEventTitle = item.agendaEventId ? agendaEventById[item.agendaEventId]?.title : undefined;
+  const label =
+    item.title ??
+    item.relativePath ??
+    item.url ??
+    referencedEventTitle ??
+    (item.sourceType === "news" ? "Bloco de notícias" : item.sourceType === "agenda-event" ? "Evento da agenda" : "Item da biblioteca de mídia (sem título)");
   const sourceLabel =
     item.sourceType === "local"
       ? "pasta do servidor"
@@ -262,12 +305,25 @@ function PlaylistItemRow({
         ? "página web"
         : item.sourceType === "news"
           ? "notícias da região (rotativo)"
-          : "biblioteca de mídia";
+          : item.sourceType === "agenda-event"
+            ? "evento da agenda (em destaque)"
+            : "biblioteca de mídia";
 
   return (
-    <div className="rounded-panel border border-border bg-card p-2.5 text-sm">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...dragRootProps}
+      // Item escondido ganha o mesmo tom de aviso já usado no gatilho do menu de ações — dá pra
+      // notar "isto não toca na TV" olhando a lista inteira, sem precisar abrir o menu de cada
+      // item pra descobrir.
+      className={`touch-none rounded-panel border p-2.5 text-sm cursor-grab active:cursor-grabbing ${
+        item.hidden ? "border-warning-border bg-warning-soft/40" : "border-border bg-card"
+      } ${isDragging ? "opacity-60" : ""}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {dragHandle}
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent/14 text-foreground">
             {renderItemIcon(item)}
           </span>
@@ -281,8 +337,6 @@ function PlaylistItemRow({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          {upOrder && <MovePlaylistItemButton playlistId={playlistId} itemIds={upOrder} direction="up" />}
-          {downOrder && <MovePlaylistItemButton playlistId={playlistId} itemIds={downOrder} direction="down" />}
           <Button
             type="button"
             variant="outline"
@@ -292,11 +346,76 @@ function PlaylistItemRow({
           >
             <Pencil className="size-4" />
           </Button>
-          <ToggleItemVisibilityButton item={item} />
-          <DeletePlaylistItemButton itemId={item.id} />
+          <PlaylistItemActionsMenu item={item} />
         </div>
       </div>
       {editing && <EditPlaylistItemForm item={item} onDone={() => setEditing(false)} />}
+    </div>
+  );
+}
+
+// Arrasta pra reordenar (SortableList, ver sortable-list.tsx) — mantém uma ordem local otimista
+// (order) que reage na hora ao arrasto, sem esperar o servidor confirmar; o formulário escondido
+// dispara reorderPlaylistItemsAction de verdade (mesmo mecanismo de "reenviar a lista inteira" de
+// antes) via requestSubmit() logo depois. serverOrder ressincroniza a ordem local sempre que a
+// playlist muda de fora (item adicionado/removido, ou o servidor confirmando o próprio drag).
+function SortablePlaylistItems({
+  playlistId,
+  items,
+  agendaEventById,
+}: {
+  playlistId: string;
+  items: BroadcastPlaylistItemRecord[];
+  agendaEventById: Record<string, BroadcastAgendaEventRecord>;
+}) {
+  const [state, formAction, pending] = useActionState(reorderPlaylistItemsAction, initialState);
+  useActionToast({ pending, error: state.error });
+  const formRef = useRef<HTMLFormElement>(null);
+  const itemIdsInputRef = useRef<HTMLInputElement>(null);
+
+  const serverOrder = useMemo(() => items.map((item) => item.id), [items]);
+  const [order, setOrder] = useState(serverOrder);
+  // Ressincroniza a ordem local sempre que a playlist muda de fora (item adicionado/removido, ou
+  // o servidor confirmando o próprio drag) — setState direto no corpo do render, não num efeito
+  // (react-hooks/set-state-in-effect): mesmo padrão que o próprio React recomenda pra "ajustar
+  // estado quando uma prop muda", guardado por uma comparação de conteúdo (não de referência, já
+  // que serverOrder é um array novo a cada render).
+  const [prevServerOrder, setPrevServerOrder] = useState(serverOrder);
+  if (serverOrder.join(",") !== prevServerOrder.join(",")) {
+    setPrevServerOrder(serverOrder);
+    setOrder(serverOrder);
+  }
+  const itemById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
+
+  function handleReorder(nextOrder: string[]) {
+    setOrder(nextOrder);
+    if (itemIdsInputRef.current) itemIdsInputRef.current.value = JSON.stringify(nextOrder);
+    formRef.current?.requestSubmit();
+  }
+
+  return (
+    <div className="space-y-2">
+      <form ref={formRef} action={formAction} className="hidden">
+        <input type="hidden" name="playlistId" value={playlistId} />
+        <input type="hidden" name="itemIds" ref={itemIdsInputRef} defaultValue={JSON.stringify(serverOrder)} />
+      </form>
+      <SortableList ids={order} onReorder={handleReorder}>
+        {(id, { setNodeRef, style, dragRootProps, dragHandle, isDragging }) => {
+          const item = itemById.get(id);
+          if (!item) return null;
+          return (
+            <PlaylistItemRow
+              item={item}
+              agendaEventById={agendaEventById}
+              dragHandle={dragHandle}
+              dragRootProps={dragRootProps}
+              setNodeRef={setNodeRef}
+              style={style}
+              isDragging={isDragging}
+            />
+          );
+        }}
+      </SortableList>
     </div>
   );
 }
@@ -511,7 +630,89 @@ function AddNewsItemForm({ playlistId, onAdded }: { playlistId: string; onAdded?
   );
 }
 
-type AddItemKind = "scan" | "media" | "webpage" | "news";
+// Data de exibição de cada evento no picker — mesma resolução usada na view de saída
+// (resolveEventOccurrenceDate, puro/sem I/O): um evento recorrente mostra a PRÓXIMA ocorrência
+// real, nunca a âncora crua gravada no banco, senão o operador veria uma data que já passou.
+function formatEventPickerDate(event: BroadcastAgendaEventRecord): string {
+  const date = resolveEventOccurrenceDate(event);
+  const day = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "");
+  const time = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return event.recurring ? `toda ${date.toLocaleDateString("pt-BR", { weekday: "long" })}, ${time}` : `${day}, ${time}`;
+}
+
+// Único item que referencia um evento específico (agendaEventId), não um arquivo/URL — o picker
+// agrupa por agenda (SelectGroup/SelectLabel) pra achar o evento certo quando há várias agendas
+// cadastradas. Mesmo padrão de Select controlado + hidden input de agenda-section.tsx (Radix Select
+// não é um <select> nativo, precisa de um input próprio pra entrar no FormData da action).
+function AddAgendaEventItemForm({
+  playlistId,
+  agendas,
+  agendaEvents,
+  onAdded,
+}: {
+  playlistId: string;
+  agendas: BroadcastAgendaRecord[];
+  agendaEvents: BroadcastAgendaEventRecord[];
+  onAdded?: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(addAgendaEventPlaylistItemAction, initialState);
+  useActionToast({ pending, error: state.error, successMessage: "Evento adicionado.", onSuccess: onAdded });
+  const [agendaEventId, setAgendaEventId] = useState("");
+
+  const eventsByAgendaId = useMemo(() => {
+    const map = new Map<string, BroadcastAgendaEventRecord[]>();
+    for (const event of agendaEvents) {
+      const bucket = map.get(event.agendaId) ?? [];
+      bucket.push(event);
+      map.set(event.agendaId, bucket);
+    }
+    return map;
+  }, [agendaEvents]);
+
+  if (agendaEvents.length === 0) {
+    return <p className="text-xs text-muted-foreground">Nenhum evento cadastrado ainda — crie um na aba Agenda primeiro.</p>;
+  }
+
+  return (
+    <form action={formAction} className="space-y-3">
+      <input type="hidden" name="playlistId" value={playlistId} />
+      <input type="hidden" name="agendaEventId" value={agendaEventId} />
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Evento</label>
+        <Select value={agendaEventId} onValueChange={setAgendaEventId}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Escolha um evento" />
+          </SelectTrigger>
+          <SelectContent>
+            {agendas.map((agenda) => {
+              const events = eventsByAgendaId.get(agenda.id) ?? [];
+              if (events.length === 0) return null;
+              return (
+                <SelectGroup key={agenda.id}>
+                  <SelectLabel>{agenda.name}</SelectLabel>
+                  {events.map((event) => (
+                    <SelectItem key={event.id} value={event.id}>
+                      {event.title} — {formatEventPickerDate(event)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground" htmlFor={`${playlistId}-agenda-event-duration`}>
+          Segundos na tela (padrão 20)
+        </label>
+        <Input id={`${playlistId}-agenda-event-duration`} name="durationSeconds" type="number" placeholder="20" className="w-32" />
+      </div>
+      <Button type="submit" disabled={pending || !agendaEventId} className="w-full sm:w-auto">Adicionar</Button>
+    </form>
+  );
+}
+
+type AddItemKind = "scan" | "media" | "webpage" | "news" | "agenda-event";
 
 // Ícone renderizado (não componente) — mesmo racional de renderItemIcon.
 function renderAddOptionIcon(kind: AddItemKind): ReactNode {
@@ -525,6 +726,8 @@ function renderAddOptionIcon(kind: AddItemKind): ReactNode {
       return <Globe className={className} aria-hidden="true" />;
     case "news":
       return <Newspaper className={className} aria-hidden="true" />;
+    case "agenda-event":
+      return <CalendarDays className={className} aria-hidden="true" />;
   }
 }
 
@@ -532,7 +735,15 @@ function renderAddOptionIcon(kind: AddItemKind): ReactNode {
 // formulários sempre abertos lado a lado — reduz o ruído visual e dá largura cheia pro formulário
 // ativo (a causa raiz do card de "página web" quebrado era espaço insuficiente numa grade de 2
 // colunas; com só um formulário por vez, ele sempre tem a largura inteira da seção).
-function PlaylistAddSection({ playlist }: { playlist: BroadcastPlaylistRecord }) {
+function PlaylistAddSection({
+  playlist,
+  agendas,
+  agendaEvents,
+}: {
+  playlist: BroadcastPlaylistRecord;
+  agendas: BroadcastAgendaRecord[];
+  agendaEvents: BroadcastAgendaEventRecord[];
+}) {
   const [active, setActive] = useState<AddItemKind | null>(null);
   const close = () => setActive(null);
 
@@ -541,6 +752,7 @@ function PlaylistAddSection({ playlist }: { playlist: BroadcastPlaylistRecord })
     { kind: "media", label: "Mídia avulsa" },
     { kind: "webpage", label: "Página web" },
     { kind: "news", label: "Bloco de notícias" },
+    { kind: "agenda-event", label: "Evento em destaque" },
   ];
 
   return (
@@ -570,68 +782,157 @@ function PlaylistAddSection({ playlist }: { playlist: BroadcastPlaylistRecord })
           {active === "media" && <AddMediaAssetItemForm playlistId={playlist.id} onAdded={close} />}
           {active === "webpage" && <AddWebpageItemForm playlistId={playlist.id} onAdded={close} />}
           {active === "news" && <AddNewsItemForm playlistId={playlist.id} onAdded={close} />}
+          {active === "agenda-event" && (
+            <AddAgendaEventItemForm playlistId={playlist.id} agendas={agendas} agendaEvents={agendaEvents} onAdded={close} />
+          )}
         </div>
       )}
     </div>
   );
 }
 
+// Mesmo modelo de card das Telas (outputs-section.tsx) — pedido explícito: "vamos aplicar o mesmo
+// modelo de cards para as Playlists". Card fechável (botão na CardAction, não mais Accordion:
+// aqui quem controla aberto/fechado é o operador, não um disclosure nativo) mantendo Nome + badge
+// de status sempre visíveis; CardContent (itens + adicionar) some quando fechado; CardFooter com
+// o "Adicionar item" continua de pé mesmo fechado — mesma ideia de "Copiar link" em Telas: a ação
+// mais comum do card, sempre alcançável, com cor própria (primary sólido) pra deixar claro que é
+// ali. Estado só local (não persiste entre reloads), mesmo racional de OutputCard.
+function PlaylistCard({
+  playlist,
+  items,
+  agendas,
+  agendaEvents,
+  agendaEventById,
+  outputNames,
+  canManageAll,
+}: {
+  playlist: BroadcastPlaylistRecord;
+  items: BroadcastPlaylistItemRecord[];
+  agendas: BroadcastAgendaRecord[];
+  agendaEvents: BroadcastAgendaEventRecord[];
+  agendaEventById: Record<string, BroadcastAgendaEventRecord>;
+  outputNames: string[];
+  canManageAll: boolean;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+  const status = playlistItemStatus(items.length);
+
+  return (
+    <Card className={`gap-3 border-l-4 ${STATUS_BORDER_CLASSNAME[status.tone]}`}>
+      <CardHeader>
+        <CardTitle className="truncate">{playlist.name}</CardTitle>
+        <CardAction className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setCollapsed((previous) => !previous)}
+            aria-label={collapsed ? "Expandir playlist" : "Recolher playlist"}
+          >
+            {collapsed ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
+          </Button>
+          {canManageAll && <DeletePlaylistButton playlistId={playlist.id} />}
+        </CardAction>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+          {/* Pedido explícito: "adiciona uma badge mostrando [...] a quantidade de lugares onde
+              essa playlist é usada. Quando clicar, mostra os locais (Telas cadastradas)" — mesmo
+              padrão do badge de TVs conectadas em outputs-section.tsx (ListDropdownBadge), só que
+              aqui o "onde" é telas em vez de IPs. */}
+          <ListDropdownBadge
+            tone={outputNames.length > 0 ? "success" : "muted"}
+            label={
+              <>
+                <Tv className="size-3" aria-hidden="true" />
+                {outputNames.length} {outputNames.length === 1 ? "tela" : "telas"}
+              </>
+            }
+            items={outputNames}
+          />
+        </div>
+      </CardHeader>
+      {!collapsed && (
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Itens</p>
+            <p className="text-xs text-muted-foreground">A ordem aqui é a ordem de reprodução na tela.</p>
+            {items.length > 0 ? (
+              <SortablePlaylistItems playlistId={playlist.id} items={items} agendaEventById={agendaEventById} />
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {playlist.folderPath ? 'Nenhum vídeo ainda — clique em "Vídeos da pasta" abaixo pra escanear.' : "Nenhum item ainda."}
+              </p>
+            )}
+          </div>
+          <div className="border-t border-border/60 pt-4">
+            <PlaylistAddSection playlist={playlist} agendas={agendas} agendaEvents={agendaEvents} />
+          </div>
+        </CardContent>
+      )}
+      <CardFooter className="border-t-primary/20 bg-primary/8">
+        <Button type="button" variant="default" size="sm" className="w-full" onClick={() => setCollapsed(false)}>
+          <Plus className="size-4" />
+          Adicionar item
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
 export function PlaylistsSection({
   playlists,
   itemsByPlaylist,
+  agendas = [],
+  agendaEvents = [],
+  outputNamesByPlaylistId = {},
+  canManageAll = true,
 }: {
   playlists: BroadcastPlaylistRecord[];
   itemsByPlaylist: Record<string, BroadcastPlaylistItemRecord[]>;
+  // Usados só pelo picker do item "Evento em destaque" (e pro rótulo dele na lista) — default []
+  // pra não quebrar quem já chamava PlaylistsSection sem esses dois props.
+  agendas?: BroadcastAgendaRecord[];
+  agendaEvents?: BroadcastAgendaEventRecord[];
+  // Nome das telas que tocam cada playlist agora (inverso de outputPlaylistById, ver page.tsx) —
+  // pedido explícito: "mostra [...] a quantidade de lugares onde essa playlist é usada". Default
+  // {} pelo mesmo motivo de agendas/agendaEvents acima.
+  outputNamesByPlaylistId?: Record<string, string[]>;
+  // false pra um ator sem broadcast.manage (só broadcast.playlists.manage — "responsável" por
+  // playlists específicas, ver page.tsx) — esconde criar/apagar playlist, que continuam ação de
+  // quem administra tudo (mesmo racional de canManageAll em agenda-section.tsx/outputs-section.tsx).
+  canManageAll?: boolean;
 }) {
+  const agendaEventById = useMemo(
+    () => Object.fromEntries(agendaEvents.map((event) => [event.id, event])),
+    [agendaEvents],
+  );
+
   return (
     <div className="space-y-4">
-      <CreatePlaylistForm />
-      {playlists.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma playlist cadastrada ainda.</p>}
-      <div className="space-y-3">
-        {playlists.map((playlist) => {
-          const items = itemsByPlaylist[playlist.id] ?? [];
-          return (
-            <details key={playlist.id} className="rounded-panel border border-border bg-card p-3" open>
-              <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-3">
-                <span className="flex items-center gap-2 font-medium text-foreground">
-                  {playlist.name}
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
-                    {items.length} {items.length === 1 ? "item" : "itens"}
-                  </span>
-                </span>
-                {/* stopPropagation — sem isso, clicar em "apagar" também alterna o <details> aberto/fechado
-                    (o clique borbulha pro <summary>, que é o disclosure trigger nativo). */}
-                <div onClick={(event) => event.stopPropagation()}>
-                  <DeletePlaylistButton playlistId={playlist.id} />
-                </div>
-              </summary>
-              <div className="mt-3 space-y-3">
-                <div className="space-y-2">
-                  {items.map((item, index) => {
-                    const upOrder =
-                      index > 0
-                        ? [...items.slice(0, index - 1), items[index], items[index - 1], ...items.slice(index + 1)].map((i) => i.id)
-                        : null;
-                    const downOrder =
-                      index < items.length - 1
-                        ? [...items.slice(0, index), items[index + 1], items[index], ...items.slice(index + 2)].map((i) => i.id)
-                        : null;
-                    return (
-                      <PlaylistItemRow key={item.id} playlistId={playlist.id} item={item} upOrder={upOrder} downOrder={downOrder} />
-                    );
-                  })}
-                  {items.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      {playlist.folderPath ? 'Nenhum vídeo ainda — clique em "Vídeos da pasta" abaixo pra escanear.' : "Nenhum item ainda."}
-                    </p>
-                  )}
-                </div>
-
-                <PlaylistAddSection playlist={playlist} />
-              </div>
-            </details>
-          );
-        })}
+      {canManageAll && <CreatePlaylistForm />}
+      {playlists.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          {canManageAll ? "Nenhuma playlist cadastrada ainda." : "Nenhuma playlist foi atribuída a você ainda."}
+        </p>
+      )}
+      {/* Grid de cards, mesmo padrão de Telas — mobile primeiro (1 coluna), 2 a partir de sm, 3 a
+          partir de xl (AGENTS.md seção 4). items-start evita o esticamento padrão do Grid (ver
+          outputs-section.tsx): sem isso, abrir uma playlist numa linha esticaria as outras da
+          mesma linha pro mesmo tamanho, mesmo fechadas. */}
+      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {playlists.map((playlist) => (
+          <PlaylistCard
+            key={playlist.id}
+            playlist={playlist}
+            items={itemsByPlaylist[playlist.id] ?? []}
+            agendas={agendas}
+            agendaEvents={agendaEvents}
+            agendaEventById={agendaEventById}
+            outputNames={outputNamesByPlaylistId[playlist.id] ?? []}
+            canManageAll={canManageAll}
+          />
+        ))}
       </div>
     </div>
   );

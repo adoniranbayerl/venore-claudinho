@@ -9,11 +9,11 @@ import type { AdminPageGate } from "./types";
 // get-broadcast-outputs-page-data.ts pras rotas satélite /admin/broadcast/agenda e /telas, cada
 // uma com seu próprio link de navegação; consolidado num só (pedido explícito: "não separe os
 // links na navegação admin") — a página agora decide sozinha, a partir de gate.actor.permissions,
-// quanto do admin completo mostrar (ver page.tsx: hasFullAccess/hasAgendaAccess/hasOutputsAccess).
-// Aceita QUALQUER UMA das três permissions do plugin — broadcast.manage (acesso total),
-// broadcast.agenda.manage ou broadcast.outputs.manage (acesso restrito às agendas/telas
-// atribuídas, ver shared/scoped-authorization). Plugin desabilitado nega como "forbidden", mesmo
-// raciocínio de get-birthdays-page-data.ts.
+// quanto do admin completo mostrar (ver page.tsx, que monta a lista de abas dinamicamente).
+// Aceita QUALQUER UMA das quatro permissions do plugin — broadcast.manage (acesso total),
+// broadcast.agenda.manage/broadcast.outputs.manage/broadcast.playlists.manage (acesso restrito às
+// agendas/telas/playlists atribuídas, ver shared/scoped-authorization). Plugin desabilitado nega
+// como "forbidden", mesmo raciocínio de get-birthdays-page-data.ts.
 export async function getBroadcastPageData(): Promise<AdminPageGate> {
   const gate = await getAdminPageData();
   if (!gate.granted) {
@@ -28,7 +28,8 @@ export async function getBroadcastPageData(): Promise<AdminPageGate> {
     gate.actor.isSuperadmin ||
     gate.actor.permissions.includes("broadcast.manage") ||
     gate.actor.permissions.includes("broadcast.agenda.manage") ||
-    gate.actor.permissions.includes("broadcast.outputs.manage");
+    gate.actor.permissions.includes("broadcast.outputs.manage") ||
+    gate.actor.permissions.includes("broadcast.playlists.manage");
   if (!hasBroadcastAccess) {
     return { granted: false, reason: "forbidden" };
   }

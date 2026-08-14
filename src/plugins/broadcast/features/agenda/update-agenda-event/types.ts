@@ -7,8 +7,9 @@ export type UpdateAgendaEventCommand = {
   description?: string | null;
   startAt: Date;
   recurring?: boolean;
-  endTime?: string | null;
+  endAt?: Date | null;
   coverMediaAssetId?: string | null;
+  location?: string | null;
   actorId: string;
 };
 

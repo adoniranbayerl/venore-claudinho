@@ -29,7 +29,7 @@ export const BROADCAST_SETTINGS = {
   // temperatura ficam nela, hex escolhido pelo operador via <input type="color">.
   brandColor: {
     key: "broadcast.brandColor",
-    defaultValue: "#0f0f0f",
+    defaultValue: "#111",
     label: "Cor da barra de marca (view principal)",
   },
   // Lista de palavras separadas por vírgula — qualquer manchete cujo título contenha uma delas

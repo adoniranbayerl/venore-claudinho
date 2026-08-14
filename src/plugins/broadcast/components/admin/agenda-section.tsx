@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useState, type ReactNode } from "react";
-import { CalendarPlus, ChevronDown, ChevronUp, Pencil, Trash2, Tv, Users } from "lucide-react";
+import { useActionState, useMemo, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
+import { CalendarPlus, ChevronDown, ChevronUp, GripVertical, MapPin, Pencil, Trash2, Tv } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -16,14 +16,17 @@ import { useActionToast } from "@/hooks/use-action-toast";
 import type { BroadcastAgendaEventRecord, BroadcastAgendaRecord, BroadcastOutputRecord } from "@/plugins/broadcast/contracts/types";
 // Import direto do módulo compartilhado (não do barrel @/plugins/broadcast) — mesma regra dos
 // tipos acima: client component nunca pode arrastar o barrel de server (Drizzle/pg) pro bundle.
-import { resolveEventOccurrenceDate } from "@/plugins/broadcast/shared/weekly-recurrence";
+import { isEventHappeningNow, resolveEventEndDate, resolveEventOccurrenceDate } from "@/plugins/broadcast/shared/weekly-recurrence";
+import { STATUS_BORDER_CLASSNAME, StatusBadge } from "./status-dot";
+import { agendaItemStatus } from "./status";
+import { ConfirmDeleteButton } from "./confirm-delete-form";
+import { SortableList, type SortableRowRenderProps } from "./sortable-list";
 import {
   createAgendaAction,
   createAgendaEventAction,
   deleteAgendaAction,
   deleteAgendaEventAction,
   reorderAgendasAction,
-  setAgendaEditorsAction,
   setAgendaOutputsAction,
   updateAgendaAction,
   updateAgendaEventAction,
@@ -32,11 +35,6 @@ import {
 
 const initialState: BroadcastActionState = { error: null };
 const DEFAULT_AGENDA_COLOR = "#0f0f0f";
-
-// Não importa UserRef de @/contexts/auth (barrel arrasta next-auth/server pro bundle do browser,
-// mesmo racional documentado em outros pontos deste arquivo) — mesmo padrão de AssignRoleForm
-// (admin/rbac/_components/assign-role-form.tsx): tipo inline, campos mínimos.
-type AssignableUser = { id: string; name: string | null; email: string };
 
 // Campos empilhados verticalmente (label em cima, campo largura cheia) em todos os formulários
 // deste arquivo — mesmo racional já aplicado em playlists-section.tsx: um formulário com vários
@@ -120,44 +118,17 @@ function EditAgendaForm({ agenda, logoMedia }: { agenda: BroadcastAgendaRecord; 
   );
 }
 
-// Mesmo padrão de MovePlaylistItemButton (playlists-section.tsx) — reenvia a lista inteira de
-// agendas já reordenada.
-function MoveAgendaButton({ agendaIds, direction }: { agendaIds: string[]; direction: "up" | "down" }) {
-  const [state, formAction, pending] = useActionState(reorderAgendasAction, initialState);
-  useActionToast({ pending, error: state.error });
-
-  return (
-    <form action={formAction}>
-      <input type="hidden" name="agendaIds" value={JSON.stringify(agendaIds)} />
-      <Button
-        type="submit"
-        variant="outline"
-        size="icon"
-        disabled={pending}
-        aria-label={direction === "up" ? "Mover agenda para cima" : "Mover agenda para baixo"}
-      >
-        {direction === "up" ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-      </Button>
-    </form>
-  );
-}
-
 function DeleteAgendaButton({ agendaId }: { agendaId: string }) {
-  const [state, formAction, pending] = useActionState(deleteAgendaAction, initialState);
-  useActionToast({ pending, error: state.error, successMessage: "Agenda removida." });
-
   return (
-    <form
-      action={formAction}
-      onSubmit={(event) => {
-        if (!confirm("Apagar esta agenda e todos os seus eventos?")) event.preventDefault();
-      }}
-    >
-      <input type="hidden" name="agendaId" value={agendaId} />
-      <Button type="submit" variant="destructive" size="icon" disabled={pending} aria-label="Remover agenda">
-        <Trash2 className="size-4" />
-      </Button>
-    </form>
+    <ConfirmDeleteButton
+      action={deleteAgendaAction}
+      fields={{ agendaId }}
+      title="Apagar agenda"
+      description="Apagar esta agenda e todos os seus eventos?"
+      successMessage="Agenda removida."
+      icon={<Trash2 className="size-4" />}
+      label="Remover agenda"
+    />
   );
 }
 
@@ -214,64 +185,7 @@ function AgendaOutputsForm({
   );
 }
 
-// "Responsável" pela agenda — pedido explícito: "adicionar um responsável (role editor pra cima)
-// com acesso e permissão para alterar apenas a agenda atribuída". A atribuição sozinha não dá
-// acesso: a pessoa também precisa ter o papel/permission "Editar agendas atribuídas" em
-// /admin/rbac (broadcast.agenda.manage) — sem isso, estar atribuído aqui não tem efeito nenhum
-// (ver shared/scoped-authorization/index.ts no backend).
-function AgendaEditorsForm({
-  agendaId,
-  allUsers,
-  selectedUserIds,
-}: {
-  agendaId: string;
-  allUsers: AssignableUser[];
-  selectedUserIds: string[];
-}) {
-  const [selected, setSelected] = useState<Set<string>>(new Set(selectedUserIds));
-  const [state, formAction, pending] = useActionState(setAgendaEditorsAction, initialState);
-  useActionToast({ pending, error: state.error, successMessage: "Responsáveis atualizados." });
-
-  function toggle(userId: string) {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(userId)) next.delete(userId);
-      else next.add(userId);
-      return next;
-    });
-  }
-
-  return (
-    <form action={formAction} className="space-y-2">
-      <input type="hidden" name="agendaId" value={agendaId} />
-      <input type="hidden" name="userIds" value={JSON.stringify([...selected])} />
-      <p className="text-xs text-muted-foreground">
-        Pessoas marcadas podem editar só esta agenda — precisam também ter o papel &quot;Editar agendas atribuídas&quot; em
-        Papéis e Permissões.
-      </p>
-      {allUsers.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Nenhum usuário cadastrado ainda.</p>
-      ) : (
-        <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto">
-          {allUsers.map((user) => (
-            <label key={user.id} className="flex items-center gap-1.5 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={selected.has(user.id)}
-                onChange={() => toggle(user.id)}
-                className="size-4 shrink-0 rounded border-border"
-              />
-              <span className="truncate">{user.name ?? user.email} ({user.email})</span>
-            </label>
-          ))}
-        </div>
-      )}
-      <Button type="submit" size="sm" variant="outline" disabled={pending}>Salvar responsáveis</Button>
-    </form>
-  );
-}
-
-type AgendaPanel = "edit" | "outputs" | "editors";
+type AgendaPanel = "edit" | "outputs";
 
 // Ícone renderizado (não componente) — react-hooks/static-components não aceita <Icon /> com uma
 // referência de componente calculada em runtime (mesmo padrão de renderAddOptionIcon em
@@ -283,42 +197,37 @@ function renderAgendaPanelIcon(panel: AgendaPanel): ReactNode {
       return <Pencil className={className} aria-hidden="true" />;
     case "outputs":
       return <Tv className={className} aria-hidden="true" />;
-    case "editors":
-      return <Users className={className} aria-hidden="true" />;
   }
 }
 
 const AGENDA_PANEL_LABEL: Record<AgendaPanel, string> = {
   edit: "Editar",
   outputs: "Onde aparece",
-  editors: "Responsáveis",
 };
 
-// Chips (Editar / Onde aparece / Responsáveis) + um único painel visível por vez, em vez dos três
-// formulários sempre abertos empilhados — mesmo racional de PlaylistAddSection
-// (playlists-section.tsx): a agenda em si (nome/cor/duração/logo) já aparece resumida no
-// cabeçalho, então editá-la é uma ação ocasional, não algo que precisa ocupar espaço o tempo
-// todo. Eventos (o conteúdo do dia a dia) ficam fora daqui, sempre visíveis.
+// Chips (Editar / Onde aparece) + um único painel visível por vez, em vez dos formulários sempre
+// abertos empilhados — mesmo racional de PlaylistAddSection (playlists-section.tsx): a agenda em
+// si (nome/cor/duração/logo) já aparece resumida no cabeçalho, então editá-la é uma ação ocasional,
+// não algo que precisa ocupar espaço o tempo todo. Eventos (o conteúdo do dia a dia) ficam fora
+// daqui, sempre visíveis. "Responsáveis" saiu daqui — pedido explícito: uma aba só do Superadmin
+// centraliza a atribuição de responsáveis de telas/playlists/agendas num único lugar (ver
+// responsibles-section.tsx), em vez de espalhada por cada card individual.
 function AgendaSettingsPanels({
   agenda,
   logoMedia,
   outputs,
   selectedOutputIds,
-  allUsers,
-  selectedUserIds,
 }: {
   agenda: BroadcastAgendaRecord;
   logoMedia: PickableMedia | null;
   outputs: BroadcastOutputRecord[];
   selectedOutputIds: string[];
-  allUsers: AssignableUser[];
-  selectedUserIds: string[];
 }) {
   const [active, setActive] = useState<AgendaPanel | null>(null);
-  const panels: AgendaPanel[] = ["edit", "outputs", "editors"];
+  const panels: AgendaPanel[] = ["edit", "outputs"];
 
   return (
-    <div className="space-y-3 border-t border-border/60 pt-3">
+    <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
         {panels.map((panel) => (
           <button
@@ -341,7 +250,6 @@ function AgendaSettingsPanels({
         <div className="rounded-panel border border-border/60 bg-muted/20 p-3">
           {active === "edit" && <EditAgendaForm agenda={agenda} logoMedia={logoMedia} />}
           {active === "outputs" && <AgendaOutputsForm agendaId={agenda.id} outputs={outputs} selectedOutputIds={selectedOutputIds} />}
-          {active === "editors" && <AgendaEditorsForm agendaId={agenda.id} allUsers={allUsers} selectedUserIds={selectedUserIds} />}
         </div>
       )}
     </div>
@@ -383,39 +291,63 @@ function AgendaEventDateTimeFields({
   idPrefix,
   defaultDate,
   defaultRecurring,
-  defaultEndTime,
+  defaultEndAt,
 }: {
   idPrefix: string;
   defaultDate: Date;
   defaultRecurring: boolean;
-  defaultEndTime?: string | null;
+  defaultEndAt?: Date | null;
 }) {
   const [recurring, setRecurring] = useState(defaultRecurring);
   const [date, setDate] = useState(() => toDateInputValue(defaultDate));
   const [time, setTime] = useState(() => toTimeInputValue(defaultDate));
   const [weekday, setWeekday] = useState(defaultDate.getDay());
-  // "HH:mm:ss" vindo do banco (coluna `time`) vira "HH:mm" pro <input type="time"> — mesmo
-  // formato que toTimeInputValue já produz.
-  const [endTime, setEndTime] = useState(defaultEndTime?.slice(0, 5) ?? "");
+  // Dia e horário do término em campos SEPARADOS, os dois opcionais — pedido explícito: "o dia do
+  // término precisa ser outro campo, e opcional" (correção de um único <input type="datetime-local">
+  // que misturava os dois, confuso de preencher só a hora sem escolher uma data). endDate vazio
+  // não significa "sem término" — significa "termina no mesmo dia do início" (ver effectiveEndDate
+  // abaixo); só endTime vazio desliga o término inteiro.
+  const [endDate, setEndDate] = useState(() => (defaultEndAt ? toDateInputValue(defaultEndAt) : ""));
+  const [endTime, setEndTime] = useState(() => (defaultEndAt ? toTimeInputValue(defaultEndAt) : ""));
 
   const startAt = recurring ? buildWeekdayAnchor(weekday, time) : new Date(`${date}T${time || "00:00"}`);
   const startAtValue = Number.isNaN(startAt.getTime()) ? "" : toDatetimeLocalValue(startAt);
 
+  // Sem endDate escolhido, mas com endTime preenchido: assume o MESMO dia do início — cobre o caso
+  // comum (evento termina no mesmo dia) sem obrigar a escolher uma data toda vez; só precisa
+  // preencher endDate pra um término explicitamente em outro dia (evento de dias).
+  const effectiveEndDate = endDate || (endTime ? toDateInputValue(startAt) : "");
+  const endAtValue = endTime && effectiveEndDate ? `${effectiveEndDate}T${endTime}` : "";
+
   const endTimeField = (
     <div className="space-y-1.5">
-      <label className="text-xs font-medium text-muted-foreground" htmlFor={`${idPrefix}-end-time`}>
-        Término (opcional)
-      </label>
-      <Input
-        id={`${idPrefix}-end-time`}
-        type="time"
-        value={endTime}
-        onChange={(event) => setEndTime(event.target.value)}
-        // Impede escolher um fim antes do início — nativo do browser, sem precisar de validação
-        // própria (mesmo padrão de "required" já usado nos outros campos deste form).
-        min={time || undefined}
-        className="w-28"
-      />
+      <p className="text-xs font-medium text-muted-foreground">Término (opcional)</p>
+      <div className="flex flex-wrap items-end gap-2.5">
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground" htmlFor={`${idPrefix}-end-date`}>
+            Dia (opcional)
+          </label>
+          <Input
+            id={`${idPrefix}-end-date`}
+            type="date"
+            value={endDate}
+            onChange={(event) => setEndDate(event.target.value)}
+            min={startAtValue ? toDateInputValue(startAt) : undefined}
+            className="w-40"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground" htmlFor={`${idPrefix}-end-time`}>
+            Horário
+          </label>
+          <Input id={`${idPrefix}-end-time`} type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} className="w-28" />
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {endTime && !endDate
+          ? "Sem dia escolhido, termina no mesmo dia do início."
+          : "Escolha um dia diferente pra um evento que dura mais de um dia."}
+      </p>
     </div>
   );
 
@@ -441,7 +373,7 @@ function AgendaEventDateTimeFields({
       <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Quando</p>
       <input type="hidden" name="startAt" value={startAtValue} />
       <input type="hidden" name="recurring" value={recurring ? "on" : ""} />
-      <input type="hidden" name="endTime" value={endTime} />
+      <input type="hidden" name="endAt" value={endAtValue} />
 
       <div className="flex items-center gap-2.5">
         <Switch id={`${idPrefix}-recurring`} checked={recurring} onCheckedChange={handleRecurringChange} />
@@ -498,7 +430,15 @@ function AgendaEventDateTimeFields({
       {recurring && startAtValue && (
         <p className="text-xs text-muted-foreground">
           Próxima ocorrência: {formatEventDate(resolveEventOccurrenceDate({ startAt, recurring: true }))}
-          {endTime && ` – ${endTime}`}
+          {(() => {
+            // Preview do término já resolvido pra próxima ocorrência (mesma duração, semana
+            // seguinte) — não a data crua digitada, que pode estar semanas/meses no passado se o
+            // operador só estava ajustando a duração (mesmo racional de resolveEventEndDate).
+            const parsedEndAt = endAtValue ? new Date(endAtValue) : null;
+            if (!parsedEndAt || Number.isNaN(parsedEndAt.getTime())) return null;
+            const resolvedEnd = resolveEventEndDate({ startAt, endAt: parsedEndAt, recurring: true });
+            return resolvedEnd && ` – ${formatEventDate(resolvedEnd)}`;
+          })()}
         </p>
       )}
     </div>
@@ -527,6 +467,10 @@ function CreateAgendaEventForm({ agendaId, onAdded }: { agendaId: string; onAdde
             <label className="text-xs font-medium text-muted-foreground" htmlFor={`${agendaId}-description`}>Descrição (opcional)</label>
             <Textarea id={`${agendaId}-description`} name="description" rows={2} className="w-full" />
           </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor={`${agendaId}-location`}>Local (opcional)</label>
+            <Input id={`${agendaId}-location`} name="location" placeholder="Sala 3, Auditório..." className="w-full" />
+          </div>
           <MediaPickerField name="coverMediaAssetId" label="Imagem de capa (opcional)" />
         </form>
       </CardContent>
@@ -538,16 +482,17 @@ function CreateAgendaEventForm({ agendaId, onAdded }: { agendaId: string; onAdde
 }
 
 function DeleteAgendaEventButton({ eventId }: { eventId: string }) {
-  const [state, formAction, pending] = useActionState(deleteAgendaEventAction, initialState);
-  useActionToast({ pending, error: state.error, successMessage: "Evento removido." });
-
   return (
-    <form action={formAction}>
-      <input type="hidden" name="eventId" value={eventId} />
-      <Button type="submit" variant="destructive" size="icon" disabled={pending} aria-label="Remover evento">
-        <Trash2 className="size-4" />
-      </Button>
-    </form>
+    <ConfirmDeleteButton
+      action={deleteAgendaEventAction}
+      fields={{ eventId }}
+      title="Remover evento"
+      description="Apagar este evento da agenda?"
+      confirmLabel="Remover"
+      successMessage="Evento removido."
+      icon={<Trash2 className="size-4" />}
+      label="Remover evento"
+    />
   );
 }
 
@@ -560,9 +505,19 @@ function formatEventDate(startAt: string | Date): string {
   return `${weekday}, ${rest}`;
 }
 
-// "" quando não tem término definido — "HH:mm:ss" (coluna `time`) vira só "HH:mm" na exibição.
-function formatEndTimeSuffix(endTime: string | null): string {
-  return endTime ? ` – ${endTime.slice(0, 5)}` : "";
+// "" quando não tem término definido. endAt agora é um timestamp completo (pode cair em qualquer
+// data posterior ao início, inclusive dias depois) — no MESMO dia do início mostra só a hora
+// ("– 21:00"), em outro dia mostra a data do término também ("– 14/03 18:00"), senão um evento
+// overnight ("22:00 – 02:00") parece um término antes do início por engano. Mesma lógica de
+// formatEndTimeSuffix em layer-renderer.tsx (view de saída), versão admin (texto por extenso).
+function formatEndTimeSuffix(startAt: string | Date, endAt: string | Date | null): string {
+  if (!endAt) return "";
+  const start = typeof startAt === "string" ? new Date(startAt) : startAt;
+  const end = typeof endAt === "string" ? new Date(endAt) : endAt;
+  const endTime = end.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  if (end.toDateString() === start.toDateString()) return ` – ${endTime}`;
+  const endDay = end.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  return ` – ${endDay} ${endTime}`;
 }
 
 // "Toda quarta-feira" etc — mostrado ao lado da data da próxima ocorrência (formatEventDate já
@@ -619,14 +574,19 @@ function EditAgendaEventForm({
             idPrefix={`${event.id}-edit`}
             // Pra evento recorrente, parte da PRÓXIMA ocorrência (não a âncora crua, que pode ser
             // de meses atrás) — mais intuitivo pro admin, e salvar sem trocar o dia da semana
-            // mantém o mesmo padrão de recorrência, só "avança" a âncora.
+            // mantém o mesmo padrão de recorrência, só "avança" a âncora. defaultEndAt segue o
+            // mesmo racional (resolveEventEndDate preserva a DURAÇÃO original, não a data crua).
             defaultDate={resolveEventOccurrenceDate(event)}
             defaultRecurring={event.recurring}
-            defaultEndTime={event.endTime}
+            defaultEndAt={resolveEventEndDate(event)}
           />
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground" htmlFor={`${event.id}-edit-description`}>Descrição (opcional)</label>
             <Textarea id={`${event.id}-edit-description`} name="description" defaultValue={event.description ?? ""} rows={2} className="w-full" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor={`${event.id}-edit-location`}>Local (opcional)</label>
+            <Input id={`${event.id}-edit-location`} name="location" defaultValue={event.location ?? ""} placeholder="Sala 3, Auditório..." className="w-full" />
           </div>
           <MediaPickerField name="coverMediaAssetId" label="Imagem de capa (opcional)" initialMedia={coverMedia} />
         </form>
@@ -641,11 +601,28 @@ function EditAgendaEventForm({
 
 function AgendaEventRow({ event, coverMedia }: { event: BroadcastAgendaEventRecord; coverMedia: PickableMedia | null }) {
   const [editing, setEditing] = useState(false);
+  // Ocorrência efetiva resolvida uma vez só (não-recorrente é no-op) — reaproveitada pela data
+  // mostrada, pelo sufixo de término e pelo status "Acontecendo" abaixo, em vez de resolver três
+  // vezes o mesmo evento.
+  const resolvedStart = resolveEventOccurrenceDate(event);
+  const resolvedEnd = resolveEventEndDate(event);
+  // Pedido explícito: "quero o status de 'Acontecendo' no evento" — mesmo helper que já indica
+  // isso na TV (shared/weekly-recurrence.ts), agora também no admin. Calculado no momento do
+  // render (não ao vivo/ticking) — o admin não tem um relógio próprio como a view de saída, o
+  // suficiente pra saber "está rolando agora" quando a página foi carregada/atualizada.
+  const happeningNow = isEventHappeningNow(resolvedStart, resolvedEnd);
 
   return (
-    <div className="rounded-panel border border-border bg-muted/40 p-2.5 text-sm">
+    // Tinta o cartão inteiro (não só o badge) quando o evento está rolando agora — dá pra notar
+    // "isto está na TV neste instante" olhando a lista inteira, não só quem já reparou no badge.
+    <div className={`rounded-panel border p-2.5 text-sm ${happeningNow ? "border-primary/40 bg-primary/10" : "border-border bg-muted/40"}`}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
+          {happeningNow && (
+            <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
+              Acontecendo
+            </span>
+          )}
           {event.recurring && (
             <span className="shrink-0 rounded-full bg-accent/14 px-2 py-0.5 text-[11px] text-muted-foreground">
               {formatRecurringBadge(event.startAt)}
@@ -659,10 +636,16 @@ function AgendaEventRow({ event, coverMedia }: { event: BroadcastAgendaEventReco
             {/* Data mostrada é sempre a PRÓXIMA ocorrência (resolveEventOccurrenceDate é no-op pra
                 evento não-recorrente) — pedido real: "mostre a data da quarta próxima". */}
             <p className="truncate text-xs text-muted-foreground">
-              {formatEventDate(resolveEventOccurrenceDate(event))}
-              {formatEndTimeSuffix(event.endTime)}
+              {formatEventDate(resolvedStart)}
+              {formatEndTimeSuffix(resolvedStart, resolvedEnd)}
             </p>
             {event.description && <p className="truncate text-xs text-muted-foreground">{event.description}</p>}
+            {event.location && (
+              <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                <MapPin className="size-3 shrink-0" />
+                {event.location}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -683,9 +666,13 @@ function AgendaEventRow({ event, coverMedia }: { event: BroadcastAgendaEventReco
   );
 }
 
-// Uma agenda inteira: cabeçalho resumido (cor, nome, duração, nº de eventos) + configurações
-// atrás de chips (AgendaSettingsPanels) + lista de eventos, sempre visível, com "Novo evento"
-// também atrás de um botão (evita um quarto formulário sempre aberto).
+// Mesmo modelo de card de Telas/Playlists (outputs-section.tsx/playlists-section.tsx) — pedido
+// explícito: "vamos aplicar a mesma lógica de design/layout em Agendas". Card fechável (botão na
+// CardAction, não mais Accordion) mantendo cor+nome+status sempre visíveis; CardContent
+// (configurações + eventos) some quando fechado; CardFooter com "Novo evento" continua de pé mesmo
+// fechado, cor própria (primary sólido), mesma ideia de "Adicionar item"/"Copiar link" nos outros
+// dois. Collapsed começa false (aberto) — pedido explícito: "os cards não devem começar
+// colapsados".
 function AgendaCard({
   agenda,
   events,
@@ -694,10 +681,10 @@ function AgendaCard({
   outputs,
   selectedOutputIds,
   canManageAll,
-  allUsers,
-  selectedUserIds,
-  upOrder,
-  downOrder,
+  dragRootProps,
+  setNodeRef,
+  style,
+  isDragging,
 }: {
   agenda: BroadcastAgendaRecord;
   events: BroadcastAgendaEventRecord[];
@@ -706,80 +693,161 @@ function AgendaCard({
   outputs: BroadcastOutputRecord[];
   selectedOutputIds: string[];
   canManageAll: boolean;
-  allUsers: AssignableUser[];
-  selectedUserIds: string[];
-  upOrder: string[] | null;
-  downOrder: string[] | null;
+  dragRootProps: HTMLAttributes<HTMLElement>;
+  setNodeRef: (node: HTMLElement | null) => void;
+  style: CSSProperties;
+  isDragging: boolean;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
   const [addingEvent, setAddingEvent] = useState(false);
+  const status = agendaItemStatus(events.length, selectedOutputIds.length);
 
   return (
-    <details className="rounded-panel border border-border bg-card p-3" open>
-      <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-3">
-        <span className="flex min-w-0 items-center gap-2 font-medium text-foreground">
-          <span
-            aria-hidden="true"
-            className="size-3 shrink-0 rounded-full border border-border"
-            style={{ background: agenda.backgroundColor ?? DEFAULT_AGENDA_COLOR }}
-          />
-          <span className="truncate">{agenda.name}</span>
-          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
-            {events.length} {events.length === 1 ? "evento" : "eventos"}
-          </span>
-          <span className="shrink-0 text-xs font-normal text-muted-foreground">{agenda.displaySeconds}s na tela</span>
-        </span>
-        {canManageAll && (
-          // stopPropagation — sem isso, clicar em mover/apagar também alterna o <details>
-          // (o clique borbulha pro <summary>, disclosure trigger nativo).
-          <div className="flex shrink-0 items-center gap-1.5" onClick={(event) => event.stopPropagation()}>
-            {upOrder && <MoveAgendaButton agendaIds={upOrder} direction="up" />}
-            {downOrder && <MoveAgendaButton agendaIds={downOrder} direction="down" />}
-            <DeleteAgendaButton agendaId={agenda.id} />
+    <div ref={setNodeRef} style={style} className={isDragging ? "opacity-60" : ""}>
+      {/* Mesma faixa colorida por status já usada nos cards de Tela e de Playlist — o mesmo sinal
+          (verde = tem evento vinculado a alguma tela, âmbar = precisa de atenção) em toda área do
+          plugin. */}
+      <Card className={`gap-3 border-l-4 ${STATUS_BORDER_CLASSNAME[status.tone]}`}>
+        <CardHeader>
+          <div className="flex min-w-0 items-center gap-1.5">
+            {canManageAll && (
+              <span
+                {...dragRootProps}
+                aria-label="Arrastar para reordenar"
+                className="flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground ui-motion-base hover:bg-muted hover:text-foreground active:cursor-grabbing"
+              >
+                <GripVertical className="size-4" aria-hidden="true" />
+              </span>
+            )}
+            <span
+              aria-hidden="true"
+              className="size-3 shrink-0 rounded-full border border-border"
+              style={{ background: agenda.backgroundColor ?? DEFAULT_AGENDA_COLOR }}
+            />
+            <CardTitle className="min-w-0 truncate">{agenda.name}</CardTitle>
           </div>
-        )}
-      </summary>
-      <div className="mt-3 space-y-3">
-        {canManageAll ? (
-          <AgendaSettingsPanels
-            agenda={agenda}
-            logoMedia={logoMedia}
-            outputs={outputs}
-            selectedOutputIds={selectedOutputIds}
-            allUsers={allUsers}
-            selectedUserIds={selectedUserIds}
-          />
-        ) : (
-          // Editor de agenda restrito (sem broadcast.manage) só edita a agenda em si — vínculo
-          // agenda↔saída e atribuição de responsáveis continuam ação de quem administra tudo.
-          <div className="border-t border-border/60 pt-3">
-            <EditAgendaForm agenda={agenda} logoMedia={logoMedia} />
-          </div>
-        )}
-
-        <div className="space-y-2 border-t border-border/60 pt-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Eventos</p>
-            <button
+          <CardAction className="flex items-center gap-1">
+            <Button
               type="button"
-              onClick={() => setAddingEvent((previous) => !previous)}
-              className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-foreground ui-motion-base hover:border-ring"
+              variant="ghost"
+              size="icon"
+              onClick={() => setCollapsed((previous) => !previous)}
+              aria-label={collapsed ? "Expandir agenda" : "Recolher agenda"}
             >
-              <CalendarPlus className="size-3.5" aria-hidden="true" />
-              Novo evento
-            </button>
+              {collapsed ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
+            </Button>
+            {canManageAll && <DeleteAgendaButton agendaId={agenda.id} />}
+          </CardAction>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+            <span className="text-xs text-muted-foreground">{agenda.displaySeconds}s na tela</span>
           </div>
+        </CardHeader>
+        {/* Cada seção com rótulo + frase de contexto curta, separadas por divisor — mesmo padrão
+            de Telas/Playlists ("é difícil identificar o que é cada seção, qual é o contexto de
+            cada opção"). */}
+        {!collapsed && (
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Configurações</p>
+              <p className="text-xs text-muted-foreground">Nome, cor, logo e em quais telas esta agenda aparece.</p>
+              {canManageAll ? (
+                <AgendaSettingsPanels agenda={agenda} logoMedia={logoMedia} outputs={outputs} selectedOutputIds={selectedOutputIds} />
+              ) : (
+                // Editor de agenda restrito (sem broadcast.manage) só edita a agenda em si —
+                // vínculo agenda↔saída continua ação de quem administra tudo; atribuição de
+                // responsáveis é sempre exclusiva do Superadmin (ver responsibles-section.tsx),
+                // nunca aparece aqui.
+                <EditAgendaForm agenda={agenda} logoMedia={logoMedia} />
+              )}
+            </div>
+            <div className="space-y-2 border-t border-border/60 pt-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Eventos</p>
+                  <p className="text-xs text-muted-foreground">O que aparece na coluna de agenda da tela.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAddingEvent((previous) => !previous)}
+                  className="flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-foreground ui-motion-base hover:border-ring"
+                >
+                  <CalendarPlus className="size-3.5" aria-hidden="true" />
+                  Novo evento
+                </button>
+              </div>
 
-          {addingEvent && <CreateAgendaEventForm agendaId={agenda.id} onAdded={() => setAddingEvent(false)} />}
+              {addingEvent && <CreateAgendaEventForm agendaId={agenda.id} onAdded={() => setAddingEvent(false)} />}
 
-          <div className="space-y-2">
-            {events.map((event) => (
-              <AgendaEventRow key={event.id} event={event} coverMedia={eventCoverMediaById[event.id] ?? null} />
-            ))}
-            {events.length === 0 && <p className="text-xs text-muted-foreground">Nenhum evento nesta agenda ainda.</p>}
-          </div>
-        </div>
-      </div>
-    </details>
+              <div className="space-y-2">
+                {events.map((event) => (
+                  <AgendaEventRow key={event.id} event={event} coverMedia={eventCoverMediaById[event.id] ?? null} />
+                ))}
+                {events.length === 0 && <p className="text-xs text-muted-foreground">Nenhum evento nesta agenda ainda.</p>}
+              </div>
+            </div>
+          </CardContent>
+        )}
+        <CardFooter className="border-t-primary/20 bg-primary/8">
+          <Button type="button" variant="default" size="sm" className="w-full" onClick={() => setCollapsed(false)}>
+            <CalendarPlus className="size-4" />
+            Novo evento
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
+
+// Arrasta pra reordenar as agendas (SortableList, ver sortable-list.tsx) — só quem administra tudo
+// pode reordenar (disabled quando !canManageAll, mesmo gate que os antigos botões mover pra cima/
+// baixo já tinham). Mesmo padrão otimista de SortablePlaylistItems (playlists-section.tsx): ordem
+// local reage na hora, o formulário escondido dispara reorderAgendasAction de verdade logo depois.
+function SortableAgendaList({
+  agendas,
+  disabled,
+  children,
+}: {
+  agendas: BroadcastAgendaRecord[];
+  disabled: boolean;
+  children: (agenda: BroadcastAgendaRecord, props: SortableRowRenderProps) => ReactNode;
+}) {
+  const [state, formAction, pending] = useActionState(reorderAgendasAction, initialState);
+  useActionToast({ pending, error: state.error });
+  const formRef = useRef<HTMLFormElement>(null);
+  const agendaIdsInputRef = useRef<HTMLInputElement>(null);
+
+  const serverOrder = useMemo(() => agendas.map((agenda) => agenda.id), [agendas]);
+  const [order, setOrder] = useState(serverOrder);
+  // Ressincroniza a ordem local sempre que a lista de agendas muda de fora — mesmo racional de
+  // SortablePlaylistItems (playlists-section.tsx): setState direto no corpo do render (não num
+  // efeito), guardado por comparação de conteúdo.
+  const [prevServerOrder, setPrevServerOrder] = useState(serverOrder);
+  if (serverOrder.join(",") !== prevServerOrder.join(",")) {
+    setPrevServerOrder(serverOrder);
+    setOrder(serverOrder);
+  }
+  const agendaById = useMemo(() => new Map(agendas.map((agenda) => [agenda.id, agenda])), [agendas]);
+
+  function handleReorder(nextOrder: string[]) {
+    setOrder(nextOrder);
+    if (agendaIdsInputRef.current) agendaIdsInputRef.current.value = JSON.stringify(nextOrder);
+    formRef.current?.requestSubmit();
+  }
+
+  return (
+    <>
+      <form ref={formRef} action={formAction} className="hidden">
+        <input type="hidden" name="agendaIds" ref={agendaIdsInputRef} defaultValue={JSON.stringify(serverOrder)} />
+      </form>
+      <SortableList ids={order} onReorder={handleReorder} disabled={disabled}>
+        {(id, props) => {
+          const agenda = agendaById.get(id);
+          if (!agenda) return null;
+          return children(agenda, props);
+        }}
+      </SortableList>
+    </>
   );
 }
 
@@ -791,8 +859,6 @@ export function AgendaSection({
   outputs,
   agendaOutputIdsByAgendaId,
   canManageAll = true,
-  allUsers = [],
-  agendaEditorUserIdsByAgendaId = {},
 }: {
   agendas: BroadcastAgendaRecord[];
   eventsByAgenda: Record<string, BroadcastAgendaEventRecord[]>;
@@ -801,11 +867,10 @@ export function AgendaSection({
   outputs: BroadcastOutputRecord[];
   agendaOutputIdsByAgendaId: Record<string, string[]>;
   // false pra um ator sem broadcast.manage (só broadcast.agenda.manage — "responsável" por
-  // agendas específicas, ver page.tsx) — esconde criar/apagar/reordenar agenda, o vínculo
-  // agenda↔saída e a atribuição de responsáveis, que continuam ação de quem administra tudo.
+  // agendas específicas, ver page.tsx) — esconde criar/apagar/reordenar agenda e o vínculo
+  // agenda↔saída, que continuam ação de quem administra tudo. Atribuição de responsáveis nunca
+  // aparece aqui — é exclusiva do Superadmin, ver responsibles-section.tsx.
   canManageAll?: boolean;
-  allUsers?: AssignableUser[];
-  agendaEditorUserIdsByAgendaId?: Record<string, string[]>;
 }) {
   return (
     <div className="space-y-4">
@@ -817,18 +882,16 @@ export function AgendaSection({
             : "Nenhuma agenda foi atribuída a você ainda."}
         </p>
       )}
-      <div className="space-y-3">
-        {agendas.map((agenda, index) => {
-          const upOrder =
-            index > 0
-              ? [...agendas.slice(0, index - 1), agendas[index], agendas[index - 1], ...agendas.slice(index + 1)].map((a) => a.id)
-              : null;
-          const downOrder =
-            index < agendas.length - 1
-              ? [...agendas.slice(0, index), agendas[index + 1], agendas[index], ...agendas.slice(index + 2)].map((a) => a.id)
-              : null;
-
-          return (
+      {/* Grid de cards, mesmo padrão de Telas/Playlists — mobile primeiro (1 coluna), 2 a partir
+          de sm, 3 a partir de xl (AGENTS.md seção 4). items-start evita o esticamento padrão do
+          Grid (ver outputs-section.tsx): sem isso, abrir uma agenda numa linha esticaria as
+          outras da mesma linha pro mesmo tamanho, mesmo fechadas. Drag-and-drop (SortableAgendaList)
+          por dentro do grid — a reordenação em si continua exclusiva de quem administra tudo
+          (disabled={!canManageAll}, mesmo gate que os antigos botões mover pra cima/baixo já
+          tinham). */}
+      <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <SortableAgendaList agendas={agendas} disabled={!canManageAll}>
+          {(agenda, { setNodeRef, style, dragRootProps, isDragging }) => (
             <AgendaCard
               key={agenda.id}
               agenda={agenda}
@@ -838,13 +901,13 @@ export function AgendaSection({
               outputs={outputs}
               selectedOutputIds={agendaOutputIdsByAgendaId[agenda.id] ?? []}
               canManageAll={canManageAll}
-              allUsers={allUsers}
-              selectedUserIds={agendaEditorUserIdsByAgendaId[agenda.id] ?? []}
-              upOrder={upOrder}
-              downOrder={downOrder}
+              dragRootProps={dragRootProps}
+              setNodeRef={setNodeRef}
+              style={style}
+              isDragging={isDragging}
             />
-          );
-        })}
+          )}
+        </SortableAgendaList>
       </div>
     </div>
   );

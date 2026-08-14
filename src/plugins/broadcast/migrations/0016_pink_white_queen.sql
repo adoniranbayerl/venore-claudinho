@@ -1,0 +1,1 @@
+ALTER TABLE "broadcast"."outputs" ADD COLUMN "agenda_open_seconds" integer;

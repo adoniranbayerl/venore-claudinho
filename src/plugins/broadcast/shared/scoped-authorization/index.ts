@@ -1,5 +1,11 @@
 import { authorizeActor, type AuthorizeActorResult } from "@/contexts/rbac";
-import { findAgendaIdByEventId, isUserAssignedToAgenda, isUserAssignedToOutput } from "./store";
+import {
+  findAgendaIdByEventId,
+  findPlaylistIdByItemId,
+  isUserAssignedToAgenda,
+  isUserAssignedToOutput,
+  isUserAssignedToPlaylist,
+} from "./store";
 
 const FORBIDDEN_AGENDA_ERROR = {
   code: "broadcast.agenda.forbidden_resource",
@@ -8,6 +14,10 @@ const FORBIDDEN_AGENDA_ERROR = {
 const FORBIDDEN_OUTPUT_ERROR = {
   code: "broadcast.outputs.forbidden_resource",
   message: "Você só tem permissão para editar as telas atribuídas a você.",
+};
+const FORBIDDEN_PLAYLIST_ERROR = {
+  code: "broadcast.playlists.forbidden_resource",
+  message: "Você só tem permissão para editar as playlists atribuídas a você.",
 };
 
 // Camada de autorização por recurso — pedido explícito: "adicionar um responsável (role editor
@@ -61,4 +71,39 @@ export async function authorizeOutputActor(outputId: string): Promise<AuthorizeA
   return scoped;
 }
 
-export { findAgendaIdsAssignedToUser, findOutputIdsAssignedToUser } from "./store";
+// Mesmo racional de authorizeAgendaActor/authorizeOutputActor, pra playlist — paridade pedida
+// explicitamente (ver manifest.ts, permission broadcast.playlists.manage).
+export async function authorizePlaylistActor(playlistId: string): Promise<AuthorizeActorResult> {
+  const full = await authorizeActor("broadcast.manage");
+  if (full.authorized) return full;
+
+  const scoped = await authorizeActor("broadcast.playlists.manage");
+  if (!scoped.authorized) return scoped;
+
+  const assigned = await isUserAssignedToPlaylist(playlistId, scoped.actorId);
+  if (!assigned) return { authorized: false, error: FORBIDDEN_PLAYLIST_ERROR };
+  return scoped;
+}
+
+// create-media-asset-playlist-item e os demais "add-*" já recebem playlistId direto (usam
+// authorizePlaylistActor acima); delete-playlist-item/update-playlist-item/
+// toggle-playlist-item-visibility só recebem itemId — resolve o pai antes de checar atribuição
+// (mesmo padrão de authorizeAgendaEventActor).
+export async function authorizePlaylistItemActor(itemId: string): Promise<AuthorizeActorResult> {
+  const full = await authorizeActor("broadcast.manage");
+  if (full.authorized) return full;
+
+  const scoped = await authorizeActor("broadcast.playlists.manage");
+  if (!scoped.authorized) return scoped;
+
+  const playlistId = await findPlaylistIdByItemId(itemId);
+  if (!playlistId) {
+    return { authorized: false, error: { code: "broadcast.playlists.item_not_found", message: "Item não encontrado." } };
+  }
+
+  const assigned = await isUserAssignedToPlaylist(playlistId, scoped.actorId);
+  if (!assigned) return { authorized: false, error: FORBIDDEN_PLAYLIST_ERROR };
+  return scoped;
+}
+
+export { findAgendaIdsAssignedToUser, findOutputIdsAssignedToUser, findPlaylistIdsAssignedToUser } from "./store";

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, isNotNull, or } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import {
   broadcastAgendaEvents,
@@ -63,18 +63,33 @@ export async function findAllAgendas(): Promise<BroadcastAgendaRecord[]> {
   return rows as BroadcastAgendaRecord[];
 }
 
-// Todos os eventos futuros de todas as agendas numa query só (evita N+1 — o agrupamento por
-// agenda acontece em JS, no service) — MAIS todo evento recurring=true, mesmo com startAt no
-// passado: pra um evento "toda semana" (ver shared/weekly-recurrence.ts), startAt é só a âncora
-// do padrão (dia da semana + horário), nunca a data real da próxima ocorrência, então filtrar por
-// "startAt >= agora" excluiria injustamente uma recorrência antiga cujo padrão continua valendo.
+// Todos os eventos futuros OU em andamento de todas as agendas numa query só (evita N+1 — o
+// agrupamento por agenda acontece em JS, no service) — MAIS todo evento recurring=true, mesmo com
+// startAt no passado: pra um evento "toda semana" (ver shared/weekly-recurrence.ts), startAt é só
+// a âncora do padrão (dia da semana + horário), nunca a data real da próxima ocorrência, então
+// filtrar por "startAt >= agora" excluiria injustamente uma recorrência antiga cujo padrão
+// continua valendo.
+//
+// "startAt >= agora" sozinho excluiria um evento que JÁ COMEÇOU mas ainda não acabou (ex: um
+// evento de dias, ou só algumas horas, com endAt no futuro) — pedido explícito: "apenas quando o
+// evento acabar, retire ele". Por isso o segundo braço do OR: evento com endAt definido E ainda no
+// futuro conta como "em andamento", mesmo com startAt no passado. Evento sem endAt mantém o
+// comportamento original (some assim que o horário de início passa).
+//
 // A ordem por startAt aqui é só um pré-filtro grosseiro — a ordem real (por ocorrência efetiva)
 // acontece em JS no service, depois de resolver a data de cada evento recorrente.
 export async function findAllUpcomingAgendaEvents(): Promise<BroadcastAgendaEventRecord[]> {
+  const now = new Date();
   const rows = await db
     .select()
     .from(broadcastAgendaEvents)
-    .where(or(gte(broadcastAgendaEvents.startAt, new Date()), eq(broadcastAgendaEvents.recurring, true)))
+    .where(
+      or(
+        gte(broadcastAgendaEvents.startAt, now),
+        and(isNotNull(broadcastAgendaEvents.endAt), gte(broadcastAgendaEvents.endAt, now)),
+        eq(broadcastAgendaEvents.recurring, true),
+      ),
+    )
     .orderBy(asc(broadcastAgendaEvents.startAt));
   return rows as BroadcastAgendaEventRecord[];
 }
@@ -85,6 +100,15 @@ export async function findAllUpcomingAgendaEvents(): Promise<BroadcastAgendaEven
 // nenhuma saída).
 export async function findAllOutputAgendaLinks(): Promise<{ outputId: string; agendaId: string }[]> {
   return db.select({ outputId: broadcastOutputAgendas.outputId, agendaId: broadcastOutputAgendas.agendaId }).from(broadcastOutputAgendas);
+}
+
+// Resolve o evento único de um item de playlist "agenda-event" — null quando o evento referenciado
+// não existe mais (a FK cascade já teria apagado o item de playlist junto, mas uma corrida entre
+// leitura e escrita pode deixar a leitura em voo pegar o estado anterior; classifyPlaylistItem
+// degrada bem pra esse caso, mesmo racional de bloco de notícias vazio).
+export async function findAgendaEventById(id: string): Promise<BroadcastAgendaEventRecord | null> {
+  const [row] = await db.select().from(broadcastAgendaEvents).where(eq(broadcastAgendaEvents.id, id)).limit(1);
+  return (row as BroadcastAgendaEventRecord) ?? null;
 }
 
 // O aviso ativo é o mais recentemente publicado ainda não expirado — não há conceito de "fila",

@@ -81,7 +81,15 @@ describe("getOutputState", () => {
   });
 
   it("returns an empty scene/layers when the output has no current scene", async () => {
-    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: false, footerOpen: false, currentSceneId: null });
+    findOutputByToken.mockResolvedValue({
+      id: "o1",
+      drawerOpen: false,
+      footerOpen: false,
+      tickerEnabled: false,
+      agendaOpenSeconds: null,
+      agendaPauseSeconds: null,
+      currentSceneId: null,
+    });
 
     const { getOutputState } = await import("./service");
     const result = await getOutputState({ token: "tok-1" });
@@ -92,6 +100,7 @@ describe("getOutputState", () => {
         outputId: "o1",
         drawerOpen: false,
         footerOpen: false,
+        tickerEnabled: false,
         scene: null,
         layers: [],
         playlistItemsByPlaylistId: {},
@@ -101,9 +110,11 @@ describe("getOutputState", () => {
         agendaRotation: [],
         activeAlertMessage: null,
         brandLogoUrl: null,
-        brandColor: "#0f0f0f",
+        brandColor: "#111",
         agendaAnimationStyle: "fade",
         agendaViewSize: "grande",
+        agendaOpenSeconds: null,
+        agendaPauseSeconds: null,
       },
     });
     expect(findSceneById).not.toHaveBeenCalled();
@@ -135,8 +146,8 @@ describe("getOutputState", () => {
     if (!result.success) return;
     expect(result.data.playlistItemsByPlaylistId).toEqual({
       p1: [
-        { id: "item-1", order: 0, kind: "video", durationSeconds: null, url: null },
-        { id: "item-2", order: 1, kind: "image", durationSeconds: 15, url: null },
+        { id: "item-1", order: 0, kind: "video", durationSeconds: null, url: null, event: null },
+        { id: "item-2", order: 1, kind: "image", durationSeconds: 15, url: null, event: null },
       ],
     });
     expect(result.data.resolvedAssetUrlByLayerId).toEqual({ l2: "https://blob.example/logo.png" });
@@ -158,8 +169,8 @@ describe("getOutputState", () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.data.playlistItemsByPlaylistId.p1).toEqual([
-      { id: "item-1", order: 0, kind: "webpage", durationSeconds: 60, url: "/cursos" },
-      { id: "item-2", order: 1, kind: "news", durationSeconds: 30, url: null },
+      { id: "item-1", order: 0, kind: "webpage", durationSeconds: 60, url: "/cursos", event: null },
+      { id: "item-2", order: 1, kind: "news", durationSeconds: 30, url: null, event: null },
     ]);
   });
 
@@ -201,7 +212,9 @@ describe("getOutputState", () => {
     expect(result.data.agendaRotation).toEqual([
       {
         agenda: { id: "a1", name: "Semanal", displaySeconds: 20, order: 0, backgroundColor: null, logoMediaAssetId: null },
-        events: [{ id: "e1", agendaId: "a1", title: "Reunião", startAt: expect.any(Date), coverMediaAssetId: null, coverUrl: null }],
+        events: [
+          { id: "e1", agendaId: "a1", title: "Reunião", startAt: expect.any(Date), endAt: null, coverMediaAssetId: null, coverUrl: null },
+        ],
         logoUrl: null,
       },
     ]);
@@ -344,7 +357,7 @@ describe("getOutputState", () => {
     const { getOutputState } = await import("./service");
     const result = await getOutputState({ token: "tok-1" });
 
-    expect(result.success && result.data.brandColor).toBe("#0f0f0f");
+    expect(result.success && result.data.brandColor).toBe("#111");
   });
 
   it("skips agenda resolution when the agenda sidebar is closed (drawerOpen=false), even with an agenda layer present", async () => {

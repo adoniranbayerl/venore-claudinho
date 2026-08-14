@@ -27,6 +27,9 @@ export type BroadcastOutputState = {
   outputId: string;
   drawerOpen: boolean;
   footerOpen: boolean;
+  // Ticker de agenda no rodapé — opt-in, ver components/output/output-canvas.tsx
+  // (effectiveTickerOpen) e AgendaTickerBar.
+  tickerEnabled: boolean;
   scene: BroadcastSceneRecord | null;
   layers: BroadcastLayerRecord[];
   playlistItemsByPlaylistId: Record<string, PlaylistItemSummary[]>;
@@ -43,6 +46,10 @@ export type BroadcastOutputState = {
   agendaAnimationStyle: BroadcastAgendaAnimationStyle;
   // "padrao" | "grande" (default) | "extra-grande" — ver BROADCAST_SETTINGS.agendaViewSize.
   agendaViewSize: BroadcastAgendaViewSize;
+  // Ciclo fixo de abrir/pausar a coluna lateral — qualquer um null/0 desliga o ciclo, rodízio
+  // contínuo. Consumidos pelo scheduler client em output-canvas.tsx, nunca pelo server.
+  agendaOpenSeconds: number | null;
+  agendaPauseSeconds: number | null;
 };
 
 export type GetOutputStateResult = OperationResult<BroadcastOutputState>;

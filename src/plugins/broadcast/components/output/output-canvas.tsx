@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 // layer-renderer.tsx: este é um "use client" component, e o barrel arrasta handlers server-only
 // pro bundle do browser.
 import type { BroadcastOutputState } from "@/plugins/broadcast/features/outputs/get-output-state/types";
-import { AlertBanner, LayerRenderer } from "./layer-renderer";
+import { AlertBanner, LayerRenderer, useTimedAdvance } from "./layer-renderer";
 
 // Duração da troca de cena é comportamento do plugin, não decisão de design de marca (mesmo
 // racional do GEOMETRY_TRANSITION em layer-renderer.tsx) — fica como constante local.
@@ -29,6 +29,36 @@ function SceneFade({ children }: { children: ReactNode }) {
       {children}
     </div>
   );
+}
+
+// Scheduler client do ciclo abrir/pausar a coluna de agenda (output.agendaOpenSeconds/
+// agendaPauseSeconds) — pedido explícito: "quero escolher quando essa pausa acontece [...] deixar
+// a agenda aberta por uns 3 min, depois 1 min de pausa". Janela FIXA, sem relação nenhuma com o
+// número de agendas ou o displaySeconds de cada uma (isso é responsabilidade da própria
+// AgendaLayer, que continua rodando seu rodízio interno livremente por dentro da janela aberta —
+// correção de uma 1ª versão que pausava depois de CADA agenda individual, sem controle sobre
+// quando). Sem os dois campos configurados (qualquer um null/0), devolve o comportamento
+// original — drawer só segue o toggle manual, rodízio contínuo sem pausa nenhuma.
+//
+// Reaproveita useTimedAdvance (mesmo hook que PlaylistLayer/AgendaLayer já usam pra alternar
+// slide/agenda) em vez de reimplementar o timer — durationMs muda a cada troca de fase (mostrando
+// → openSeconds; pausado → pauseSeconds), o que já é o padrão estabelecido pelas outras layers pra
+// reagendar automaticamente (ver comentário na definição do hook).
+function useAgendaRotationSchedule(
+  hasContent: boolean,
+  openSeconds: number | null,
+  pauseSeconds: number | null,
+  manualOpen: boolean,
+): boolean {
+  const [phase, setPhase] = useState<"showing" | "paused">("showing");
+  const scheduled = manualOpen && hasContent && Boolean(openSeconds) && Boolean(pauseSeconds);
+
+  const durationMs = (phase === "showing" ? (openSeconds ?? 0) : (pauseSeconds ?? 0)) * 1000;
+
+  useTimedAdvance(durationMs, () => setPhase((previous) => (previous === "showing" ? "paused" : "showing")), scheduled);
+
+  if (!scheduled) return manualOpen && hasContent;
+  return phase === "showing";
 }
 
 export function OutputCanvas({ token, initialState }: { token: string; initialState: BroadcastOutputState }) {
@@ -85,11 +115,24 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
   // View". agendaRotation já vem [] tanto quando drawerOpen=false (get-output-state nem resolve)
   // quanto quando está aberta mas nenhuma agenda tem evento futuro — os dois casos devem fechar a
   // coluna e devolver a largura pro vídeo, não só o primeiro. Reabre sozinho assim que alguma
-  // agenda ganhar um evento futuro de novo, sem precisar de ação manual.
-  const effectiveDrawerOpen = state.drawerOpen && state.agendaRotation.length > 0;
+  // agenda ganhar um evento futuro de novo, sem precisar de ação manual. Com um ciclo configurado
+  // (state.agendaOpenSeconds + state.agendaPauseSeconds), o scheduler acima passa a alternar entre
+  // "mostrando"/"pausado" também — qual agenda aparece dentro da janela aberta continua sendo
+  // decisão da própria AgendaLayer (rodízio interno dela, não muda aqui).
+  const effectiveDrawerOpen = useAgendaRotationSchedule(
+    state.agendaRotation.length > 0,
+    state.agendaOpenSeconds,
+    state.agendaPauseSeconds,
+    state.drawerOpen,
+  );
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-black">
+    // Fundo do canvas — pedido explícito: "altere o background da view [...] para #404040" (era
+    // preto puro, bg-black), depois "pode clarear mais, deixa cinza" (#737373), depois "altere de
+    // cinza para HSL 0 0 20%" (= #333333, hue/saturação 0 = cinza puro, só a luminosidade muda).
+    // Hex direto via style, não className, mesmo racional do resto deste canvas (fora do
+    // vocabulário de cor do tema shadcn de propósito).
+    <div className="fixed inset-0 flex flex-col overflow-hidden" style={{ background: "#333333" }}>
       {/* Keyframes usados por AgendaLayer/AlertBanner/NewsSlideCard (layer-renderer.tsx) —
           definidos uma vez aqui no root do canvas em vez de um <style> por instância de layer. */}
       <style>
@@ -131,6 +174,7 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
               agendaAnimationStyle={state.agendaAnimationStyle}
               agendaViewSize={state.agendaViewSize}
               footerOpen={state.footerOpen}
+              tickerEnabled={state.tickerEnabled}
             />
           ))}
         </SceneFade>

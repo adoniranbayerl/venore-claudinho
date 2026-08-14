@@ -71,6 +71,55 @@
       "when": 1786452884308,
       "tag": "0009_cute_madelyne_pryor",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786646880782,
+      "tag": "0010_clear_zaran",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786711000638,
+      "tag": "0011_graceful_magdalene",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786714086866,
+      "tag": "0012_low_wong",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786714510424,
+      "tag": "0013_clever_shaman",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1786718968353,
+      "tag": "0014_grey_viper",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1786718987053,
+      "tag": "0015_mean_violations",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786722843076,
+      "tag": "0016_pink_white_queen",
+      "breakpoints": true
     }
   ]
 }

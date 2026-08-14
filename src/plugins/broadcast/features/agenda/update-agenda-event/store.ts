@@ -14,8 +14,9 @@ export async function applyAgendaEventUpdate(input: {
   description: string | null;
   startAt: Date;
   recurring: boolean;
-  endTime: string | null;
+  endAt: Date | null;
   coverMediaAssetId: string | null;
+  location: string | null;
 }): Promise<BroadcastAgendaEventRecord> {
   const [row] = await db
     .update(broadcastAgendaEvents)
@@ -24,8 +25,9 @@ export async function applyAgendaEventUpdate(input: {
       description: input.description,
       startAt: input.startAt,
       recurring: input.recurring,
-      endTime: input.endTime,
+      endAt: input.endAt,
       coverMediaAssetId: input.coverMediaAssetId,
+      location: input.location,
       updatedAt: sql`now()`,
     })
     .where(eq(broadcastAgendaEvents.id, input.id))
