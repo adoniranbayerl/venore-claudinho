@@ -10,7 +10,10 @@ export const enrollmentDashboardManifest: PluginManifest = {
   version: "1.0.0",
   description: "Painel de meta, rematrícula e novas matrículas por instituição/curso.",
   compatibility: { coreVersion: ">=2.0.0 <3.0.0" },
-  permissions: [{ key: "enrollment-dashboard.read", label: "Ver o dashboard de matrícula" }],
+  permissions: [
+    { key: "enrollment-dashboard.read", label: "Ver o dashboard de matrícula" },
+    { key: "enrollment-dashboard.manage", label: "Gerenciar instituições, turmas e cursos do dashboard de matrícula" },
+  ],
   navigation: [
     {
       key: "enrollment-dashboard.admin",

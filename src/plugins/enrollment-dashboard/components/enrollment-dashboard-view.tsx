@@ -1,49 +1,38 @@
+import type { ReactNode } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AdminPageHeader } from "@/components/admin-page-header";
 import { AdminStatTile } from "@/components/admin-stat-tile";
-import type { EnrollmentInstitution } from "../contracts/types";
+import type { EnrollmentInstitution, EnrollmentProgramMetrics } from "../contracts/types";
 import { goalCompletionRatio, sumProgramTotals, totalEnrollments } from "../shared/enrollment-metrics";
 import { InstitutionLogo } from "./institution-logo";
 import { EnrollmentTable } from "./enrollment-table";
 import { GoalVsActualChart, type GoalVsActualDatum } from "./goal-vs-actual-chart";
 import { EnrollmentCompositionChart, type EnrollmentCompositionDatum } from "./enrollment-composition-chart";
 
-// Componente 100% apresentacional (sem fetch próprio) — recebe o dado já resolvido (mock hoje,
-// service.ts real depois) e a URL dos logos já resolvida via getMediaAsset. Isso permite as duas
-// páginas que o usam (admin, com shell/gate de sessão, e a view pública de apresentação, sem
-// shell/sem sessão) compartilharem o mesmo miolo sem duplicar JSX.
+// Componente 100% apresentacional na leitura (sem fetch próprio), mas os três renderXActions são
+// slots opcionais pra quem chama (routes/admin/page.tsx) injetar os botões/diálogos de CRUD sem
+// este componente precisar conhecer server actions — mesma separação de EnrollmentTable.
+// renderActions vira coluna extra só quando passado; sem eles a view volta a ser só leitura.
 export function EnrollmentDashboardView({
   institutions,
   logoUrlByInstitution,
+  renderInstitutionActions,
+  renderCreateProgramAction,
+  renderProgramActions,
+  emptyState,
 }: {
   institutions: EnrollmentInstitution[];
   logoUrlByInstitution: Map<string, string | null>;
+  renderInstitutionActions?: (institution: EnrollmentInstitution) => ReactNode;
+  renderCreateProgramAction?: (institution: EnrollmentInstitution) => ReactNode;
+  renderProgramActions?: (institution: EnrollmentInstitution, program: EnrollmentProgramMetrics) => ReactNode;
+  emptyState?: ReactNode;
 }) {
   const overall = sumProgramTotals(institutions.flatMap((institution) => institution.programs));
   const overallTotal = overall.renewed + overall.newEnrollments;
   const overallRatio = overall.goal > 0 ? overallTotal / overall.goal : 0;
 
-  const fidelis = institutions.find((institution) => institution.key === "fidelis");
-  const goalVsActualData: GoalVsActualDatum[] = (fidelis?.programs ?? []).map((program) => ({
-    key: program.key,
-    label: program.label,
-    goal: program.goal,
-    total: totalEnrollments(program),
-  }));
-  const compositionData: EnrollmentCompositionDatum[] = (fidelis?.programs ?? []).map((program) => ({
-    key: program.key,
-    label: program.label,
-    renewed: program.renewed,
-    newEnrollments: program.newEnrollments,
-  }));
-
   return (
     <div className="space-y-8">
-      <AdminPageHeader
-        title="Dashboard de Matrícula"
-        description="Meta, rematrícula e novas matrículas por instituição e curso. Dado mockado — próxima etapa é ligar à matrícula real."
-      />
-
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <AdminStatTile label="Meta geral" value={overall.goal.toLocaleString("pt-BR")} />
         <AdminStatTile label="Total matriculado" value={overallTotal.toLocaleString("pt-BR")} />
@@ -56,38 +45,67 @@ export function EnrollmentDashboardView({
         <AdminStatTile label="Novas matrículas" value={overall.newEnrollments.toLocaleString("pt-BR")} />
       </section>
 
+      {institutions.length === 0 && emptyState}
+
       {institutions.map((institution) => {
         const totals = sumProgramTotals(institution.programs);
         const total = totals.renewed + totals.newEnrollments;
         const ratio = goalCompletionRatio({ goal: totals.goal, renewed: totals.renewed, newEnrollments: totals.newEnrollments });
 
+        const goalVsActualData: GoalVsActualDatum[] = institution.programs.map((program) => ({
+          key: program.key,
+          label: program.label,
+          goal: program.goal,
+          total: totalEnrollments(program),
+        }));
+        const compositionData: EnrollmentCompositionDatum[] = institution.programs.map((program) => ({
+          key: program.key,
+          label: program.label,
+          renewed: program.renewed,
+          newEnrollments: program.newEnrollments,
+        }));
+
         return (
-          <Card key={institution.key}>
+          <Card key={institution.id}>
             <CardHeader className="flex-row items-center gap-3 space-y-0">
               <InstitutionLogo url={logoUrlByInstitution.get(institution.key) ?? null} name={institution.name} />
-              <div>
+              <div className="flex-1">
                 <CardTitle className="text-lg">{institution.name}</CardTitle>
                 <CardDescription>
                   {total.toLocaleString("pt-BR")} matriculados de {totals.goal.toLocaleString("pt-BR")} ({Math.round(ratio * 100)}% da meta)
                 </CardDescription>
               </div>
+              {renderInstitutionActions && <div className="flex shrink-0 gap-1">{renderInstitutionActions(institution)}</div>}
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="overflow-hidden rounded-panel border border-border">
-                <EnrollmentTable programs={institution.programs} programLabel={institution.programLabel} />
-              </div>
+              {renderCreateProgramAction && <div className="flex justify-end">{renderCreateProgramAction(institution)}</div>}
 
-              {institution.key === "fidelis" && (
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <div>
-                    <h3 className="mb-2 text-sm font-semibold text-foreground">Meta x total por curso</h3>
-                    <GoalVsActualChart data={goalVsActualData} />
+              {institution.programs.length === 0 ? (
+                <p className="rounded-panel border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                  Nenhum{institution.programLabel.toLowerCase().endsWith("a") ? "a" : ""} {institution.programLabel.toLowerCase()} cadastrad
+                  {institution.programLabel.toLowerCase().endsWith("a") ? "a" : "o"} ainda.
+                </p>
+              ) : (
+                <>
+                  <div className="overflow-hidden rounded-panel border border-border">
+                    <EnrollmentTable
+                      programs={institution.programs}
+                      programLabel={institution.programLabel}
+                      renderActions={renderProgramActions ? (program) => renderProgramActions(institution, program) : undefined}
+                    />
                   </div>
-                  <div>
-                    <h3 className="mb-2 text-sm font-semibold text-foreground">Composição da matrícula por curso</h3>
-                    <EnrollmentCompositionChart data={compositionData} />
+
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold text-foreground">Meta x total por {institution.programLabel.toLowerCase()}</h3>
+                      <GoalVsActualChart data={goalVsActualData} />
+                    </div>
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold text-foreground">Composição da matrícula por {institution.programLabel.toLowerCase()}</h3>
+                      <EnrollmentCompositionChart data={compositionData} />
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </CardContent>
           </Card>

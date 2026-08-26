@@ -8,10 +8,22 @@ import { Button } from "@/components/ui/button";
 // URL absoluta no client (window.location.origin) porque o Server Component não conhece o host
 // externo de forma confiável (proxy/domínio custom). Um botão por instituição — as duas telas de
 // apresentação são rotas separadas agora (pedido explícito: colégio e faculdade em telões
-// diferentes), cada uma com seu próprio link.
-export function CopyPresentationLinkButton({ token, institutionKey, label }: { token: string; institutionKey: string; label: string }) {
+// diferentes), cada uma com seu próprio link. mode vai como query string (?modo=) — quem projeta
+// escolhe, ao copiar o link, se quer a versão detalhada (por turma/curso) ou só o resumo geral
+// (pedido explícito: alternância manual entre as duas views, não automática).
+export function CopyPresentationLinkButton({
+  token,
+  institutionKey,
+  mode,
+  label,
+}: {
+  token: string;
+  institutionKey: string;
+  mode: "detalhada" | "resumida";
+  label: string;
+}) {
   const [copied, setCopied] = useState(false);
-  const path = `/enrollment-dashboard/present/${token}/${institutionKey}`;
+  const path = `/enrollment-dashboard/present/${token}/${institutionKey}?modo=${mode}`;
 
   return (
     <Button
@@ -27,7 +39,7 @@ export function CopyPresentationLinkButton({ token, institutionKey, label }: { t
       }}
     >
       {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-      {copied ? "Link copiado" : `Copiar link — ${label}`}
+      {copied ? "Link copiado" : `${label} — ${mode === "detalhada" ? "detalhada" : "resumida"}`}
     </Button>
   );
 }

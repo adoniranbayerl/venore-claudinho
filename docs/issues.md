@@ -290,5 +290,21 @@ O que eu quero
 - Embora o site Fem Colaborador vai ser um site fechado para colaboradores (membros), quero deixar uma blogroll "Vagas de Emprego" público para acesso de quem quiser. 
 
 
+### Broadcast (plugin `broadcast` — Broadcast Studio)
+
+**Cards de Eventos**
+1. Diminuir a quantidade de eventos exibidos por vez nos cards.
+2. Aumentar o tamanho das informações nos cards de eventos e acrescentar o local (informação de
+   sala, etc).
+
+**View de saída (TV)**
+3. Quando a agenda estiver fechada, a view do vídeo deve preencher toda a tela — o footer onde está
+   a marca pode sobrepor, mas com um height menor (quase como uma barra de tarefas).
+4. Novo componente no footer: um slider/ticker da agenda rodando na barra, apenas com texto.
+   Desligado por padrão, ligado só quando desejado nas opções da view. Quando ligado: intervalo de
+   15s entre cada evento, e 30s entre cada lista (agenda).
+5. Todas as views devem ser públicas (sem necessidade de login), porém protegidas por PIN — PIN
+   cadastrado nas opções da própria view.
+
 
 
