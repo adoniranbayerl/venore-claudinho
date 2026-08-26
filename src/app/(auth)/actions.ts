@@ -12,6 +12,22 @@ export async function signInWithProviderAction(formData: FormData) {
   await signIn(provider, { redirectTo: "/post-login" });
 }
 
+export async function signInWithPasswordAction(formData: FormData) {
+  const username = String(formData.get("username") ?? "");
+  const password = String(formData.get("password") ?? "");
+
+  try {
+    await signIn("credentials", { username, password, redirect: false });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      redirect("/login?error=invalid-credentials");
+    }
+    throw error;
+  }
+
+  redirect("/post-login");
+}
+
 export async function signInWithDevCredentialsAction(formData: FormData) {
   const username = String(formData.get("username") ?? "");
   const password = String(formData.get("password") ?? "");

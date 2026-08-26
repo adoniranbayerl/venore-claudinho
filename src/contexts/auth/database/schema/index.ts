@@ -11,6 +11,7 @@ export const users = authSchema.table("users", {
   email: text("email").notNull().unique(),
   emailVerified: timestamp("email_verified", { withTimezone: true }),
   image: text("image"),
+  passwordHash: text("password_hash"),
   // Avatar escolhido via seletor de mídia (contexts/media) — separado de `image` (populado pelo
   // provider OAuth, fora do controle do app). Quando setado, tem prioridade sobre `image` na
   // exibição (get-current-user/service.ts). Sem FK pra media.files: mesma regra de isolamento de

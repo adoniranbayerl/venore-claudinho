@@ -1,8 +1,13 @@
+import { timingSafeEqual, scrypt as scryptCallback } from "node:crypto";
+import { promisify } from "node:util";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
+import { findUserByEmailWithPasswordHash } from "./features/identity/find-user-by-email/store";
 import type { AuthProviderDescriptor } from "./contracts/types";
+
+const scrypt = promisify(scryptCallback);
 
 function readEnvValue(key: string): string {
   const rawValue = process.env[key];
@@ -28,6 +33,17 @@ function hasRequiredProviderEnvAliases(keyGroups: string[][]): boolean {
 
 function isDevelopmentCredentialsEnabled(): boolean {
   return readEnvValue("AUTH_ENABLE_DEV_CREDENTIALS") === "true";
+}
+
+async function verifyPasswordHash(password: string, storedHash: string): Promise<boolean> {
+  const [algorithm, saltBase64, hashBase64] = storedHash.split("$");
+  if (algorithm !== "scrypt" || !saltBase64 || !hashBase64) return false;
+
+  const salt = Buffer.from(saltBase64, "base64");
+  const expectedHash = Buffer.from(hashBase64, "base64");
+  const derived = (await scrypt(password, salt, expectedHash.length)) as Buffer;
+  if (derived.length !== expectedHash.length) return false;
+  return timingSafeEqual(derived, expectedHash);
 }
 
 function readGithubCredentials(): { clientId: string; clientSecret: string } | null {
@@ -85,22 +101,35 @@ export function buildAuthProviders() {
     );
   }
 
-  if (isDevelopmentCredentialsEnabled()) {
-    providers.push(
-      Credentials({
-        name: "Dev credentials",
-        credentials: {
-          username: { label: "Username", type: "text" },
-          password: { label: "Password", type: "password" },
-        },
-        async authorize(credentials) {
-          const username = typeof credentials?.username === "string" ? credentials.username : "";
-          if (!username) return null;
-          return { id: `dev-${username}`, name: username, email: `${username}@dev.local` };
-        },
-      }),
-    );
-  }
+  providers.push(
+    Credentials({
+      name: "Senha",
+      credentials: {
+        username: { label: "Email ou usuário", type: "text" },
+        password: { label: "Senha", type: "password" },
+      },
+      async authorize(credentials) {
+        const username = typeof credentials?.username === "string" ? credentials.username.trim() : "";
+        const password = typeof credentials?.password === "string" ? credentials.password : "";
+
+        if (!username || !password) return null;
+
+        const user = await findUserByEmailWithPasswordHash(username);
+        if (user?.passwordHash) {
+          if (!(await verifyPasswordHash(password, user.passwordHash))) return null;
+
+          return {
+            id: user.id,
+            name: user.name ?? username,
+            email: user.email,
+          };
+        }
+
+        if (!isDevelopmentCredentialsEnabled()) return null;
+        return { id: `dev-${username}`, name: username, email: `${username}@dev.local` };
+      },
+    }),
+  );
 
   return providers;
 }
@@ -122,7 +151,7 @@ export function listAvailableAuthProviders(): AuthProviderDescriptor[] {
       enabled: readMicrosoftCredentials() !== null,
       iconUrl: "/providers/microsoft.svg",
     },
-    { key: "credentials", label: "Dev credentials", kind: "development", enabled: isDevelopmentCredentialsEnabled() },
+    { key: "credentials", label: "Senha", kind: "password", enabled: true },
   ];
 }
 

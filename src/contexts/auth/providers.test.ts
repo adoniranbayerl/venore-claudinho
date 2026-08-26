@@ -12,6 +12,10 @@ const ENV_KEYS = [
   "MICROSOFT_ID",
   "MICROSOFT_SECRET",
   "MICROSOFT_ISSUER",
+  "AUTH_CREDENTIALS_USERNAME",
+  "AUTH_CREDENTIALS_PASSWORD",
+  "AUTH_LOGIN_USERNAME",
+  "AUTH_LOGIN_PASSWORD",
   "AUTH_ENABLE_DEV_CREDENTIALS",
 ];
 
@@ -102,7 +106,7 @@ describe("buildAuthProviders", () => {
 
   it("returns an empty array when no provider env vars are set", async () => {
     const { buildAuthProviders } = await import("./providers");
-    expect(buildAuthProviders()).toEqual([]);
+    expect(buildAuthProviders().map((provider) => provider.id)).toEqual(["credentials"]);
   });
 
   it("includes only the providers with complete env vars", async () => {
@@ -112,8 +116,7 @@ describe("buildAuthProviders", () => {
     const { buildAuthProviders } = await import("./providers");
     const providers = buildAuthProviders();
 
-    expect(providers).toHaveLength(1);
-    expect(providers[0].id).toBe("google");
+    expect(providers.map((provider) => provider.id)).toEqual(["google", "credentials"]);
   });
 
   it("supports the AUTH_ prefixed Google alias", async () => {
@@ -123,8 +126,7 @@ describe("buildAuthProviders", () => {
     const { buildAuthProviders } = await import("./providers");
     const providers = buildAuthProviders();
 
-    expect(providers).toHaveLength(1);
-    expect(providers[0].id).toBe("google");
+    expect(providers.map((provider) => provider.id)).toEqual(["google", "credentials"]);
   });
 
   it("builds github, google and microsoft together, plus dev credentials when enabled", async () => {
@@ -143,19 +145,30 @@ describe("buildAuthProviders", () => {
     expect(providers.map((p) => p.id)).toEqual(["github", "google", "microsoft-entra-id", "credentials"]);
   });
 
+  it("adds password credentials when the env pair is present", async () => {
+    process.env.AUTH_CREDENTIALS_USERNAME = "operator";
+    process.env.AUTH_CREDENTIALS_PASSWORD = "secret";
+
+    const { buildAuthProviders } = await import("./providers");
+    const providers = buildAuthProviders();
+
+    expect(providers).toHaveLength(1);
+    expect(providers[0].id).toBe("credentials");
+  });
+
   it("omits microsoft when the issuer is missing", async () => {
     process.env.MICROSOFT_ID = "m-id";
     process.env.MICROSOFT_SECRET = "m-secret";
 
     const { buildAuthProviders } = await import("./providers");
-    expect(buildAuthProviders()).toEqual([]);
+    expect(buildAuthProviders().map((provider) => provider.id)).toEqual(["credentials"]);
   });
 
   it("omits dev credentials when the flag is not exactly \"true\"", async () => {
     process.env.AUTH_ENABLE_DEV_CREDENTIALS = "1";
 
     const { buildAuthProviders } = await import("./providers");
-    expect(buildAuthProviders()).toEqual([]);
+    expect(buildAuthProviders().map((provider) => provider.id)).toEqual(["credentials"]);
   });
 });
 
@@ -181,13 +194,15 @@ describe("listAvailableAuthProviders", () => {
         enabled: false,
         iconUrl: "/providers/microsoft.svg",
       },
-      { key: "credentials", label: "Dev credentials", kind: "development", enabled: false },
+      { key: "credentials", label: "Senha", kind: "password", enabled: true },
     ]);
   });
 
   it("reflects the same detection state as buildAuthProviders", async () => {
     process.env.GITHUB_ID = "gh-id";
     process.env.GITHUB_SECRET = "gh-secret";
+    process.env.AUTH_CREDENTIALS_USERNAME = "operator";
+    process.env.AUTH_CREDENTIALS_PASSWORD = "secret";
     process.env.AUTH_ENABLE_DEV_CREDENTIALS = "true";
 
     const { listAvailableAuthProviders } = await import("./providers");

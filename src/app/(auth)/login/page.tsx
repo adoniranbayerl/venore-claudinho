@@ -2,7 +2,8 @@ import { listAvailableAuthProviders } from "@/contexts/auth";
 import { superadminExists } from "@/contexts/rbac";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { signInWithDevCredentialsAction, signInWithProviderAction } from "../actions";
+import { signInWithDevCredentialsAction, signInWithPasswordAction, signInWithProviderAction } from "../actions";
+import { PasswordInput } from "./password-input";
 
 export default async function LoginPage({
   searchParams,
@@ -12,6 +13,7 @@ export default async function LoginPage({
   const { error } = await searchParams;
   const providers = listAvailableAuthProviders();
   const oauthProviders = providers.filter((provider) => provider.kind === "oauth" && provider.enabled);
+  const passwordProvider = providers.find((provider) => provider.kind === "password" && provider.enabled);
   const devCredentials = providers.find((provider) => provider.kind === "development" && provider.enabled);
 
   const superadminExistsResult = await superadminExists();
@@ -52,12 +54,24 @@ export default async function LoginPage({
           ))}
         </div>
 
+        {passwordProvider ? (
+          <form action={signInWithPasswordAction} className="space-y-2">
+            <div className="space-y-2">
+              <Input name="username" placeholder="Email ou usuário" autoComplete="username" required />
+              <PasswordInput name="password" placeholder="Senha" autoComplete="current-password" required />
+            </div>
+            <Button type="submit" className="w-full">
+              Entrar com senha
+            </Button>
+          </form>
+        ) : null}
+
         {devCredentials ? (
           <details className="text-sm">
             <summary className="cursor-pointer text-muted-foreground">Credenciais de desenvolvimento</summary>
             <form action={signInWithDevCredentialsAction} className="mt-3 space-y-2">
               <Input name="username" placeholder="Usuário" required />
-              <Input name="password" type="password" placeholder="Senha" required />
+              <PasswordInput name="password" placeholder="Senha" required />
               <Button type="submit" className="w-full">
                 Entrar
               </Button>

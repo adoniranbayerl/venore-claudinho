@@ -11,9 +11,9 @@ export type AuthenticatedUser = {
 export type UserRegistrationStatus = "pending" | "approved";
 
 export type AuthProviderDescriptor = {
-  key: "github" | "google" | "microsoft-entra-id" | "credentials";
+  key: "github" | "google" | "microsoft-entra-id" | "credentials" | "password";
   label: string;
-  kind: "oauth" | "development";
+  kind: "oauth" | "development" | "password";
   enabled: boolean;
   iconUrl?: string;
 };

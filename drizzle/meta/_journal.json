@@ -218,6 +218,13 @@
       "when": 1786024882235,
       "tag": "0030_aprenda_musica_navigation_and_content",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1787775889157,
+      "tag": "0031_handy_black_queen",
+      "breakpoints": true
     }
   ]
 }
