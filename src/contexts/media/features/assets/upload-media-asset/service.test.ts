@@ -20,6 +20,21 @@ vi.mock("./store", () => ({
   insertAsset: (...args: unknown[]) => insertAsset(...args),
 }));
 
+// Fake leve de sanitize-svg-buffer: o módulo real puxa jsdom (pesado — transformá-lo dentro do
+// `await import("./service")` do primeiro teste chegava a estourar o timeout de 5s sob a suíte
+// cheia). A sanitização de verdade tem cobertura própria em sanitize-svg-buffer.test.ts; aqui só
+// importa que o service passe os bytes por ela e grave/checksumme o que ela devolve.
+vi.mock("../../../sanitize-svg-buffer", () => ({
+  sanitizeSvgBuffer: (data: Buffer) => {
+    const raw = data.toString("utf8");
+    if (!/<svg[\s>]/i.test(raw)) {
+      return { success: false, error: { code: "media.upload.invalid_svg", message: "not an svg" } };
+    }
+    const clean = raw.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "").replace(/\son\w+="[^"]*"/gi, "");
+    return { success: true, data: Buffer.from(clean, "utf8") };
+  },
+}));
+
 describe("uploadMediaAsset", () => {
   beforeEach(() => {
     invalidateCacheByPrefix.mockReset();

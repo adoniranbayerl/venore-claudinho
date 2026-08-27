@@ -17,9 +17,11 @@ vi.mock("@/contexts/rbac", () => ({
 }));
 
 const getSetting = vi.fn();
+const registerDefaultSetting = vi.fn();
 
 vi.mock("@/contexts/settings", () => ({
   getSetting: (...args: unknown[]) => getSetting(...args),
+  registerDefaultSetting: (...args: unknown[]) => registerDefaultSetting(...args),
 }));
 
 const registerPlugins = vi.fn();
@@ -37,6 +39,8 @@ describe("handleUserRegistered", () => {
     superadminExists.mockReset();
     grantSuperadmin.mockReset();
     getSetting.mockReset();
+    registerDefaultSetting.mockReset();
+    registerDefaultSetting.mockResolvedValue({ success: true, data: { key: "auth.registration_approval_required", registered: true } });
     registerPlugins.mockReset();
     registerPlugins.mockResolvedValue(undefined);
     superadminExists.mockResolvedValue({ success: true, data: true });
@@ -53,6 +57,7 @@ describe("handleUserRegistered", () => {
     const { handleUserRegistered } = await import("./handle-user-registered");
     const result = await handleUserRegistered(user);
 
+    expect(registerDefaultSetting).toHaveBeenCalledWith({ key: "auth.registration_approval_required", value: true });
     expect(getSetting).toHaveBeenCalledWith({ key: "auth.registration_approval_required" });
     expect(provisionUser).toHaveBeenCalledWith(user);
     expect(grantDefaultRoleOnRegistration).not.toHaveBeenCalled();

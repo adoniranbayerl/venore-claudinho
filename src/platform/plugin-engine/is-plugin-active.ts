@@ -1,4 +1,4 @@
-import { registerPlugins } from "./register-plugins";
+import { getActivePluginKeys } from "./get-active-plugin-keys";
 
 // Ponto único de checagem "este plugin está ativo agora" pra composição em platform/ (docs/
 // venore-docks.md — regra 12): mesmo raciocínio que media-usage-registry.ts já aplicava só pra
@@ -7,6 +7,5 @@ import { registerPlugins } from "./register-plugins";
 // precisam da mesma checagem — plugin desabilitado não pode ter superfície viva, nem por URL
 // direta nem por Server Action chamada sem passar pela página.
 export async function isPluginActive(pluginKey: string): Promise<boolean> {
-  const report = await registerPlugins();
-  return report.entries.some((entry) => entry.key === pluginKey && entry.status === "active");
+  return (await getActivePluginKeys()).has(pluginKey);
 }

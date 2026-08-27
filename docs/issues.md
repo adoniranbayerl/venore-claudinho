@@ -274,6 +274,57 @@ Vamos ter o nome interno do sistema, mas podemos criar "aliases" para mostrar no
 - Instalar via .zip
 - Desinstalar deve perguntar se é para limpar tudo (inclui banco de dados) ou apenas apaga da pasta plugins 
 
+- **Seed de plugin "com opção via site" — RESOLVIDO.** Manifesto ganhou `seeds?: { key, label,
+  description? }[]`; cada key mapeia pra uma função idempotente em
+  `src/plugins/<key>/seeds/<seedKey>.ts`, agregada por import estático em
+  `src/platform/plugin-engine/plugin-seed-registry.ts`. `seedPlugin(pluginKey, seedKey)`
+  (`src/platform/plugin-engine/seed-plugin.ts`) é gateada por `platform.extensions.manage`,
+  observada e auditada (`recordAuditEvent` — `plugin-engine.seed-plugin`), e só roda com o plugin
+  instalado. Exposta como caixa "popular com dados de exemplo" no diálogo de instalar e como botão
+  "Popular dados de exemplo" na listagem de `/admin/plugins`. Seeds concretos: `academy` (curso +
+  3 aulas), `birthdays` (6 aniversariantes), `enrollment-dashboard` (Erasto Gaertner + Fidelis —
+  `scripts/seed-enrollment-dashboard.ts` virou wrapper fino em cima do seed). `broadcast` e
+  `donations` sem seed de propósito (dependem de arquivo de mídia real / são settings-only).
+- **[I4] Concessão das permissions de plugin ao papel `admin` no install — RESOLVIDO.**
+  `registerPlugins()` só devolvia as `permissions` do plugin pro catálogo de `/admin/rbac`, nunca
+  gravava em `rbac.role_permissions` — o papel `admin` não via nenhuma tela de plugin até alguém
+  marcar na mão. `installPlugin` agora chama `grantPermissionsToRole({ roleKey: "admin",
+  permissionKeys })` (novo use case aditivo/idempotente em
+  `src/contexts/rbac/features/role-management/grant-permissions-to-role/`, sem `authorizeActor` —
+  ver nota no handler). Reclicar "Instalar" num plugin já instalado repara a concessão.
+  `superadmin` não precisa — `authorize-actor.ts` libera incondicional.
+- **Desinstalar plugin — os dois modos possíveis em runtime, RESOLVIDO.** O pedido original
+  (linha 275) tinha dois modos: "limpar tudo (inclui banco)" OU "apenas apaga da pasta plugins".
+  Como plugin é import estático (`src/plugins/registry.ts` — Next.js exige isso pra bundling),
+  "apagar da pasta" de verdade só tem efeito com edição de código + rebuild; não dá pra fazer
+  100% em runtime. Os dois modos entregues, ambos só runtime:
+  - **Modo A — Desativar** (já existia como `togglePluginEnabled(false)`): nada é apagado, schema
+    e dados intactos, reversível. Renomeado na UI de "Desabilitar" para "Desativar" / "Ativo" /
+    "Inativo" / "Reativar".
+  - **Modo B — Desinstalar e limpar o banco** (novo, `src/platform/plugin-engine/uninstall-plugin.ts`
+    — `uninstallPlugin` gateado por `platform.extensions.manage`, núcleo `performPluginUninstall`
+    sem `authorizeActor` pros testes de integração, mesmo split de handler/service dos contexts).
+    Bloqueado se houver plugin dependente ativo (mesma regra do desativar). Numa transação só:
+    `DROP SCHEMA "<key_>" CASCADE` (dado) + `DROP SCHEMA "<key_>_migrations" CASCADE` (tracking) +
+    `DELETE settings.settings WHERE key LIKE '<key>.%'` +
+    `DELETE rbac.role_permissions WHERE permission_key LIKE '<key>.%'` +
+    `UPDATE extensions.extension_state SET installed_at = NULL, enabled = true`. Auditado
+    (`recordAuditEvent` — `plugin-engine.uninstall-plugin`). Preview de consequência
+    (`preview-plugin-uninstall.ts`, estende `previewPluginDisable`): schemas dropados, linhas por
+    tabela do plugin, contagem de settings/permissions do namespace — carregado sob demanda ao
+    abrir o diálogo (COUNT por tabela). UI em `/admin/plugins`: diálogo de 2 passos
+    (`uninstall-plugin-control.tsx`, substitui `toggle-plugin-control.tsx`) — escolha do modo,
+    depois confirmação digitando a key do plugin.
+- **[G1-plugins] Instalar via `.zip` e "apagar fisicamente da pasta" continuam pendentes.** Motivo:
+  `src/plugins/registry.ts` importa cada manifesto estaticamente (exigência de bundling do
+  Next.js, mesmo padrão de `src/themes/registry.ts`). Um plugin só passa a existir pro sistema
+  quando há uma entrada nesse arquivo, resolvida em build — não há scan de filesystem em runtime.
+  Então: (a) upload de `.zip` exigiria descompactar pro disco **e** reescrever `registry.ts` +
+  rebuild/redeploy, fora do que uma Server Action faz; (b) "apagar da pasta" de um plugin
+  bundlado não tira ele do bundle já servido. O que dá pra fazer hoje é o Modo A/Modo B acima
+  (estado no banco), não a presença do código. Retomar isto depende de decidir um mecanismo de
+  carregamento dinâmico de plugin (fora do bundle) — não está desenhado.
+
 ### Subsistema de importar e exportar conteúdo
 - Esse sistema deve servir para o CMS e o MMS
 - Academy deve criar seu próprio subsistema

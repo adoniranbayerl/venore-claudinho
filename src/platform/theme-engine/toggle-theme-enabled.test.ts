@@ -52,7 +52,7 @@ describe("toggleThemeEnabled", () => {
 
   it("refuses to disable the last enabled theme even when it is not the active one", async () => {
     getActiveTheme.mockResolvedValue({ success: true, data: { themeKey: "some-other-active-theme", activatedAt: null } });
-    listExtensionStates.mockResolvedValue({ success: true, data: { "venore-basic": false } });
+    listExtensionStates.mockResolvedValue({ success: true, data: { "venore-basic": { installed: true, enabled: false } } });
 
     const { toggleThemeEnabled } = await import("./toggle-theme-enabled");
     const result = await toggleThemeEnabled({ themeKey: "venore-slime", enabled: false });

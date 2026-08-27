@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCachedEntry, getEntryComposition } from "@/contexts/cms";
 import { listBlockDefinitions } from "@/platform/page-builder/block-registry";
+import { getActivePluginKeys } from "@/platform/plugin-engine/get-active-plugin-keys";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { BlockRenderer } from "@/components/page-builder/block-renderer";
 import { CompositionBuilder } from "./_components/composition-builder";
@@ -28,7 +29,11 @@ export default async function EntryBuilderPage({ params }: { params: Promise<{ i
     );
   }
 
-  const [entryResult, compositionResult] = await Promise.all([getCachedEntry(id), getEntryComposition({ id })]);
+  const [entryResult, compositionResult, activePluginKeys] = await Promise.all([
+    getCachedEntry(id),
+    getEntryComposition({ id }),
+    getActivePluginKeys(),
+  ]);
 
   if (!entryResult.success) {
     return <p className="text-sm text-destructive">Erro ao carregar entry: {entryResult.error.message}</p>;
@@ -49,7 +54,7 @@ export default async function EntryBuilderPage({ params }: { params: Promise<{ i
       entryTitle={entry.title}
       entrySlug={entry.slug}
       initialComposition={composition}
-      definitions={listBlockDefinitions()}
+      definitions={listBlockDefinitions(activePluginKeys)}
       preview={<BlockRenderer blocks={composition} mode="edit" />}
     />
   );

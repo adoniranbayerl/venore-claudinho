@@ -11,6 +11,9 @@ export type ExtensionStateRecord = {
   kind: ExtensionKind;
   key: string;
   enabled: boolean;
+  // Nulo == não instalado (ver database/schema/index.ts). Pra plugin, isso é o estado
+  // "disponível"; pra tema é ignorado pelo theme-engine.
+  installedAt: Date | null;
   updatedAt: Date;
   updatedByUserId: string | null;
 };

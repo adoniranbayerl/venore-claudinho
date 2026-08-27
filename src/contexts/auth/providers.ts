@@ -1,13 +1,15 @@
-import { timingSafeEqual, scrypt as scryptCallback } from "node:crypto";
-import { promisify } from "node:util";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
-import { findUserByEmailWithPasswordHash } from "./features/identity/find-user-by-email/store";
+// Seção 1 do AGENTS.md: providers.ts não alcança mais o `store.ts` da feature direto — passa pelo
+// handler (o entrypoint que o barrel ./index.ts reexporta como `findUserByEmail`). Importa o
+// handler e não o próprio ./index.ts só porque ./index.ts reexporta ./auth.config, que avalia
+// `NextAuth({...})` no top-level e puxa `next/server` — inresolvível em Vitest puro (AGENTS.md
+// seção 5), e este arquivo roda em teste unitário.
+import { findUserByEmailHandler as findUserByEmail } from "./features/identity/find-user-by-email/handler";
+import { verifyPasswordHash } from "./features/identity/password-hashing";
 import type { AuthProviderDescriptor } from "./contracts/types";
-
-const scrypt = promisify(scryptCallback);
 
 function readEnvValue(key: string): string {
   const rawValue = process.env[key];
@@ -32,18 +34,8 @@ function hasRequiredProviderEnvAliases(keyGroups: string[][]): boolean {
 }
 
 function isDevelopmentCredentialsEnabled(): boolean {
-  return readEnvValue("AUTH_ENABLE_DEV_CREDENTIALS") === "true";
-}
-
-async function verifyPasswordHash(password: string, storedHash: string): Promise<boolean> {
-  const [algorithm, saltBase64, hashBase64] = storedHash.split("$");
-  if (algorithm !== "scrypt" || !saltBase64 || !hashBase64) return false;
-
-  const salt = Buffer.from(saltBase64, "base64");
-  const expectedHash = Buffer.from(hashBase64, "base64");
-  const derived = (await scrypt(password, salt, expectedHash.length)) as Buffer;
-  if (derived.length !== expectedHash.length) return false;
-  return timingSafeEqual(derived, expectedHash);
+  // Atalho de dev (usuário/senha sem linha no banco) só fora de produção E com o flag exato.
+  return process.env.NODE_ENV !== "production" && readEnvValue("AUTH_ENABLE_DEV_CREDENTIALS") === "true";
 }
 
 function readGithubCredentials(): { clientId: string; clientSecret: string } | null {
@@ -114,14 +106,16 @@ export function buildAuthProviders() {
 
         if (!username || !password) return null;
 
-        const user = await findUserByEmailWithPasswordHash(username);
-        if (user?.passwordHash) {
-          if (!(await verifyPasswordHash(password, user.passwordHash))) return null;
+        const found = await findUserByEmail({ email: username });
+        if (found.success && found.data.passwordHash) {
+          if (!(await verifyPasswordHash(password, found.data.passwordHash))) return null;
+          // P9 — usuário pending não autentica (nem por senha).
+          if (found.data.status === "pending") return null;
 
           return {
-            id: user.id,
-            name: user.name ?? username,
-            email: user.email,
+            id: found.data.id,
+            name: found.data.name ?? username,
+            email: found.data.email,
           };
         }
 

@@ -12,6 +12,10 @@ export const broadcastManifest: PluginManifest = {
   description:
     "Composição de cenas em camadas (vídeo de playlist + overlays HTML5) com saída para exibição em TV, tipo um switcher OBS simplificado.",
   compatibility: { coreVersion: ">=2.0.0 <3.0.0" },
+  // Schema próprio do plugin — aplicado no install (run-plugin-migrations.ts), não no
+  // vercel-build. Default de migrationsSchema ("broadcast_migrations") já bate com
+  // src/plugins/broadcast/drizzle.config.ts.
+  migrationsPath: "./migrations",
   // Configurar broadcast.rootFolder passa por setSetting (@/contexts/settings), gateado por
   // settings.manage — mesmo padrão de birthdays' BIRTHDAY_APPEARANCE_SETTINGS (appearance/
   // actions.ts): nenhuma permission própria de "gerenciar settings do plugin" existe hoje, o

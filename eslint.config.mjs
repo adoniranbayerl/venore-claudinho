@@ -13,19 +13,26 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Fixtures da regra plugin -> plugin (boundaries/dependencies). Um deles viola a regra DE
+    // PROPÓSITO, então nunca entram no `npm run lint` normal — só são lintados
+    // programaticamente por src/platform/page-builder/cross-plugin-boundary.eslint.test.ts
+    // (que passa `ignore: false`). Não são plugins de verdade: fora do PLUGIN_REGISTRY.
+    "src/plugins/_fixture-*/**",
   ]),
   {
     files: ["src/**/*.{js,jsx,ts,tsx}"],
     plugins: { boundaries },
     settings: {
       // Elements classify by folder ("context" / "plugin" / "theme"); files classify
-      // by category within a context. "context-public" (exclusive) covers
-      // index.ts and contracts/**; everything else under a context falls
-      // through to the "context-internal" catch-all. The dependency rule
-      // below disallows plugins/themes reaching "context-internal" files.
+      // by category within a context/plugin. "*-public" (exclusive) covers
+      // index.ts and contracts/**; everything else falls through to the
+      // "*-internal" catch-all. The dependency rules below disallow
+      // plugins/themes reaching "context-internal" files, and a plugin
+      // reaching another plugin's "plugin-internal" files (`pluginName`
+      // capture tells "another plugin" from "the same plugin").
       "boundaries/elements": [
         { type: "context", pattern: "src/contexts/*", partialMatch: false },
-        { type: "plugin", pattern: "src/plugins/*", partialMatch: false },
+        { type: "plugin", pattern: "src/plugins/*", capture: ["pluginName"], partialMatch: false },
         { type: "theme", pattern: "src/themes/*", partialMatch: false },
         { type: "observability", pattern: "src/observability", partialMatch: false },
         { type: "platform", pattern: "src/platform/*", partialMatch: false },
@@ -35,6 +42,9 @@ const eslintConfig = defineConfig([
         { pattern: "src/contexts/*/index.ts", category: "context-public", exclusive: true },
         { pattern: "src/contexts/*/contracts/**", category: "context-public", exclusive: true },
         { pattern: "src/contexts/*/**", category: "context-internal" },
+        { pattern: "src/plugins/*/index.ts", category: "plugin-public", exclusive: true },
+        { pattern: "src/plugins/*/contracts/**", category: "plugin-public", exclusive: true },
+        { pattern: "src/plugins/*/**", category: "plugin-internal" },
         { pattern: "src/observability/index.ts", category: "observability-public", exclusive: true },
         { pattern: "src/observability/contracts/**", category: "observability-public", exclusive: true },
         { pattern: "src/observability/**", category: "observability-internal" },
@@ -56,6 +66,24 @@ const eslintConfig = defineConfig([
               },
               message:
                 "Um plugin/tema só pode importar de contexts/<nome>/index.ts (barrel público) ou contexts/<nome>/contracts/** — nunca de arquivos internos do context (store, service fora do barrel, schema, etc).",
+            },
+            {
+              // Um plugin importa de OUTRO plugin só pelo barrel público (index.ts) ou
+              // contracts/** — nunca de arquivo interno (components, features, blocks, routes,
+              // shared). O capture `pluginName` distingue "outro plugin"
+              // (`!{{ from.pluginName }}`) de "o próprio plugin" (imports relativos internos
+              // seguem livres). Um plugin que
+              // depende de outro declara `dependencies` no manifesto e consome só a superfície
+              // pública — mesma disciplina que já vale entre contexts.
+              from: { element: { type: "plugin" } },
+              disallow: {
+                to: {
+                  element: { type: "plugin", captured: { pluginName: "!{{ from.pluginName }}" } },
+                  file: { categories: "plugin-internal" },
+                },
+              },
+              message:
+                "Um plugin só pode importar de src/plugins/<outro>/index.ts (barrel público) ou src/plugins/<outro>/contracts/** — nunca de arquivos internos de outro plugin. Exponha o que precisa no index.ts do plugin-alvo (ou mova pra contracts/) e declare a dependência no manifesto.",
             },
             {
               from: { element: { type: ["context", "plugin"] } },

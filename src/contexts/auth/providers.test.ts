@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const ENV_KEYS = [
   "GITHUB_ID",
@@ -92,6 +92,17 @@ describe("providers env helpers", () => {
 
     process.env.AUTH_ENABLE_DEV_CREDENTIALS = "true";
     expect(isDevelopmentCredentialsEnabled()).toBe(true);
+  });
+
+  it("isDevelopmentCredentialsEnabled is false in production even with the flag set", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.AUTH_ENABLE_DEV_CREDENTIALS = "true";
+    try {
+      const { isDevelopmentCredentialsEnabled } = await import("./providers");
+      expect(isDevelopmentCredentialsEnabled()).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

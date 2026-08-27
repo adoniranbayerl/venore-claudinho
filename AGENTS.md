@@ -132,9 +132,25 @@ import { rbacSchema } from "@/contexts/rbac/database/schema";
 import { getUserRoles } from "@/contexts/rbac";
 import type { Role } from "@/contexts/rbac/contracts";
 ```
+
+**Um plugin acessando internals de OUTRO plugin (mesmo só leitura):**
+```ts
+// ERRADO — caminho interno de outro plugin
+import { DonationWidget } from "@/plugins/donations/components/donation-widget";
+```
+```ts
+// CERTO — só o barrel (index.ts) ou contracts/ do outro plugin, e declarar a dependência no
+// manifesto (`dependencies: [{ pluginKey: "donations", type: "optional" }]`), checando
+// isPluginActive(...) em runtime quando `optional`.
+import { DonationWidget } from "@/plugins/donations";
+```
+Import relativo DENTRO do próprio plugin continua livre — a regra só vale entre plugins distintos.
+
 Enforcement: `boundaries/dependencies` em `eslint.config.mjs`, rodando em `npm run lint` (job
-`check` do CI). Cobre `plugin`/`theme`/`platform` → `context-internal`, e também
-`component` (`src/components`) → `plugin`.
+`check` do CI). Cobre `plugin`/`theme`/`platform` → `context-internal`, `plugin` → outro
+`plugin` (`plugin-internal`, via capture `pluginName`), e `component` (`src/components`) →
+`plugin`. Prova executável em `src/platform/page-builder/cross-plugin-boundary.eslint.test.ts`
+(fixtures em `src/plugins/_fixture-cross-*/`, fora do `PLUGIN_REGISTRY` e de `globalIgnores`).
 
 **`store.ts` novo abrindo conexão própria:**
 ```ts
@@ -270,9 +286,8 @@ logBuffer.push({ message, level });
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test` | Vitest — só `*.test.ts` (unitário, sem banco real) |
 | `npm run test:integration` | Vitest com `vitest.integration.config.ts` — só `*.integration.test.ts` |
-| `npm run db:generate` / `npm run db:migrate` | Drizzle Kit — schema de core/contexts/plugins (exceto academy) |
-| `npm run db:generate:academy` / `npm run db:migrate:academy` | Mesmo, para migrations do plugin `academy` |
-| `npm run db:generate:birthdays` / `npm run db:migrate:birthdays` | Mesmo, para migrations do plugin `birthdays` |
+| `npm run db:generate` / `npm run db:migrate` | Drizzle Kit — schema de core/contexts (não plugin). `db:migrate` é o único passo de migration do `vercel-build` |
+| `npm run db:generate:<plugin>` / `npm run db:migrate:<plugin>` | Idem para a árvore própria de cada plugin com schema (`academy`, `birthdays`, `broadcast`, `enrollment-dashboard`). Uso local — em produção a migration do plugin roda no **install** (`platform/plugin-engine/run-plugin-migrations.ts`), não no `vercel-build` |
 | `npm run db:seed:admin-access` / `db:seed:media-manage` / `db:seed:cms-menus-manage` | Seeds de permission pontuais (`scripts/*.mjs`) |
 | `npm run db:bootstrap-superadmin` | Promove usuário existente a `superadmin` fora do fluxo automático |
 
@@ -285,10 +300,12 @@ substitui o `check`. `drizzle-kit push` é reservado para desenvolvimento local,
 - `*.integration.test.ts` (ex: `client.integration.test.ts`, os do academy) exigem
   `TEST_DATABASE_URL` — **nunca reaproveitam `DATABASE_URL`**; sem a env var a suíte falha cedo
   com mensagem clara em vez de rodar contra o banco de desenvolvimento.
-- `vitest.integration.config.ts` aplica as duas árvores de migration (`drizzle/` e
-  `src/plugins/academy/migrations/`) via `globalSetup` (`src/test-support/integration/global-
-  setup.ts`), e troca `DATABASE_URL` para `TEST_DATABASE_URL` só dentro do processo de teste
-  (`setup-env.ts`) — `infrastructure/database/client.ts` não muda.
+- `vitest.integration.config.ts` aplica, via `globalSetup` (`src/test-support/integration/global-
+  setup.ts`), o core (`drizzle/`) e depois a árvore `migrations/` de **cada plugin do
+  `PLUGIN_REGISTRY` que declara `migrationsPath` no manifesto** (hoje `academy`, `birthdays`,
+  `broadcast`, `enrollment-dashboard`) — a lista é derivada do registro, não hardcode. Troca
+  `DATABASE_URL` para `TEST_DATABASE_URL` só dentro do processo de teste (`setup-env.ts`) —
+  `infrastructure/database/client.ts` não muda.
 - **Isolamento entre testes é por `TRUNCATE ... CASCADE`, não transação com rollback** — vários
   `store.ts` abrem sua própria `db.transaction()`, que uma transação externa não commitada não
   cobriria sem DI só para teste.
@@ -314,8 +331,8 @@ substitui o `check`. `drizzle-kit push` é reservado para desenvolvimento local,
    autorização/validação de borda; `npm run test` passa.
 5. Se toca schema: migration via `drizzle-kit generate` (nunca editar
    `__drizzle_migrations`/`_journal.json` manualmente), e o número de migrations rastreadas bate
-   com o número de arquivos em `drizzle/migrations` (ou `src/plugins/academy/migrations` /
-   `src/plugins/birthdays/migrations`).
+   com o número de arquivos em `drizzle/` (core) ou na pasta `migrations/` do plugin
+   correspondente (`src/plugins/<plugin>/migrations`).
 6. Se cruza mais de um domínio de dado: tem teste de integração além do unitário, e
    `npm run test:integration` passa com `TEST_DATABASE_URL`.
 7. Nenhum valor de cor hardcoded — só token semântico shadcn; `src/components/ui/**` não editado

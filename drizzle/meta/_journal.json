@@ -225,6 +225,27 @@
       "when": 1787775889157,
       "tag": "0031_handy_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1787851798736,
+      "tag": "0032_aprenda_musica_brand_no_longer_in_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1787853222999,
+      "tag": "0033_pretty_the_leader",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1787853365517,
+      "tag": "0034_backfill_extension_install_state",
+      "breakpoints": true
     }
   ]
 }

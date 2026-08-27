@@ -22,12 +22,17 @@ const KEYS = {
   footerDescription: "brand.footerDescription",
 } as const;
 
+// Default de código NEUTRO de propósito — o default embutido não pode carregar
+// identidade de tenant (foi "Aprenda Música" até a 0030/0032; ver
+// drizzle/0032_aprenda_musica_brand_no_longer_in_core.sql). Cada instalação define
+// a própria marca em /admin/settings/brand; a instalação da Aprenda Música
+// especificamente usa `npm run db:seed:aprenda-musica`.
 const DEFAULTS = {
-  siteName: "Aprenda Música",
+  siteName: "Meu Site",
   logoMediaId: "",
   logoScrolledMediaId: "",
   faviconMediaId: "",
-  footerDescription: "Aulas de música com acompanhamento próximo, do primeiro acorde ao seu jeito de tocar.",
+  footerDescription: "",
 };
 
 const FALLBACK_LOGO_SVG = "/brand/brand-logo.svg";

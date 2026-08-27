@@ -7,7 +7,7 @@ import { getMediaAsset } from "@/contexts/media";
 import { createContentType } from "@/contexts/cms/features/content-types/create-content-type/service";
 import { createEntry } from "@/contexts/cms/features/entries/create-entry/service";
 import type { OperationResult } from "@/shared/types";
-import { deleteMediaSafely } from "./delete-media-safely";
+import { deleteMediaSafely } from "@/platform/media-lifecycle/delete-media-safely";
 
 function unwrap<T>(result: OperationResult<T>): T {
   if (!result.success) {

@@ -7,7 +7,7 @@ import { createContentType } from "@/contexts/cms/features/content-types/create-
 import { createEntry } from "@/contexts/cms/features/entries/create-entry/service";
 import { updateEntry } from "@/contexts/cms/features/entries/update-entry/service";
 import type { OperationResult } from "@/shared/types";
-import { collectMediaUsage } from "./media-usage-registry";
+import { collectMediaUsage } from "@/platform/media-usage/media-usage-registry";
 
 function unwrap<T>(result: OperationResult<T>): T {
   if (!result.success) {

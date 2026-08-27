@@ -1,0 +1,1 @@
+ALTER TABLE "extensions"."extension_state" ADD COLUMN "installed_at" timestamp with time zone;

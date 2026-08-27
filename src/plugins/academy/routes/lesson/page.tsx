@@ -30,8 +30,13 @@ import type {
 import { getEntryComposition, type Composition } from "@/contexts/cms";
 import { getMediaAsset } from "@/contexts/media";
 import { getAcademyCourseAccess } from "@/platform/academy-student/get-academy-course-access";
-import { buildDonationPixCode, getDonationSettings, type DonationPixCode, type DonationSettings } from "@/plugins/donations";
-import { DonationWidget } from "@/plugins/donations/components/donation-widget";
+import {
+  buildDonationPixCode,
+  DonationWidget,
+  getDonationSettings,
+  type DonationPixCode,
+  type DonationSettings,
+} from "@/plugins/donations";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 import { BlockRenderer } from "@/components/page-builder/block-renderer";
 import { LessonVideoEmbed } from "./_components/lesson-video-embed";

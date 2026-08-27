@@ -22,6 +22,10 @@ export {
 // paralelos, nunca misturados.
 export { blockDefinitions, blockRenderers } from "./blocks";
 
+// Ponto de extensão "seeds" do plugin engine (platform/plugin-engine/plugin-seed-registry.ts) —
+// dados de exemplo populados via /admin/plugins.
+export { birthdaysSeeds } from "./seeds";
+
 export { MONTH_LABELS } from "./shared/months";
 export { BIRTHDAY_APPEARANCE_SETTINGS, DEFAULT_BIRTHDAY_APPEARANCE } from "./shared/appearance";
 export type { BirthdayAppearanceField, BirthdayAppearanceSettings } from "./shared/appearance";

@@ -16,11 +16,22 @@ export type { ProvisionUserCommand, ProvisionUserResult } from "./features/ident
 export { updateOwnAvatarHandler as updateOwnAvatar } from "./features/identity/update-own-avatar/handler";
 export type { UpdateOwnAvatarInput, UpdateOwnAvatarResult } from "./features/identity/update-own-avatar/types";
 
+// Credencial de senha (provider Credentials). set-own-password é self-service (actorId da sessão,
+// sem RBAC); admin-set-user-password é gated por rbac.roles.manage no próprio handler. Ambos
+// gravam auth.users.password_hash no formato scrypt$<salt>$<hash> que o login lê.
+export { setOwnPasswordHandler as setOwnPassword } from "./features/identity/set-own-password/handler";
+export type { SetOwnPasswordInput, SetOwnPasswordResult } from "./features/identity/set-own-password/types";
+export { adminSetUserPasswordHandler as adminSetUserPassword } from "./features/identity/admin-set-user-password/handler";
+export type {
+  AdminSetUserPasswordInput,
+  AdminSetUserPasswordResult,
+} from "./features/identity/admin-set-user-password/types";
+
 // Lookup por email, sem verificação de autorização própria — destinado a ferramentas
 // administrativas/scripts (ex: scripts/bootstrap-superadmin.mjs), não para uso geral por
 // plugin/tema (docs/venore-docks.md — regra 14: expõe usuário por email sem checagem de ator).
 export { findUserByEmailHandler as findUserByEmail } from "./features/identity/find-user-by-email/handler";
-export type { FindUserByEmailQuery, FindUserByEmailResult } from "./features/identity/find-user-by-email/types";
+export type { FindUserByEmailQuery, FindUserByEmailResult, FoundUser } from "./features/identity/find-user-by-email/types";
 
 // Diretório geral de usuários — sem verificação de autorização própria, mesmo raciocínio de
 // listPendingUsers (regra 10): quem autoriza é quem compõe (rbac/list-users-by-role, ou o

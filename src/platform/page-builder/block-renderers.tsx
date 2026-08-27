@@ -40,7 +40,6 @@ import type { VariantProps } from "class-variance-authority";
 import { blockRenderers as academyBlockRenderers } from "@/plugins/academy";
 import { blockRenderers as birthdaysBlockRenderers } from "@/plugins/birthdays";
 import { blockRenderers as donationsBlockRenderers } from "@/plugins/donations";
-import { PLUGIN_REGISTRY } from "@/plugins/registry";
 import { ROW_BLOCK_KEY, resolveRowColumns, resolveRowGridClasses } from "./row-columns";
 
 type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
@@ -706,8 +705,11 @@ const CORE_BLOCK_RENDERERS: Record<string, BlockRendererComponent> = {
 };
 
 // Mesmo padrão de PLUGIN_BLOCK_BARRELS em block-registry.ts: import estático (Next exige pra
-// bundling), chave = manifest.key, filtrado por PLUGIN_REGISTRY. Paralelo ao registry de
-// definitions, mas nunca cruza o boundary RSC — este módulo é "server-only".
+// bundling), chave = manifest.key. Paralelo ao registry de definitions, mas nunca cruza o
+// boundary RSC — este módulo é "server-only". O gate por plugin ATIVO fica no dispatch de render
+// (components/page-builder/block-renderer.tsx, via pluginKeyForBlockKey + getActivePluginKeys):
+// este mapa é só o superset chaveado por block key, e uma entrada de plugin desativado aqui é
+// inerte porque renderBlock nunca chega a resolvê-la.
 const PLUGIN_BLOCK_RENDERER_BARRELS: Record<string, { blockRenderers?: Record<string, BlockRendererComponent> }> = {
   academy: { blockRenderers: academyBlockRenderers },
   birthdays: { blockRenderers: birthdaysBlockRenderers },
@@ -717,7 +719,7 @@ const PLUGIN_BLOCK_RENDERER_BARRELS: Record<string, { blockRenderers?: Record<st
 function collectPluginRenderers(): Record<string, BlockRendererComponent> {
   return Object.assign(
     {},
-    ...PLUGIN_REGISTRY.map((manifest) => PLUGIN_BLOCK_RENDERER_BARRELS[manifest.key]?.blockRenderers ?? {}),
+    ...Object.values(PLUGIN_BLOCK_RENDERER_BARRELS).map((barrel) => barrel.blockRenderers ?? {}),
   );
 }
 

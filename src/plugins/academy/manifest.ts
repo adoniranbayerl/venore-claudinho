@@ -10,6 +10,15 @@ export const academyManifest: PluginManifest = {
   version: "1.0.0",
   description: "Cursos com aulas sequenciais, requisitos configuráveis e progresso do aluno.",
   compatibility: { coreVersion: ">=2.0.0 <3.0.0" },
+  // Opcional: a etapa de doação da aula e a chamada na página de curso reusam DonationWidget/
+  // DonationTeaser do barrel de donations, mas só quando isPluginActive("donations") — academy
+  // funciona inteiro sem donations instalado. `optional` nunca bloqueia o registro nem a
+  // desabilitação de donations (resolve-dependencies.ts / find-dependent-plugins.ts).
+  dependencies: [{ pluginKey: "donations", type: "optional" }],
+  // Schema próprio do plugin — aplicado no install (run-plugin-migrations.ts), não no
+  // vercel-build. Default de migrationsSchema ("academy_migrations") já bate com
+  // src/plugins/academy/drizzle.config.ts.
+  migrationsPath: "./migrations",
   permissions: [{ key: "academy.courses.manage", label: "Gerenciar cursos, aulas e perguntas da Academy" }],
   navigation: [
     {
@@ -36,6 +45,9 @@ export const academyManifest: PluginManifest = {
       order: 11,
       requiredPermission: "academy.courses.manage",
     },
+  ],
+  seeds: [
+    { key: "example", label: "Dados de exemplo", description: "Um curso de exemplo com três aulas." },
   ],
   blocks: [
     { key: "academy.course.list", label: "Academy — Lista de cursos" },

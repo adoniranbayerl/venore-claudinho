@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { isBlockConfigured, type Block, type Composition } from "@/contexts/cms";
-import { resolveBlockDefinition } from "@/platform/page-builder/block-registry";
+import { pluginKeyForBlockKey, resolveBlockDefinition } from "@/platform/page-builder/block-registry";
 import { resolveBlockRenderer, type BlockRenderMode } from "@/platform/page-builder/block-renderers";
+import { getActivePluginKeys } from "@/platform/plugin-engine/get-active-plugin-keys";
 
 export type { BlockRenderMode };
 
@@ -34,14 +35,32 @@ function UnconfiguredBlockPlaceholder({ label, missingMessage }: { label: string
 }
 
 export async function BlockRenderer({ blocks, mode }: { blocks: Composition; mode: BlockRenderMode }) {
-  return <>{await renderBlocks(blocks, mode)}</>;
+  // Resolvido uma vez por árvore de render: um bloco cuja key pertence a um plugin hoje
+  // desativado não renderiza (nem no público, nem no preview do builder) — trata-se como bloco
+  // desconhecido, mesma degradação graciosa de uma key sem definition. registerPlugins() por
+  // trás tem cache curto próprio.
+  const activePluginKeys = await getActivePluginKeys();
+  return <>{await renderBlocks(blocks, mode, activePluginKeys)}</>;
 }
 
-async function renderBlocks(blocks: Composition, mode: BlockRenderMode): Promise<ReactNode[]> {
-  return Promise.all(blocks.map((block) => renderBlock(block, mode)));
+async function renderBlocks(
+  blocks: Composition,
+  mode: BlockRenderMode,
+  activePluginKeys: ReadonlySet<string>,
+): Promise<ReactNode[]> {
+  return Promise.all(blocks.map((block) => renderBlock(block, mode, activePluginKeys)));
 }
 
-async function renderBlock(block: Block, mode: BlockRenderMode): Promise<ReactNode> {
+async function renderBlock(
+  block: Block,
+  mode: BlockRenderMode,
+  activePluginKeys: ReadonlySet<string>,
+): Promise<ReactNode> {
+  const owningPluginKey = pluginKeyForBlockKey(block.key);
+  if (owningPluginKey && !activePluginKeys.has(owningPluginKey)) {
+    return <UnknownBlockWarning key={block.id} blockKey={block.key} />;
+  }
+
   const definition = resolveBlockDefinition(block.key);
   if (!definition) {
     return <UnknownBlockWarning key={block.id} blockKey={block.key} />;
@@ -65,5 +84,12 @@ async function renderBlock(block: Block, mode: BlockRenderMode): Promise<ReactNo
     return <UnknownBlockWarning key={block.id} blockKey={block.key} />;
   }
 
-  return <Renderer key={block.id} block={block} mode={mode} renderBlocks={(children) => renderBlocks(children, mode)} />;
+  return (
+    <Renderer
+      key={block.id}
+      block={block}
+      mode={mode}
+      renderBlocks={(children) => renderBlocks(children, mode, activePluginKeys)}
+    />
+  );
 }

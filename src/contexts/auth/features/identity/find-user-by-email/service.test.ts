@@ -12,12 +12,31 @@ describe("findUserByEmailQuery", () => {
   });
 
   it("returns the user when found", async () => {
-    findUserByEmail.mockResolvedValue({ id: "user-1", email: "a@b.com", name: "A", image: null });
+    findUserByEmail.mockResolvedValue({
+      id: "user-1",
+      email: "a@b.com",
+      name: "A",
+      image: null,
+      avatarMediaId: null,
+      passwordHash: null,
+      status: "approved",
+    });
 
     const { findUserByEmailQuery } = await import("./service");
     const result = await findUserByEmailQuery({ email: "a@b.com" });
 
-    expect(result).toEqual({ success: true, data: { id: "user-1", email: "a@b.com", name: "A", image: null } });
+    expect(result).toEqual({
+      success: true,
+      data: {
+        id: "user-1",
+        email: "a@b.com",
+        name: "A",
+        image: null,
+        avatarMediaId: null,
+        passwordHash: null,
+        status: "approved",
+      },
+    });
   });
 
   it("fails with a business error when no user matches the email", async () => {

@@ -24,7 +24,7 @@ export function HeaderSlot({ brand, userbarEnabled, headerNavItems, user, canAcc
         id="site-header"
         data-scrolled="false"
         className={
-          "group/header sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b border-header-border-subtle bg-background px-4 text-foreground ui-motion-emphasis sm:px-6 md:h-24 lg:h-28 " +
+          "group/header sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b border-header-border-subtle bg-card px-4 text-foreground ui-motion-emphasis sm:px-6 md:h-24 lg:h-28 " +
           "data-[scrolled=true]:h-16 data-[scrolled=true]:border-primary data-[scrolled=true]:bg-primary data-[scrolled=true]:text-primary-foreground data-[scrolled=true]:shadow-header " +
           (brand.position === "center" ? "relative" : "")
         }

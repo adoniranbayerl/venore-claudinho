@@ -54,7 +54,9 @@ async function main() {
     process.exit(0);
   }
 
-  const grantResult = await grantSuperadmin({ userId: user.id });
+  // bypassExistsCheck: este script já checou superadminExists acima e pediu confirmação
+  // interativa — é o único caminho autorizado a pular a re-checagem do handler (P1).
+  const grantResult = await grantSuperadmin({ userId: user.id, bypassExistsCheck: true });
   if (!grantResult.success) {
     console.error(`Falha ao promover o usuário: ${grantResult.error.message}`);
     process.exit(1);

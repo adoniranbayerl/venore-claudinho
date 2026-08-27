@@ -7,8 +7,7 @@ import { requireTestDatabaseUrl } from "./require-test-database-url";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const CORE_MIGRATIONS_FOLDER = path.resolve(dirname, "../../../drizzle");
-const ACADEMY_MIGRATIONS_FOLDER = path.resolve(dirname, "../../plugins/academy/migrations");
-const BIRTHDAYS_MIGRATIONS_FOLDER = path.resolve(dirname, "../../plugins/birthdays/migrations");
+const PLUGINS_DIR = path.resolve(dirname, "../../plugins");
 
 // Roda 1x antes da suíte inteira (contrato de globalSetup do Vitest), num Pool próprio — nunca o
 // singleton de app/infrastructure/database/client.ts — porque a validação de TEST_DATABASE_URL
@@ -18,25 +17,28 @@ export default async function globalSetup(): Promise<void> {
   const pool = new Pool({ connectionString });
   const db = drizzle({ client: pool });
 
+  // Import dinâmico DEPOIS da validação da env var acima (o registro puxa os manifestos, que são
+  // módulos de constante inofensivos, mas a ordem importa pra manter a garantia).
+  const { PLUGIN_REGISTRY } = await import("@/plugins/registry");
+
   try {
-    // Três migrations separadas, mesmo padrão de produção (db:migrate + db:migrate:academy +
-    // db:migrate:birthdays) — core (auth/rbac/cms/settings/observability) e o schema próprio de
-    // cada plugin.
-    // migrationsSchema/migrationsTable dedicados pra academy/birthdays (mesmo motivo dos
-    // respectivos drizzle.config.ts): sem isso os três compartilham "drizzle"."__drizzle_migrations",
-    // e o migrate() do drizzle-orm só compara o created_at mais recente da tabela — uma migration
-    // de plugin mais antiga que a migration de core mais recente é pulada em silêncio.
+    // Core primeiro (auth/rbac/cms/settings/observability/extensions), depois a árvore própria de
+    // cada plugin que declara migrationsPath — mesma coisa que produção faz no install de cada
+    // plugin (platform/plugin-engine/run-plugin-migrations.ts), aqui derivada do PLUGIN_REGISTRY
+    // em vez de hardcode. migrationsSchema/migrationsTable dedicados por plugin: sem isso todos
+    // compartilham "drizzle"."__drizzle_migrations", e o migrate() do drizzle-orm só compara o
+    // created_at mais recente da tabela — uma migration de plugin mais antiga que a migration de
+    // core mais recente seria pulada em silêncio.
     await migrate(db, { migrationsFolder: CORE_MIGRATIONS_FOLDER });
-    await migrate(db, {
-      migrationsFolder: ACADEMY_MIGRATIONS_FOLDER,
-      migrationsSchema: "academy_migrations",
-      migrationsTable: "__drizzle_migrations",
-    });
-    await migrate(db, {
-      migrationsFolder: BIRTHDAYS_MIGRATIONS_FOLDER,
-      migrationsSchema: "birthdays_migrations",
-      migrationsTable: "__drizzle_migrations",
-    });
+
+    for (const manifest of PLUGIN_REGISTRY) {
+      if (!manifest.migrationsPath) continue;
+      await migrate(db, {
+        migrationsFolder: path.resolve(PLUGINS_DIR, manifest.key, manifest.migrationsPath),
+        migrationsSchema: manifest.migrationsSchema ?? `${manifest.key.replace(/-/g, "_")}_migrations`,
+        migrationsTable: manifest.migrationsTable ?? "__drizzle_migrations",
+      });
+    }
   } finally {
     await pool.end();
   }

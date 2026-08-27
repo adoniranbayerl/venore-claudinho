@@ -8,11 +8,14 @@ export { buildDonationPixCodeHandler as buildDonationPixCode } from "./features/
 // misturados.
 export { blockDefinitions, blockRenderers } from "./blocks";
 
-// DonationTeaser exposto direto (não só via block) porque a página de curso do academy
-// (src/app/(platform)/academy/[courseSlug]/page.tsx, pedido desta sessão: "veja onde ele cabe nas
-// nossas páginas... pelo menos na página de curso") tem layout fixo em JSX, não composição de CMS
-// — não dá pra "soltar o bloco" lá dentro, só reusar o componente React diretamente.
+// DonationTeaser / DonationWidget expostos direto (não só via block) porque páginas de layout
+// fixo em JSX (src/app/(platform)/academy/[courseSlug]/page.tsx e a etapa de doação da aula em
+// src/plugins/academy/routes/lesson/page.tsx) não têm composição de CMS pra "soltar o bloco" —
+// só dá pra reusar o componente React. O academy consome estes pelo barrel (nunca por
+// "@/plugins/donations/components/*") e declara `dependencies: [{ pluginKey: "donations",
+// type: "optional" }]` no manifesto; cada página checa isPluginActive("donations") em runtime.
 export { DonationTeaser } from "./components/donation-teaser";
+export { DonationWidget } from "./components/donation-widget";
 
 export { DONATIONS_SETTINGS, DEFAULT_DONATION_SETTINGS } from "./shared/settings";
 export type { DonationSettingsValues } from "./shared/settings";

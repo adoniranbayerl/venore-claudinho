@@ -27,7 +27,7 @@ export async function toggleThemeEnabled(command: ToggleThemeEnabledInput): Prom
 
     const enabledStatesResult = await listExtensionStates({ kind: "theme" });
     const enabledStates = enabledStatesResult.success ? enabledStatesResult.data : {};
-    const enabledCount = Object.keys(THEME_REGISTRY).filter((key) => enabledStates[key] ?? true).length;
+    const enabledCount = Object.keys(THEME_REGISTRY).filter((key) => enabledStates[key]?.enabled ?? true).length;
     if (enabledCount <= 1) {
       return {
         success: false,

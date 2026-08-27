@@ -11,6 +11,10 @@ export const birthdaysManifest: PluginManifest = {
   version: "1.0.0",
   description: "Quadro de aniversários agrupado por mês, com tela de cadastro administrativa.",
   compatibility: { coreVersion: ">=2.0.0 <3.0.0" },
+  // Schema próprio do plugin — aplicado no install (run-plugin-migrations.ts), não no
+  // vercel-build. Default de migrationsSchema ("birthdays_migrations") já bate com
+  // src/plugins/birthdays/drizzle.config.ts.
+  migrationsPath: "./migrations",
   permissions: [
     { key: "birthdays.read", label: "Ver aniversariantes cadastrados" },
     { key: "birthdays.manage", label: "Cadastrar, editar e remover aniversariantes" },
@@ -28,6 +32,9 @@ export const birthdaysManifest: PluginManifest = {
       order: 20,
       requiredPermission: "birthdays.read",
     },
+  ],
+  seeds: [
+    { key: "example", label: "Dados de exemplo", description: "Seis aniversariantes distribuídos pelo ano." },
   ],
   blocks: [{ key: "birthdays.month.list", label: "Aniversariantes — Lista do mês" }],
 };

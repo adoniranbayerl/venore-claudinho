@@ -3,9 +3,17 @@ import NextAuth from "next-auth";
 import { db } from "@/infrastructure/database/client";
 import { handleUserRegistered } from "@/platform/registration/handle-user-registered";
 import * as schema from "./database/schema";
+// Composition root do context de auth (mesmo raciocínio de importar `buildAuthProviders` e
+// `./database/schema` direto): este arquivo não pode passar pelo barrel `./index.ts` sem ciclo,
+// então lê o status de registro pelo store da feature diretamente.
+import { findUserStatusById } from "./features/session/get-current-user-registration-status/store";
 import { buildAuthProviders } from "./providers";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Auth.js v5 exige trustHost em self-host — sem plataforma "confiável" (Vercel/Netlify) pra
+  // inferir sozinho, ele recusa a request pelo header Host. O plugin broadcast roda em LAN, então
+  // o host nunca é um domínio público conhecido (docs/venore-docks.md — Autenticação).
+  trustHost: true,
   adapter: DrizzleAdapter(db, {
     usersTable: schema.users,
     accountsTable: schema.accounts,
@@ -22,7 +30,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      if (session.user) session.user.id = String(token.id ?? token.sub);
+      if (session.user) {
+        session.user.id = String(token.id ?? token.sub);
+        // P9 — usuário "pending" não pode autenticar nada: o redirect em (platform)/layout.tsx
+        // não cobre Server Actions nem /api. O status vai pra sessão aqui e getCurrentUser
+        // (o ponto que todo authorizeActor e handler self-service consulta) recusa a sessão
+        // pending. A tela /pending-approval usa getCurrentUserRegistrationStatus (lê status
+        // direto), não getCurrentUser, então continua funcionando.
+        session.user.status = (await findUserStatusById(session.user.id)) ?? undefined;
+      }
       return session;
     },
   },

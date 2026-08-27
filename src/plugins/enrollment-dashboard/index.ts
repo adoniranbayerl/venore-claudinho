@@ -11,6 +11,10 @@ export { updateInstitutionHandler as updateInstitution } from "./features/instit
 export { deleteInstitutionHandler as deleteInstitution } from "./features/institutions/delete-institution/handler";
 
 export { createProgramHandler as createProgram } from "./features/programs/create-program/handler";
+
+// Ponto de extensão "seeds" do plugin engine (platform/plugin-engine/plugin-seed-registry.ts) —
+// dados de exemplo (Erasto Gaertner + Fidelis) populados via /admin/plugins.
+export { enrollmentDashboardSeeds } from "./seeds";
 export { updateProgramHandler as updateProgram } from "./features/programs/update-program/handler";
 export { deleteProgramHandler as deleteProgram } from "./features/programs/delete-program/handler";
 

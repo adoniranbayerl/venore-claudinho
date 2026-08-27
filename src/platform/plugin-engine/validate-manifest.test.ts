@@ -37,8 +37,17 @@ describe("validateManifest", () => {
       routes: [{ path: "/birthdays", label: "Birthdays" }],
       contentTypes: [{ key: "birthday", label: "Birthday" }],
       blocks: [{ key: "birthday-list", label: "Birthday list" }],
+      seeds: [{ key: "example", label: "Dados de exemplo", description: "Alguns aniversariantes" }],
     });
     expect(result.valid).toBe(true);
+  });
+
+  it("rejects a seed entry without a label", () => {
+    const result = validateManifest({ ...validManifest, seeds: [{ key: "example" }] });
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.errors.some((e) => e.includes("seeds"))).toBe(true);
+    }
   });
 
   it("rejects a key that is not kebab-case", () => {

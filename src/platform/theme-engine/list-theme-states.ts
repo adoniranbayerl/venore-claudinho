@@ -25,11 +25,13 @@ export async function listThemeStates(): Promise<ThemeStateView[]> {
   const activeThemeKey = activeThemeResult.success ? activeThemeResult.data.themeKey : null;
   const enabledStates = enabledStatesResult.success ? enabledStatesResult.data : {};
 
+  // Tema não tem etapa de instalação (está sempre em código) — só a dimensão `enabled` do
+  // estado de extensão importa aqui; `installed` é ignorado de propósito.
   const themes = Object.values(THEME_REGISTRY);
-  const enabledCount = themes.filter((theme) => enabledStates[theme.manifest.key] ?? true).length;
+  const enabledCount = themes.filter((theme) => enabledStates[theme.manifest.key]?.enabled ?? true).length;
 
   return themes.map(({ manifest }) => {
-    const enabled = enabledStates[manifest.key] ?? true;
+    const enabled = enabledStates[manifest.key]?.enabled ?? true;
     const isActive = manifest.key === activeThemeKey;
 
     let disableBlockedReason: string | null = null;

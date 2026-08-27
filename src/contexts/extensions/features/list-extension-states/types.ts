@@ -3,6 +3,8 @@ import type { ExtensionKind } from "../../contracts/types";
 
 export type ListExtensionStatesQuery = { kind: ExtensionKind };
 
-// Só as linhas explícitas (desabilitadas ou já tocadas alguma vez) — uma chave ausente do mapa
-// deve ser tratada por quem chama como habilitada (default implícito, contracts/types.ts).
-export type ListExtensionStatesResult = OperationResult<Record<string, boolean>>;
+export type ExtensionStateEntry = { installed: boolean; enabled: boolean };
+
+// Só as linhas explícitas (instaladas e/ou já tocadas alguma vez) — uma chave ausente do mapa
+// deve ser tratada por quem chama como NÃO instalada e habilitada-por-default (contracts/types.ts).
+export type ListExtensionStatesResult = OperationResult<Record<string, ExtensionStateEntry>>;

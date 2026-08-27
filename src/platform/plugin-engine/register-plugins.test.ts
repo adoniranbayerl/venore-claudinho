@@ -25,6 +25,13 @@ vi.mock("@/contexts/extensions", () => ({
   listExtensionStates: (...args: unknown[]) => listExtensionStates(...args),
 }));
 
+// Ajuda a montar o mapa de estado que listExtensionStates devolve agora ({ installed, enabled }
+// por chave). Sem entrada == plugin "available" (não instalado).
+const installed = (...keys: string[]) => ({
+  success: true as const,
+  data: Object.fromEntries(keys.map((key) => [key, { installed: true, enabled: true }])),
+});
+
 const goodManifest = {
   manifestVersion: "1.0.0",
   key: "birthdays",
@@ -53,7 +60,7 @@ describe("registerPlugins", () => {
     registerDefaultSetting.mockReset();
     registerDefaultSetting.mockResolvedValue({ success: true, data: { key: "x", registered: true } });
     listExtensionStates.mockReset();
-    listExtensionStates.mockResolvedValue({ success: true, data: {} });
+    listExtensionStates.mockResolvedValue(installed("birthdays", "party"));
   });
 
   it("processes a good plugin next to a malformed one without either blocking the other", async () => {
@@ -134,8 +141,21 @@ describe("registerPlugins", () => {
     expect(entry?.status).toBe("dependency_missing");
   });
 
+  it("reports a plugin with no state row as available, and it contributes nothing", async () => {
+    listExtensionStates.mockResolvedValue({ success: true, data: {} });
+
+    const { registerPlugins } = await import("./register-plugins");
+    const report = await registerPlugins([goodManifest]);
+
+    const entry = report.entries.find((e) => e.key === "birthdays");
+    expect(entry).toMatchObject({ status: "available", manifest: expect.objectContaining({ key: "birthdays" }) });
+    expect(registerDefaultSetting).not.toHaveBeenCalled();
+    expect(report.permissions).not.toContainEqual({ key: "birthdays.entries.manage", label: "Manage birthdays" });
+    expect(report.navigation).toEqual([]);
+  });
+
   it("marks a plugin disabled instead of validating compatibility/dependencies, and skips its settings", async () => {
-    listExtensionStates.mockResolvedValue({ success: true, data: { birthdays: false } });
+    listExtensionStates.mockResolvedValue({ success: true, data: { birthdays: { installed: true, enabled: false } } });
 
     const { registerPlugins } = await import("./register-plugins");
     const report = await registerPlugins([{ ...goodManifest, compatibility: { coreVersion: ">=3.0.0" } }]);
@@ -148,7 +168,10 @@ describe("registerPlugins", () => {
   });
 
   it("treats a disabled required dependency as missing for a dependent plugin", async () => {
-    listExtensionStates.mockResolvedValue({ success: true, data: { birthdays: false } });
+    listExtensionStates.mockResolvedValue({
+      success: true,
+      data: { birthdays: { installed: true, enabled: false }, party: { installed: true, enabled: true } },
+    });
 
     const dependent = {
       manifestVersion: "1.0.0",

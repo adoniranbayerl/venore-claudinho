@@ -3,10 +3,13 @@ import { previewPluginDisable } from "@/platform/plugin-engine/preview-plugin-di
 import { registerPlugins } from "@/platform/plugin-engine/register-plugins";
 import { EmptyState } from "@/components/empty-state";
 import { Blocks } from "lucide-react";
-import { TogglePluginControl } from "./_components/toggle-plugin-control";
+import { InstallPluginControl } from "./_components/install-plugin-control";
+import { SeedPluginControl } from "./_components/seed-plugin-control";
+import { UninstallPluginControl } from "./_components/uninstall-plugin-control";
 
 const STATUS_LABEL: Record<string, string> = {
   active: "Ativo",
+  available: "Disponível",
   invalid: "Manifesto inválido",
   incompatible: "Incompatível com o core",
   dependency_missing: "Dependência ausente",
@@ -16,6 +19,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const STATUS_CLASSNAME: Record<string, string> = {
   active: "bg-accent/14 text-foreground",
+  available: "bg-muted text-muted-foreground",
   invalid: "bg-destructive/14 text-destructive",
   incompatible: "bg-destructive/14 text-destructive",
   dependency_missing: "bg-warning-soft text-warning",
@@ -37,13 +41,14 @@ export default async function PluginsAdminPage() {
 
   const report = await registerPlugins();
 
-  // Preview de consequência só faz sentido pra quem tem manifesto válido (invalid_manifest não
-  // tem key/permissions/navigation confiáveis pra prever nada) — computado pra todos de uma vez,
-  // não sob demanda no dialog, porque a tela já é pequena o bastante (poucos plugins instalados).
+  // Preview de consequência só faz sentido pra quem tem manifesto válido e já está instalado
+  // (invalid_manifest não tem dado confiável pra prever; "available" nem contribui nada ainda) —
+  // computado pra todos de uma vez, não sob demanda no dialog, porque a tela já é pequena o
+  // bastante (poucos plugins instalados).
   const previewsByKey = new Map(
     await Promise.all(
       report.entries
-        .filter((entry) => entry.manifest)
+        .filter((entry) => entry.manifest && entry.status !== "available")
         .map(async (entry) => [entry.key, await previewPluginDisable(entry.key)] as const),
     ),
   );
@@ -53,8 +58,9 @@ export default async function PluginsAdminPage() {
       <div>
         <h1 className="text-xl font-semibold text-foreground">Plugins</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Plugins instalados em código (src/plugins/registry.ts), com o resultado da validação de manifesto,
-          compatibilidade e dependências feita no registro.
+          Plugins presentes no código (src/plugins/registry.ts). Cada um pode estar Disponível (não instalado),
+          Habilitado ou Desabilitado — instalar roda as migrations do plugin no banco. O status abaixo também
+          reflete a validação de manifesto, compatibilidade e dependências feita no registro.
         </p>
       </div>
 
@@ -85,8 +91,16 @@ export default async function PluginsAdminPage() {
                   >
                     {STATUS_LABEL[entry.status] ?? entry.status}
                   </span>
-                  {entry.manifest && (
-                    <TogglePluginControl
+                  {entry.manifest && entry.status === "available" && (
+                    <InstallPluginControl
+                      pluginKey={entry.key}
+                      pluginName={entry.manifest.name}
+                      hasMigrations={Boolean(entry.manifest.migrationsPath)}
+                      hasExampleSeed={Boolean(entry.manifest.seeds?.length)}
+                    />
+                  )}
+                  {entry.manifest && entry.status !== "available" && (
+                    <UninstallPluginControl
                       pluginKey={entry.key}
                       pluginName={entry.manifest.name}
                       enabled={entry.status !== "disabled"}
@@ -99,6 +113,9 @@ export default async function PluginsAdminPage() {
                         }
                       }
                     />
+                  )}
+                  {entry.manifest && entry.status !== "available" && Boolean(entry.manifest.seeds?.length) && (
+                    <SeedPluginControl pluginKey={entry.key} pluginName={entry.manifest.name} />
                   )}
                 </div>
               </div>

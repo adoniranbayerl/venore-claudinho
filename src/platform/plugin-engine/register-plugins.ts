@@ -17,13 +17,16 @@ const PLUGIN_ENGINE_REPORT_CACHE_KEY = "plugin-engine:report";
 const PLUGIN_ENGINE_REPORT_CACHE_TTL_SECONDS = 30;
 
 // Motor de plugins (docs/venore-docks.md — "Sistema de plugins"): lê os manifestos declarados em
-// src/plugins/registry.ts, checa o estado de habilitação (contexts/extensions) ANTES de
-// compatibilidade e dependência — plugin desabilitado nunca contribui navegação, permission,
-// bloco ou setting, mas seu manifesto continua no relatório (status "disabled") pra tela de
-// administração continuar mostrando e permitindo reabilitar. Depois valida, checa compatibilidade
-// de versão, resolve dependências e monta o relatório de registro. Roda no bootstrap, sem ator
-// humano — por isso actor "system" no log, mesmo espírito de contexts/rbac/features/role-
-// assignment/assign-default-role.
+// src/plugins/registry.ts e checa o estado de extensão (contexts/extensions) ANTES de
+// compatibilidade e dependência:
+// - plugin sem linha de estado (ou `installed=false`) == "available": não contribui nada
+//   (navegação, permission, bloco, setting), a tela de admin mostra um botão "Instalar" que
+//   roda as migrations (platform/plugin-engine/install-plugin.ts).
+// - plugin instalado mas `enabled=false` == "disabled": também não contribui nada, mas o admin
+//   pode reabilitar sem reinstalar.
+// Depois valida, checa compatibilidade de versão, resolve dependências e monta o relatório de
+// registro. Roda no bootstrap, sem ator humano — por isso actor "system" no log, mesmo espírito
+// de contexts/rbac/features/role-assignment/assign-default-role.
 export async function registerPlugins(manifests?: unknown[]): Promise<PluginRegistrationReport> {
   const usingDefaultRegistry = manifests === undefined;
   const inputManifests = manifests ?? PLUGIN_REGISTRY;
@@ -41,9 +44,13 @@ export async function registerPlugins(manifests?: unknown[]): Promise<PluginRegi
     kind: "write",
   });
 
-  const enabledStates = await listExtensionStates({ kind: "plugin" });
+  const extensionStates = await listExtensionStates({ kind: "plugin" });
+  const stateByKey = extensionStates.success ? extensionStates.data : {};
+  // Não instalado (sem linha, ou linha com installed=false) == "available".
+  const isInstalled = (key: string) => stateByKey[key]?.installed ?? false;
+  // Instalado + enabled=false == "disabled".
   const disabledKeys = new Set(
-    enabledStates.success ? Object.entries(enabledStates.data).filter(([, enabled]) => !enabled).map(([key]) => key) : [],
+    Object.entries(stateByKey).filter(([, entry]) => entry.installed && !entry.enabled).map(([key]) => key),
   );
 
   const entries: PluginRegistrationEntry[] = [];
@@ -57,6 +64,11 @@ export async function registerPlugins(manifests?: unknown[]): Promise<PluginRegi
     }
 
     const { manifest } = validation;
+
+    if (!isInstalled(manifest.key)) {
+      entries.push({ key: manifest.key, status: "available", manifest, errors: [] });
+      continue;
+    }
 
     if (disabledKeys.has(manifest.key)) {
       entries.push({ key: manifest.key, status: "disabled", manifest, errors: [] });

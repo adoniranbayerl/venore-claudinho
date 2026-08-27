@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import type { Block, BlockDefinition } from "@/contexts/cms";
 import { blockFieldPanels as academyBlockFieldPanels } from "@/plugins/academy/blocks/field-panels";
-import { PLUGIN_REGISTRY } from "@/plugins/registry";
 
 // Mesmo contrato de props de BlockFieldsPanel (block-fields-panel.tsx) — troca de painel é
 // transparente pro caller (composition-builder.tsx). Um bloco só ganha um painel aqui quando o
@@ -21,6 +20,10 @@ export type BlockFieldPanelComponent = (props: BlockFieldPanelProps) => ReactNod
 // do mesmo "./blocks", que puxa handler -> @/contexts/auth -> next-auth. Importar pelo caminho
 // errado vazaria esse encadeamento pro bundle client do builder do CMS (mesmo motivo de
 // block-renderers.tsx ser "server-only" e nunca ser importado por código client).
+// Superset chaveado por block key, igual PLUGIN_BLOCK_RENDERER_BARRELS. Não filtra por plugin
+// ativo: o painel só é consultado (composition-builder.tsx: blockFieldPanels[block.key]) pra um
+// bloco que já está no palette, e o palette (listBlockDefinitions(activePluginKeys)) é quem
+// remove os blocos de plugin desativado — uma entrada órfã aqui nunca é alcançada.
 const PLUGIN_BLOCK_FIELD_PANEL_BARRELS: Record<string, { blockFieldPanels?: Record<string, BlockFieldPanelComponent> }> = {
   academy: { blockFieldPanels: academyBlockFieldPanels },
 };
@@ -28,7 +31,7 @@ const PLUGIN_BLOCK_FIELD_PANEL_BARRELS: Record<string, { blockFieldPanels?: Reco
 function collectPluginFieldPanels(): Record<string, BlockFieldPanelComponent> {
   return Object.assign(
     {},
-    ...PLUGIN_REGISTRY.map((manifest) => PLUGIN_BLOCK_FIELD_PANEL_BARRELS[manifest.key]?.blockFieldPanels ?? {}),
+    ...Object.values(PLUGIN_BLOCK_FIELD_PANEL_BARRELS).map((barrel) => barrel.blockFieldPanels ?? {}),
   );
 }
 

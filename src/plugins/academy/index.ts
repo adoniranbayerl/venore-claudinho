@@ -180,6 +180,10 @@ export { findAcademyMediaUsage } from "./features/media-usage/find-academy-media
 // registries paralelos, nunca misturados. Os renderers consomem só os handlers públicos
 // abaixo — nenhuma query nova.
 export { blockDefinitions, blockRenderers } from "./blocks";
+
+// Ponto de extensão "seeds" do plugin engine (platform/plugin-engine/plugin-seed-registry.ts) —
+// dados de exemplo populados via /admin/plugins.
+export { academySeeds } from "./seeds";
 export {
   academyBreadcrumbSegments,
   getCachedCourseForStudent,

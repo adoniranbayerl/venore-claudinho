@@ -11,24 +11,42 @@ import { academyBreadcrumbSegments } from "@/plugins/academy";
 import { birthdaysBreadcrumbSegments } from "@/plugins/birthdays";
 import { donationsBreadcrumbSegments } from "@/plugins/donations";
 import { enrollmentDashboardBreadcrumbSegments } from "@/plugins/enrollment-dashboard";
+import { getActivePluginKeys } from "@/platform/plugin-engine/get-active-plugin-keys";
+
+// Segmentos que SEMPRE valem — core (platform + contexts). Nenhum depende de plugin.
+const CORE_BREADCRUMB_SEGMENTS: BreadcrumbSegmentDefinition[] = [
+  ...platformBreadcrumbSegments,
+  ...rbacBreadcrumbSegments,
+  ...cmsBreadcrumbSegments,
+  ...mediaBreadcrumbSegments,
+  ...settingsBreadcrumbSegments,
+  ...themesBreadcrumbSegments,
+  ...observabilityBreadcrumbSegments,
+];
+
+// Segmentos por plugin, chaveados pela mesma `key` do manifesto — só entram na trilha quando o
+// plugin está ativo (mesmo padrão de PLUGIN_BLOCK_BARRELS). Um plugin desativado tem o caminho
+// "reservado" (o catch-all do CMS devolve notFound pra ele, ver AGENTS.md 1.1), então não faz
+// sentido resolver rótulo de breadcrumb pra uma rota que não renderiza.
+const PLUGIN_BREADCRUMB_SEGMENTS: Record<string, BreadcrumbSegmentDefinition[]> = {
+  academy: academyBreadcrumbSegments,
+  birthdays: birthdaysBreadcrumbSegments,
+  donations: donationsBreadcrumbSegments,
+  "enrollment-dashboard": enrollmentDashboardBreadcrumbSegments,
+};
 
 // Registro de breadcrumbs (mesmo padrão de platform/admin-shell/admin-navigation-registry.ts):
 // cada context/plugin declara os próprios segmentos num breadcrumbs.ts, reexportado pelo barrel
-// público; esta função só agrega, valida template único e devolve a lista plana. Nenhuma página
-// declara a própria trilha — só o módulo-fonte do context/plugin dono daquele nível de rota.
+// público; esta função só agrega, filtra por plugin ativo, valida template único e devolve a
+// lista plana. Nenhuma página declara a própria trilha — só o módulo-fonte do context/plugin
+// dono daquele nível de rota.
 export const collectBreadcrumbSegments = cache(async (): Promise<BreadcrumbSegmentDefinition[]> => {
+  const activePluginKeys = await getActivePluginKeys();
   const segments: BreadcrumbSegmentDefinition[] = [
-    ...platformBreadcrumbSegments,
-    ...rbacBreadcrumbSegments,
-    ...cmsBreadcrumbSegments,
-    ...mediaBreadcrumbSegments,
-    ...settingsBreadcrumbSegments,
-    ...themesBreadcrumbSegments,
-    ...observabilityBreadcrumbSegments,
-    ...academyBreadcrumbSegments,
-    ...birthdaysBreadcrumbSegments,
-    ...donationsBreadcrumbSegments,
-    ...enrollmentDashboardBreadcrumbSegments,
+    ...CORE_BREADCRUMB_SEGMENTS,
+    ...Object.entries(PLUGIN_BREADCRUMB_SEGMENTS)
+      .filter(([pluginKey]) => activePluginKeys.has(pluginKey))
+      .flatMap(([, pluginSegments]) => pluginSegments),
   ];
   assertUniqueBreadcrumbTemplates(segments);
   return segments;

@@ -6,6 +6,11 @@ export type { AuthorizeActorResult } from "./authorize-actor";
 
 export { createCustomRoleHandler as createCustomRole } from "./features/role-management/create-custom-role/handler";
 export { updateRolePermissionsHandler as updateRolePermissions } from "./features/role-management/update-role-permissions/handler";
+// Concessão ADITIVA e idempotente de permissions a um papel — sem authorizeActor próprio (ver
+// nota no handler). Só deve ser chamada pelo ponto de composição
+// src/platform/plugin-engine/install-plugin.ts (concede ao papel "admin" as permissions do
+// plugin recém-instalado). superadmin não precisa — authorize-actor.ts libera incondicional.
+export { grantPermissionsToRoleHandler as grantPermissionsToRole } from "./features/role-management/grant-permissions-to-role/handler";
 export { renameRoleHandler as renameRole } from "./features/role-management/rename-role/handler";
 export { listRolesHandler as listRoles } from "./features/role-management/list-roles/handler";
 export { assignRoleToUserHandler as assignRoleToUser } from "./features/role-assignment/assign-role-to-user/handler";
@@ -33,6 +38,10 @@ export { RBAC_PERMISSIONS } from "./contracts/permissions";
 
 export type { CreateCustomRoleInput, CreateCustomRoleResult } from "./features/role-management/create-custom-role/types";
 export type { UpdateRolePermissionsInput, UpdateRolePermissionsResult } from "./features/role-management/update-role-permissions/types";
+export type {
+  GrantPermissionsToRoleInput,
+  GrantPermissionsToRoleResult,
+} from "./features/role-management/grant-permissions-to-role/types";
 export type { RenameRoleInput, RenameRoleResult } from "./features/role-management/rename-role/types";
 export type { RoleWithPermissions, ListRolesResult } from "./features/role-management/list-roles/types";
 export type { AssignRoleToUserInput, AssignRoleToUserResult } from "./features/role-assignment/assign-role-to-user/types";

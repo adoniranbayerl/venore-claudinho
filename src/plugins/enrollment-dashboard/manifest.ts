@@ -10,9 +10,21 @@ export const enrollmentDashboardManifest: PluginManifest = {
   version: "1.0.0",
   description: "Painel de meta, rematrícula e novas matrículas por instituição/curso.",
   compatibility: { coreVersion: ">=2.0.0 <3.0.0" },
+  // Schema próprio do plugin — aplicado no install (run-plugin-migrations.ts), não no
+  // vercel-build. migrationsSchema explícito porque a key tem hífen (o default derivado seria o
+  // mesmo, mas deixa explícito que bate com src/plugins/enrollment-dashboard/drizzle.config.ts).
+  migrationsPath: "./migrations",
+  migrationsSchema: "enrollment_dashboard_migrations",
   permissions: [
     { key: "enrollment-dashboard.read", label: "Ver o dashboard de matrícula" },
     { key: "enrollment-dashboard.manage", label: "Gerenciar instituições, turmas e cursos do dashboard de matrícula" },
+  ],
+  seeds: [
+    {
+      key: "example",
+      label: "Dados de exemplo",
+      description: "Colégio Erasto Gaertner e Faculdade Fidelis com turmas e cursos.",
+    },
   ],
   navigation: [
     {

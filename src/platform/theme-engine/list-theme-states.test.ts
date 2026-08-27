@@ -39,7 +39,7 @@ describe("listThemeStates", () => {
 
   it("marks the sole remaining enabled theme as blocked, with the reason visible, even when not active", async () => {
     getActiveTheme.mockResolvedValue({ success: true, data: { themeKey: "some-other-active-theme", activatedAt: null } });
-    listExtensionStates.mockResolvedValue({ success: true, data: { "venore-basic": false } });
+    listExtensionStates.mockResolvedValue({ success: true, data: { "venore-basic": { installed: true, enabled: false } } });
 
     const { listThemeStates } = await import("./list-theme-states");
     const states = await listThemeStates();

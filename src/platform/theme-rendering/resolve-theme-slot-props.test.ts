@@ -1,8 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getCurrentUser = vi.fn();
 const getMenuByLocation = vi.fn();
 const collectNotificationAlert = vi.fn();
+const resolveBrandAesthetics = vi.fn();
+const getBrandConfig = vi.fn();
+const getHeaderBehavior = vi.fn();
 
 vi.mock("@/contexts/auth", () => ({
   getCurrentUser: (...args: unknown[]) => getCurrentUser(...args),
@@ -18,6 +21,28 @@ vi.mock("@/contexts/cms", () => ({
 vi.mock("@/platform/notifications/notification-registry", () => ({
   collectNotificationAlert: (...args: unknown[]) => collectNotificationAlert(...args),
 }));
+
+// resolve-brand-aesthetics (via resolveActiveTheme → @/contexts/themes) e get-brand-config/
+// get-header-behavior (via @/contexts/settings) leem do banco real — sem stub, este teste
+// unitário abre conexão de verdade e trava por timeout quando não há Postgres (AGENTS.md §5).
+// Nenhuma asserção aqui depende do conteúdo de marca/comportamento do header, só do payload de
+// user/nav/sitemap, então basta um valor fixo.
+vi.mock("./resolve-brand-aesthetics", () => ({
+  resolveBrandAesthetics: (...args: unknown[]) => resolveBrandAesthetics(...args),
+}));
+
+vi.mock("@/platform/brand/get-brand-config", () => ({
+  getBrandConfig: (...args: unknown[]) => getBrandConfig(...args),
+}));
+
+vi.mock("@/platform/header-behavior/get-header-behavior", () => ({
+  getHeaderBehavior: (...args: unknown[]) => getHeaderBehavior(...args),
+}));
+
+// Importado uma única vez em beforeAll, não dentro de cada `it`: sob a suíte cheia o custo de
+// transform do grafo do SUT chegava a estourar o timeout de 5s do primeiro teste (o hook tem
+// orçamento próprio, maior, e paga esse custo uma vez só).
+let resolveThemeSlotProps: typeof import("./resolve-theme-slot-props").resolveThemeSlotProps;
 
 function sidebarNavInput(
   overrides: Partial<{
@@ -41,18 +66,33 @@ function sidebarNavInput(
 }
 
 describe("resolveThemeSlotProps", () => {
+  beforeAll(async () => {
+    ({ resolveThemeSlotProps } = await import("./resolve-theme-slot-props"));
+  }, 30000);
+
   beforeEach(() => {
     getCurrentUser.mockReset();
     getMenuByLocation.mockReset();
     getMenuByLocation.mockResolvedValue({ success: true, data: [] });
     collectNotificationAlert.mockReset();
     collectNotificationAlert.mockResolvedValue(null);
+    resolveBrandAesthetics.mockReset();
+    resolveBrandAesthetics.mockResolvedValue({ mode: "svg", size: 100, scrolledSize: 80, position: "left", color: "#000000" });
+    getBrandConfig.mockReset();
+    getBrandConfig.mockResolvedValue({
+      siteName: "Test Site",
+      logoUrl: "/brand/brand-logo.svg",
+      scrolledLogoUrl: "/brand/brand-logo-scrolled.png",
+      faviconUrl: "/brand/favicon.ico",
+      footerDescription: "Descrição de teste",
+    });
+    getHeaderBehavior.mockReset();
+    getHeaderBehavior.mockResolvedValue({ sticky: true, scrollShrink: true });
   });
 
   it("resolves header.user as null when there is no authenticated user", async () => {
     getCurrentUser.mockResolvedValue({ success: true, data: null });
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput());
 
     expect(props.header.user).toBeNull();
@@ -64,7 +104,6 @@ describe("resolveThemeSlotProps", () => {
       data: { id: "user-1", name: "Ada Lovelace", email: "ada@example.com", image: "https://img/ada.png" },
     });
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput());
 
     expect(props.header.user).toEqual({
@@ -80,7 +119,6 @@ describe("resolveThemeSlotProps", () => {
       data: { id: "user-1", name: null, email: "ada@example.com", image: null },
     });
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput());
 
     expect(props.header.user?.displayName).toBe("ada@example.com");
@@ -98,7 +136,6 @@ describe("resolveThemeSlotProps", () => {
     getCurrentUser.mockResolvedValue({ success: true, data: null });
     const onSignOut = vi.fn();
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput({ canAccessAdmin: true, onSignOut }));
 
     expect(props.header.canAccessAdmin).toBe(true);
@@ -112,7 +149,6 @@ describe("resolveThemeSlotProps", () => {
       data: [{ id: "item-1", label: "Home", href: "/", isExternal: false, children: [] }],
     });
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput());
 
     expect(props.sidebarLeft.navItems).toEqual([{ key: "item-1", label: "Home", href: "/" }]);
@@ -138,7 +174,6 @@ describe("resolveThemeSlotProps", () => {
       ],
     });
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput());
 
     expect(props.sidebarLeft.navItems).toEqual([
@@ -162,7 +197,6 @@ describe("resolveThemeSlotProps", () => {
       data: [{ id: "group-1", label: "Recursos Humanos", href: null, isExternal: false, children: [] }],
     });
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput());
 
     expect(props.sidebarLeft.navItems).toEqual([]);
@@ -178,7 +212,6 @@ describe("resolveThemeSlotProps", () => {
       ],
     });
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput());
 
     expect(props.sidebarLeft.navItems).toEqual([
@@ -197,7 +230,6 @@ describe("resolveThemeSlotProps", () => {
     getCurrentUser.mockResolvedValue({ success: true, data: null });
     getMenuByLocation.mockResolvedValue({ success: false, error: { code: "err", message: "boom" } });
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput());
 
     expect(props.sidebarLeft.navItems).toEqual([{ key: "home", label: "Home", href: "/", icon: "home" }]);
@@ -207,7 +239,6 @@ describe("resolveThemeSlotProps", () => {
     getCurrentUser.mockResolvedValue({ success: true, data: null });
     const onToggleCollapsed = vi.fn();
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput({ collapsed: true, onToggleCollapsed }));
 
     expect(props.sidebarLeft.collapsed).toBe(true);
@@ -218,7 +249,6 @@ describe("resolveThemeSlotProps", () => {
     getCurrentUser.mockResolvedValue({ success: true, data: null });
     const adminNavGroups = [{ key: "rbac", label: "RBAC", items: [{ key: "admin.roles", label: "Papéis", href: "/admin/rbac" }] }];
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps({ ...sidebarNavInput(), navMode: "admin", adminNavGroups });
 
     expect(props.sidebarLeft.navGroups).toBe(adminNavGroups);
@@ -245,7 +275,6 @@ describe("resolveThemeSlotProps", () => {
       return { success: true, data: [] };
     });
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput());
 
     expect(props.footer.sitemapItems).toEqual([
@@ -264,7 +293,6 @@ describe("resolveThemeSlotProps", () => {
     getCurrentUser.mockResolvedValue({ success: true, data: null });
     getMenuByLocation.mockResolvedValue({ success: true, data: [] });
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput());
 
     expect(props.footer.sitemapItems).toEqual([]);
@@ -279,7 +307,6 @@ describe("resolveThemeSlotProps", () => {
       return { success: true, data: [] };
     });
 
-    const { resolveThemeSlotProps } = await import("./resolve-theme-slot-props");
     const props = await resolveThemeSlotProps(sidebarNavInput());
 
     expect(props.footer.sitemapItems).toEqual([]);
