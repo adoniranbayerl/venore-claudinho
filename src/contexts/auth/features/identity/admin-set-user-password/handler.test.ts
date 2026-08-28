@@ -46,6 +46,25 @@ describe("adminSetUserPasswordHandler", () => {
     expect(adminSetUserPassword).not.toHaveBeenCalled();
   });
 
+  it("skips authorization and uses the target as actor when bypassAuthorization is set", async () => {
+    adminSetUserPassword.mockResolvedValue({ success: true, data: { id: "target-1" } });
+
+    const { adminSetUserPasswordHandler } = await import("./handler");
+    const result = await adminSetUserPasswordHandler({
+      targetUserId: "target-1",
+      newPassword: "supersecret",
+      bypassAuthorization: true,
+    });
+
+    expect(authorizeActor).not.toHaveBeenCalled();
+    expect(adminSetUserPassword).toHaveBeenCalledWith({
+      actorId: "target-1",
+      targetUserId: "target-1",
+      newPassword: "supersecret",
+    });
+    expect(result).toEqual({ success: true, data: { id: "target-1" } });
+  });
+
   it("delegates to the service with the resolved actor when authorized", async () => {
     adminSetUserPassword.mockResolvedValue({ success: true, data: { id: "target-1" } });
 

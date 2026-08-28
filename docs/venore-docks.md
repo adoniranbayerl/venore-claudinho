@@ -370,9 +370,9 @@ Existe um pequeno conjunto de papéis de sistema, fixos e não deletáveis, que 
 | Papel (nome interno) | Alias de exibição | O que é | Escopo |
 | --- | --- | --- | --- |
 | `superadmin` | Overlord | Dono da instância / quem instalou. Acesso irrestrito. Não pode ser removido do sistema. | — (ignora escopo) |
-| `admin` | Administrador | Opera uma ou mais **seções** do site (Admin do Academy, Admin Editorial…). | Global hoje; por seção na Fase D |
-| `editor` | Editor | Modera um ou mais setores editoriais, **vinculado a categoria(s) do CMS**. Coordena autores. Não enxerga categoria não atribuída. | Por categoria do CMS (Fase C) |
-| `author` | Autor | Cria e edita nas categorias atribuídas, **só rascunho — não publica**. | Por categoria do CMS (Fase C) |
+| `admin` | Administrador | Opera todas as seções do site. "Admin de seção" (Admin do Academy, Admin Editorial…) = **papel custom** com o subconjunto de `*.manage` da seção — não há `scopeType` de seção. | Global |
+| `editor` | Editor | Modera um ou mais setores editoriais, **vinculado a categoria(s) do CMS**. Coordena autores. Não enxerga categoria não atribuída. | Por categoria do CMS |
+| `author` | Autor | Cria e edita nas categorias atribuídas, **só rascunho — não publica**. | Por categoria do CMS |
 | `member` | Membro | Consumidor autenticado. Sem acesso administrativo. | — |
 
 Além desses cinco, qualquer site pode criar **papéis customizados** (novo `key`, novo nome) e atribuir a eles qualquer combinação de permissions do catálogo — é assim que se resolve o caso de "editor que gerencia todo o CMS" vs "editor menor" com escopo mais restrito.
@@ -384,7 +384,7 @@ Além desses cinco, qualquer site pode criar **papéis customizados** (novo `key
 - Cada `context` do core declara suas próprias permissions; cada plugin declara as suas via manifesto (seção "Sistema de plugins").
 - Um usuário pode ter mais de um papel atribuído; suas permissions efetivas são a união das permissions de todos os papéis atribuídos a ele — sem hierarquia implícita entre papéis (um papel não "herda" de outro automaticamente).
 
-Permission com escopo dentro de um recurso (ex: "editor restrito à(s) categoria(s) X do CMS", e não ao CMS inteiro) tem documento de design próprio, aprovado e faseado: **`docs/rbac-scoped-roles.md`**. A Fase A (papéis `editor`/`author` de sistema + aliases canônicos de exibição) já está implementada; o recorte por instância de recurso (`role_assignment_scopes`, 2º parâmetro de `authorizeActor`) vem nas fases B–D.
+Permission com escopo dentro de um recurso (ex: "editor restrito à(s) categoria(s) X do CMS", e não ao CMS inteiro) tem documento de design próprio, aprovado e faseado: **`docs/rbac-scoped-roles.md`** — **fases A–D concluídas (2026-08-28)**. Escopo mora em `rbac.role_assignment_scopes` (vínculo usuário × papel), `authorizeActor` ganhou 2º parâmetro `scope?` + `resolveScope`, e o CMS aplica o recorte por categoria nos `service.ts` de escrita de entries/categorias. A Fase D revisou a modelagem de "admin de seção": é papel custom, não um `scopeType admin.section` (único `scopeType` é `cms.category`).
 
 ## Cache
 

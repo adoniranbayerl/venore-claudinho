@@ -23,7 +23,18 @@
 > gate, UI de atribuição em `/admin/rbac` com multi-select de categorias por nome
 > (`get-rbac-scope-options` compõe cms+rbac em `platform/`). D6 aplicada: `publish/schedule-entry`
 > deixaram de aceitar `cms.entries.manage` como atalho. **Enforcement mora no `service.ts`, não no
-> `handler.ts`** — ver §4.4 e o checklist da §6. Fase D não implementada.
+> `handler.ts`** — ver §4.4 e o checklist da §6.
+> **Fase D concluída (2026-08-28) — sem `scopeType` novo.** O dono decidiu que "admin de seção" é
+> um **papel custom** com `platform.admin.access` + o subconjunto de `*.manage` da seção (o mesmo
+> vale pra "Admin do Academy": papel custom com as permissions do plugin), **não** um escopo
+> `admin.section`. Racional: hoje toda seção do admin já tem sua própria permission (`media.manage`,
+> `rbac.roles.manage`, `settings.manage`, `cms.*.manage`, `academy.courses.manage`…), o nav já
+> filtra por permission e cada `get-*-page-data` já gateia pela permission da seção — então o
+> recorte por seção sai "de graça" de um papel custom bem montado, sem tocar no hot path.
+> `RBAC_SCOPE_TYPES` continua só com `cms.category`. Único ajuste de código: o item de nav
+> **Plugins** e o novo `get-plugins-page-data.ts` passaram a exigir `platform.extensions.manage`
+> (não `platform.admin.access`) pra um admin de seção não ver/entrar numa tela sobre a qual não
+> pode agir — ver D7 e §6/Fase D.
 > Origem: `docs/issues.md:258-268` ("Sobre Papéis e Permissões") + gap em aberto registrado em
 > `docs/venore-docks.md` ("Modelo de RBAC" → *"permission com escopo dentro de um recurso … essa
 > decisão merece um documento próprio"*) e em `docs/venore-docks.md` → "Ainda não coberto".
@@ -48,7 +59,7 @@ Modelo alvo pedido em `issues.md`:
 | Papel (nome interno) | Alias de exibição | O que é | Escopo |
 | --- | --- | --- | --- |
 | `superadmin` | Overlord | Dono da instância / quem instalou. Acesso irrestrito. | — (ignora escopo) |
-| `admin` | Administrador | Opera uma ou mais **seções** do site (Admin do Academy, Admin Editorial…). | Global hoje; por seção na Fase D |
+| `admin` | Administrador | Opera todas as seções do site. "Admin de seção" (Admin do Academy, Admin Editorial…) = **papel custom** com o subconjunto de `*.manage` daquela seção — Fase D não criou `scopeType` pra isso. | Global |
 | `editor` | Editor | Modera um ou mais setores editoriais, **vinculado a categoria(s) do CMS**. Coordena autores. Não enxerga categoria não atribuída. | Por categoria do CMS |
 | `author` | Autor | Cria e edita nas categorias atribuídas, **só rascunho — não publica**. | Por categoria do CMS |
 | `member` | Membro | Consumidor autenticado. Sem acesso administrativo. | — |
@@ -320,17 +331,41 @@ Fase C: `publish-entry` passa a exigir `cms.entries.publish` **e** o `scope` da 
 entry — deixa de aceitar `cms.entries.manage` como atalho. `admin`/`superadmin` seguem publicando
 (têm `cms.entries.publish` global / são superadmin).
 
-### D7 — "Administrador de seção" = escopo `admin.section`, adiado para a Fase D
+### D7 — "Administrador de seção" = papel custom, **não** escopo `admin.section` (revisado na Fase D)
 
-Não há entidade "seção" modelada hoje. Direção proposta (detalhe fica pra Fase D, provavelmente
-depois do rename CMS→Editorial já previsto no roadmap):
+> **Direção original (não seguida):** `scopeType: "admin.section"`, `resourceId ∈ {"cms","academy",
+> "media",…}`, `authorizeActor("platform.admin.access", { type: "admin.section", … })`, cada grupo
+> do `admin-navigation-registry` taggeado por seção, loaders honrando `scopedPermissions["admin.section"]`.
+> Fazia sentido quando `platform.admin.access` era o único gate do admin.
 
-- `scopeType: "admin.section"`, `resourceId ∈ {"cms","academy","media",...}` (as áreas do
-  `admin-navigation-registry`).
-- `authorizeActor("platform.admin.access", { type: "admin.section", id: "academy" })` e os
-  loaders `get-*-page-data` honrando o escopo.
-- O `admin-navigation-registry` passa a taggear cada grupo com a sua seção, e o filtro de nav
-  usa `scopedPermissions["admin.section"]`.
+**Decidido na Fase D (2026-08-28, com o dono):** não há `scopeType` de seção. Um "admin de seção"
+é um **papel custom** com `platform.admin.access` + o subconjunto de `*.manage` que aquela seção
+exige. O mesmo vale pra "Admin do Academy" (papel custom com as permissions do plugin `academy`).
+
+Por quê:
+
+- Toda seção do admin **já tem** sua própria permission: `rbac.roles.manage`, `settings.manage`,
+  `media.manage`, `cms.{content-types,categories,entries,menus}.manage`, `observability.*`,
+  `academy.courses.manage`, etc.
+- `buildVisibleAdminNavGroups` (`admin-navigation-registry.core.ts`) já filtra **cada item** de
+  nav pela sua `requiredPermission` — um papel sem `media.manage` não vê o item "Mídia".
+- Cada `get-*-page-data.ts` já é um gate de seção que exige a permission específica daquela seção
+  (regra 13 de `venore-docks.md`). Nenhum deles precisa consultar escopo.
+- Logo o recorte por seção sai de um papel custom bem montado, **sem tocar no hot path** (nem
+  `authorizeActor`, nem `get-user-context`, nem o registro de nav).
+
+Custo aceito: sem o eixo de escopo, dois "admins de seção" com seções diferentes são dois papéis
+(`Editorial Admin`, `Media Admin`), não um papel reusável escopado — o mesmo trade-off que D1
+recusou pra categoria, aqui **aceito** porque o nº de seções é pequeno e fixo e papéis custom já
+são o mecanismo pretendido pra isso (`create-custom-role` intacto).
+
+Único ajuste de código da Fase D: o item de nav **Plugins** (`platform-admin-navigation.ts`) e o
+novo `get-plugins-page-data.ts` passaram a exigir `platform.extensions.manage` em vez de
+`platform.admin.access` — essa permission já gateia instalar/desabilitar/semear plugin
+(`install-plugin.ts`, `uninstall-plugin.ts`, `seed-plugin.ts`, o action de toggle), então o
+`admin` de sistema e o `superadmin` seguem entrando, e um admin de seção não vê uma tela sobre a
+qual não pode agir. O item **Dashboard** (`/admin`) continua em `platform.admin.access` de
+propósito — é a landing de qualquer um que entre no admin.
 
 ### D8 — Papéis `editor`/`author`: **pré-semeados, `is_system = true`, deletáveis com trava**
 
@@ -403,7 +438,9 @@ o admin escopa depois. Isso é intencional: mantém o boot 100% aditivo.
   pra as páginas não precisarem recomputar. Alternativa: cada página chama `resolveScope`
   diretamente. Decidir na Fase C; recomendo pôr no gate (menos round-trips, mesmo espírito do
   `cache()` já usado).
-- **Fase D:** `get-admin-page-data` honra `admin.section` (ver D7).
+- **Fase D:** nenhum loader passou a honrar escopo — "admin de seção" virou papel custom (ver D7).
+  Só o item de nav **Plugins** + o novo `get-plugins-page-data.ts` trocaram `platform.admin.access`
+  por `platform.extensions.manage`.
 
 ### 4.4 Telas e handlers do CMS (Fase C)
 
@@ -552,11 +589,25 @@ As fases são incrementais e cada uma fecha sozinha (lint + typecheck + test ver
   mover entry pra fora do escopo falha; unitários de cada service afetado + do helper.
 - **Entregável:** o modelo do `issues.md` de fato — Editor de setor, Autor sem publish.
 
-### Fase D — Administrador de seção  ·  *depende de "seção" existir, risco médio*
+### Fase D — Administrador de seção  ·  ✅ concluída (2026-08-28) — **sem `scopeType` novo**
 
-- `scopeType: "admin.section"`; `admin-navigation-registry` taggeado por seção; loaders
-  `get-*-page-data` honram o escopo; `authorizeActor("platform.admin.access", {type:"admin.section",...})`.
-- Provavelmente depois do rename CMS→Editorial (roadmap Fase 3).
+Revisão da modelagem com o dono (ver D7): "admin de seção" NÃO virou escopo `admin.section`. É um
+**papel custom** com `platform.admin.access` + o subconjunto de `*.manage` da seção. "Admin do
+Academy" idem, com as permissions do plugin. `RBAC_SCOPE_TYPES` fica só com `cms.category`.
+
+- `src/platform/admin-shell/platform-admin-navigation.ts` — item **Plugins** passa a exigir
+  `platform.extensions.manage` (não `platform.admin.access`). **Dashboard** fica como está.
+- `src/platform/admin-shell/get-plugins-page-data.ts` (novo) — gate de seção `/admin/plugins`
+  atrás de `platform.extensions.manage`; `admin/plugins/page.tsx` passa a usá-lo (regra 13/DoD 10).
+- `docs/venore-docks.md` "Modelo de RBAC" — coluna de escopo do `admin` e o parágrafo de
+  faseamento atualizados; nada a remover de "Ainda não coberto" (o item de escopo por recurso
+  já tinha saído nas fases A–C).
+- `AGENTS.md` §7 — item "Permission com escopo dentro de um recurso" marcado como implementado
+  (A–D).
+- Testes: `get-plugins-page-data.test.ts` (superadmin passa; `platform.extensions.manage` passa;
+  admin de seção só com `platform.admin.access` + `cms.*.manage` é barrado).
+- **Entregável:** admin de seção é montável hoje via `create-custom-role` sem nenhuma infra nova;
+  o único vazamento real (`/admin/plugins` aberto a qualquer admin) foi fechado.
 
 **Checklist de revisão recorrente (a partir da Fase C):** todo `service.ts` de escrita que opera
 sobre uma instância de recurso escopável **resolve o escopo** — via `assertCmsCategoryScope(...)`
@@ -765,6 +816,11 @@ NÃO fazer: escopo admin.section (Fase D), academy.course, rename CMS→Editoria
 ```
 
 ### Prompt — Fase D (administrador de seção)
+
+> **Superado (2026-08-28).** Ao reabrir a modelagem com o dono, "admin de seção" virou **papel
+> custom** (não escopo `admin.section`). A Fase D foi entregue com só o ajuste de nav/gate de
+> `/admin/plugins` — ver D7 e §6/Fase D acima. O prompt abaixo (direção `scopeType: "admin.section"`)
+> fica só como registro do caminho não seguido.
 
 ```
 Implementar a Fase D de docs/rbac-scoped-roles.md (§6 + D7). Pré-requisito: Fases A–C mergeadas;

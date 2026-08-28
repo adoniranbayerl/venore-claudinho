@@ -4,6 +4,12 @@ import { BROADCAST_SETTINGS } from "./shared/settings";
 // Faixa escrita à mão, não importada de platform/plugin-engine/core-version.ts — mesmo motivo do
 // birthdaysManifest (src/plugins/birthdays/manifest.ts): importar o CORE_VERSION corrente
 // tornaria a checagem de compatibilidade sempre trivialmente satisfeita.
+//
+// HOSPEDAGEM: este plugin exige rodar num único processo Node de longa duração (servidor local),
+// NÃO serverless / multi-instância. O barramento de eventos das saídas (SSE ao vivo) é um pub/sub
+// em memória guardado em globalThis (ver runtime/output-bus.ts) — dividido entre várias
+// instâncias, um evento publicado numa não chega nas TVs conectadas às outras. Trocar por Redis
+// pub/sub (ou equivalente) é pré-requisito pra qualquer deploy horizontalmente escalado.
 export const broadcastManifest: PluginManifest = {
   manifestVersion: "1.0.0",
   key: "broadcast",

@@ -1,3 +1,5 @@
+import { getZonedParts, zonedPartsToInstant } from "./timezone";
+
 // Recorrência simples "toda semana" — pedido explícito: "quero criar um evento que acontece toda
 // semana, por exemplo toda Quarta. Não quero ter que ficar trocando a data toda semana. Quero que
 // mostre a data da quarta próxima". Deliberadamente sem regra genérica de recorrência (RRULE
@@ -14,13 +16,18 @@
 // recorrente com duração (ex: 09:00–11:00) pulava pra semana que vem assim que o HORÁRIO DE INÍCIO
 // passava (10:00, por exemplo), mesmo com o evento ainda em andamento até as 11:00 — a âncora só
 // avança de verdade quando o evento inteiro (início + duração) já ficou no passado.
+// timeZone (opcional): quando passado, "que dia da semana é hoje" e "que horas são agora" são
+// lidos NESSE fuso (o da instituição), não no fuso do processo/browser — a TV pode estar em
+// qualquer lugar, mas "toda quarta 19:30" é sempre no fuso da sede. Sem timeZone, comportamento
+// original preservado byte a byte (chamadas antigas / testes legados).
 export function resolveEventOccurrenceDate(
   event: { startAt: Date; endAt?: Date | null; recurring: boolean },
   now: Date = new Date(),
+  timeZone?: string,
 ): Date {
   if (!event.recurring) return event.startAt;
   const durationMs = event.endAt ? event.endAt.getTime() - event.startAt.getTime() : 0;
-  return resolveWeeklyAnchor(event.startAt, durationMs, now);
+  return resolveWeeklyAnchor(event.startAt, durationMs, now, timeZone);
 }
 
 // endAt agora é um timestamp completo (não só hora) — pode cair em qualquer data posterior ao
@@ -32,14 +39,22 @@ export function resolveEventOccurrenceDate(
 // (resolveWeeklyAnchor, mesma função usada por resolveEventOccurrenceDate — as duas SEMPRE
 // resolvem pra âncora da mesma semana), nunca reusa a data crua do endAt gravado (que pode ser de
 // semanas/meses atrás, igual ao startAt cru). null quando o evento não tem término definido.
-export function resolveEventEndDate(event: { startAt: Date; endAt: Date | null; recurring: boolean }, now: Date = new Date()): Date | null {
+export function resolveEventEndDate(
+  event: { startAt: Date; endAt: Date | null; recurring: boolean },
+  now: Date = new Date(),
+  timeZone?: string,
+): Date | null {
   if (!event.endAt) return null;
   if (!event.recurring) return event.endAt;
   const durationMs = event.endAt.getTime() - event.startAt.getTime();
-  const resolvedStart = resolveWeeklyAnchor(event.startAt, durationMs, now);
+  const resolvedStart = resolveWeeklyAnchor(event.startAt, durationMs, now, timeZone);
   return new Date(resolvedStart.getTime() + durationMs);
 }
 
+// isEventHappeningNow NÃO recebe timeZone de propósito: startAt/endAt já chegam RESOLVIDOS (dois
+// instantes absolutos) e `now` também é absoluto — comparar o intervalo é independente de fuso,
+// não há hora de parede envolvida aqui.
+//
 // "Acontecendo agora" — pedido explícito: "quero o status de 'Acontecendo' no evento" (TV) e,
 // depois, o mesmo status no admin. startAt/endAt aqui já precisam chegar RESOLVIDOS (ocorrência
 // efetiva de um evento recorrente, ou o valor absoluto de um não-recorrente — ver
@@ -59,7 +74,38 @@ export function isEventHappeningNow(startAt: Date | string, endAt: Date | string
 // ainda não passou — durationMs=0 (evento sem término, comportamento original) já cobre "se hoje
 // é o dia certo mas o horário já passou, pula pra semana que vem"; com duração, um evento em
 // andamento (início no passado, fim no futuro) conta como a ocorrência ATUAL, não avança.
-function resolveWeeklyAnchor(anchor: Date, durationMs: number, now: Date): Date {
+//
+// Com timeZone: dia da semana / horário do anchor e "hoje"/"agora" são todos lidos e reconstruídos
+// NESSE fuso (getZonedParts/zonedPartsToInstant), então a ocorrência cai na parede certa da sede
+// independente de onde o processo/browser roda. Sem timeZone: caminho original intacto.
+function resolveWeeklyAnchor(anchor: Date, durationMs: number, now: Date, timeZone?: string): Date {
+  if (timeZone) {
+    const anchorParts = getZonedParts(anchor, timeZone);
+    const nowParts = getZonedParts(now, timeZone);
+
+    let dayDiff = anchorParts.weekday - nowParts.weekday;
+    if (dayDiff < 0) dayDiff += 7;
+
+    const buildCandidate = (extraDays: number): Date =>
+      zonedPartsToInstant(
+        {
+          year: nowParts.year,
+          month: nowParts.month,
+          day: nowParts.day + dayDiff + extraDays,
+          hour: anchorParts.hour,
+          minute: anchorParts.minute,
+          second: anchorParts.second,
+        },
+        timeZone,
+      );
+
+    let candidate = buildCandidate(0);
+    if (candidate.getTime() + durationMs < now.getTime()) {
+      candidate = buildCandidate(7);
+    }
+    return candidate;
+  }
+
   const candidate = new Date(now);
   candidate.setHours(anchor.getHours(), anchor.getMinutes(), anchor.getSeconds(), anchor.getMilliseconds());
 

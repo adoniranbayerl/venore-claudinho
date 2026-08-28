@@ -1,1 +1,0 @@
-ALTER TABLE "broadcast"."agenda_events" ADD COLUMN "end_at" timestamp with time zone;

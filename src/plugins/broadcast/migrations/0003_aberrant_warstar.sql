@@ -1,7 +1,0 @@
-ALTER TABLE "broadcast"."playlist_items" DROP CONSTRAINT "broadcast_playlist_items_source_type_check";--> statement-breakpoint
-ALTER TABLE "broadcast"."playlist_items" DROP CONSTRAINT "broadcast_playlist_items_source_shape_check";--> statement-breakpoint
-ALTER TABLE "broadcast"."playlist_items" ADD CONSTRAINT "broadcast_playlist_items_source_type_check" CHECK ("broadcast"."playlist_items"."source_type" in ('local','media-asset','webpage','news'));--> statement-breakpoint
-ALTER TABLE "broadcast"."playlist_items" ADD CONSTRAINT "broadcast_playlist_items_source_shape_check" CHECK (("broadcast"."playlist_items"."source_type" = 'local' AND "broadcast"."playlist_items"."relative_path" IS NOT NULL AND "broadcast"."playlist_items"."media_asset_id" IS NULL AND "broadcast"."playlist_items"."url" IS NULL)
-        OR ("broadcast"."playlist_items"."source_type" = 'media-asset' AND "broadcast"."playlist_items"."media_asset_id" IS NOT NULL AND "broadcast"."playlist_items"."relative_path" IS NULL AND "broadcast"."playlist_items"."url" IS NULL)
-        OR ("broadcast"."playlist_items"."source_type" = 'webpage' AND "broadcast"."playlist_items"."url" IS NOT NULL AND "broadcast"."playlist_items"."relative_path" IS NULL AND "broadcast"."playlist_items"."media_asset_id" IS NULL)
-        OR ("broadcast"."playlist_items"."source_type" = 'news' AND "broadcast"."playlist_items"."relative_path" IS NULL AND "broadcast"."playlist_items"."media_asset_id" IS NULL AND "broadcast"."playlist_items"."url" IS NULL));

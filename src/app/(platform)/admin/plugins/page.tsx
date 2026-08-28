@@ -1,4 +1,4 @@
-import { getAdminPageData } from "@/platform/admin-shell/get-admin-page-data";
+import { getPluginsPageData } from "@/platform/admin-shell/get-plugins-page-data";
 import { previewPluginDisable } from "@/platform/plugin-engine/preview-plugin-disable";
 import { registerPlugins } from "@/platform/plugin-engine/register-plugins";
 import { EmptyState } from "@/components/empty-state";
@@ -28,7 +28,7 @@ const STATUS_CLASSNAME: Record<string, string> = {
 };
 
 export default async function PluginsAdminPage() {
-  const gate = await getAdminPageData();
+  const gate = await getPluginsPageData();
 
   if (!gate.granted) {
     return (

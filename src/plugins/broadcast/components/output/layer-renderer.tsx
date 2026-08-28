@@ -7,12 +7,16 @@ import { Progress } from "@/components/ui/progress";
 // client" component, e o barrel reexporta handlers server-only (Drizzle/pg) que quebram o bundle
 // do browser mesmo quando só o tipo é usado aqui (achado real do `next build`, não teórico).
 import { resolveLayerGeometry, type LayerGeometry } from "@/plugins/broadcast/shared/layer-geometry";
+import { resolveOutputStageTransform } from "@/plugins/broadcast/shared/output-stage";
 import {
   BROADCAST_AGENDA_VIEW_SIZE_SCALE,
   type BroadcastAgendaAnimationStyle,
   type BroadcastAgendaViewSize,
 } from "@/plugins/broadcast/shared/settings";
 import { isEventHappeningNow } from "@/plugins/broadcast/shared/weekly-recurrence";
+import { isSameZonedCalendarDay } from "@/plugins/broadcast/shared/timezone";
+import { resolveContrastPalette } from "./contrast-palette";
+import { StandbyScreen } from "./standby-screen";
 import type {
   AgendaRotationEntry,
   AgendaRotationEvent,
@@ -81,9 +85,16 @@ function applyAgendaViewSizeOverride(
 // vídeo só fecha exatamente 16:9 quando a largura que a agenda tira (em %) bate matematicamente
 // com a altura que o footer tira (em %) — a mesma tela perde largura pro lado da agenda e altura
 // pro footer, e pra zerar a barra preta os dois precisam se cancelar (agendaWidthPercent =
-// footerHeightPx / screenHeight, assumindo tela 16:9). Um valor fixo por tier só acerta numa
-// resolução específica; em qualquer outra (4K, ultrawide, TV fora do padrão 1080p) sobra ou falta
-// espaço — daí medir a tela de verdade em vez de assumir 1920x1080.
+// footerHeightPx / videoZoneHeight, assumindo tela 16:9).
+//
+// A conta roda em COORDENADAS DO PALCO (ver shared/output-stage.ts), não em px físicos: a view
+// toda é composta contra OUTPUT_STAGE_WIDTH_PX e escalada pro viewport, então footerHeightPx
+// (BROADCAST_AGENDA_VIEW_SIZE_SCALE) já é a altura renderizada em px do palco — h-20/h-32 valem
+// exatamente esse tanto lá dentro. resolveOutputStageTransform(screen.width, screen.height) só
+// normaliza a proporção física do monitor pra largura fixa do palco. Efeito colateral desejado:
+// a largura da agenda passa a ser IDÊNTICA em 720p/1080p/4K (todos 16:9), em vez de variar com a
+// resolução física — antes a conta misturava screen.height físico com um footerHeightPx calibrado
+// pra 1080, e só "acertava" em 1920x1080 (nas outras o piso de 30% acabava mascarando o erro).
 //
 // window.screen.width/height (resolução FÍSICA do monitor), não window.innerWidth/innerHeight
 // (viewport do browser) — innerHeight muda quando a barra de endereço/abas some/aparece (ex:
@@ -115,12 +126,14 @@ function useZeroBarAgendaWidthPercent(agendaViewSize: BroadcastAgendaViewSize, f
     let cancelled = false;
     const recompute = () => {
       if (cancelled) return;
-      const screenWidth = window.screen.width;
-      const screenHeight = window.screen.height;
+      // Proporção física do monitor normalizada pra largura do palco (ver o comentário do bloco
+      // acima e shared/output-stage.ts) — `scale` é ignorado aqui, só a régua de composição
+      // (stageWidthPx/stageHeightPx) importa.
+      const { stageWidthPx, stageHeightPx } = resolveOutputStageTransform(window.screen.width, window.screen.height);
       const footerHeightPx = footerOpen ? BROADCAST_AGENDA_VIEW_SIZE_SCALE[agendaViewSize].footerHeightPx : 0;
-      const videoZoneHeightPx = screenHeight - footerHeightPx;
+      const videoZoneHeightPx = stageHeightPx - footerHeightPx;
       const zeroBarVideoWidthPx = videoZoneHeightPx * (16 / 9);
-      const computedPercent = ((screenWidth - zeroBarVideoWidthPx) / screenWidth) * 100;
+      const computedPercent = ((stageWidthPx - zeroBarVideoWidthPx) / stageWidthPx) * 100;
       setPercent(Math.max(MIN_AGENDA_WIDTH_PERCENT, Math.min(staticPercent, computedPercent)));
     };
     const timeoutId = setTimeout(recompute, 0);
@@ -309,11 +322,61 @@ function ProgressOverlay({ percent, bottomOffsetPx = 0 }: { percent: number; bot
   );
 }
 
+// Item "webpage" da playlist — dashboards de terceiros num <iframe>. Três cuidados sobre o
+// <iframe> cru:
+//
+// 1. sandbox mínimo: "allow-scripts allow-same-origin" é o suficiente pra um dashboard renderizar
+//    (JS + acesso ao próprio storage/cookies de origem), sem liberar navegação da aba de topo,
+//    popups, downloads nem autoplay com som — a TV nunca deve sair da página por causa de algo
+//    dentro do frame.
+// 2. referrerPolicy="no-referrer": não vaza a URL interna da saída (que carrega o token) pro site
+//    embutido.
+// 3. Fallback de falha de embed: muitos sites recusam ser enquadrados (X-Frame-Options / CSP
+//    frame-ancestors) e o resultado é uma tela em branco parada pelos segundos inteiros do slide —
+//    mesmo sintoma de "travou" que isEmptySlide já trata pra notícia/agenda vazia. Não há evento
+//    de erro confiável pra esse bloqueio (o browser recusa por baixo, onError nem sempre dispara),
+//    então além do onError tem um timeout: se o load não vier em WEBPAGE_LOAD_TIMEOUT_MS, trata
+//    como falha e avança pro próximo item — reaproveita o mesmo advance()+manualTick do avanço
+//    manual por clique (reinicia a contagem automática a partir daqui).
+const WEBPAGE_LOAD_TIMEOUT_MS = 8000;
+
+function WebpageSlide({ url, onFailure }: { url: string; onFailure: () => void }) {
+  // onFailure numa ref (não nas deps do efeito) — mesmo padrão de useTimedAdvance: o timer não
+  // remonta a cada render só porque o closure mudou de identidade.
+  const onFailureRef = useRef(onFailure);
+  useEffect(() => {
+    onFailureRef.current = onFailure;
+  });
+
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (loaded) return;
+    const timeoutId = setTimeout(() => onFailureRef.current(), WEBPAGE_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timeoutId);
+  }, [loaded]);
+
+  return (
+    <iframe
+      src={url}
+      className="h-full w-full border-0"
+      title="Página web da playlist"
+      sandbox="allow-scripts allow-same-origin"
+      referrerPolicy="no-referrer"
+      onLoad={() => setLoaded(true)}
+      onError={() => onFailureRef.current()}
+    />
+  );
+}
+
 function PlaylistLayer({
   items,
   newsArticles,
   fillMode = "contain",
   progressBarBottomOffsetPx = 0,
+  timeZone,
+  brandLogoUrl,
+  brandColor,
 }: {
   items: PlaylistItemSummary[];
   newsArticles: RegionNewsArticle[];
@@ -330,6 +393,14 @@ function PlaylistLayer({
   // ficava colada no bottom:0 da própria caixa, e o footer (fundo sólido, DOM depois dela) pintava
   // por cima e a escondia. 0 (padrão) quando não há footer compacto sobrepondo.
   progressBarBottomOffsetPx?: number;
+  // Fuso da instituição — repassado ao FeaturedAgendaEventSlide (formatação da data/hora do evento).
+  timeZone: string;
+  // Marca do site — só usados quando a playlist não tem NENHUM item resolvível (StandbyScreen
+  // "no-content" no lugar do texto cru antigo). Podem vir null/`#111` quando o footer está fechado
+  // e a saída não está offline (get-output-state só resolve a marca sob essas condições) — a
+  // StandbyScreen degrada pra texto sobre fundo escuro nesse caso.
+  brandLogoUrl: string | null;
+  brandColor: string;
 }) {
   const [index, setIndex] = useState(0);
   // Incrementado a cada avanço manual por clique — vira resetKey de useTimedAdvance, reiniciando a
@@ -353,25 +424,24 @@ function PlaylistLayer({
 
   useTimedAdvance(timedDurationMs, advance, timedActive, manualTick);
 
+  // Playlist sem nenhum item resolvível — tela de espera branded "nenhum conteúdo" no lugar do
+  // texto cru sobre tela preta (Fase 11).
   if (!current) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        Sem playlist configurada
-      </div>
-    );
+    return <StandbyScreen reason="no-content" brandLogoUrl={brandLogoUrl} brandColor={brandColor} />;
   }
 
-  // fillMode decide object-contain (barras pretas, drawer aberto) vs object-cover (preenche
-  // cortando o excesso, drawer fechado/fullscreen) — ver o racional completo na prop acima. O
-  // canvas inteiro já é preto (bg-black aqui e no canvas raiz), então uma eventual barra do
-  // letterbox não aparece como uma "borda" isolada — se funde no fundo.
+  // fillMode decide object-contain (letterbox, drawer aberto) vs object-cover (preenche cortando
+  // o excesso, drawer fechado/fullscreen) — ver o racional completo na prop acima. Com "contain",
+  // a sobra do letterbox NÃO fica preta: um segundo <video>/<img> borrado atrás preenche a caixa
+  // (ver blurredFill logo abaixo). `relative` no elemento da frente garante que ele pinte por cima
+  // desse fundo absoluto (ambos z-index auto, ordem no DOM decide — o da frente vem depois).
   const objectFitClassName = fillMode === "cover" ? "object-cover" : "object-contain";
   const content =
     current.kind === "video" ? (
       <video
         key={current.key}
         ref={videoRef}
-        className={`h-full w-full ${objectFitClassName}`}
+        className={`relative h-full w-full ${objectFitClassName}`}
         src={`/api/broadcast/stream/${current.itemId}`}
         autoPlay
         muted
@@ -381,21 +451,78 @@ function PlaylistLayer({
     ) : current.kind === "image" ? (
       // fonte é a rota de stream do plugin (arquivo local ou Blob), não um asset estático do bundle.
       // eslint-disable-next-line @next/next/no-img-element
-      <img key={current.key} src={`/api/broadcast/stream/${current.itemId}`} alt="" className={`h-full w-full ${objectFitClassName}`} />
+      <img key={current.key} src={`/api/broadcast/stream/${current.itemId}`} alt="" className={`relative h-full w-full ${objectFitClassName}`} />
     ) : current.kind === "webpage" ? (
-      <iframe key={current.key} src={current.url} className="h-full w-full border-0" title="Página web da playlist" />
+      <WebpageSlide
+        key={current.key}
+        url={current.url}
+        onFailure={() => {
+          advance();
+          setManualTick((tick) => tick + 1);
+        }}
+      />
     ) : current.kind === "news" ? (
       <NewsCardRotator key={current.key} articles={newsArticles} />
     ) : (
-      <FeaturedAgendaEventSlide key={current.key} event={current.event} durationSeconds={current.durationSeconds} />
+      <FeaturedAgendaEventSlide
+        key={current.key}
+        event={current.event}
+        durationSeconds={current.durationSeconds}
+        timeZone={timeZone}
+      />
     );
+
+  // Fim da faixa preta com o drawer aberto. Quando fillMode é "contain" a caixa do vídeo deixa de
+  // ser 16:9 (a coluna de agenda empurrou), então o object-contain do slide da frente letterboxa
+  // um vídeo/imagem 16:9 e sobra faixa. Em vez de deixar essa sobra preta (ou da cor de marca do
+  // VideoZoneLayer), um segundo <video>/<img> ATRÁS preenche a caixa inteira com object-cover +
+  // blur, virando uma extensão borrada do próprio conteúdo — o slide da frente segue intacto e
+  // 16:9. Só "video"/"image" têm letterbox; "webpage"/"news"/"agenda-event" já são full-bleed.
+  // Com o drawer fechado (fillMode "cover") nada disso monta — comportamento atual inalterado.
+  //
+  // Dois elementos <video> (um decode a mais do MESMO stream local) em vez de amostrar o vídeo da
+  // frente num <canvas>: canvas + drawImage em loop é frágil em engine de TV antiga (mesmo cuidado
+  // que o resto deste arquivo já toma com EventSource/@keyframes). Custo aceitável no cenário
+  // LAN/self-hosted do plugin; blur/brightness/scale são filtro/transform (sem cor), style inline
+  // pela mesma convenção do arquivo. scale(1.1) esconde a borda transparente que o blur cria.
+  const blurredFillStyle: React.CSSProperties = {
+    filter: "blur(24px) brightness(0.6)",
+    transform: "scale(1.1)",
+  };
+  const blurredFill =
+    fillMode === "contain" && current.kind === "video" ? (
+      <video
+        key={`${current.key}-fill`}
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        style={blurredFillStyle}
+        src={`/api/broadcast/stream/${current.itemId}`}
+        autoPlay
+        muted
+        playsInline
+        loop
+        aria-hidden
+      />
+    ) : fillMode === "contain" && current.kind === "image" ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        key={`${current.key}-fill`}
+        src={`/api/broadcast/stream/${current.itemId}`}
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        style={blurredFillStyle}
+      />
+    ) : null;
 
   // Clicável quando há mais de um item — pedido explícito: "se clicar na view muda o vídeo". Uma
   // camada transparente por cima (não onClick direto no <video>/<iframe>) garante o mesmo
   // comportamento pra qualquer tipo de slide, inclusive "webpage" (um clique dentro de um <iframe>
   // nunca borbulha pro elemento pai — é outro documento).
+  // overflow-hidden clipa o scale(1.1) do blurredFill (e já era o comportamento efetivo — os
+  // wrappers de LayerRenderer/VideoZoneLayer acima também recortam).
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full overflow-hidden">
+      {blurredFill}
       {content}
       {slides.length > 1 && (
         <div
@@ -462,6 +589,7 @@ function VideoZoneLayer({
   drawerOpen,
   tickerEnabled,
   agendaRotation,
+  timeZone,
 }: {
   items: PlaylistItemSummary[];
   newsArticles: RegionNewsArticle[];
@@ -473,6 +601,7 @@ function VideoZoneLayer({
   drawerOpen: boolean;
   tickerEnabled: boolean;
   agendaRotation: AgendaRotationEntry[];
+  timeZone: string;
 }) {
   // Footer compacto (drawer fechado) sobrepõe a base da view em vez de empurrá-la — a barra de
   // progresso precisa saber a altura dele pra não ficar escondida atrás (ver PlaylistLayer/
@@ -491,6 +620,9 @@ function VideoZoneLayer({
           newsArticles={newsArticles}
           fillMode={drawerOpen ? "contain" : "cover"}
           progressBarBottomOffsetPx={compactFooterVisible ? COMPACT_FOOTER_HEIGHT_PX : 0}
+          timeZone={timeZone}
+          brandLogoUrl={brandLogoUrl}
+          brandColor={brandColor}
         />
       </div>
       {footerOpen && (
@@ -502,6 +634,7 @@ function VideoZoneLayer({
           tickerEnabled={tickerEnabled}
           agendaRotation={agendaRotation}
           compact={!drawerOpen}
+          timeZone={timeZone}
         />
       )}
     </div>
@@ -587,6 +720,7 @@ export function BrandFooterBar({
   tickerEnabled,
   agendaRotation,
   compact = false,
+  timeZone,
 }: {
   brandLogoUrl: string | null;
   brandColor: string;
@@ -595,11 +729,12 @@ export function BrandFooterBar({
   tickerEnabled: boolean;
   agendaRotation: AgendaRotationEntry[];
   compact?: boolean;
+  timeZone: string;
 }) {
   const now = useClock();
   const palette = resolveContrastPalette(brandColor);
-  const time = now?.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) ?? "";
-  const date = now?.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }) ?? "";
+  const time = now?.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone }) ?? "";
+  const date = now?.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone }) ?? "";
   const { footerHeightClassName, footerLogoHeightClassName } = BROADCAST_AGENDA_VIEW_SIZE_SCALE[agendaViewSize];
 
   if (compact) {
@@ -624,7 +759,7 @@ export function BrandFooterBar({
           ) : (
             <span />
           )}
-          {tickerEnabled && <AgendaTickerInline rotation={agendaRotation} palette={palette} compact />}
+          {tickerEnabled && <AgendaTickerInline rotation={agendaRotation} palette={palette} compact timeZone={timeZone} />}
           {now && <ClockWeatherBlock time={time} date={date} weather={weather} palette={palette} compact />}
         </div>
       </div>
@@ -645,7 +780,7 @@ export function BrandFooterBar({
         ) : (
           <span />
         )}
-        {tickerEnabled && <AgendaTickerInline rotation={agendaRotation} palette={palette} compact={false} />}
+        {tickerEnabled && <AgendaTickerInline rotation={agendaRotation} palette={palette} compact={false} timeZone={timeZone} />}
         {now && <ClockWeatherBlock time={time} date={date} weather={weather} palette={palette} />}
       </div>
     </div>
@@ -757,21 +892,29 @@ function NewsCardRotator({ articles }: { articles: RegionNewsArticle[] }) {
 // event null (evento apagado depois do item criado, ver classifyPlaylistItem) nunca chega a
 // renderizar de fato: PlaylistLayer detecta isEmptySlide e avança em 1s antes que isto apareça por
 // tempo perceptível — o fundo preto abaixo é só a rede de segurança desse instante.
-function FeaturedAgendaEventSlide({ event, durationSeconds }: { event: AgendaRotationEvent | null; durationSeconds: number }) {
+function FeaturedAgendaEventSlide({
+  event,
+  durationSeconds,
+  timeZone,
+}: {
+  event: AgendaRotationEvent | null;
+  durationSeconds: number;
+  timeZone: string;
+}) {
   // useClock (não Date.now() direto) — precisa ser reativo pro badge trocar sozinho pra
   // "Acontecendo" no instante em que o evento começa e voltar quando termina, sem esperar o
   // próximo refetch de estado. Hook sempre chamado antes do guard `if (!event)` (regra de hooks).
   const now = useClock();
   if (!event) return <div className="h-full w-full bg-black" />;
 
-  const { day, month, weekday, time } = formatEventDay(event.startAt);
-  const today = isSameDay(event.startAt);
+  const { day, month, weekday, time } = formatEventDay(event.startAt, timeZone);
+  const today = isSameDay(event.startAt, timeZone);
   // "Acontecendo agora" — pedido explícito: "quando o evento começar, coloque o status
   // 'acontecendo', e destaque as cores". Prevalece sobre "Hoje"/"Agenda" quando true (ver o badge
   // abaixo) — laranja (TV_HAPPENING_NOW_COLOR) em vez da cor de destaque padrão, pra ficar
   // visualmente distinto dos outros dois estados.
   const happeningNow = now !== null && isEventHappeningNow(event.startAt, event.endAt, now);
-  const weekdayAndTime = `${weekday} • ${time}${formatEndTimeSuffix(event.startAt, event.endAt)}`;
+  const weekdayAndTime = `${weekday} • ${time}${formatEndTimeSuffix(event.startAt, event.endAt, timeZone)}`;
   const hasCover = Boolean(event.coverUrl);
 
   // Badge "Acontecendo"/"Hoje"/"Agenda" — mesma regra visual do card da gaveta lateral
@@ -884,13 +1027,13 @@ function useClock(): Date | null {
   return now;
 }
 
-function InfoLayer({ weather }: { weather: RegionWeather | null }) {
+function InfoLayer({ weather, timeZone }: { weather: RegionWeather | null; timeZone: string }) {
   const now = useClock();
 
   if (!now) return null;
 
-  const time = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  const date = now.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+  const time = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone });
+  const date = now.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", timeZone });
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-center" style={{ color: "#FFFFFF" }}>
@@ -912,13 +1055,15 @@ function NewsLayer({ articles }: { articles: RegionNewsArticle[] }) {
 // weekday entra pro card de evento — pedido explícito: "existem eventos que são recorrentes toda
 // semana, vale colocar o dia da semana na view, não apenas a data numérica" (pra "toda quinta"
 // ficar óbvio de bater o olho, sem precisar calcular o dia da semana a partir do número).
-function formatEventDay(startAt: string | Date): { day: string; month: string; weekday: string; time: string } {
+// timeZone (fuso da instituição, vindo de get-output-state) aplicado a TODA formatação — a TV
+// pode estar num fuso diferente do da sede, mas o card mostra sempre a parede da sede.
+function formatEventDay(startAt: string | Date, timeZone: string): { day: string; month: string; weekday: string; time: string } {
   const date = typeof startAt === "string" ? new Date(startAt) : startAt;
   return {
-    day: date.toLocaleDateString("pt-BR", { day: "2-digit" }),
-    month: date.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
-    weekday: date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""),
-    time: date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    day: date.toLocaleDateString("pt-BR", { day: "2-digit", timeZone }),
+    month: date.toLocaleDateString("pt-BR", { month: "short", timeZone }).replace(".", ""),
+    weekday: date.toLocaleDateString("pt-BR", { weekday: "short", timeZone }).replace(".", ""),
+    time: date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone }),
   };
 }
 
@@ -930,20 +1075,21 @@ function formatEventDay(startAt: string | Date): { day: string; month: string; w
 // antes do início por engano. Mesmo racional de formatEndTimeSuffix no admin (agenda-section.tsx).
 // startAt/endAt chegam como string depois de um round-trip JSON (fetch/SSE não revivem Date
 // automaticamente) — mesmo racional de formatEventDay aceitar "string | Date".
-function formatEndTimeSuffix(startAt: string | Date, endAt: string | Date | null): string {
+function formatEndTimeSuffix(startAt: string | Date, endAt: string | Date | null, timeZone: string): string {
   if (!endAt) return "";
   const start = typeof startAt === "string" ? new Date(startAt) : startAt;
   const end = typeof endAt === "string" ? new Date(endAt) : endAt;
-  const endTime = end.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  if (end.toDateString() === start.toDateString()) return `–${endTime}`;
-  const endDay = end.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const endTime = end.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone });
+  // "mesmo dia" comparado NO fuso da instituição — um evento overnight ("22:00–02:00") não pode
+  // parecer que termina antes de começar só porque a virada de dia cai num fuso diferente.
+  if (isSameZonedCalendarDay(start, end, timeZone)) return `–${endTime}`;
+  const endDay = end.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone });
   return ` – ${endDay} ${endTime}`;
 }
 
-function isSameDay(startAt: string | Date): boolean {
+function isSameDay(startAt: string | Date, timeZone: string): boolean {
   const date = typeof startAt === "string" ? new Date(startAt) : startAt;
-  const now = new Date();
-  return date.toDateString() === now.toDateString();
+  return isSameZonedCalendarDay(date, new Date(), timeZone);
 }
 
 
@@ -973,26 +1119,6 @@ const TV_ALERT_GRADIENT = "linear-gradient(90deg, #B3261E, #E8482C)";
 const TV_HAPPENING_NOW_COLOR = "#FF8A00";
 const TV_HAPPENING_NOW_FOREGROUND = "#0F0F0F";
 
-// Paleta derivada de uma cor de fundo escolhida pelo operador (agenda.backgroundColor ou
-// broadcast.brandColor, ambas hex livres) — luminância relativa decide se o texto vai em branco
-// ou quase-preto, pra uma cor clara escolhida por engano não virar texto branco ilegível.
-// Compartilhada por AgendaLayer e a barra de marca da camada "video" (MainZoneLayer).
-function resolveContrastPalette(backgroundColor: string) {
-  const clean = backgroundColor.replace("#", "");
-  const valid = /^[0-9a-fA-F]{6}$/.test(clean);
-  const r = valid ? parseInt(clean.slice(0, 2), 16) : 15;
-  const g = valid ? parseInt(clean.slice(2, 4), 16) : 15;
-  const b = valid ? parseInt(clean.slice(4, 6), 16) : 15;
-  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  const isLight = luminance > 0.6;
-  return {
-    isLight,
-    foreground: isLight ? "#14142b" : "#FFFFFF",
-    muted: isLight ? "rgba(20,20,43,0.6)" : "rgba(255,255,255,0.55)",
-    subtle: isLight ? "rgba(20,20,43,0.08)" : "rgba(255,255,255,0.1)",
-    todayBg: isLight ? "rgba(20,20,43,0.14)" : "rgba(255,255,255,0.12)",
-  };
-}
 
 // Painel "premium" pedido explicitamente: logo + nome da agenda em destaque, cards de evento com
 // badge de data (+ capa opcional), evento de hoje realçado com a cor de destaque. Rotaciona entre
@@ -1006,6 +1132,7 @@ function AgendaLayer({
   brandLogoUrl,
   animationStyle,
   drawerOpen,
+  timeZone,
 }: {
   rotation: AgendaRotationEntry[];
   brandLogoUrl: string | null;
@@ -1014,6 +1141,8 @@ function AgendaLayer({
   // bloco de eventos logo abaixo) — a geometria/abertura em si (LayerRenderer) já lê drawerOpen
   // direto, não precisa dele pra mais nada aqui.
   drawerOpen: boolean;
+  // Fuso da instituição — formatação de data/hora e "hoje" de cada card de evento.
+  timeZone: string;
 }) {
   const [index, setIndex] = useState(0);
   // Mesmo mecanismo de PlaylistLayer — reinicia a contagem automática a partir de um clique manual.
@@ -1112,8 +1241,8 @@ function AgendaLayer({
           </div>
           <div className="flex flex-1 flex-col gap-2.5 overflow-hidden">
             {current.events.map((event, eventIndex) => {
-              const { day, month, weekday, time: eventTime } = formatEventDay(event.startAt);
-              const today = isSameDay(event.startAt);
+              const { day, month, weekday, time: eventTime } = formatEventDay(event.startAt, timeZone);
+              const today = isSameDay(event.startAt, timeZone);
               // "Acontecendo agora" — mesmo racional/helper de FeaturedAgendaEventSlide (pedido
               // explícito: "quando o evento começar, coloque o status 'acontecendo', e destaque
               // as cores"). Prevalece sobre "Hoje" no badge/pill abaixo quando true.
@@ -1121,7 +1250,7 @@ function AgendaLayer({
               // "seg • 14:00" — pedido explícito: eventos recorrentes toda semana ficam óbvios de
               // bater o olho ("toda seg") sem precisar calcular a partir do número do dia. Com
               // horário de término opcional, vira "seg • 14:00–15:30".
-              const weekdayAndTime = `${weekday} • ${eventTime}${formatEndTimeSuffix(event.startAt, event.endAt)}`;
+              const weekdayAndTime = `${weekday} • ${eventTime}${formatEndTimeSuffix(event.startAt, event.endAt, timeZone)}`;
               // 120ms entre cada card (mais espaçado que a primeira versão, pedido explícito: "mais
               // expressiva") — devagar o bastante pra cada entrada da direita ser individualmente
               // percebida, não só um blur de movimento. Delay base de AGENDA_ENTRY_ANIMATION_DELAY_MS
@@ -1337,10 +1466,12 @@ function AgendaTickerInline({
   rotation,
   palette,
   compact,
+  timeZone,
 }: {
   rotation: AgendaRotationEntry[];
   palette: ReturnType<typeof resolveContrastPalette>;
   compact: boolean;
+  timeZone: string;
 }) {
   const [agendaIndex, setAgendaIndex] = useState(0);
   const [eventIndex, setEventIndex] = useState(0);
@@ -1360,7 +1491,7 @@ function AgendaTickerInline({
 
   if (!currentAgenda || !currentEvent) return null;
 
-  const { weekday, time } = formatEventDay(currentEvent.startAt);
+  const { weekday, time } = formatEventDay(currentEvent.startAt, timeZone);
   const parts = [currentAgenda.agenda.name, currentEvent.title, `${weekday} • ${time}`, currentEvent.location].filter(
     (part): part is string => Boolean(part),
   );
@@ -1399,6 +1530,7 @@ export function LayerRenderer({
   agendaViewSize,
   footerOpen,
   tickerEnabled,
+  timeZone,
 }: {
   layer: BroadcastLayerRecord;
   drawerOpen: boolean;
@@ -1417,6 +1549,9 @@ export function LayerRenderer({
   // Ticker de agenda — mora dentro de BrandFooterBar (ver comentário lá), então chega até aqui
   // pelo mesmo caminho de footerOpen.
   tickerEnabled: boolean;
+  // Fuso da instituição (get-output-state) — toda data/hora e todo "hoje"/"agora" da view é
+  // formatado/calculado nele, nunca no fuso do browser da TV.
+  timeZone: string;
 }) {
   // Hook sempre chamado, antes de qualquer return condicional (regra de hooks) — a agenda mede o
   // tempo todo agora (não só quando aberta), pra já saber o tamanho certo assim que a gaveta abrir
@@ -1471,6 +1606,7 @@ export function LayerRenderer({
         footerOpen,
         drawerOpen,
         tickerEnabled,
+        timeZone,
       )}
     </div>
   );
@@ -1490,6 +1626,7 @@ function renderLayerContent(
   footerOpen: boolean,
   drawerOpen: boolean,
   tickerEnabled: boolean,
+  timeZone: string,
 ) {
   switch (layer.type) {
     case "video": {
@@ -1511,6 +1648,7 @@ function renderLayerContent(
           drawerOpen={drawerOpen}
           tickerEnabled={tickerEnabled}
           agendaRotation={agendaRotation}
+          timeZone={timeZone}
         />
       );
     }
@@ -1532,12 +1670,18 @@ function renderLayerContent(
       );
     }
     case "info":
-      return <InfoLayer weather={regionWeather} />;
+      return <InfoLayer weather={regionWeather} timeZone={timeZone} />;
     case "news":
       return <NewsLayer articles={regionNews} />;
     case "agenda":
       return (
-        <AgendaLayer rotation={agendaRotation} brandLogoUrl={brandLogoUrl} animationStyle={agendaAnimationStyle} drawerOpen={drawerOpen} />
+        <AgendaLayer
+          rotation={agendaRotation}
+          brandLogoUrl={brandLogoUrl}
+          animationStyle={agendaAnimationStyle}
+          drawerOpen={drawerOpen}
+          timeZone={timeZone}
+        />
       );
     default:
       return null;

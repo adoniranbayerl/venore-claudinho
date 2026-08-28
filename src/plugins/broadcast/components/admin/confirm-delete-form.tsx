@@ -72,6 +72,7 @@ export function ConfirmDeleteButton({
   label,
   variant = "destructive",
   className,
+  onSuccess,
 }: {
   action: (state: BroadcastActionState, formData: FormData) => Promise<BroadcastActionState>;
   fields: Record<string, string>;
@@ -83,9 +84,12 @@ export function ConfirmDeleteButton({
   label: string;
   variant?: "destructive" | "ghost";
   className?: string;
+  // Chamado quando a action termina sem erro — usado por gatilhos que não recarregam a página
+  // (ex: RemoveOutputPinButton, que atualiza o estado otimista do PIN em vez de revalidatePath).
+  onSuccess?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
-  useActionToast({ pending, error: state.error, successMessage });
+  useActionToast({ pending, error: state.error, successMessage, onSuccess });
   const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(false);
 

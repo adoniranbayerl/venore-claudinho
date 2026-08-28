@@ -208,6 +208,13 @@ export const broadcastOutputs = broadcastSchema.table(
     // Mesmo mecanismo de drawerOpen, pra BrandFooterBar (logo+relógio+data+temperatura) — default
     // true (comportamento anterior era sempre mostrar a barra).
     footerOpen: boolean("footer_open").notNull().default(true),
+    // Tela de espera branded ligada de propósito pelo admin (Fase 11) — quando true, a view mostra
+    // a StandbyScreen (marca do site + animação calma + texto de status) no lugar do conteúdo,
+    // mesmo com playlist/cena configuradas. Independente de drawerOpen/footerOpen. default false
+    // (comportamento anterior: a saída está sempre no ar). O outro caminho pra StandbyScreen —
+    // tela sem conteúdo resolvível, ou sem contato com o servidor — é 100% client-side, não passa
+    // por esta coluna (ver components/output/output-canvas.tsx).
+    offline: boolean("offline").notNull().default(false),
     // Ticker de agenda no rodapé (texto rolando com os próximos eventos) — opt-in, desligado por
     // padrão (pedido explícito: "esse componente deve ser desligado por padrão, ligado apenas
     // quando eu quiser colocar"). Independente de drawerOpen: mostra dado de agenda mesmo com a
@@ -226,9 +233,11 @@ export const broadcastOutputs = broadcastSchema.table(
     // output-canvas.tsx.
     agendaOpenSeconds: integer("agenda_open_seconds"),
     agendaPauseSeconds: integer("agenda_pause_seconds"),
-    // PIN opcional pra acessar a view pública desta saída (texto plano — mesmo nível de simplicidade
-    // do resto do plugin, token já é plaintext na URL; ver shared/output-pin-cookie.ts e a feature
-    // verify-output-pin). null = sem proteção, comportamento anterior inalterado.
+    // PIN opcional pra acessar a view pública desta saída. Guardado como hash `scrypt$salt$hash`
+    // (ver shared/pin-hash.ts, set-output-pin grava, verify-output-pin confere) — PINs em texto
+    // plano gravados antes da Fase 9 ainda funcionam e viram hash no primeiro acerto (re-hash
+    // preguiçoso em routes/out/actions.ts). null = sem proteção, comportamento anterior inalterado.
+    // Continua `text` (hash é texto) — nenhuma migração estrutural na Fase 9.
     pin: text("pin"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

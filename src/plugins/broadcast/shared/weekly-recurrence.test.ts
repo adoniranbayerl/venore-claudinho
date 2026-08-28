@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getZonedParts } from "./timezone";
 import { isEventHappeningNow, resolveEventEndDate, resolveEventOccurrenceDate } from "./weekly-recurrence";
 
 // Referência fixa: quarta-feira 2026-01-14, 10:00 local.
@@ -122,5 +123,71 @@ describe("isEventHappeningNow", () => {
 
   it("accepts string dates (round-tripped through JSON, as they arrive client-side)", () => {
     expect(isEventHappeningNow("2026-01-14T09:00:00", "2026-01-14T12:00:00", NOW)).toBe(true);
+  });
+});
+
+// Fuso explícito: dia da semana do anchor e "hoje"/"agora" lidos NA zona passada, não na do host
+// que roda os testes. Instantes fixados em UTC pra o resultado não depender da TZ da máquina de CI.
+describe("resolveEventOccurrenceDate with an explicit timeZone", () => {
+  // Anchor: quarta-feira 10:00 em Tóquio (GMT+9, sem horário de verão) — 2026-01-14T01:00Z.
+  const tokyoWedAt10 = new Date("2026-01-14T01:00:00Z");
+
+  it("keeps today's date (in the zone) when the zone's weekday matches and the time hasn't passed", () => {
+    // now: quarta 08:00 em Tóquio (2026-02-11).
+    const now = new Date("2026-02-10T23:00:00Z");
+    const result = resolveEventOccurrenceDate({ startAt: tokyoWedAt10, recurring: true }, now, "Asia/Tokyo");
+    expect(result.toISOString()).toBe("2026-02-11T01:00:00.000Z");
+    const parts = getZonedParts(result, "Asia/Tokyo");
+    expect({ day: parts.day, hour: parts.hour, minute: parts.minute, weekday: parts.weekday }).toEqual({
+      day: 11,
+      hour: 10,
+      minute: 0,
+      weekday: 3,
+    });
+  });
+
+  it("jumps to next week (in the zone) when the zone's time already passed today", () => {
+    // now: quarta 12:00 em Tóquio (2026-02-11) — depois das 10:00.
+    const now = new Date("2026-02-11T03:00:00Z");
+    const result = resolveEventOccurrenceDate({ startAt: tokyoWedAt10, recurring: true }, now, "Asia/Tokyo");
+    expect(result.toISOString()).toBe("2026-02-18T01:00:00.000Z");
+  });
+
+  it("does NOT jump to next week while the event is still ongoing in the zone (endAt given)", () => {
+    // Anchor 08:00–12:00 em Tóquio; now = quarta 10:00 em Tóquio (dentro da janela).
+    const startAt = new Date("2026-01-13T23:00:00Z"); // 2026-01-14 08:00 Tóquio
+    const endAt = new Date("2026-01-14T03:00:00Z"); // 2026-01-14 12:00 Tóquio
+    const now = new Date("2026-02-11T01:00:00Z"); // 2026-02-11 10:00 Tóquio
+    const result = resolveEventOccurrenceDate({ startAt, endAt, recurring: true }, now, "Asia/Tokyo");
+    const parts = getZonedParts(result, "Asia/Tokyo");
+    expect({ day: parts.day, hour: parts.hour }).toEqual({ day: 11, hour: 8 });
+  });
+
+  it("labels the same recurring pattern by a different weekday/day depending on the zone", () => {
+    // Anchor às 01:00Z: terça em UTC, mas segunda 22:00 em São Paulo (GMT-3).
+    const anchor = new Date("2026-01-06T01:00:00Z");
+    const now = new Date("2026-01-01T00:00:00Z");
+    const utc = resolveEventOccurrenceDate({ startAt: anchor, recurring: true }, now, "UTC");
+    const sp = resolveEventOccurrenceDate({ startAt: anchor, recurring: true }, now, "America/Sao_Paulo");
+
+    expect(getZonedParts(utc, "UTC").weekday).toBe(getZonedParts(anchor, "UTC").weekday);
+    expect(getZonedParts(sp, "America/Sao_Paulo").weekday).toBe(getZonedParts(anchor, "America/Sao_Paulo").weekday);
+    expect(getZonedParts(utc, "UTC").weekday).not.toBe(getZonedParts(sp, "America/Sao_Paulo").weekday);
+    expect(getZonedParts(utc, "UTC").hour).toBe(1);
+    expect(getZonedParts(sp, "America/Sao_Paulo").hour).toBe(22);
+  });
+});
+
+describe("resolveEventEndDate with an explicit timeZone", () => {
+  it("preserves the duration and resolves the start in the given zone", () => {
+    const startAt = new Date("2026-01-13T23:00:00Z"); // 2026-01-14 08:00 Tóquio (quarta)
+    const endAt = new Date("2026-01-14T03:00:00Z"); // +4h
+    const now = new Date("2026-02-11T05:00:00Z"); // quarta 14:00 Tóquio — evento de hoje já terminou
+    const resolvedStart = resolveEventOccurrenceDate({ startAt, endAt, recurring: true }, now, "Asia/Tokyo");
+    const resolvedEnd = resolveEventEndDate({ startAt, endAt, recurring: true }, now, "Asia/Tokyo");
+    expect(resolvedEnd).not.toBeNull();
+    expect((resolvedEnd as Date).getTime() - resolvedStart.getTime()).toBe(endAt.getTime() - startAt.getTime());
+    // Próxima quarta em Tóquio depois de 11/02 é 18/02.
+    expect(getZonedParts(resolvedEnd as Date, "Asia/Tokyo").day).toBe(18);
   });
 });

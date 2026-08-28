@@ -1,3 +1,4 @@
+import { verifyPin } from "../../../shared/pin-hash";
 import { findOutputPinByToken } from "./store";
 import type { VerifyOutputPinQuery, VerifyOutputPinResult } from "./types";
 
@@ -9,6 +10,9 @@ export async function verifyOutputPin(query: VerifyOutputPinQuery): Promise<Veri
     return { success: true, data: { required: false, valid: true } };
   }
 
-  const valid = typeof query.candidate === "string" && query.candidate.length > 0 && query.candidate === output.pin;
+  // output.pin é um hash `scrypt$...` (gravado por set-output-pin) ou, transitoriamente, um PIN
+  // legado em texto plano — verifyPin cobre os dois (ver shared/pin-hash.ts). O valor guardado
+  // nunca sai daqui: o resultado só carrega required/valid.
+  const valid = typeof query.candidate === "string" && (await verifyPin(query.candidate, output.pin));
   return { success: true, data: { required: true, valid } };
 }

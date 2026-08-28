@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Venore
 
-## Getting Started
+Plataforma de site institucional + CMS com sistema de plugins e temas, construída sobre Next.js
+(App Router). A arquitetura — camadas obrigatórias, fronteiras entre `contexts`/`plugins`/`themes`,
+RBAC, tokens de design — está descrita em [`docs/venore-docks.md`](docs/venore-docks.md) (o *porquê*)
+e em [`AGENTS.md`](AGENTS.md) (o *que fazer ao escrever código aqui*).
 
-First, run the development server:
+> **Este não é o Next.js que você conhece.** Esta cópia do Next tem mudanças de API e convenção em
+> relação ao upstream — antes de escrever código, leia o guia relevante em
+> `node_modules/next/dist/docs/`.
+
+## Requisitos
+
+- **Node.js 20.9+**
+- **PostgreSQL 14+** (um banco vazio já basta — o instalador cria o schema)
+- npm
+
+## Configuração
+
+```bash
+npm install
+cp .env.example .env
+```
+
+Edite o `.env`. Para subir o projeto do zero bastam duas variáveis:
+
+| Variável | Para quê |
+| --- | --- |
+| `DATABASE_URL` | Conexão com o Postgres (`postgres://user:pass@host:5432/db`) |
+| `AUTH_SECRET` | Segredo do Auth.js — gere com `npx auth secret` ou `openssl rand -base64 32` |
+
+Todas as outras entradas do [`.env.example`](.env.example) são opcionais: provedores OAuth
+(Google / GitHub / Microsoft), banco isolado de teste de integração (`TEST_DATABASE_URL`), driver
+de mídia, chave da API de notícias do plugin broadcast. Sem nenhum OAuth configurado, o login por
+email + senha (provider *Credentials*) é o único caminho — e é o que o instalador abaixo prepara.
+
+## Instalação inicial
+
+Com o `.env` pronto e o Postgres acessível:
+
+```bash
+npm run db:install:fresh
+```
+
+O script roda, nesta ordem:
+
+1. `drizzle-kit migrate` do core (cria o schema de core + `contexts`);
+2. semeia os papéis de sistema (`superadmin` / `admin` / `member`) e as permissions base do `admin`;
+3. registra os plugins declarados em código (grava os defaults de `settings` dos plugins ativos);
+4. cria o primeiro usuário com o email + senha informados e concede a ele o papel `superadmin`.
+
+O email e a senha podem vir como argumentos (`npm run db:install:fresh -- admin@exemplo.com
+suaSenha`), pelas variáveis `INSTALL_ADMIN_EMAIL` / `INSTALL_ADMIN_PASSWORD`, ou por prompt
+interativo. O script é idempotente nas etapas 1–3 e **aborta com aviso se já existir um
+superadmin** — nesse caso a instalação já foi feita; para promover outra pessoa use `/admin/rbac`
+ou `npm run db:bootstrap-superadmin -- <email>`.
+
+Feito isso, suba o servidor e faça login em `/login`:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre em [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Plugins
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+O `vercel-build` e o `npm run db:migrate` cobrem só as migrations do core. **As migrations de cada
+plugin rodam quando o plugin é instalado** pela tela `/admin/plugins` (ou, em produção, no passo de
+install), nunca no build. Enquanto um plugin está apenas "disponível" (presente no código, sem
+estado de instalação), ele não contribui rota, permission, bloco nem setting, e seu schema não é
+criado. Detalhes em [`docs/venore-docks.md`](docs/venore-docks.md) — *Sistema de plugins*.
 
-## Learn More
+## Comandos
 
-To learn more about Next.js, take a look at the following resources:
+Referência completa em [`AGENTS.md`](AGENTS.md) seção 5. Os mais usados:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Comando | O que faz |
+| --- | --- |
+| `npm run dev` | Servidor de desenvolvimento |
+| `npm run lint` | ESLint (inclui as regras de fronteira e de cor) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run test` | Vitest — testes unitários (`*.test.ts`, sem banco) |
+| `npm run test:integration` | Vitest de integração (`*.integration.test.ts`, exige `TEST_DATABASE_URL`) |
+| `npm run db:generate` / `npm run db:migrate` | Drizzle Kit — schema do core |
+| `npm run db:install:fresh` | Instalação inicial (ver acima) |

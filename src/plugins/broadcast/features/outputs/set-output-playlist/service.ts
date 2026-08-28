@@ -1,4 +1,5 @@
 import { beginOperation, endOperation } from "@/observability";
+import { publishOutputEvent } from "../../../runtime/output-bus";
 import { applyVideoLayerPlaylist, findOutputById, findVideoLayerBySceneId } from "./store";
 import type { SetOutputPlaylistCommand, SetOutputPlaylistResult } from "./types";
 
@@ -28,8 +29,13 @@ export async function setOutputPlaylist(command: SetOutputPlaylistCommand): Prom
     kind: "write",
   });
 
-  await applyVideoLayerPlaylist(videoLayer.id, videoLayer.config, command.playlistId);
+  const updatedOutput = await applyVideoLayerPlaylist(output.id, videoLayer.id, videoLayer.config, command.playlistId);
 
   endOperation(handle, { success: true });
-  return { success: true, data: output };
+
+  // TV rebusca o estado em ~1s em vez de esperar o poll de 15s (FALLBACK_POLL_MS em
+  // output-canvas.tsx). Só a saída afetada — troca de playlist não é global.
+  publishOutputEvent(updatedOutput.token, { type: "playlist-changed" });
+
+  return { success: true, data: updatedOutput };
 }

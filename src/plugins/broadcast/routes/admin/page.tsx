@@ -28,7 +28,9 @@ import {
   getBroadcastBrandColor,
   getBroadcastNewsExcludeKeywords,
   getBroadcastRegion,
+  getBroadcastTimezone,
 } from "@/plugins/broadcast/components/admin/actions";
+import { DEFAULT_BROADCAST_TIMEZONE } from "@/plugins/broadcast/shared/timezone";
 import { resolvePickableMediaById } from "@/plugins/broadcast/components/admin/resolve-pickable-media";
 import { resolveOutputPlaylistIds } from "@/plugins/broadcast/components/admin/resolve-output-playlist-ids";
 import { PlaylistsSection } from "@/plugins/broadcast/components/admin/playlists-section";
@@ -80,6 +82,7 @@ export default async function BroadcastAdminPage() {
     playlistEditorsResult,
     usersResult,
     region,
+    timezone,
     brandColor,
     newsExcludeKeywords,
     agendaAnimationStyle,
@@ -98,6 +101,7 @@ export default async function BroadcastAdminPage() {
     hasFullAccess ? listPlaylistEditors() : Promise.resolve(null),
     hasFullAccess ? listUsers() : Promise.resolve(null),
     hasFullAccess ? getBroadcastRegion() : Promise.resolve(""),
+    hasFullAccess ? getBroadcastTimezone() : Promise.resolve(DEFAULT_BROADCAST_TIMEZONE),
     hasFullAccess ? getBroadcastBrandColor() : Promise.resolve(""),
     hasFullAccess ? getBroadcastNewsExcludeKeywords() : Promise.resolve(""),
     hasFullAccess ? getBroadcastAgendaAnimationStyle() : Promise.resolve("fade"),
@@ -196,6 +200,7 @@ export default async function BroadcastAdminPage() {
   const settingsView = (
     <SettingsSection
       region={region}
+      timezone={timezone}
       brandColor={brandColor}
       newsExcludeKeywords={newsExcludeKeywords}
       agendaAnimationStyle={agendaAnimationStyle}

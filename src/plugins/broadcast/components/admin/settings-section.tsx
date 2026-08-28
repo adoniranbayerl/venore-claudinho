@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { BROADCAST_TIMEZONE_OPTIONS } from "@/plugins/broadcast/shared/timezone";
 import {
   updateBroadcastAgendaAnimationStyleAction,
   updateBroadcastAgendaViewSizeAction,
   updateBroadcastBrandColorAction,
   updateBroadcastNewsExcludeKeywordsAction,
   updateBroadcastRegionAction,
+  updateBroadcastTimezoneAction,
   type BroadcastActionState,
 } from "./actions";
 
@@ -28,6 +30,43 @@ function RegionForm({ region }: { region: string }) {
       </p>
       <Input id="region" name="region" defaultValue={region} placeholder="Curitiba, PR" />
       <Button type="submit" disabled={pending}>Salvar</Button>
+    </form>
+  );
+}
+
+// Mesmo padrão de AgendaAnimationStyleForm abaixo (Select do Radix não expõe valor via FormData
+// sozinho — hidden input sincronizado por onValueChange é o que a action lê). Um fuso salvo que
+// não esteja na lista de opções (config manual antiga) cai na primeira opção pra não deixar o
+// Select sem valor selecionado.
+function TimezoneForm({ timezone }: { timezone: string }) {
+  const [state, formAction, pending] = useActionState(updateBroadcastTimezoneAction, initialState);
+  useActionToast({ pending, error: state.error, successMessage: "Fuso horário salvo." });
+  const known = BROADCAST_TIMEZONE_OPTIONS.some((option) => option.value === timezone);
+  const [value, setValue] = useState(known ? timezone : BROADCAST_TIMEZONE_OPTIONS[0].value);
+
+  return (
+    <form action={formAction} className="max-w-xl space-y-2 rounded-panel border border-border bg-card p-3">
+      <label className="text-sm font-medium text-foreground" htmlFor="broadcast-timezone">Fuso horário da instituição</label>
+      <p className="text-xs text-muted-foreground">
+        Usado pra entender o horário que você digita nos eventos da agenda e pra mostrar as datas na TV. A tela mostra
+        sempre o horário da instituição, mesmo instalada em outra cidade ou fuso.
+      </p>
+      <input type="hidden" name="timezone" value={value} />
+      <Select value={value} onValueChange={setValue}>
+        <SelectTrigger id="broadcast-timezone" className="w-full sm:w-96">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {BROADCAST_TIMEZONE_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <div>
+        <Button type="submit" disabled={pending}>Salvar</Button>
+      </div>
     </form>
   );
 }
@@ -138,12 +177,14 @@ function AgendaViewSizeForm({ agendaViewSize }: { agendaViewSize: string }) {
 
 export function SettingsSection({
   region,
+  timezone,
   brandColor,
   newsExcludeKeywords,
   agendaAnimationStyle,
   agendaViewSize,
 }: {
   region: string;
+  timezone: string;
   brandColor: string;
   newsExcludeKeywords: string;
   agendaAnimationStyle: string;
@@ -151,6 +192,7 @@ export function SettingsSection({
 }) {
   return (
     <div className="space-y-4">
+      <TimezoneForm timezone={timezone} />
       <RegionForm region={region} />
       <BrandColorForm brandColor={brandColor} />
       <AgendaAnimationStyleForm agendaAnimationStyle={agendaAnimationStyle} />

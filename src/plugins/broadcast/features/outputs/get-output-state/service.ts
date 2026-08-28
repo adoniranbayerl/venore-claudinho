@@ -11,6 +11,7 @@ import {
   DEFAULT_WEBPAGE_SLIDE_DURATION_SECONDS,
 } from "../../../shared/playback-defaults";
 import { BROADCAST_SETTINGS, type BroadcastAgendaAnimationStyle, type BroadcastAgendaViewSize } from "../../../shared/settings";
+import { normalizeTimeZone } from "../../../shared/timezone";
 import { streamableContentTypeForExtension } from "../../../shared/video-extensions";
 import { resolveEventEndDate, resolveEventOccurrenceDate } from "../../../shared/weekly-recurrence";
 import type { BroadcastAgendaEventRecord, BroadcastPlaylistItemRecord, PlaylistItemKind } from "../../../contracts/types";
@@ -38,7 +39,7 @@ function readStringConfig(config: Record<string, unknown>, key: string): string 
 // extensão (local) ou do contentType (media-asset); "webpage"/"news" são inequívocos pelo
 // sourceType. Mesma defesa em profundidade dos outros resolvers do plugin: nunca confia em dado
 // gravado antes sem reconferir a fonte real.
-async function classifyPlaylistItem(item: BroadcastPlaylistItemRecord): Promise<PlaylistItemSummary> {
+async function classifyPlaylistItem(item: BroadcastPlaylistItemRecord, timeZone: string): Promise<PlaylistItemSummary> {
   if (item.sourceType === "webpage") {
     return {
       id: item.id,
@@ -69,7 +70,7 @@ async function classifyPlaylistItem(item: BroadcastPlaylistItemRecord): Promise<
       kind: "agenda-event",
       durationSeconds: item.durationSeconds ?? DEFAULT_AGENDA_EVENT_SLIDE_DURATION_SECONDS,
       url: null,
-      event: event ? await resolveAgendaRotationEvent(event) : null,
+      event: event ? await resolveAgendaRotationEvent(event, timeZone) : null,
     };
   }
 
@@ -104,11 +105,11 @@ async function resolveMediaAssetUrl(mediaAssetId: string | null): Promise<string
 // crua de um evento recorrente — endAt preserva a DURAÇÃO original mesmo cruzando pra outra
 // semana, ver resolveEventEndDate) e coverMediaAssetId vira coverUrl (client nunca resolve mídia
 // sozinho).
-async function resolveAgendaRotationEvent(event: BroadcastAgendaEventRecord): Promise<AgendaRotationEvent> {
+async function resolveAgendaRotationEvent(event: BroadcastAgendaEventRecord, timeZone: string): Promise<AgendaRotationEvent> {
   return {
     ...event,
-    startAt: resolveEventOccurrenceDate(event),
-    endAt: resolveEventEndDate(event),
+    startAt: resolveEventOccurrenceDate(event, new Date(), timeZone),
+    endAt: resolveEventEndDate(event, new Date(), timeZone),
     coverUrl: await resolveMediaAssetUrl(event.coverMediaAssetId),
   };
 }
@@ -123,7 +124,7 @@ async function resolveAgendaRotationEvent(event: BroadcastAgendaEventRecord): Pr
 // no schema, broadcastOutputAgendas): uma agenda só aparece numa saída quando existe um vínculo
 // explícito ligando as duas; sem vínculo nenhum, não aparece em lugar nenhum. Pedido real: "só
 // deve aparecer QUANDO estiver vinculada a uma tela".
-async function resolveAgendaRotation(outputId: string): Promise<AgendaRotationEntry[]> {
+async function resolveAgendaRotation(outputId: string, timeZone: string): Promise<AgendaRotationEntry[]> {
   const [agendas, events, outputAgendaLinks] = await Promise.all([
     findAllAgendas(),
     findAllUpcomingAgendaEvents(),
@@ -138,7 +139,9 @@ async function resolveAgendaRotation(outputId: string): Promise<AgendaRotationEn
   // recorrente antigo (startAt de meses atrás, mas recurring=true) precisa entrar na posição
   // certa da fila, baseada na próxima vez que ele realmente acontece, não em quando foi criado.
   const sortedEvents = [...events].sort(
-    (a, b) => resolveEventOccurrenceDate(a).getTime() - resolveEventOccurrenceDate(b).getTime(),
+    (a, b) =>
+      resolveEventOccurrenceDate(a, new Date(), timeZone).getTime() -
+      resolveEventOccurrenceDate(b, new Date(), timeZone).getTime(),
   );
 
   const eventsByAgendaId = new Map<string, BroadcastAgendaEventRecord[]>();
@@ -157,7 +160,7 @@ async function resolveAgendaRotation(outputId: string): Promise<AgendaRotationEn
       const rawEvents = eventsByAgendaId.get(agenda.id) ?? [];
       const [logoUrl, resolvedEvents] = await Promise.all([
         resolveMediaAssetUrl(agenda.logoMediaAssetId),
-        Promise.all(rawEvents.map(resolveAgendaRotationEvent)),
+        Promise.all(rawEvents.map((event) => resolveAgendaRotationEvent(event, timeZone))),
       ]);
       return { agenda, events: resolvedEvents, logoUrl };
     }),
@@ -183,6 +186,14 @@ async function resolveAgendaViewSize(): Promise<BroadcastAgendaViewSize> {
   return "grande";
 }
 
+// Fuso da instituição — sempre resolvido (não é lazy como os demais): o client precisa dele pra
+// formatar QUALQUER data/hora (relógio do rodapé, cards de agenda, "hoje"/"agora"), e é uma
+// leitura de setting de uma linha. Cai no default quando ausente/inválido.
+async function resolveTimeZone(): Promise<string> {
+  const result = await getSetting({ key: BROADCAST_SETTINGS.timezone.key });
+  return normalizeTimeZone(result.success ? result.data?.value : null);
+}
+
 // Resolve o estado completo pra primeira renderização da view de saída: a página server component
 // chama isto direto (sem round-trip HTTP), e a mesma forma de estado é o que a rota SSE
 // (app/api/broadcast/output/[token]/events) manda como primeiro evento de hydration, e o que
@@ -192,6 +203,10 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
   if (!output) {
     return { success: false, error: { code: "broadcast.get-output-state.not_found", message: "Saída não encontrada." } };
   }
+
+  // Resolvido antes de tudo: classifyPlaylistItem (evento "em destaque") e resolveAgendaRotation
+  // precisam do fuso pra resolver a ocorrência efetiva de eventos recorrentes na parede da sede.
+  const timeZone = await resolveTimeZone();
 
   const scene = output.currentSceneId ? await findSceneById(output.currentSceneId) : null;
   const layers = scene ? await findLayersBySceneId(scene.id) : [];
@@ -206,7 +221,7 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
   const playlistItemsByPlaylistId: Record<string, PlaylistItemSummary[]> = {};
   for (const playlistId of videoPlaylistIds) {
     const items = await findVisiblePlaylistItemsByPlaylistId(playlistId);
-    playlistItemsByPlaylistId[playlistId] = await Promise.all(items.map(classifyPlaylistItem));
+    playlistItemsByPlaylistId[playlistId] = await Promise.all(items.map((item) => classifyPlaylistItem(item, timeZone)));
   }
   // "news" agora é um item de playlist manipulável (posição/duração próprias), não mais um
   // checkbox na config da layer — precisa resolver os artigos sempre que algum item classificar
@@ -241,9 +256,11 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
   const needsAgenda =
     (layers.some((layer) => layer.type === "agenda") && output.drawerOpen) || (output.tickerEnabled && output.footerOpen);
   const needsAlert = layers.some((layer) => layer.type === "alert");
-  // Logo da plataforma é usada tanto como fallback de agenda sem logo própria quanto na BrandFooterBar.
-  const needsBrandLogo = needsAgenda || output.footerOpen;
-  const needsBrandColor = output.footerOpen;
+  // Logo da plataforma é usada tanto como fallback de agenda sem logo própria quanto na
+  // BrandFooterBar quanto na StandbyScreen (Fase 11) — a tela de espera precisa da logo e da cor
+  // de marca mesmo com o footer fechado, então output.offline entra nas duas condições abaixo.
+  const needsBrandLogo = needsAgenda || output.footerOpen || output.offline;
+  const needsBrandColor = output.footerOpen || output.offline;
   // Largura da agenda E altura da BrandFooterBar dependem da mesma escala (ver
   // BROADCAST_AGENDA_VIEW_SIZE_SCALE) — precisa dela sempre que qualquer uma das duas aparece.
   const needsAgendaViewSize = needsAgenda || output.footerOpen;
@@ -252,7 +269,7 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
     await Promise.all([
       needsWeather ? resolveRegionWeather() : Promise.resolve(null),
       needsNews ? resolveRegionNews() : Promise.resolve([]),
-      needsAgenda ? resolveAgendaRotation(output.id) : Promise.resolve([]),
+      needsAgenda ? resolveAgendaRotation(output.id, timeZone) : Promise.resolve([]),
       needsAlert ? findActiveAlertMessage() : Promise.resolve(null),
       needsBrandLogo ? getBrandConfig("png").then((brand) => brand.logoUrl) : Promise.resolve(null),
       needsBrandColor ? resolveBrandColor() : Promise.resolve(BROADCAST_SETTINGS.brandColor.defaultValue),
@@ -268,6 +285,7 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
       outputId: output.id,
       drawerOpen: output.drawerOpen,
       footerOpen: output.footerOpen,
+      offline: output.offline,
       tickerEnabled: output.tickerEnabled,
       scene,
       layers,
@@ -281,6 +299,7 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
       brandColor,
       agendaAnimationStyle,
       agendaViewSize,
+      timeZone,
       agendaOpenSeconds: output.agendaOpenSeconds,
       agendaPauseSeconds: output.agendaPauseSeconds,
     },

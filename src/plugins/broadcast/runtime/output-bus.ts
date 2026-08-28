@@ -11,7 +11,18 @@ type Subscriber = (event: BroadcastOutputEvent) => void;
 // conectou. Pode ser com o dado de IP local") — capturado uma vez na rota SSE (ver
 // routes/api/output-events/route.ts) e guardado junto do subscriber, não um registro à parte:
 // a conexão SSE em si já É a "presença" da TV, o IP é só um dado a mais sobre ela.
-type Connection = { subscriber: Subscriber; ip: string };
+// `onEvict` é chamado quando o teto de conexões abaixo derruba esta conexão — a rota fecha o
+// controller do stream nesse callback (a TV reconecta sozinha via `retry:` do EventSource).
+type Connection = { subscriber: Subscriber; ip: string; onEvict: () => void };
+
+// Teto de conexões SSE simultâneas por token. Cenário real: um proxy/switch no meio de uma LAN
+// derruba o socket ocioso sem o Node perceber (nenhum cancel() dispara) — a TV reconecta e a
+// conexão fantasma fica pra trás, acumulando ao longo de dias. O heartbeat na rota já força uma
+// escrita periódica que faz o socket morto ser detectado cedo; este teto é a rede de segurança
+// pro que escapar disso. Ao exceder, a conexão MAIS ANTIGA do token é evictada (Set preserva
+// ordem de inserção). 8 é folgado: o normal é 1 conexão por token (uma TV), com alguma folga pra
+// churn de reconexão e uma prévia aberta no painel.
+export const MAX_CONNECTIONS_PER_TOKEN = 8;
 
 // Guardado em globalThis, não numa variável de módulo comum — bug real observado: uma server
 // action (setOutputPlaylist/setOutputDrawer) e a rota SSE (app/api/broadcast/output/[token]/events)
@@ -32,12 +43,30 @@ function getConnectionsByToken(): Map<string, Set<Connection>> {
   return globalWithBus.__broadcastOutputConnections;
 }
 
-export function subscribeToOutputEvents(token: string, subscriber: Subscriber, ip = "desconhecido"): () => void {
+export function subscribeToOutputEvents(
+  token: string,
+  subscriber: Subscriber,
+  ip = "desconhecido",
+  onEvict: () => void = () => {},
+): () => void {
   const connectionsByToken = getConnectionsByToken();
   const connections = connectionsByToken.get(token) ?? new Set<Connection>();
-  const connection: Connection = { subscriber, ip };
+  const connection: Connection = { subscriber, ip, onEvict };
   connections.add(connection);
   connectionsByToken.set(token, connections);
+
+  // Derruba as mais antigas até voltar ao teto — normalmente no máximo uma por vez, o `while` só
+  // cobre o caso de o teto ter sido baixado com conexões já abertas.
+  while (connections.size > MAX_CONNECTIONS_PER_TOKEN) {
+    const oldest: Connection | undefined = connections.values().next().value;
+    if (!oldest || oldest === connection) break;
+    connections.delete(oldest);
+    try {
+      oldest.onEvict();
+    } catch {
+      // A rota pode já ter fechado o controller por conta própria — evicção é best-effort.
+    }
+  }
 
   return () => {
     connections.delete(connection);

@@ -91,8 +91,12 @@ standalone pra TV com layers/transições, painel admin). O que ficou deliberada
   tudo, não preciso de tantas opções". `clock`/`lower-third`/`custom-html` foram removidos (o
   primeiro virou `info`, superset com clima; os outros dois eram redundantes com `text` + preset de
   posição) — nenhum resquício de "renderiza só texto escapado" continua existindo, porque o tipo
-  que fazia isso (`custom-html`) foi removido, não só restrito. Migration `0001` remapeia dados
-  existentes (`clock`→`info`, `lower-third`/`custom-html`→`text`) — nenhuma linha antiga quebrou.
+  que fazia isso (`custom-html`) foi removido, não só restrito. A migration `0001` da época
+  remapeava dados existentes (`clock`→`info`, `lower-third`/`custom-html`→`text`) — nenhuma linha
+  antiga quebrou. **Nota (2026-08-28):** as 17 migrations do plugin (`0000`…`0016`) foram
+  colapsadas num único baseline `0000_brainy_tenebrous` (ver bullet "Squash de migrations" no fim
+  desta seção); os `UPDATE` de remapeamento de dados do antigo `0001` não sobrevivem ao squash —
+  são no-op num banco novo (sem dado) e já foram aplicados nos bancos que existiam antes do squash.
   Lista final: `video` (agora playlist mista vídeo/imagem/site), `text`, `image`, `info`
   (relógio+clima), `news`, `agenda` — os três últimos sem nenhum campo manual, resolvidos sozinhos
   a partir de `broadcast.region` e da agenda interna.
@@ -175,6 +179,33 @@ standalone pra TV com layers/transições, painel admin). O que ficou deliberada
   persistente** — não funciona em serverless (Vercel). Fonte "media-asset" (Blob) funciona nos
   dois cenários. Decisão confirmada com o usuário no início da sessão, não uma limitação
   descoberta depois.
+- **Squash de migrations — FEITO (2026-08-28).** As 17 migrations do plugin (`0000_condemned_stryfe`
+  …`0016_pink_white_queen`) foram colapsadas num único baseline `0000_brainy_tenebrous.sql` +
+  `meta/0000_snapshot.json` + `meta/_journal.json` regenerados por `npm run db:generate:broadcast`
+  contra o `database/schema/index.ts` atual. O `when` do baseline no `_journal.json` foi fixado
+  manualmente em `1786722843076` (o `when` do antigo `0016`) — o migrator do `drizzle-orm` decide
+  aplicar por `created_at < folderMillis`, então um banco que já está no head (o servidor local em
+  uso) vê `1786722843076 < 1786722843076 == false` e **pula o baseline (no-op)**; um banco novo
+  (sem linha em `broadcast_migrations.__drizzle_migrations`) aplica o baseline e cria o schema
+  inteiro. Verificado: (a) `db:generate:broadcast` não produz diff depois do squash ("No schema
+  changes"); (b) o `0000_snapshot.json` regenerado é estruturalmente idêntico ao antigo
+  `0016_snapshot.json` (schema preservado byte a byte, fora de `id`/`prevId`); (c) simulação do
+  `readMigrationFiles`/decisão do migrator: 0 migrations rodam num banco no head, 1 num banco novo;
+  (d) `1 .sql == 1 entry no _journal == 1 snapshot` (AGENTS.md §6.5); (e) `vitest run
+  src/plugins/broadcast` — 205 testes passam.
+  **Pendente / não verificado nesta sessão:** `npm run test:integration` e `npm run db:install:fresh`
+  não foram rodados — não há `TEST_DATABASE_URL` no ambiente (o `.env` só tem o `DATABASE_URL` do
+  Neon, que é o banco do servidor em uso, e `requireTestDatabaseUrl` recusa reaproveitá-lo de
+  propósito). Ambos os caminhos, porém, chamam exatamente o mesmo `migrate(db, { migrationsFolder,
+  migrationsSchema: "broadcast_migrations", … })` contra tabela de tracking vazia — idêntico ao
+  cenário "banco novo" já simulado. Rodar a suíte de integração com um Postgres real é a única
+  verificação que falta fechar 100%. Nenhum teste de integração afirma contagem/hash de migration
+  do broadcast. Backup das 17 migrations antigas ficou no scratchpad da sessão
+  (`broadcast-migrations-backup/`).
+- **Erro de typecheck pré-existente (não relacionado ao squash):**
+  `src/plugins/broadcast/components/admin/outputs-section.tsx` tem 2 erros de prop faltando
+  (`EditPinDialog`/playlist select) — WIP de UI desta branch `rbac-scoped-roles-phase-c`, não
+  tocado por este trabalho de migration.
 
 
 
@@ -356,6 +387,40 @@ O que eu quero
    15s entre cada evento, e 30s entre cada lista (agenda).
 5. Todas as views devem ser públicas (sem necessidade de login), porém protegidas por PIN — PIN
    cadastrado nas opções da própria view.
+
+### Broadcast — plano de correções, responsividade e fallback (2026-08-28)
+
+Sessão de revisão do plugin `broadcast` (já em produção, servidor sempre local/processo único).
+Plano completo em **`docs/broadcast-plano-correcoes.md`**: 11 fases, cada uma com prompt de sessão
+pronto. Resumo:
+
+- **Fases 1–2** — responsividade da view (720p/1080p/4K quebram; feita com root font-size fluida
+  proporcional, não breakpoints).
+- **Fase 3** — setting `broadcast.timezone` (default `America/Sao_Paulo`); parse de `datetime-local`
+  e formatação passam a usar a zona configurada, não a do servidor/browser.
+- **Fase 4** — `BroadcastOutputEvent` ganha `alert-changed` / `playlist-changed` (hoje alerta e
+  troca de playlist só chegam na TV no poll de 15s); + fix de `setOutputPlaylist` retornando
+  registro desatualizado.
+- **Fase 5** — controle ao vivo no admin sem `revalidatePath` da página inteira (toggles otimistas).
+- **Fase 6** — `getConnectedOutputIpsAction` atrás de handler com `authorizeActor`; `<iframe>` de
+  webpage com `sandbox` + fallback de falha; primeiros `handler.test.ts` do plugin; nota de
+  "processo único" no manifesto.
+- **Fase 7** — o squash de migrations já está feito (baseline `0000_brainy_tenebrous`); esta fase só
+  fecha a verificação de integração pendente (`test:integration` / `db:install:fresh`). Migrations
+  das Fases 9/10/11 entram incrementais sobre o baseline.
+- **Fase 8** — heartbeat SSE (`: ping` a cada ~20s + `retry:`).
+- **Fase 9** — PIN com hash + `secure` no cookie + limitador de tentativas com reset via admin.
+- **Fase 10** — fim da faixa preta com o drawer aberto via *blurred fill* (a ideia de "sangria" no
+  vídeo foi avaliada e descartada como mecanismo). Opt-in `cropWhenDrawerOpen` por item, opcional.
+- **Fase 11** — tela de standby/offline (marca + animação + texto): campo `broadcastOutputs.offline`
+  ligado pelo admin, + detecção client-side de "sem conexão" e "sem conteúdo".
+
+Issues fechados na triagem: token previsível (intencional), stream sem PIN (conteúdo não precisa de
+proteção), bus em memória (ok com servidor local).
+
+Erro de typecheck pré-existente em `components/admin/outputs-section.tsx` (props de
+`EditPinDialog` / select de playlist, WIP desta branch) — a primeira fase que tocar o arquivo
+corrige.
 
 
 

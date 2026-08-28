@@ -202,24 +202,28 @@ logBuffer.push({ message, level });
 - **Nenhuma decisão de design (cor, raio, sombra, espaçamento, tipografia, peso, duração, curva
   de easing, proporção de escala) pode ser declarada em `src/app/globals.css`.** Esse arquivo só
   CONSOME variáveis via `var(...)`; quem define valor é sempre um tema, em
-  `src/themes/<tema>/theme.css` — hoje só `venore-slime`
-  (`src/themes/venore-slime/theme.css`), sob os seletores `[data-theme="venore-slime"]` /
-  `[data-theme="venore-slime"].dark`. Isso vale inclusive para o vocabulário shadcn
-  (`--background`, `--primary`, etc.) e para os multiplicadores de escala usados em `calc()`
-  (ex: `--ui-radius-scale-lg: 2`, `--ui-button-padding-scale-xs: 0.5`) — o número da proporção é
-  decisão de design tanto quanto a cor.
+  `src/themes/<tema>/theme.css`, sob os seletores `[data-theme="<tema>"]` /
+  `[data-theme="<tema>"].dark`. Hoje o `THEME_REGISTRY` (`src/themes/registry.ts`) tem 8 temas —
+  `venore-slime`, `venore-basic`, `venore-frost`, `venore-kazordoon`, `venore-nightcity`,
+  `venore-pulse`, `menonita-classic` e `aprenda-musica` — e cada um redeclara o mesmo
+  vocabulário sob o seu próprio `[data-theme="..."]`, nunca por cima de outro tema.
+  `venore-slime` (`src/themes/venore-slime/theme.css`) é a referência: o único com catálogo de
+  paletas salváveis e o fallback imutável (ver abaixo). Isso vale inclusive para o vocabulário
+  shadcn (`--background`, `--primary`, etc.) e para os multiplicadores de escala usados em
+  `calc()` (ex: `--ui-radius-scale-lg: 2`, `--ui-button-padding-scale-xs: 0.5`) — o número da
+  proporção é decisão de design tanto quanto a cor.
 - Prova executável: `src/app/globals.no-design-values.test.ts` falha se um literal de design
   (hex, `oklch()`/`rgb()`/`color-mix()`, `cubic-bezier()`, gradiente, `px`/`rem`/`em`, duração)
   reaparecer em `globals.css`.
 - **`venore-slime` é o tema oficial e fallback do sistema — nunca deve ser removido/deletado**
-  de `src/themes/registry.ts` nem apagado do disco, mesmo que outro tema seja instalado no
-  futuro. Um segundo tema instalado redeclararia o mesmo vocabulário (`--background`, `--primary`
-  etc.) sob seu próprio `[data-theme="..."]`, nunca por cima do `venore-slime`.
+  de `src/themes/registry.ts` nem apagado do disco, independente de quantos outros temas estejam
+  instalados. Os demais temas do registry redeclaram o mesmo vocabulário (`--background`,
+  `--primary` etc.) sob seu próprio `[data-theme="..."]`, nunca por cima do `venore-slime`.
 - Vocabulário de cor único do projeto é o do **shadcn** (`bg-card`, `bg-muted`, `text-foreground`,
   `text-muted-foreground`, `text-muted-foreground/56`, `border-border`, `border-ring`,
   `bg-accent/14`, `text-destructive`, `text-warning`, `bg-primary`/`text-primary-foreground`).
-  Cores são declaradas em `oklch(...)` em `src/themes/venore-slime/theme.css`, nunca hex/rgb novo,
-  e nunca em `globals.css`.
+  Cores são declaradas em `oklch(...)` no `theme.css` de cada tema (ex:
+  `src/themes/venore-slime/theme.css`), nunca hex/rgb novo, e nunca em `globals.css`.
 - O vocabulário próprio anterior (`surface-*`, `text-text-*`, `border-subtle/default/strong`,
   `accent-soft`, `info-*`) foi eliminado de `src/` e não deve reaparecer — ver a tabela de
   mapeamento completa logo abaixo se precisar reconstituir um valor antigo.
@@ -366,8 +370,11 @@ continua sendo a lista geral, derivada da leitura do código:
 - **`src/platform/ui-preferences/` existe como diretório vazio.** O cookie que vivia lá já é
   tratado como removido (substituído por `useTheme()`/`next-themes`, seção 1), mas a pasta em si
   não foi apagada.
-- **Permission com escopo dentro de um recurso** (RBAC granular por seção/instância do CMS) —
-  documentado como em aberto no documento de arquitetura, não implementado.
+- ~~**Permission com escopo dentro de um recurso** (RBAC granular por seção/instância do CMS)~~ —
+  **implementado (fases A–D, `docs/rbac-scoped-roles.md`, 2026-08-28):** `rbac.role_assignment_scopes`
+  (vínculo usuário × papel), `authorizeActor(perm, scope?)` + `resolveScope`, recorte por
+  `cms.category` nos `service.ts` de escrita do CMS (helper `contexts/cms/shared/scoped-authorization`).
+  "Admin de seção" ficou como papel custom, sem `scopeType` próprio (Fase D / D7).
 - **Rate limiting e controle de acesso a arquivos de mídia** — ainda não cobertos. Auditoria de
   ações sensíveis existe desde a sessão do log de eventos legível (`src/observability/audit-log.ts`
   + tabela `audit.security_audit_events`), mas só é chamada explicitamente pelas ações já

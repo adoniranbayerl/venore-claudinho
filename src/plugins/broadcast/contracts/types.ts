@@ -157,6 +157,10 @@ export type BroadcastOutputRecord = {
   // — alternável por saída, pedido explícito: "além de fechar a agenda, deve ser possível fechar o
   // footer".
   footerOpen: boolean;
+  // Tela de espera branded ligada de propósito pelo admin (Fase 11) — quando true, a view mostra a
+  // StandbyScreen no lugar do conteúdo. Independente de drawerOpen/footerOpen. Ver
+  // components/output/standby-screen.tsx.
+  offline: boolean;
   // Ticker de agenda no rodapé — opt-in, desligado por padrão. Independente de drawerOpen.
   tickerEnabled: boolean;
   // Ciclo fixo de abrir/pausar a coluna lateral (os dois juntos, ver database/schema/index.ts) —
@@ -164,8 +168,9 @@ export type BroadcastOutputRecord = {
   // em output-canvas.tsx.
   agendaOpenSeconds: number | null;
   agendaPauseSeconds: number | null;
-  // PIN opcional de acesso à view pública desta saída — texto plano, null = sem proteção. Nunca
-  // deve ser serializado pro browser (não faz parte de BroadcastOutputState, ver get-output-state).
+  // PIN opcional de acesso à view pública desta saída — guardado como hash `scrypt$...` (ver
+  // shared/pin-hash.ts), null = sem proteção. Nunca deve ser serializado pro browser (não faz
+  // parte de BroadcastOutputState, ver get-output-state).
   pin: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -220,9 +225,18 @@ export type RegionNewsArticle = {
 // playlist é decisão client-side da view de saída (onEnded → próximo item), não algo que o
 // servidor sincroniza por evento; só "qual cena" e "drawer aberto/fechado" são estado de
 // controle real.
+// "alert-changed" (aviso rápido entrou/foi limpo) e "playlist-changed" (troca de playlist da
+// camada de vídeo de uma saída) não carregam payload de propósito — o cliente da view de saída já
+// refaz o fetch do estado completo em qualquer evento que não seja `type: "state"` (ver
+// output-canvas.tsx), então basta sinalizar "algo mudou, rebusque". "alert-changed" é global (o
+// alerta não é por saída) — publicado pra todos os tokens; "playlist-changed" é publicado só pro
+// token da saída afetada.
 export type BroadcastOutputEvent =
   | { type: "scene-changed"; sceneId: string | null }
   | { type: "drawer-changed"; drawerOpen: boolean }
   | { type: "footer-changed"; footerOpen: boolean }
   | { type: "ticker-changed"; tickerEnabled: boolean }
-  | { type: "agenda-schedule-changed"; agendaOpenSeconds: number | null; agendaPauseSeconds: number | null };
+  | { type: "agenda-schedule-changed"; agendaOpenSeconds: number | null; agendaPauseSeconds: number | null }
+  | { type: "offline-changed"; offline: boolean }
+  | { type: "alert-changed" }
+  | { type: "playlist-changed" };

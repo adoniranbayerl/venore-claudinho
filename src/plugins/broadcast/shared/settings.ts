@@ -5,6 +5,8 @@
 // path.resolve(BROADCAST_ROOT_FOLDER), que usa process.cwd() como base quando o valor não é
 // absoluto, e process.cwd() é a raiz do projeto tanto em `next dev` quanto em `next start`.
 // Aponta pra public/broadcast/{videos,playlists} (ver public/broadcast/*/.gitkeep).
+import { DEFAULT_BROADCAST_TIMEZONE } from "./timezone";
+
 export const BROADCAST_ROOT_FOLDER = "public/broadcast";
 
 // Mesmo racional de BROADCAST_ROOT_FOLDER acima — toda playlist local aponta pra esta MESMA
@@ -24,6 +26,16 @@ export const BROADCAST_SETTINGS = {
     key: "broadcast.region",
     defaultValue: "",
     label: "Região (cidade) pra clima e notícias",
+  },
+  // Fuso horário da sede — usado tanto pra interpretar a hora de parede que o operador digita nos
+  // eventos de agenda (parse do <input datetime-local> em components/admin/actions.ts) quanto pra
+  // formatar data/hora e calcular "hoje"/"agora"/dia da semana na view de saída, que pode estar
+  // rodando numa TV em qualquer fuso. Id IANA ("America/Sao_Paulo"); o seletor da tela admin
+  // (BROADCAST_TIMEZONE_OPTIONS em shared/timezone.ts) mostra rótulo por cidade, nunca o id cru.
+  timezone: {
+    key: "broadcast.timezone",
+    defaultValue: DEFAULT_BROADCAST_TIMEZONE,
+    label: "Fuso horário da instituição",
   },
   // Cor de fundo da barra inferior da view principal (camada "video") — logo + relógio +
   // temperatura ficam nela, hex escolhido pelo operador via <input type="color">.

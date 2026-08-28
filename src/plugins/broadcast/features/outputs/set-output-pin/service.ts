@@ -1,4 +1,5 @@
 import { beginOperation, endOperation } from "@/observability";
+import { hashPin } from "../../../shared/pin-hash";
 import { applyOutputPin, findOutputById } from "./store";
 import type { SetOutputPinCommand, SetOutputPinResult } from "./types";
 
@@ -17,7 +18,10 @@ export async function setOutputPin(command: SetOutputPinCommand): Promise<SetOut
     kind: "write",
   });
 
-  const record = await applyOutputPin({ id: command.outputId, pin: command.pin });
+  // Nunca guarda o PIN em texto plano — a coluna passa a carregar o hash `scrypt$...` (ver
+  // shared/pin-hash.ts e verify-output-pin/service.ts). pin=null continua removendo a proteção.
+  const pinToStore = command.pin === null ? null : await hashPin(command.pin);
+  const record = await applyOutputPin({ id: command.outputId, pin: pinToStore });
 
   endOperation(handle, { success: true });
 

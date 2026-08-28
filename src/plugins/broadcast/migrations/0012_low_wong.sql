@@ -1,1 +1,0 @@
-ALTER TABLE "broadcast"."outputs" ADD COLUMN "agenda_pause_seconds" integer;

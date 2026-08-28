@@ -1,1 +1,0 @@
-ALTER TABLE "broadcast"."agenda_events" ADD COLUMN "recurring" boolean DEFAULT false NOT NULL;

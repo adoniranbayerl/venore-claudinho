@@ -12,11 +12,16 @@ export function useActionToast({
   error,
   successMessage,
   onSuccess,
+  onError,
 }: {
   pending: boolean;
   error: string | null;
   successMessage?: string | null;
   onSuccess?: () => void;
+  // Contraparte de onSuccess — chamado na transição pending=true -> pending=false quando a action
+  // terminou COM erro. Usado por controles otimistas (ex: toggles do Broadcast) pra reverter o
+  // clique quando o servidor recusa, já que a action não recarrega mais a página.
+  onError?: () => void;
 }) {
   const wasPending = useRef(false);
 
@@ -24,11 +29,12 @@ export function useActionToast({
     if (wasPending.current && !pending) {
       if (error) {
         toast.error(error);
+        onError?.();
       } else {
         if (successMessage) toast.success(successMessage);
         onSuccess?.();
       }
     }
     wasPending.current = pending;
-  }, [pending, error, successMessage, onSuccess]);
+  }, [pending, error, successMessage, onSuccess, onError]);
 }

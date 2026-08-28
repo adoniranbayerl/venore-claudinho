@@ -27,6 +27,10 @@ export type BroadcastOutputState = {
   outputId: string;
   drawerOpen: boolean;
   footerOpen: boolean;
+  // Tela de espera branded ligada de propósito pelo admin (Fase 11) — quando true, output-canvas.tsx
+  // renderiza a StandbyScreen no lugar do conteúdo. brandLogoUrl/brandColor são resolvidos mesmo
+  // com o footer fechado quando isto é true (ver needsBrandLogo/needsBrandColor no service).
+  offline: boolean;
   // Ticker de agenda no rodapé — opt-in, ver components/output/output-canvas.tsx
   // (effectiveTickerOpen) e AgendaTickerBar.
   tickerEnabled: boolean;
@@ -46,6 +50,10 @@ export type BroadcastOutputState = {
   agendaAnimationStyle: BroadcastAgendaAnimationStyle;
   // "padrao" | "grande" (default) | "extra-grande" — ver BROADCAST_SETTINGS.agendaViewSize.
   agendaViewSize: BroadcastAgendaViewSize;
+  // Fuso da instituição (BROADCAST_SETTINGS.timezone) — o client formata data/hora e calcula
+  // "hoje"/"agora"/dia da semana NELE, nunca no fuso do browser da TV. Sempre um id IANA válido
+  // (default "America/Sao_Paulo").
+  timeZone: string;
   // Ciclo fixo de abrir/pausar a coluna lateral — qualquer um null/0 desliga o ciclo, rodízio
   // contínuo. Consumidos pelo scheduler client em output-canvas.tsx, nunca pelo server.
   agendaOpenSeconds: number | null;

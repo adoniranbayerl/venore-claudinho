@@ -141,11 +141,22 @@ export { setOutputPlaylistHandler as setOutputPlaylist } from "./features/output
 export { setOutputDrawerHandler as setOutputDrawer } from "./features/outputs/set-output-drawer/handler";
 export { setOutputFooterHandler as setOutputFooter } from "./features/outputs/set-output-footer/handler";
 export { setOutputTickerHandler as setOutputTicker } from "./features/outputs/set-output-ticker/handler";
+// Tela de espera branded ligada de propósito pelo admin (Fase 11) — mesmo authorizeOutputActor de
+// setOutputDrawer/setOutputFooter; o service publica "offline-changed" via SSE.
+export { setOutputOfflineHandler as setOutputOffline } from "./features/outputs/set-output-offline/handler";
 // Ciclo fixo de abrir/pausar a coluna lateral (janela aberta + janela de pausa, ver
 // database/schema/index.ts) — ver shared/scoped-authorization (mesmo authorizeOutputActor de
 // setOutputDrawer/setOutputFooter) e o scheduler client em output-canvas.tsx.
 export { setOutputAgendaScheduleHandler as setOutputAgendaSchedule } from "./features/outputs/set-output-agenda-schedule/handler";
 export { setOutputPinHandler as setOutputPin } from "./features/outputs/set-output-pin/handler";
+// Zera o limitador de tentativas de PIN (brute force) de uma saída — gate igual ao de
+// setOutputPin (broadcast.manage OU broadcast.outputs.manage + atribuição). Contador em memória
+// (runtime/pin-attempts.ts), sem I/O além de resolver o token da saída.
+export { resetOutputPinAttemptsHandler as resetOutputPinAttempts } from "./features/outputs/reset-output-pin-attempts/handler";
+export type {
+  ResetOutputPinAttemptsInput,
+  ResetOutputPinAttemptsResult,
+} from "./features/outputs/reset-output-pin-attempts/types";
 // Sem authorizeActor (ver o próprio handler) — acesso por token, mesmo espírito de getOutputState
 // logo abaixo: chamado pela página de saída e pelas rotas de API (state/events), nunca por uma
 // action de UI autenticada por sessão de admin.
@@ -161,6 +172,10 @@ export type { ListOutputEditorsResult } from "./features/outputs/list-output-edi
 // Sem authorizeActor (ver o próprio handler) — acesso por token, chamado pela página de saída
 // (server component) e pela rota SSE, nunca por uma action de UI autenticada por sessão de admin.
 export { getOutputStateHandler as getOutputState } from "./features/outputs/get-output-state/handler";
+// IPs das TVs conectadas agora (por token) — gateado por broadcast.manage, ver o handler. Consome
+// o Map em memória de runtime/output-bus; usado pelo poll do admin em outputs-section.tsx.
+export { listConnectedOutputIpsHandler as listConnectedOutputIps } from "./features/outputs/list-connected-output-ips/handler";
+export type { ListConnectedOutputIpsResult } from "./features/outputs/list-connected-output-ips/types";
 
 export type { CreateOutputInput, CreateOutputResult } from "./features/outputs/create-output/types";
 export type { ListOutputsResult } from "./features/outputs/list-outputs/types";
@@ -168,6 +183,7 @@ export type { SetOutputPlaylistInput, SetOutputPlaylistResult } from "./features
 export type { SetOutputDrawerInput, SetOutputDrawerResult } from "./features/outputs/set-output-drawer/types";
 export type { SetOutputFooterInput, SetOutputFooterResult } from "./features/outputs/set-output-footer/types";
 export type { SetOutputTickerInput, SetOutputTickerResult } from "./features/outputs/set-output-ticker/types";
+export type { SetOutputOfflineInput, SetOutputOfflineResult } from "./features/outputs/set-output-offline/types";
 export type {
   SetOutputAgendaScheduleInput,
   SetOutputAgendaScheduleResult,
@@ -192,10 +208,10 @@ export type { LayerGeometry } from "./shared/layer-geometry";
 export type { BroadcastOutputEvent } from "./contracts/types";
 // Infra de runtime (pub/sub em memória, não uma feature — ver runtime/output-bus.ts).
 // subscribeToOutputEvents é só pra app/api/broadcast/output/[token]/events (SSE) se inscrever,
-// nunca chamado de uma action de UI. getConnectedOutputIps já é o oposto — só pra admin (quais IPs
-// estão com a tela aberta agora, ver components/admin/actions.ts), nunca usado pela própria view
-// de saída.
-export { getConnectedOutputIps, subscribeToOutputEvents } from "./runtime/output-bus";
+// nunca chamado de uma action de UI. A leitura oposta (quais IPs estão com a tela aberta agora, só
+// pra admin) NÃO é exposta crua aqui — passa pelo handler list-connected-output-ips abaixo, que
+// aplica authorizeActor("broadcast.manage").
+export { subscribeToOutputEvents } from "./runtime/output-bus";
 
 export { createAgendaHandler as createAgenda } from "./features/agenda/create-agenda/handler";
 export { updateAgendaHandler as updateAgenda } from "./features/agenda/update-agenda/handler";

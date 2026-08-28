@@ -11,6 +11,8 @@ import {
   PanelBottomOpen,
   PanelRightClose,
   PanelRightOpen,
+  Power,
+  PowerOff,
   ScrollText,
   ShieldAlert,
   ShieldCheck,
@@ -37,16 +39,25 @@ import {
   deleteOutputAction,
   getConnectedOutputIpsAction,
   publishAlertAction,
+  resetOutputPinAttemptsAction,
   setOutputAgendaScheduleAction,
   setOutputDrawerAction,
   setOutputFooterAction,
+  setOutputOfflineAction,
   setOutputPinAction,
   setOutputPlaylistAction,
   setOutputTickerAction,
   type BroadcastActionState,
+  type BroadcastOutputToggleState,
+  type SetOutputPlaylistState,
 } from "./actions";
 
 const initialState: BroadcastActionState = { error: null };
+// Toggles de controle ao vivo: a action devolve a saída atualizada (ou só o id da playlist) em vez
+// de chamar revalidatePath — o componente reflete o clique na hora e reconcilia com este retorno.
+// Ver o comentário em actions.ts.
+const outputToggleInitialState: BroadcastOutputToggleState = { error: null, output: null };
+const playlistInitialState: SetOutputPlaylistState = { error: null, playlistId: null };
 
 // Toda saída nasce com sua cena/camadas fixas já prontas (vídeo + agenda + aviso rápido) — não há
 // mais o que escolher além do nome e da playlist que toca (pedido explícito: "não vamos precisar
@@ -206,17 +217,31 @@ function SetOutputPlaylistForm({
   output,
   playlists,
   currentPlaylistId,
+  onPlaylistChange,
 }: {
   output: BroadcastOutputRecord;
   playlists: BroadcastPlaylistRecord[];
+  // Estado otimista mantido pelo OutputCard (pai) — o <Select> é controlado por ele pra que a troca
+  // reflita no card inteiro (badge "Playlist:", faixa de status) na hora, sem revalidatePath.
   currentPlaylistId: string | null;
+  onPlaylistChange: (playlistId: string | null) => void;
 }) {
-  const [state, formAction, pending] = useActionState(setOutputPlaylistAction, initialState);
-  useActionToast({ pending, error: state.error, successMessage: "Playlist trocada." });
   const formRef = useRef<HTMLFormElement>(null);
   const playlistIdInputRef = useRef<HTMLInputElement>(null);
+  // Valor pra onde voltar se a action falhar (o id de antes deste clique).
+  const revertToRef = useRef(currentPlaylistId);
+
+  const [state, formAction, pending] = useActionState(setOutputPlaylistAction, playlistInitialState);
+  useActionToast({
+    pending,
+    error: state.error,
+    successMessage: "Playlist trocada.",
+    onError: () => onPlaylistChange(revertToRef.current),
+  });
 
   function handleChange(playlistId: string) {
+    revertToRef.current = currentPlaylistId;
+    onPlaylistChange(playlistId); // otimista: card reflete já; a action ecoa o mesmo id no sucesso
     if (playlistIdInputRef.current) playlistIdInputRef.current.value = playlistId;
     formRef.current?.requestSubmit();
   }
@@ -225,7 +250,7 @@ function SetOutputPlaylistForm({
     <form ref={formRef} action={formAction}>
       <input type="hidden" name="outputId" value={output.id} />
       <input type="hidden" name="playlistId" ref={playlistIdInputRef} defaultValue={currentPlaylistId ?? ""} />
-      <Select defaultValue={currentPlaylistId ?? undefined} onValueChange={handleChange} disabled={pending}>
+      <Select value={currentPlaylistId ?? undefined} onValueChange={handleChange} disabled={pending}>
         <SelectTrigger className="w-full"><SelectValue placeholder="Escolha uma playlist..." /></SelectTrigger>
         <SelectContent>
           {playlists.map((playlist) => (
@@ -266,46 +291,75 @@ function LayerToggleRow({
   output,
   action,
   fieldName,
-  checked,
-  icon,
+  checked: serverChecked,
+  iconOn,
+  iconOff,
   label,
   description,
   tone,
+  onCheckedChange,
 }: {
   output: BroadcastOutputRecord;
-  action: (state: BroadcastActionState, formData: FormData) => Promise<BroadcastActionState>;
-  fieldName: string;
+  // A action devolve BroadcastOutputToggleState (saída atualizada) e NÃO chama revalidatePath — o
+  // Switch reflete o clique na hora e reconcilia com o registro devolvido. Ver actions.ts.
+  action: (state: BroadcastActionState, formData: FormData) => Promise<BroadcastOutputToggleState>;
+  fieldName: "drawerOpen" | "footerOpen" | "tickerEnabled" | "offline";
   checked: boolean;
-  icon: ReactNode;
+  iconOn: ReactNode;
+  iconOff: ReactNode;
   label: string;
   description: string;
   tone: LayerTone;
+  onCheckedChange?: (checked: boolean) => void;
 }) {
-  const [state, formAction, pending] = useActionState(action, initialState);
-  useActionToast({ pending, error: state.error, successMessage: "Atualizado." });
-  const formRef = useRef<HTMLFormElement>(null);
+  // Estado do Switch: otimista no clique, confirmado pelo fim da action. Sem revalidatePath, então
+  // uma revalidação estrutural (create/delete/reorder ainda recarregam a página) volta a mandar
+  // via `key` no OutputCard, que remonta esta linha com o `serverChecked` novo.
+  const [checked, setChecked] = useState(serverChecked);
+  // Valor pra onde voltar se a action falhar (o valor de antes deste clique).
+  const revertToRef = useRef(serverChecked);
   const pendingRef = useRef(false);
+
+  function applyChecked(next: boolean) {
+    setChecked(next);
+    onCheckedChange?.(next);
+  }
+
+  const [state, formAction, pending] = useActionState(action, outputToggleInitialState);
+  useActionToast({
+    pending,
+    error: state.error,
+    successMessage: "Atualizado.",
+    onSuccess: () => {
+      pendingRef.current = false;
+    },
+    onError: () => {
+      pendingRef.current = false;
+      applyChecked(revertToRef.current);
+    },
+  });
+  const formRef = useRef<HTMLFormElement>(null);
+  const valueInputRef = useRef<HTMLInputElement>(null);
   const id = useId();
 
-  useEffect(() => {
-    pendingRef.current = false;
-  }, [checked]);
-
-  function handleChange() {
+  function handleChange(next: boolean) {
     if (pendingRef.current) return;
     pendingRef.current = true;
+    revertToRef.current = checked;
+    if (valueInputRef.current) valueInputRef.current.value = next ? "true" : "false";
+    applyChecked(next);
     formRef.current?.requestSubmit();
   }
 
   return (
     <form ref={formRef} action={formAction} className="bg-card p-3">
       <input type="hidden" name="outputId" value={output.id} />
-      <input type="hidden" name={fieldName} value={checked ? "false" : "true"} />
+      <input type="hidden" name={fieldName} ref={valueInputRef} defaultValue={serverChecked ? "false" : "true"} />
       <div className="flex items-center gap-2.5">
         <span
           className={`flex size-8 shrink-0 items-center justify-center rounded-full ${checked ? LAYER_TONE_ICON_CLASSNAME[tone] : "bg-muted text-muted-foreground"}`}
         >
-          {icon}
+          {checked ? iconOn : iconOff}
         </span>
         <label htmlFor={id} className="min-w-0 flex-1 cursor-pointer">
           <span className="block text-sm font-medium text-foreground">{label}</span>
@@ -353,17 +407,36 @@ const SCHEDULE_STEP_SECONDS = 15;
 // atualiza o número mostrado (via onValueChange) e espera o outro slider completar o par — a dica
 // abaixo avisa qual dos dois ainda falta.
 function SetOutputAgendaScheduleForm({ output }: { output: BroadcastOutputRecord }) {
-  const [state, formAction, pending] = useActionState(setOutputAgendaScheduleAction, initialState);
-  useActionToast({ pending, error: state.error, successMessage: "Ciclo da agenda atualizado." });
   const formRef = useRef<HTMLFormElement>(null);
   const openInputRef = useRef<HTMLInputElement>(null);
   const pauseInputRef = useRef<HTMLInputElement>(null);
   const [openSeconds, setOpenSeconds] = useState(output.agendaOpenSeconds ?? 0);
   const [pauseSeconds, setPauseSeconds] = useState(output.agendaPauseSeconds ?? 0);
+  // Últimos valores confirmados pelo server — pra onde os sliders voltam se um commit falhar (sem
+  // revalidatePath, o prop `output` não recarrega sozinho; revalidação estrutural remonta via `key`
+  // no OutputCard). Atualizado no commit: os valores enviados viram o novo "confirmado" assim que a
+  // action responde sem erro.
+  const confirmedRef = useRef({ open: output.agendaOpenSeconds ?? 0, pause: output.agendaPauseSeconds ?? 0 });
+  const sentRef = useRef({ open: output.agendaOpenSeconds ?? 0, pause: output.agendaPauseSeconds ?? 0 });
+
+  const [state, formAction, pending] = useActionState(setOutputAgendaScheduleAction, outputToggleInitialState);
+  useActionToast({
+    pending,
+    error: state.error,
+    successMessage: "Ciclo da agenda atualizado.",
+    onSuccess: () => {
+      confirmedRef.current = sentRef.current;
+    },
+    onError: () => {
+      setOpenSeconds(confirmedRef.current.open);
+      setPauseSeconds(confirmedRef.current.pause);
+    },
+  });
 
   function commit(nextOpen: number, nextPause: number) {
     const pairIsValid = (nextOpen > 0) === (nextPause > 0);
     if (!pairIsValid) return;
+    sentRef.current = { open: nextOpen, pause: nextPause };
     if (openInputRef.current) openInputRef.current.value = nextOpen > 0 ? String(nextOpen) : "";
     if (pauseInputRef.current) pauseInputRef.current.value = nextPause > 0 ? String(nextPause) : "";
     formRef.current?.requestSubmit();
@@ -423,6 +496,11 @@ function SetOutputAgendaScheduleForm({ output }: { output: BroadcastOutputRecord
 // encaixado logo abaixo da própria linha "Agenda" (não solto no card) — só faz sentido com a
 // agenda aberta, por isso continua condicional a drawerOpen.
 function OutputLayersSection({ output }: { output: BroadcastOutputRecord }) {
+  // Espelha o estado otimista do toggle "Agenda" só pra revelar/esconder o ciclo de pausa na hora
+  // (LayerToggleRow reporta via onCheckedChange) — sem revalidatePath, o prop output.drawerOpen não
+  // muda sozinho depois do clique. Revalidação estrutural remonta via `key` no OutputCard.
+  const [drawerOpen, setDrawerOpen] = useState(output.drawerOpen);
+
   return (
     <div className="space-y-2">
       <div>
@@ -435,12 +513,14 @@ function OutputLayersSection({ output }: { output: BroadcastOutputRecord }) {
           action={setOutputDrawerAction}
           fieldName="drawerOpen"
           checked={output.drawerOpen}
-          icon={output.drawerOpen ? <PanelRightClose className="size-4" /> : <PanelRightOpen className="size-4" />}
+          onCheckedChange={setDrawerOpen}
+          iconOn={<PanelRightClose className="size-4" />}
+          iconOff={<PanelRightOpen className="size-4" />}
           label="Agenda"
           description="Coluna lateral com os próximos eventos"
           tone="primary"
         />
-        {output.drawerOpen && (
+        {drawerOpen && (
           <div className="bg-muted/20 p-3 pl-13">
             <SetOutputAgendaScheduleForm output={output} />
           </div>
@@ -450,7 +530,8 @@ function OutputLayersSection({ output }: { output: BroadcastOutputRecord }) {
           action={setOutputFooterAction}
           fieldName="footerOpen"
           checked={output.footerOpen}
-          icon={output.footerOpen ? <PanelBottomClose className="size-4" /> : <PanelBottomOpen className="size-4" />}
+          iconOn={<PanelBottomClose className="size-4" />}
+          iconOff={<PanelBottomOpen className="size-4" />}
           label="Rodapé"
           description="Logo, relógio, data e temperatura"
           tone="accent"
@@ -460,9 +541,40 @@ function OutputLayersSection({ output }: { output: BroadcastOutputRecord }) {
           action={setOutputTickerAction}
           fieldName="tickerEnabled"
           checked={output.tickerEnabled}
-          icon={<ScrollText className="size-4" />}
+          iconOn={<ScrollText className="size-4" />}
+          iconOff={<ScrollText className="size-4" />}
           label="Ticker"
           description="Texto da agenda rolando no rodapé"
+          tone="warning"
+        />
+      </div>
+    </div>
+  );
+}
+
+// "Tela offline" (Fase 11) — chave mestra separada das camadas acima: liga uma tela de espera
+// branded no lugar do conteúdo inteiro, não é "mais uma camada". Reaproveita LayerToggleRow (mesmo
+// padrão otimista, sem revalidatePath — a TV troca via SSE), só numa lista própria com o rótulo/
+// contexto deixando claro o efeito (pedido explícito: "deixar claro o efeito na UI").
+function OutputStandbySection({ output }: { output: BroadcastOutputRecord }) {
+  return (
+    <div className="space-y-2">
+      <div>
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Exibição</p>
+        <p className="text-xs text-muted-foreground">
+          Com a tela offline, a TV mostra uma tela de espera com a marca do site — não o conteúdo.
+        </p>
+      </div>
+      <div className="overflow-hidden rounded-panel border border-border">
+        <LayerToggleRow
+          output={output}
+          action={setOutputOfflineAction}
+          fieldName="offline"
+          checked={output.offline}
+          iconOn={<PowerOff className="size-4" />}
+          iconOff={<Power className="size-4" />}
+          label="Tela offline"
+          description="Mostra uma tela de espera branded, não o conteúdo"
           tone="warning"
         />
       </div>
@@ -474,20 +586,42 @@ function OutputLayersSection({ output }: { output: BroadcastOutputRecord }) {
 // da decisão), null quando não configurado. Submeter vazio remove a proteção (setOutputPinAction
 // trata "" como null); pedido explícito: "as views devem ser todas públicas [...] protegidas por
 // PIN (pin cadastrado nas opções da view)".
-function SetOutputPinForm({ output }: { output: BroadcastOutputRecord }) {
-  const [state, formAction, pending] = useActionState(setOutputPinAction, initialState);
-  useActionToast({ pending, error: state.error, successMessage: "PIN atualizado." });
+function SetOutputPinForm({
+  output,
+  isProtected,
+  onSaved,
+}: {
+  output: BroadcastOutputRecord;
+  isProtected: boolean;
+  onSaved: (pin: string | null) => void;
+}) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const pinInputRef = useRef<HTMLInputElement>(null);
+
+  const [state, formAction, pending] = useActionState(setOutputPinAction, outputToggleInitialState);
+  // Sem revalidatePath — no sucesso, o painel colorido (OutputPinSection) reflete o novo estado a
+  // partir do valor digitado, e o campo é limpo pra não parecer que o PIN continua na fila.
+  useActionToast({
+    pending,
+    error: state.error,
+    successMessage: "PIN atualizado.",
+    onSuccess: () => {
+      onSaved(pinInputRef.current?.value?.trim() || null);
+      formRef.current?.reset();
+    },
+  });
 
   return (
-    <form action={formAction} className="flex flex-col items-start gap-2">
+    <form ref={formRef} action={formAction} className="flex flex-col items-start gap-2">
       <input type="hidden" name="outputId" value={output.id} />
       <Input
+        ref={pinInputRef}
         name="pin"
         type="text"
-        placeholder={output.pin ? "Trocar PIN..." : "Criar um PIN..."}
+        placeholder={isProtected ? "Trocar PIN..." : "Criar um PIN..."}
         className="w-32 bg-card"
       />
-      <Button type="submit" size="sm" variant={output.pin ? "outline" : "default"} disabled={pending}>Salvar</Button>
+      <Button type="submit" size="sm" variant={isProtected ? "outline" : "default"} disabled={pending}>Salvar</Button>
     </form>
   );
 }
@@ -498,7 +632,7 @@ function SetOutputPinForm({ output }: { output: BroadcastOutputRecord }) {
 // "o botão Remover não está conversando [...] use o ícone de lixeira e posicione no canto superior
 // direito" — mesmo lugar/estilo do botão de apagar tela no cabeçalho do card e do "Fechar preview"
 // da capa, em vez de um botão de texto solto ao lado do campo.
-function RemoveOutputPinButton({ outputId }: { outputId: string }) {
+function RemoveOutputPinButton({ outputId, onRemoved }: { outputId: string; onRemoved: () => void }) {
   return (
     <ConfirmDeleteButton
       action={setOutputPinAction}
@@ -511,6 +645,7 @@ function RemoveOutputPinButton({ outputId }: { outputId: string }) {
       label="Remover PIN"
       variant="ghost"
       className="absolute top-2 right-2"
+      onSuccess={onRemoved}
     />
   );
 }
@@ -532,8 +667,16 @@ function DeleteOutputButton({ outputId }: { outputId: string }) {
 // Global (não por saída) — aparece em toda saída, e some sozinho quando a duração passa; "Remover
 // agora" força isso antes do tempo, se precisar.
 function QuickAlertPanel() {
+  const publishFormRef = useRef<HTMLFormElement>(null);
   const [publishState, publishFormAction, publishPending] = useActionState(publishAlertAction, initialState);
-  useActionToast({ pending: publishPending, error: publishState.error, successMessage: "Aviso publicado." });
+  // Sem revalidatePath (a TV reage via SSE) — limpa o campo no sucesso pra não parecer que a
+  // mensagem já publicada continua na fila.
+  useActionToast({
+    pending: publishPending,
+    error: publishState.error,
+    successMessage: "Aviso publicado.",
+    onSuccess: () => publishFormRef.current?.reset(),
+  });
 
   const [clearState, clearFormAction, clearPending] = useActionState(clearAlertAction, initialState);
   useActionToast({ pending: clearPending, error: clearState.error, successMessage: "Aviso removido." });
@@ -544,7 +687,7 @@ function QuickAlertPanel() {
       <p className="text-xs text-muted-foreground">
         Aparece em cima do conteúdo (empurrando, sem cobrir nada) em qualquer tela, e some sozinho depois do tempo.
       </p>
-      <form action={publishFormAction} className="flex flex-wrap items-end gap-2">
+      <form ref={publishFormRef} action={publishFormAction} className="flex flex-wrap items-end gap-2">
         <div className="min-w-64 flex-1 space-y-1">
           <label className="text-xs text-muted-foreground" htmlFor="alert-message">Mensagem</label>
           <Input id="alert-message" name="message" placeholder="Reunião às 15h no auditório" required />
@@ -633,7 +776,11 @@ function OutputStatusRow({
 // tela — o mesmo sinal "precisa de atenção" já usado nos badges de status, aqui em escala de card
 // inteiro em vez de badge pequeno.
 function OutputPinSection({ output }: { output: BroadcastOutputRecord }) {
-  const isProtected = Boolean(output.pin);
+  // Estado otimista do PIN — sem revalidatePath, o painel reflete criar/trocar/remover na hora
+  // (SetOutputPinForm.onSaved / RemoveOutputPinButton.onRemoved). Revalidação estrutural remonta
+  // via `key` no OutputCard.
+  const [pin, setPin] = useState(output.pin);
+  const isProtected = Boolean(pin);
 
   return (
     <div
@@ -641,7 +788,7 @@ function OutputPinSection({ output }: { output: BroadcastOutputRecord }) {
         isProtected ? "border-success-border bg-success-soft" : "border-warning-border bg-warning-soft"
       }`}
     >
-      {isProtected && <RemoveOutputPinButton outputId={output.id} />}
+      {isProtected && <RemoveOutputPinButton outputId={output.id} onRemoved={() => setPin(null)} />}
       {isProtected ? (
         <ShieldCheck className="size-8 shrink-0 text-success" aria-hidden="true" />
       ) : (
@@ -658,9 +805,28 @@ function OutputPinSection({ output }: { output: BroadcastOutputRecord }) {
               : "Qualquer pessoa com o link abre esta tela. Considere proteger com um PIN."}
           </p>
         </div>
-        <SetOutputPinForm output={output} />
+        <SetOutputPinForm output={output} isProtected={isProtected} onSaved={setPin} />
+        {isProtected && <ResetOutputPinAttemptsButton outputId={output.id} />}
       </div>
     </div>
+  );
+}
+
+// "Liberar tentativas de PIN" — zera o limitador de brute force (runtime/pin-attempts.ts) desta
+// tela, todos os IPs de uma vez. Sempre visível quando a tela tem PIN (o contador é em memória, o
+// admin não tem como saber daqui se há um bloqueio ativo agora sem um poll dedicado — e o custo de
+// clicar sem bloqueio nenhum é zero). Não é destrutivo, então sem AlertDialog: um submit direto.
+function ResetOutputPinAttemptsButton({ outputId }: { outputId: string }) {
+  const [state, formAction, pending] = useActionState(resetOutputPinAttemptsAction, initialState);
+  useActionToast({ pending, error: state.error, successMessage: "Tentativas de PIN liberadas." });
+
+  return (
+    <form action={formAction}>
+      <input type="hidden" name="outputId" value={outputId} />
+      <Button type="submit" size="sm" variant="ghost" disabled={pending} className="text-success">
+        Liberar tentativas de PIN
+      </Button>
+    </form>
   );
 }
 
@@ -707,7 +873,6 @@ function OutputCard({
   output,
   playlists,
   currentPlaylistId,
-  playlistName,
   agendaNames,
   connectedIps,
   canManageAll,
@@ -715,12 +880,16 @@ function OutputCard({
   output: BroadcastOutputRecord;
   playlists: BroadcastPlaylistRecord[];
   currentPlaylistId: string | null;
-  playlistName: string | null;
   agendaNames: string[];
   connectedIps: string[];
   canManageAll: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  // Estado otimista da playlist da tela — a troca (SetOutputPlaylistForm) reflete no badge
+  // "Playlist:" e na faixa de status do card na hora, sem revalidatePath. Revalidação estrutural
+  // (create/delete/reorder) ainda recarrega a página e remonta o card via `key` (ver OutputsSection).
+  const [playlistId, setPlaylistId] = useState(currentPlaylistId);
+  const playlistName = playlists.find((playlist) => playlist.id === playlistId)?.name ?? null;
   const status = outputItemStatus(Boolean(playlistName));
 
   return (
@@ -752,7 +921,15 @@ function OutputCard({
           <div className="space-y-1.5">
             <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Playlist</p>
             <p className="text-xs text-muted-foreground">O que esta tela reproduz em sequência.</p>
-            <SetOutputPlaylistForm output={output} playlists={playlists} currentPlaylistId={currentPlaylistId} />
+            <SetOutputPlaylistForm
+              output={output}
+              playlists={playlists}
+              currentPlaylistId={playlistId}
+              onPlaylistChange={setPlaylistId}
+            />
+          </div>
+          <div className="border-t border-border/60 pt-4">
+            <OutputStandbySection output={output} />
           </div>
           <div className="border-t border-border/60 pt-4">
             <OutputLayersSection output={output} />
@@ -809,22 +986,20 @@ export function OutputsSection({
           e sem conteúdo pra preencher aquele espaço), feio esteticamente; cada card agora só
           ocupa a altura do próprio conteúdo. */}
       <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {outputs.map((output) => {
-          const currentPlaylistId = outputPlaylistById[output.id] ?? null;
-          const playlistName = playlists.find((playlist) => playlist.id === currentPlaylistId)?.name ?? null;
-          return (
-            <OutputCard
-              key={output.id}
-              output={output}
-              playlists={playlists}
-              currentPlaylistId={currentPlaylistId}
-              playlistName={playlistName}
-              agendaNames={agendaNamesByOutputId[output.id] ?? []}
-              connectedIps={connectedIpsByToken[output.token] ?? []}
-              canManageAll={canManageAll}
-            />
-          );
-        })}
+        {outputs.map((output) => (
+          // key inclui updatedAt: os toggles de controle ao vivo NÃO revalidam a página (guardam
+          // estado otimista local), então o card só deve remontar — descartando esse estado — quando
+          // uma revalidação estrutural (create/delete/reorder/settings) traz um registro novo.
+          <OutputCard
+            key={`${output.id}:${output.updatedAt.getTime()}`}
+            output={output}
+            playlists={playlists}
+            currentPlaylistId={outputPlaylistById[output.id] ?? null}
+            agendaNames={agendaNamesByOutputId[output.id] ?? []}
+            connectedIps={connectedIpsByToken[output.token] ?? []}
+            canManageAll={canManageAll}
+          />
+        ))}
       </div>
     </div>
   );

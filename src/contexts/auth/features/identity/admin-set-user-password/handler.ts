@@ -15,6 +15,17 @@ export async function adminSetUserPasswordHandler(
     };
   }
 
+  // Bootstrap: o instalador (scripts/install-fresh.ts) roda sem sessão e define a credencial do
+  // primeiro usuário — não há outro ator, então o próprio usuário consta como ator da operação.
+  // Mesmo racional do `bypassExistsCheck` de grant-superadmin/handler.ts.
+  if (input.bypassAuthorization) {
+    return adminSetUserPassword({
+      actorId: input.targetUserId,
+      targetUserId: input.targetUserId,
+      newPassword: input.newPassword,
+    });
+  }
+
   const authz = await authorizeActor("rbac.roles.manage");
   if (!authz.authorized) {
     return { success: false, error: authz.error };

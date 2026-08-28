@@ -1,1 +1,0 @@
-ALTER TABLE "broadcast"."agendas" ADD COLUMN "background_color" text;

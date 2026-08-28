@@ -32,5 +32,10 @@ export default async function BroadcastOutputPage({ params }: { params: Promise<
     notFound();
   }
 
+  // Tela offline (Fase 11): sem branch dedicado aqui de propósito. OutputCanvas é um client
+  // component SSR-renderizado com initialState — quando initialState.offline é true ele já emite o
+  // HTML da StandbyScreen no primeiro paint (sem flash de conteúdo), e continua sendo ele quem
+  // escuta o SSE pra voltar ao conteúdo quando o admin desliga o modo offline. Um return direto de
+  // <StandbyScreen> aqui quebraria justamente esse "voltar sozinho".
   return <OutputCanvas token={token} initialState={initialState.data} />;
 }

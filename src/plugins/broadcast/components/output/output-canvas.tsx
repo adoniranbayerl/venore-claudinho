@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 // Tipo importado direto da feature, não do barrel (@/plugins/broadcast) — mesmo racional de
 // layer-renderer.tsx: este é um "use client" component, e o barrel arrasta handlers server-only
 // pro bundle do browser.
 import type { BroadcastOutputState } from "@/plugins/broadcast/features/outputs/get-output-state/types";
+import {
+  resolveOutputStageTransform,
+  type OutputStageTransform,
+} from "@/plugins/broadcast/shared/output-stage";
 import { AlertBanner, LayerRenderer, useTimedAdvance } from "./layer-renderer";
+import { StandbyScreen } from "./standby-screen";
 
 // Duração da troca de cena é comportamento do plugin, não decisão de design de marca (mesmo
 // racional do GEOMETRY_TRANSITION em layer-renderer.tsx) — fica como constante local.
@@ -15,6 +20,15 @@ const SCENE_FADE_MS = 400;
 // bufferizando o stream, etc.) um evento não chegar, a TV nunca fica desatualizada por mais que
 // esse intervalo — não depende de ninguém apertar F5.
 const FALLBACK_POLL_MS = 15_000;
+
+// Detecção de desconexão 100% client-side (não muda o servidor): a cada DISCONNECT_CHECK_MS
+// comparamos "agora" com o último sync bem-sucedido (evento SSE `type:"state"` ou refetch HTTP
+// OK). Passou de DISCONNECTED_AFTER_MS sem nenhum sync → overlay StandbyScreen `disconnected`
+// sobre o último quadro; ao voltar a sincronizar some sozinho. 45s ≈ 3 ciclos do poll de
+// fallback (o heartbeat SSE são comentários `:`, que não disparam onmessage — por isso a régua é
+// o poll, não o heartbeat).
+const DISCONNECT_CHECK_MS = 5_000;
+const DISCONNECTED_AFTER_MS = 45_000;
 
 // Animação CSS pura (@keyframes broadcast-scene-fade, ver <style> abaixo), não mais um
 // useState+useEffect setando opacity depois do mount. Achado real: numa TV com engine JS
@@ -61,17 +75,65 @@ function useAgendaRotationSchedule(
   return phase === "showing";
 }
 
-export function OutputCanvas({ token, initialState }: { token: string; initialState: BroadcastOutputState }) {
-  const [state, setState] = useState(initialState);
+// Escala do palco de composição pro viewport real — ver shared/output-stage.ts pro racional
+// (por que `transform: scale` e não rem/em). Mede `window.innerWidth/innerHeight` (o viewport
+// onde a view É pintada), não `window.screen` (isso é do cálculo de largura da agenda em
+// layer-renderer.tsx, que tem outra exigência — estabilidade a F11).
+//
+// SSR-safe: começa no palco 1920x1080 sem escala (mesmo que resolveOutputStageTransform devolve
+// pra tela ainda-não-medida), então o primeiro paint já mostra a view composta, nunca em branco
+// — a primeira medição real roda num setTimeout(0), não síncrona no corpo do efeito (mesma
+// convenção de useZeroBarAgendaWidthPercent / react-hooks/set-state-in-effect).
+function useOutputStageTransform(): OutputStageTransform {
+  const [transform, setTransform] = useState<OutputStageTransform>(() => resolveOutputStageTransform(0, 0));
 
   useEffect(() => {
+    let cancelled = false;
+    const measure = () => {
+      if (cancelled) return;
+      setTransform(resolveOutputStageTransform(window.innerWidth, window.innerHeight));
+    };
+    const timeoutId = setTimeout(measure, 0);
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+
+  return transform;
+}
+
+export function OutputCanvas({ token, initialState }: { token: string; initialState: BroadcastOutputState }) {
+  const [state, setState] = useState(initialState);
+  // Último instante (epoch ms) em que o estado foi confirmado pelo servidor (SSE `type:"state"` ou
+  // refetch HTTP OK). Ref, não state — só o timer de checagem abaixo lê, nunca dispara render por
+  // si. Começa em 0 e é semeado com `Date.now()` dentro do efeito de montagem (nunca no corpo do
+  // render — `Date.now()` é impuro): o SSR já entregou um estado válido, então montar já conta
+  // como "sincronizado agora".
+  const lastSyncAtRef = useRef(0);
+  const [disconnected, setDisconnected] = useState(false);
+
+  useEffect(() => {
+    lastSyncAtRef.current = Date.now();
+
+    const markSynced = () => {
+      lastSyncAtRef.current = Date.now();
+      setDisconnected(false);
+    };
+
     const refetchState = async () => {
       try {
         const response = await fetch(`/api/broadcast/output/${token}/state`, { cache: "no-store" });
-        if (response.ok) setState(await response.json());
+        if (response.ok) {
+          setState(await response.json());
+          markSynced();
+        }
       } catch {
         // Uma falha pontual de refetch só deixa o quadro atual na tela até o próximo evento —
-        // EventSource já reconecta sozinho por spec, não precisa de retry manual aqui.
+        // EventSource já reconecta sozinho por spec, não precisa de retry manual aqui. O overlay
+        // de desconexão (useEffect abaixo) cobre a falha PROLONGADA.
       }
     };
 
@@ -89,6 +151,7 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
           const message = JSON.parse(event.data) as { type: string; state?: BroadcastOutputState };
           if (message.type === "state" && message.state) {
             setState(message.state);
+            markSynced();
             return;
           }
           void refetchState();
@@ -105,6 +168,16 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
       clearInterval(pollInterval);
     };
   }, [token]);
+
+  // Timer separado que só olha o relógio — não faz rede nenhuma, então não precisa remontar
+  // quando `token` muda nem conviver com o efeito de assinatura acima. setState idempotente
+  // (mesmo valor não re-renderiza), seguro pra rodar a cada DISCONNECT_CHECK_MS.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDisconnected(Date.now() - lastSyncAtRef.current > DISCONNECTED_AFTER_MS);
+    }, DISCONNECT_CHECK_MS);
+    return () => clearInterval(interval);
+  }, []);
 
   // "alert" nunca vem do mapa de layers normal — vira um irmão de altura natural no fim da coluna
   // flex (ver AlertBanner), pra empurrar o layout em vez de sobrepor (pedido explícito: "quando a
@@ -126,15 +199,19 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
     state.drawerOpen,
   );
 
+  const stage = useOutputStageTransform();
+
   return (
     // Fundo do canvas — pedido explícito: "altere o background da view [...] para #404040" (era
     // preto puro, bg-black), depois "pode clarear mais, deixa cinza" (#737373), depois "altere de
     // cinza para HSL 0 0 20%" (= #333333, hue/saturação 0 = cinza puro, só a luminosidade muda).
     // Hex direto via style, não className, mesmo racional do resto deste canvas (fora do
     // vocabulário de cor do tema shadcn de propósito).
-    <div className="fixed inset-0 flex flex-col overflow-hidden" style={{ background: "#333333" }}>
+    <div className="fixed inset-0 overflow-hidden" style={{ background: "#333333" }}>
       {/* Keyframes usados por AgendaLayer/AlertBanner/NewsSlideCard (layer-renderer.tsx) —
-          definidos uma vez aqui no root do canvas em vez de um <style> por instância de layer. */}
+          definidos uma vez aqui no root do canvas em vez de um <style> por instância de layer.
+          Fica FORA do palco escalado de propósito: @keyframes é global, a posição no DOM não
+          importa, e não faz sentido escalá-lo. */}
       <style>
         {"@keyframes broadcast-scene-fade { from { opacity: 0; } to { opacity: 1; } }" +
           "@keyframes broadcast-agenda-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }" +
@@ -147,39 +224,78 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
           "@keyframes broadcast-agenda-cascade-item { from { opacity: 0; transform: translateX(64px); } to { opacity: 1; transform: translateX(0); } }" +
           "@keyframes broadcast-alert-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }" +
           "@keyframes broadcast-news-title-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }" +
-          "@keyframes broadcast-news-parallax { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.1) translate(-2%, -2%); } }"}
+          "@keyframes broadcast-news-parallax { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.1) translate(-2%, -2%); } }" +
+          // "Respiração" lenta da StandbyScreen (Fase 11) — ciclo longo, variação mínima de
+          // opacidade/escala: própria pra ficar horas ligada numa TV sem virar um pulso agressivo
+          // nem um spinner.
+          "@keyframes broadcast-standby-breathe { 0%, 100% { opacity: 0.82; transform: scale(1); } 50% { opacity: 1; transform: scale(1.015); } }"}
       </style>
-      {/* Região que hospeda as camadas posicionadas por percentual (video/agenda/etc) — altura
-          FLEXÍVEL (min-h-0 flex-1), encolhe sozinha quando o alerta abaixo ocupa espaço, sem
-          precisar de nenhum cálculo manual de "altura restante": os `left/top/width/height: %` de
-          cada LayerRenderer já são relativos a esta caixa, não à tela inteira. O footer não mora
-          mais aqui em cima (canvas inteiro) — foi pra dentro da própria camada "video" (ver
-          VideoZoneLayer em layer-renderer.tsx), pra só ocupar a largura do vídeo, nunca a da
-          agenda — pedido explícito: "o Footer fica APENAS na parte da view do Vídeo, a Agenda vai
-          do canto superior até o inferior". */}
-      <div className="relative min-h-0 flex-1 overflow-hidden">
-        <SceneFade key={state.scene?.id ?? "empty"}>
-          {contentLayers.map((layer) => (
-            <LayerRenderer
-              key={layer.id}
-              layer={layer}
-              drawerOpen={effectiveDrawerOpen}
-              playlistItemsByPlaylistId={state.playlistItemsByPlaylistId}
-              resolvedAssetUrlByLayerId={state.resolvedAssetUrlByLayerId}
-              regionWeather={state.regionWeather}
-              regionNews={state.regionNews}
-              agendaRotation={state.agendaRotation}
-              brandLogoUrl={state.brandLogoUrl}
-              brandColor={state.brandColor}
-              agendaAnimationStyle={state.agendaAnimationStyle}
-              agendaViewSize={state.agendaViewSize}
-              footerOpen={state.footerOpen}
-              tickerEnabled={state.tickerEnabled}
-            />
-          ))}
-        </SceneFade>
+      {/* Palco de composição: largura de referência FIXA (OUTPUT_STAGE_WIDTH_PX) + altura na
+          proporção do viewport, escalado uniformemente pro tamanho real da tela via
+          `transform: scale` — ver shared/output-stage.ts. Toda a régua interna (%, px, classes
+          Tailwind de layer-renderer.tsx) é relativa a este palco, então 720p / 1080p / 4K
+          renderizam o MESMO layout, só escalado. `flex flex-col` (antes no root fixed) vive aqui
+          agora: a região de camadas e o AlertBanner se empilham DENTRO do palco. `origin-top-left`
+          + palco cobrindo exatamente o viewport = o #333 do fundo só apareceria em arredondamento
+          sub-pixel. */}
+      <div
+        className="absolute top-0 left-0 flex flex-col overflow-hidden"
+        style={{
+          width: `${stage.stageWidthPx}px`,
+          height: `${stage.stageHeightPx}px`,
+          transform: `scale(${stage.scale})`,
+          transformOrigin: "top left",
+        }}
+      >
+        {/* Tela offline ligada pelo admin (state.offline, via SSE "offline-changed") — a
+            StandbyScreen toma o lugar do conteúdo INTEIRO do palco (camadas + AlertBanner), não
+            um overlay: enquanto está offline não há conteúdo nenhum atrás pra mostrar. Volta ao
+            desligar, sem reload (o próprio evento SSE já traz state.offline=false). */}
+        {state.offline ? (
+          <StandbyScreen reason="admin" brandLogoUrl={state.brandLogoUrl} brandColor={state.brandColor} />
+        ) : (
+          <>
+            {/* Região que hospeda as camadas posicionadas por percentual (video/agenda/etc) —
+                altura FLEXÍVEL (min-h-0 flex-1), encolhe sozinha quando o alerta abaixo ocupa
+                espaço, sem precisar de nenhum cálculo manual de "altura restante": os
+                `left/top/width/height: %` de cada LayerRenderer já são relativos a esta caixa, não
+                à tela inteira. O footer não mora mais aqui em cima (canvas inteiro) — foi pra
+                dentro da própria camada "video" (ver VideoZoneLayer em layer-renderer.tsx), pra só
+                ocupar a largura do vídeo, nunca a da agenda — pedido explícito: "o Footer fica
+                APENAS na parte da view do Vídeo, a Agenda vai do canto superior até o inferior". */}
+            <div className="relative min-h-0 flex-1 overflow-hidden">
+              <SceneFade key={state.scene?.id ?? "empty"}>
+                {contentLayers.map((layer) => (
+                  <LayerRenderer
+                    key={layer.id}
+                    layer={layer}
+                    drawerOpen={effectiveDrawerOpen}
+                    playlistItemsByPlaylistId={state.playlistItemsByPlaylistId}
+                    resolvedAssetUrlByLayerId={state.resolvedAssetUrlByLayerId}
+                    regionWeather={state.regionWeather}
+                    regionNews={state.regionNews}
+                    agendaRotation={state.agendaRotation}
+                    brandLogoUrl={state.brandLogoUrl}
+                    brandColor={state.brandColor}
+                    agendaAnimationStyle={state.agendaAnimationStyle}
+                    agendaViewSize={state.agendaViewSize}
+                    footerOpen={state.footerOpen}
+                    tickerEnabled={state.tickerEnabled}
+                    timeZone={state.timeZone}
+                  />
+                ))}
+              </SceneFade>
+            </div>
+            <AlertBanner message={state.activeAlertMessage} />
+          </>
+        )}
+        {/* Overlay de desconexão — SOBRE o último quadro (não substitui como o offline), sai
+            sozinho quando a sincronização volta. Não faz sentido empilhar com a tela offline (que
+            já é uma StandbyScreen própria e não depende de sync pra estar correta). */}
+        {disconnected && !state.offline && (
+          <StandbyScreen reason="disconnected" brandLogoUrl={state.brandLogoUrl} brandColor={state.brandColor} />
+        )}
       </div>
-      <AlertBanner message={state.activeAlertMessage} />
     </div>
   );
 }

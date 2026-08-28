@@ -17,10 +17,11 @@ import {
   deleteOutput,
   deletePlaylist,
   deletePlaylistItem,
-  getConnectedOutputIps,
+  listConnectedOutputIps,
   publishAlert,
   reorderAgendas,
   reorderPlaylistItems,
+  resetOutputPinAttempts,
   scanPlaylistFolder,
   setAgendaEditors,
   setAgendaOutputs,
@@ -28,6 +29,7 @@ import {
   setOutputDrawer,
   setOutputEditors,
   setOutputFooter,
+  setOutputOffline,
   setOutputPin,
   setOutputPlaylist,
   setOutputTicker,
@@ -40,8 +42,24 @@ import {
 } from "@/plugins/broadcast";
 import { getSetting, setSetting } from "@/contexts/settings";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
+import { isValidTimeZone, normalizeTimeZone, parseWallTimeInZone } from "@/plugins/broadcast/shared/timezone";
+import type { BroadcastOutputRecord } from "@/plugins/broadcast/contracts/types";
 
 export type BroadcastActionState = { error: string | null };
+
+// Toggles de controle ao vivo de UMA tela (agenda/rodapé/ticker/ciclo/playlist/PIN) NÃO chamam
+// revalidatePath: re-executar o loader inteiro de BroadcastAdminPage (~15 queries + resolução de
+// mídia, ver routes/admin/page.tsx) a cada clique deixava o controle ao vivo lento. Em vez disso a
+// action devolve o registro atualizado da saída e o componente de seção reflete o clique na hora
+// (estado otimista), confirmado por este retorno. A TV continua reagindo via SSE
+// (publishOutputEvent dentro do service), independente do admin. create/delete/reorder/editors/
+// settings continuam com revalidatePath — mudam a ESTRUTURA da página, não só um widget.
+export type BroadcastOutputToggleState = { error: string | null; output: BroadcastOutputRecord | null };
+
+// setOutputPlaylist não expõe a playlist no BroadcastOutputRecord (mora na config da camada de
+// vídeo, ver resolve-output-playlist-ids.ts) — a action só ecoa o id recebido pro componente
+// confirmar o valor que já aplicou de forma otimista.
+export type SetOutputPlaylistState = { error: string | null; playlistId: string | null };
 
 const returnTo = "/admin/broadcast";
 const PLUGIN_DISABLED_ERROR = "O plugin Broadcast Studio está desabilitado.";
@@ -65,13 +83,14 @@ function optionalNumber(formData: FormData, field: string): number | null {
 }
 
 // "" (campo de término vazio, opcional) vira undefined — mesmo racional de optionalNumber, mas
-// pra data. new Date(datetimeLocalString) interpreta como hora LOCAL (sem timezone no formato
-// "YYYY-MM-DDTHH:mm", regra do próprio spec de Date), mesmo comportamento já usado pro startAt.
-function optionalDate(formData: FormData, field: string): Date | undefined {
+// pra data. A string "YYYY-MM-DDTHH:mm" do <input datetime-local> é interpretada como hora de
+// PAREDE no fuso da instituição (broadcast.timezone) e convertida pra instante UTC — nunca mais
+// `new Date(raw)`, que dependia do fuso do processo do servidor. Mesmo tratamento do startAt.
+function optionalDateInZone(formData: FormData, field: string, timeZone: string): Date | undefined {
   const raw = requireString(formData, field);
   if (!raw) return undefined;
-  const value = new Date(raw);
-  return Number.isNaN(value.getTime()) ? undefined : value;
+  const value = parseWallTimeInZone(raw, timeZone);
+  return value && !Number.isNaN(value.getTime()) ? value : undefined;
 }
 
 export async function createPlaylistAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
@@ -311,86 +330,107 @@ export async function createOutputAction(_prevState: BroadcastActionState, formD
 
 // Troca qual playlist a camada de vídeo da saída toca — único jeito de mudar "o que passa" depois
 // que a saída já foi criada, já que não existe mais tela de cenas/camadas.
-export async function setOutputPlaylistAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
-  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+export async function setOutputPlaylistAction(_prevState: BroadcastActionState, formData: FormData): Promise<SetOutputPlaylistState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR, playlistId: null };
 
+  const playlistId = requireString(formData, "playlistId");
   const result = await setOutputPlaylist({
     outputId: requireString(formData, "outputId"),
-    playlistId: requireString(formData, "playlistId"),
+    playlistId,
   });
-  if (!result.success) return { error: result.error.message };
+  if (!result.success) return { error: result.error.message, playlistId: null };
 
-  revalidatePath(returnTo);
-  return { error: null };
+  return { error: null, playlistId };
 }
 
-export async function setOutputDrawerAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
-  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+export async function setOutputDrawerAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastOutputToggleState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR, output: null };
 
   const result = await setOutputDrawer({
     outputId: requireString(formData, "outputId"),
     drawerOpen: formData.get("drawerOpen") === "true",
   });
-  if (!result.success) return { error: result.error.message };
+  if (!result.success) return { error: result.error.message, output: null };
 
-  revalidatePath(returnTo);
-  return { error: null };
+  return { error: null, output: result.data };
 }
 
 // "" (campo vazio) ou "0" viram null — mesmo racional de SetOutputPinForm/RemoveOutputPinButton
 // (campo vazio remove a configuração, não é erro). Os dois campos formam um par (ver
 // service.ts) — o form sempre manda os dois juntos.
-export async function setOutputAgendaScheduleAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
-  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+export async function setOutputAgendaScheduleAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastOutputToggleState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR, output: null };
 
   const result = await setOutputAgendaSchedule({
     outputId: requireString(formData, "outputId"),
     agendaOpenSeconds: optionalNumber(formData, "agendaOpenSeconds"),
     agendaPauseSeconds: optionalNumber(formData, "agendaPauseSeconds"),
   });
-  if (!result.success) return { error: result.error.message };
+  if (!result.success) return { error: result.error.message, output: null };
 
-  revalidatePath(returnTo);
-  return { error: null };
+  return { error: null, output: result.data };
 }
 
-export async function setOutputFooterAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
-  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+export async function setOutputFooterAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastOutputToggleState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR, output: null };
 
   const result = await setOutputFooter({
     outputId: requireString(formData, "outputId"),
     footerOpen: formData.get("footerOpen") === "true",
   });
-  if (!result.success) return { error: result.error.message };
+  if (!result.success) return { error: result.error.message, output: null };
 
-  revalidatePath(returnTo);
-  return { error: null };
+  return { error: null, output: result.data };
 }
 
-export async function setOutputTickerAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
-  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+export async function setOutputTickerAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastOutputToggleState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR, output: null };
 
   const result = await setOutputTicker({
     outputId: requireString(formData, "outputId"),
     tickerEnabled: formData.get("tickerEnabled") === "true",
   });
-  if (!result.success) return { error: result.error.message };
+  if (!result.success) return { error: result.error.message, output: null };
 
-  revalidatePath(returnTo);
-  return { error: null };
+  return { error: null, output: result.data };
+}
+
+// Tela de espera branded ligada de propósito pelo admin (Fase 11) — mesmo padrão otimista dos
+// toggles acima (sem revalidatePath, devolve o registro atualizado; a TV troca via SSE).
+export async function setOutputOfflineAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastOutputToggleState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR, output: null };
+
+  const result = await setOutputOffline({
+    outputId: requireString(formData, "outputId"),
+    offline: formData.get("offline") === "true",
+  });
+  if (!result.success) return { error: result.error.message, output: null };
+
+  return { error: null, output: result.data };
 }
 
 // "" (campo vazio, ou o form dedicado de RemoveOutputPinButton) vira null — remove a proteção.
-export async function setOutputPinAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
-  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+export async function setOutputPinAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastOutputToggleState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR, output: null };
 
   const result = await setOutputPin({
     outputId: requireString(formData, "outputId"),
     pin: requireString(formData, "pin") || null,
   });
+  if (!result.success) return { error: result.error.message, output: null };
+
+  return { error: null, output: result.data };
+}
+
+// Libera o limitador de tentativas de PIN (brute force) desta tela — zera o contador em memória de
+// todos os IPs do token. Sem revalidatePath: nada muda na estrutura da página, o feedback é só o
+// toast (ver OutputPinSection em outputs-section.tsx).
+export async function resetOutputPinAttemptsAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await resetOutputPinAttempts({ outputId: requireString(formData, "outputId") });
   if (!result.success) return { error: result.error.message };
 
-  revalidatePath(returnTo);
   return { error: null };
 }
 
@@ -527,8 +567,11 @@ export async function deleteAgendaAction(_prevState: BroadcastActionState, formD
 export async function createAgendaEventAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
   if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
 
-  const startAtRaw = requireString(formData, "startAt");
-  const startAt = new Date(startAtRaw);
+  // Hora de parede digitada no admin → instante UTC, interpretada no fuso da instituição
+  // (broadcast.timezone). `new Date(NaN)` quando a string está vazia/malformada — o validador da
+  // feature devolve "data inválida" a partir daí, como já fazia com `new Date("")`.
+  const timeZone = await getBroadcastTimezone();
+  const startAt = parseWallTimeInZone(requireString(formData, "startAt"), timeZone) ?? new Date(NaN);
 
   const result = await createAgendaEvent({
     agendaId: requireString(formData, "agendaId"),
@@ -536,7 +579,7 @@ export async function createAgendaEventAction(_prevState: BroadcastActionState, 
     description: requireString(formData, "description") || undefined,
     startAt,
     recurring: formData.get("recurring") === "on",
-    endAt: optionalDate(formData, "endAt"),
+    endAt: optionalDateInZone(formData, "endAt", timeZone),
     coverMediaAssetId: requireString(formData, "coverMediaAssetId") || undefined,
     location: requireString(formData, "location") || undefined,
   });
@@ -549,8 +592,8 @@ export async function createAgendaEventAction(_prevState: BroadcastActionState, 
 export async function updateAgendaEventAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
   if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
 
-  const startAtRaw = requireString(formData, "startAt");
-  const startAt = new Date(startAtRaw);
+  const timeZone = await getBroadcastTimezone();
+  const startAt = parseWallTimeInZone(requireString(formData, "startAt"), timeZone) ?? new Date(NaN);
 
   const result = await updateAgendaEvent({
     eventId: requireString(formData, "eventId"),
@@ -558,7 +601,7 @@ export async function updateAgendaEventAction(_prevState: BroadcastActionState, 
     description: requireString(formData, "description") || undefined,
     startAt,
     recurring: formData.get("recurring") === "on",
-    endAt: optionalDate(formData, "endAt"),
+    endAt: optionalDateInZone(formData, "endAt", timeZone),
     coverMediaAssetId: requireString(formData, "coverMediaAssetId") || undefined,
     location: requireString(formData, "location") || undefined,
   });
@@ -587,7 +630,9 @@ export async function publishAlertAction(_prevState: BroadcastActionState, formD
   });
   if (!result.success) return { error: result.error.message };
 
-  revalidatePath(returnTo);
+  // Sem revalidatePath — o aviso é global e a TV já reage via SSE (publishAlert/service.ts empurra
+  // "alert-changed" pra todos os tokens). Não há widget de aviso ativo no admin pra sincronizar, e
+  // recarregar a página inteira aqui era justamente o que deixava o controle ao vivo lento.
   return { error: null };
 }
 
@@ -600,7 +645,8 @@ export async function clearAlertAction(): Promise<BroadcastActionState> {
   const result = await clearAlert();
   if (!result.success) return { error: result.error.message };
 
-  revalidatePath(returnTo);
+  // Sem revalidatePath — mesmo racional de publishAlertAction: a TV reage via SSE, nada no admin
+  // depende de um reload pra refletir a remoção.
   return { error: null };
 }
 
@@ -665,6 +711,24 @@ export async function updateBroadcastAgendaViewSizeAction(
   return { error: null };
 }
 
+export async function updateBroadcastTimezoneAction(
+  _prevState: BroadcastActionState,
+  formData: FormData,
+): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  // Só aceita um id IANA que o runtime reconhece — o <select> da tela admin já oferece só esses,
+  // isto é a defesa contra um POST forjado com lixo.
+  const value = requireString(formData, "timezone");
+  if (!isValidTimeZone(value)) return { error: "Fuso horário inválido." };
+
+  const result = await setSetting({ key: BROADCAST_SETTINGS.timezone.key, value });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
 export async function updateBroadcastNewsExcludeKeywordsAction(
   _prevState: BroadcastActionState,
   formData: FormData,
@@ -708,12 +772,23 @@ export async function getBroadcastNewsExcludeKeywords(): Promise<string> {
   return result.success && typeof result.data?.value === "string" ? result.data.value : "";
 }
 
+// Sempre devolve um id IANA válido (default "America/Sao_Paulo" quando não configurado/inválido) —
+// mesma normalização usada pelo service da view de saída (get-output-state).
+export async function getBroadcastTimezone(): Promise<string> {
+  const result = await getSetting({ key: BROADCAST_SETTINGS.timezone.key });
+  return normalizeTimeZone(result.success ? result.data?.value : null);
+}
+
 // IPs conectados agora mesmo, por token — pedido explícito: "vamos criar um sistema em que mostra
 // também a quantidade de TVs conectadas" + depois "quero poder saber qual é a TV que conectou.
 // Pode ser com o dado de IP local". Chamado direto pelo client (useEffect com polling, ver
 // outputs-section.tsx), não por um <form>/useActionState — é só leitura, sem prevState/FormData
-// pra combinar. getConnectedOutputIps em si não faz I/O nenhum (lê um Map em memória), então não
-// precisa de try/catch nem de OperationResult aqui.
+// pra combinar. Passa pelo handler (authorizeActor("broadcast.manage")) em vez de ler o bus
+// direto: um POST sem sessão de admin volta {} em vez de vazar a lista de IPs. O formato de
+// retorno (Record) fica igual pro client — a action desembrulha o OperationResult aqui.
 export async function getConnectedOutputIpsAction(): Promise<Record<string, string[]>> {
-  return getConnectedOutputIps();
+  if (!(await isPluginActive("broadcast"))) return {};
+
+  const result = await listConnectedOutputIps();
+  return result.success ? result.data : {};
 }

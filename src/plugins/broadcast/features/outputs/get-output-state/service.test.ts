@@ -85,6 +85,7 @@ describe("getOutputState", () => {
       id: "o1",
       drawerOpen: false,
       footerOpen: false,
+      offline: false,
       tickerEnabled: false,
       agendaOpenSeconds: null,
       agendaPauseSeconds: null,
@@ -100,6 +101,7 @@ describe("getOutputState", () => {
         outputId: "o1",
         drawerOpen: false,
         footerOpen: false,
+        offline: false,
         tickerEnabled: false,
         scene: null,
         layers: [],
@@ -113,6 +115,7 @@ describe("getOutputState", () => {
         brandColor: "#111",
         agendaAnimationStyle: "fade",
         agendaViewSize: "grande",
+        timeZone: "America/Sao_Paulo",
         agendaOpenSeconds: null,
         agendaPauseSeconds: null,
       },
@@ -358,6 +361,39 @@ describe("getOutputState", () => {
     const result = await getOutputState({ token: "tok-1" });
 
     expect(result.success && result.data.brandColor).toBe("#111");
+  });
+
+  it("carries the offline flag through and resolves brand logo + color for the standby screen even with the footer closed", async () => {
+    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: false, footerOpen: false, offline: true, currentSceneId: "s1" });
+    findSceneById.mockResolvedValue({ id: "s1", name: "Principal" });
+    findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "video", config: { playlistId: "p1" } }]);
+    findVisiblePlaylistItemsByPlaylistId.mockResolvedValue([]);
+    getBrandConfig.mockResolvedValue({ logoUrl: "https://example.com/logo.png" });
+    getSetting.mockResolvedValue({ success: true, data: { value: "#221100" } });
+
+    const { getOutputState } = await import("./service");
+    const result = await getOutputState({ token: "tok-1" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.offline).toBe(true);
+    expect(result.data.brandLogoUrl).toBe("https://example.com/logo.png");
+    expect(result.data.brandColor).toBe("#221100");
+  });
+
+  it("defaults offline to false and does not resolve brand logo for the standby screen when the output is online with the footer closed", async () => {
+    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: false, footerOpen: false, offline: false, currentSceneId: "s1" });
+    findSceneById.mockResolvedValue({ id: "s1", name: "Principal" });
+    findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "video", config: { playlistId: "p1" } }]);
+    findVisiblePlaylistItemsByPlaylistId.mockResolvedValue([]);
+
+    const { getOutputState } = await import("./service");
+    const result = await getOutputState({ token: "tok-1" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.offline).toBe(false);
+    expect(getBrandConfig).not.toHaveBeenCalled();
   });
 
   it("skips agenda resolution when the agenda sidebar is closed (drawerOpen=false), even with an agenda layer present", async () => {

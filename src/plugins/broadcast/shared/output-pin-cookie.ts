@@ -18,11 +18,14 @@ export async function readOutputPinCookie(token: string): Promise<string | null>
 }
 
 // Só chamável de dentro de uma Server Action (routes/out/actions.ts) — Server Component em modo de
-// leitura não pode escrever cookie.
+// leitura não pode escrever cookie. O valor é o PIN que a TV digitou (não o hash): cada request
+// seguinte reenvia esse cookie como `candidate` e verify-output-pin re-confere contra o hash da
+// coluna. `secure: true` — o cookie só trafega em HTTPS (a saída de TV deve rodar atrás de TLS).
 export async function setOutputPinCookie(token: string, pin: string): Promise<void> {
   const store = await cookies();
   store.set(outputPinCookieName(token), pin, {
     httpOnly: true,
+    secure: true,
     sameSite: "lax",
     path: "/",
     maxAge: ONE_YEAR_SECONDS,
