@@ -13,6 +13,7 @@ import {
   listSectorMembers,
   listSectors,
   listTargets,
+  listTvBoards,
   type CompanyMetricsAccess,
   type SectorListItem,
 } from "@/plugins/company-metrics";
@@ -22,6 +23,7 @@ import { bucketStart, zonedCivilDate } from "@/plugins/company-metrics/shared/pe
 import { isValidCivilDate } from "@/plugins/company-metrics/shared/period";
 import { normalizeTimeZone } from "@/plugins/company-metrics/shared/settings";
 import { AdminTabs } from "./admin-tabs";
+import { ApresentacaoView } from "./apresentacao-view";
 import { LancamentosView } from "./lancamentos-view";
 import { MetasView } from "./metas-view";
 import { MetricasView } from "./metricas-view";
@@ -62,12 +64,14 @@ export default async function CompanyMetricsAdminPage({
 
   const canSeeMetricas = canManage || access.adminSectorIds.length > 0;
   const canSeeLancamentos = canManage || access.contributorSectorIds.length > 0;
+  const canConfigureTv = canManage || access.adminSectorIds.length > 0;
 
   const tabs: { key: string; label: string }[] = [];
   if (canManage) tabs.push({ key: "setores", label: "Setores" });
   if (canSeeMetricas) tabs.push({ key: "metricas", label: "Métricas" });
   if (canSeeMetricas) tabs.push({ key: "metas", label: "Metas" });
   if (canSeeLancamentos) tabs.push({ key: "lançamentos", label: "Lançamentos" });
+  if (canConfigureTv) tabs.push({ key: "apresentação", label: "Apresentação" });
 
   const activeTab = tabs.some((tab) => tab.key === first(params.tab)) ? first(params.tab)! : tabs[0]?.key;
 
@@ -124,6 +128,7 @@ export default async function CompanyMetricsAdminPage({
               canContribute={canManage || (activeSectorId ? access.contributorSectorIds.includes(activeSectorId) : false)}
             />
           )}
+          {activeTab === "apresentação" && <ApresentacaoTab sectorOptions={sectorOptions} />}
         </>
       )}
     </div>
@@ -244,6 +249,27 @@ async function MetasTab({
       inputsByTarget={inputsByTarget}
       definitions={definitionsResult.success ? definitionsResult.data : []}
       canConfigure={canConfigure}
+    />
+  );
+}
+
+async function ApresentacaoTab({ sectorOptions }: { sectorOptions: { id: string; name: string }[] }) {
+  const [boardsResult, targetsResult] = await Promise.all([listTvBoards(), listTargets({ includeArchived: false })]);
+
+  const sectorNameById = new Map(sectorOptions.map((sector) => [sector.id, sector.name]));
+  const targetOptions = targetsResult.success
+    ? targetsResult.data.map((entry) => ({
+        id: entry.target.id,
+        label: entry.target.label,
+        sectorName: sectorNameById.get(entry.target.sectorId) ?? "setor",
+      }))
+    : [];
+
+  return (
+    <ApresentacaoView
+      boards={boardsResult.success ? boardsResult.data : []}
+      sectors={sectorOptions}
+      targets={targetOptions}
     />
   );
 }

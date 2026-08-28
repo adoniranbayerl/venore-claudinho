@@ -207,3 +207,46 @@ export const targetInputs = companyMetricsSchema.table(
     ),
   ],
 );
+
+// Fase 5 — telas de TV (§6). Um board = uma "playlist de telas" para uma TV, com token próprio
+// (acesso sem login, mesma regra de broadcast/enrollment). O Broadcast consome
+// /company-metrics/tv/{token} como item de playlist "webpage".
+export const tvBoards = companyMetricsSchema.table(
+  "tv_boards",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    token: text("token")
+      .notNull()
+      .$defaultFn(() => crypto.randomUUID().replace(/-/g, "")),
+    label: text("label").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("company_metrics_tv_boards_token_idx").on(table.token)],
+);
+
+// Uma tela dentro de um board (o que rotaciona no telão). kind decide o conteúdo:
+// - overview: semáforo de todos os setores (não usa sector_id/target_id)
+// - sector_kpis: as métricas de um setor (usa sector_id)
+// - target_board: o painel de uma meta (usa target_id)
+export const tvScreens = companyMetricsSchema.table(
+  "tv_screens",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    boardId: text("board_id")
+      .notNull()
+      .references(() => tvBoards.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    sectorId: text("sector_id").references(() => sectors.id, { onDelete: "set null" }),
+    targetId: text("target_id").references(() => targets.id, { onDelete: "set null" }),
+    dwellSeconds: integer("dwell_seconds").notNull().default(20),
+    position: integer("position").notNull().default(0),
+  },
+  (table) => [
+    check("company_metrics_tv_screens_kind_check", sql`${table.kind} in ('overview','sector_kpis','target_board')`),
+  ],
+);

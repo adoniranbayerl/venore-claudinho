@@ -139,6 +139,63 @@ export type TargetRollupView = {
   rollup: TargetRollup;
 };
 
+// --- Fase 5: telas de TV ---
+
+export const TV_SCREEN_KINDS = ["overview", "sector_kpis", "target_board"] as const;
+export type TvScreenKind = (typeof TV_SCREEN_KINDS)[number];
+
+export type TvBoardRecord = {
+  id: string;
+  token: string;
+  label: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type TvScreenRecord = {
+  id: string;
+  boardId: string;
+  kind: TvScreenKind;
+  sectorId: string | null;
+  targetId: string | null;
+  dwellSeconds: number;
+  position: number;
+};
+
+export type TvBoardWithScreens = { board: TvBoardRecord; screens: TvScreenRecord[] };
+
+export type SectorOverviewLite = {
+  name: string;
+  targetCount: number;
+  statusCounts: Record<TargetRollupStatus, number>;
+  averageCompletion: number | null;
+};
+
+// Tela já resolvida para renderizar no telão (get-tv-board, sem auth — acesso por token).
+export type ResolvedTvScreen =
+  | { id: string; kind: "overview"; dwellSeconds: number; sectors: SectorOverviewLite[] }
+  | { id: string; kind: "sector_kpis"; dwellSeconds: number; sectorName: string; metrics: MetricSeriesLite[] }
+  | {
+      id: string;
+      kind: "target_board";
+      dwellSeconds: number;
+      label: string;
+      unit: MetricUnit;
+      periodStart: string;
+      periodEnd: string;
+      rollup: TargetRollup;
+    };
+
+export type MetricSeriesLite = {
+  label: string;
+  unit: MetricUnit;
+  direction: MetricDirection;
+  granularity: MetricDefinitionGranularity;
+  points: { periodStart: string; value: number }[];
+};
+
+export type TvBoardView = { label: string; screens: ResolvedTvScreen[] };
+
 // Delegação: quem pode o quê num setor. `userId` é texto solto sem FK (plugin não importa
 // contexts/auth/database/schema — regra 7/8 do AGENTS.md); nome/e-mail resolvidos via
 // @/contexts/auth (listUsers). Estar aqui não substitui a permission company-metrics.contribute —

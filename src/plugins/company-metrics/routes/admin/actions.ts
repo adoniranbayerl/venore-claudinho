@@ -9,9 +9,12 @@ import {
   createSector,
   createSectorGroup,
   createTarget,
+  createTvBoard,
   deleteSectorGroup,
   deleteTarget,
+  deleteTvBoard,
   setSectorMembers,
+  setTvScreens,
   updateMetricDefinition,
   updateSector,
   updateSectorGroup,
@@ -19,6 +22,7 @@ import {
   upsertMetricValue,
   type SectorMemberAssignment,
   type TargetInputDraft,
+  type TvScreenDraft,
 } from "@/plugins/company-metrics";
 import {
   METRIC_AGGREGATIONS,
@@ -27,12 +31,14 @@ import {
   METRIC_UNITS,
   SECTOR_MEMBER_ROLES,
   TARGET_CLASSIFICATIONS,
+  TV_SCREEN_KINDS,
   type MetricAggregation,
   type MetricDefinitionGranularity,
   type MetricDirection,
   type MetricUnit,
   type SectorMemberRole,
   type TargetClassification,
+  type TvScreenKind,
 } from "@/plugins/company-metrics/contracts/types";
 
 export type CompanyMetricsActionState = { error: string | null };
@@ -357,6 +363,70 @@ export async function deleteTargetAction(
   if (!(await isPluginActive("company-metrics"))) return { error: PLUGIN_DISABLED_ERROR };
 
   const result = await deleteTarget({ targetId: String(formData.get("targetId") ?? "") });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(RETURN_TO);
+  return { error: null };
+}
+
+// --- Fase 5: telas de TV ---
+
+export async function createTvBoardAction(
+  _prev: CompanyMetricsActionState,
+  formData: FormData,
+): Promise<CompanyMetricsActionState> {
+  if (!(await isPluginActive("company-metrics"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await createTvBoard({ label: String(formData.get("label") ?? "") });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(RETURN_TO);
+  return { error: null };
+}
+
+export async function deleteTvBoardAction(
+  _prev: CompanyMetricsActionState,
+  formData: FormData,
+): Promise<CompanyMetricsActionState> {
+  if (!(await isPluginActive("company-metrics"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await deleteTvBoard({ boardId: String(formData.get("boardId") ?? "") });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(RETURN_TO);
+  return { error: null };
+}
+
+function parseScreens(raw: string): TvScreenDraft[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw || "[]");
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object")
+    .map((entry) => ({
+      kind: (TV_SCREEN_KINDS as readonly string[]).includes(String(entry.kind))
+        ? (String(entry.kind) as TvScreenKind)
+        : ("overview" as TvScreenKind),
+      sectorId: entry.sectorId ? String(entry.sectorId) : null,
+      targetId: entry.targetId ? String(entry.targetId) : null,
+      dwellSeconds: Number(entry.dwellSeconds) || 20,
+    }));
+}
+
+export async function setTvScreensAction(
+  _prev: CompanyMetricsActionState,
+  formData: FormData,
+): Promise<CompanyMetricsActionState> {
+  if (!(await isPluginActive("company-metrics"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await setTvScreens({
+    boardId: String(formData.get("boardId") ?? ""),
+    screens: parseScreens(String(formData.get("screensJson") ?? "[]")),
+  });
   if (!result.success) return { error: result.error.message };
 
   revalidatePath(RETURN_TO);

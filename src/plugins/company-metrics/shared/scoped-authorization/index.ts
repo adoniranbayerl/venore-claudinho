@@ -113,6 +113,25 @@ export async function authorizeMetricValueContributionActor(definitionId: string
   return authorizeSectorContributionActor(sectorId);
 }
 
+// Gate de configuração "de plataforma" do plugin (boards de TV, que atravessam setores):
+// company-metrics.manage OU ser admin de pelo menos um setor.
+export async function authorizeAnyConfigActor(): Promise<AuthorizeActorResult> {
+  const full = await authorizeActor("company-metrics.manage");
+  if (full.authorized) return full;
+
+  const scoped = await authorizeActor("company-metrics.contribute");
+  if (!scoped.authorized) return scoped;
+
+  const adminSectorIds = await findSectorIdsForUser(scoped.actorId, "admin");
+  if (adminSectorIds.length === 0) {
+    return {
+      authorized: false,
+      error: { code: "company-metrics.tv.forbidden", message: "Você precisa ser administrador de um setor para configurar telas de TV." },
+    };
+  }
+  return scoped;
+}
+
 // Configurar/apagar uma meta = papel "admin" no setor dono (ou manage).
 export async function authorizeTargetConfigActor(targetId: string): Promise<AuthorizeActorResult> {
   const sectorId = await findSectorIdByTargetId(targetId);

@@ -23,6 +23,14 @@ export type {
   TargetRollupStatus,
   TargetRollupLine,
   TargetRollupView,
+  TvBoardRecord,
+  TvScreenRecord,
+  TvScreenKind,
+  TvBoardWithScreens,
+  TvBoardView,
+  ResolvedTvScreen,
+  SectorOverviewLite,
+  MetricSeriesLite,
 } from "./contracts/types";
 export {
   SECTOR_MEMBER_ROLES,
@@ -31,6 +39,7 @@ export {
   METRIC_DEFINITION_GRANULARITIES,
   METRIC_DIRECTIONS,
   TARGET_CLASSIFICATIONS,
+  TV_SCREEN_KINDS,
 } from "./contracts/types";
 
 // Fase 1 — setores
@@ -113,6 +122,19 @@ export type {
   MetricSeries,
   MetricSeriesPoint,
 } from "./features/dashboard/get-sector-dashboard/types";
+
+// Fase 5 — telas de TV
+export { createTvBoardHandler as createTvBoard } from "./features/presentation/create-tv-board/handler";
+export { listTvBoardsHandler as listTvBoards } from "./features/presentation/list-tv-boards/handler";
+export { deleteTvBoardHandler as deleteTvBoard } from "./features/presentation/delete-tv-board/handler";
+export { setTvScreensHandler as setTvScreens } from "./features/presentation/set-tv-screens/handler";
+export { getTvBoardHandler as getTvBoard } from "./features/presentation/get-tv-board/handler";
+
+export type { CreateTvBoardInput, CreateTvBoardResult } from "./features/presentation/create-tv-board/types";
+export type { ListTvBoardsResult } from "./features/presentation/list-tv-boards/types";
+export type { DeleteTvBoardInput, DeleteTvBoardResult } from "./features/presentation/delete-tv-board/types";
+export type { SetTvScreensInput, SetTvScreensResult, TvScreenDraft } from "./features/presentation/set-tv-screens/types";
+export type { GetTvBoardResult } from "./features/presentation/get-tv-board/types";
 
 // Ponto de extensão "seeds" do plugin engine (platform/plugin-engine/plugin-seed-registry.ts).
 export { companyMetricsSeeds } from "./seeds";
