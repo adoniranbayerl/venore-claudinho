@@ -367,13 +367,15 @@ O `DrizzleAdapter` do Auth.js escreve diretamente nas tabelas `users`/`accounts`
 ### Papéis
 Existe um pequeno conjunto de papéis de sistema, fixos e não deletáveis, que garante que sempre exista quem administra a plataforma:
 
-| Papel | Papel na prática |
-| --- | --- |
-| `superadmin` | Acesso irrestrito a todos os domínios. Não pode ser removido do sistema. |
-| `admin` | Operação administrativa da plataforma e do CMS. |
-| `member` | Consumidor autenticado do site, sem acesso administrativo. |
+| Papel (nome interno) | Alias de exibição | O que é | Escopo |
+| --- | --- | --- | --- |
+| `superadmin` | Overlord | Dono da instância / quem instalou. Acesso irrestrito. Não pode ser removido do sistema. | — (ignora escopo) |
+| `admin` | Administrador | Opera uma ou mais **seções** do site (Admin do Academy, Admin Editorial…). | Global hoje; por seção na Fase D |
+| `editor` | Editor | Modera um ou mais setores editoriais, **vinculado a categoria(s) do CMS**. Coordena autores. Não enxerga categoria não atribuída. | Por categoria do CMS (Fase C) |
+| `author` | Autor | Cria e edita nas categorias atribuídas, **só rascunho — não publica**. | Por categoria do CMS (Fase C) |
+| `member` | Membro | Consumidor autenticado. Sem acesso administrativo. | — |
 
-Além desses três, qualquer site pode criar **papéis customizados** (novo `key`, novo nome) e atribuir a eles qualquer combinação de permissions do catálogo — é assim que se resolve o caso de "editor que gerencia todo o CMS" vs "editor menor" com escopo mais restrito.
+Além desses cinco, qualquer site pode criar **papéis customizados** (novo `key`, novo nome) e atribuir a eles qualquer combinação de permissions do catálogo — é assim que se resolve o caso de "editor que gerencia todo o CMS" vs "editor menor" com escopo mais restrito.
 
 `remove-role-from-user` recusa remover o papel `superadmin` de um usuário se isso deixar o sistema com zero superadmin — mesmo o próprio superadmin tentando remover a si mesmo. Sem essa checagem, o sistema reabre o mesmo deadlock que o bootstrap resolve, sem nenhum aviso na hora.
 
@@ -382,7 +384,7 @@ Além desses três, qualquer site pode criar **papéis customizados** (novo `key
 - Cada `context` do core declara suas próprias permissions; cada plugin declara as suas via manifesto (seção "Sistema de plugins").
 - Um usuário pode ter mais de um papel atribuído; suas permissions efetivas são a união das permissions de todos os papéis atribuídos a ele — sem hierarquia implícita entre papéis (um papel não "herda" de outro automaticamente).
 
-> Em aberto: permission com escopo dentro de um recurso (ex: "editor restrito à seção X do CMS", e não ao CMS inteiro) não está coberta neste v1 — permissions são globais por recurso. Fica marcado como necessidade conhecida para uma fase seguinte, porque implementar isso direito exige decidir onde mora o "escopo" (no dado, na permission, ou nos dois), e essa decisão merece um documento próprio.
+Permission com escopo dentro de um recurso (ex: "editor restrito à(s) categoria(s) X do CMS", e não ao CMS inteiro) tem documento de design próprio, aprovado e faseado: **`docs/rbac-scoped-roles.md`**. A Fase A (papéis `editor`/`author` de sistema + aliases canônicos de exibição) já está implementada; o recorte por instância de recurso (`role_assignment_scopes`, 2º parâmetro de `authorizeActor`) vem nas fases B–D.
 
 ## Cache
 
@@ -403,6 +405,5 @@ Regras para a v1 nova:
 - Trace (linha do tempo de uma requisição) é opcional e amostrado (ex: 1 a cada N requisições, ou só quando um erro acontece), não obrigatório em 100% do tráfego.
 
 ## Ainda não coberto neste documento
-- Permission com escopo dentro de um recurso (RBAC granular por seção/instância, não só por tipo de recurso).
 - Estratégia de teste (Vitest) por camada — o que cada tipo de teste precisa provar.
 - Segurança: rate limiting, auditoria de ações sensíveis, acesso a arquivos de mídia.

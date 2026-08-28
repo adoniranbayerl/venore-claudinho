@@ -27,7 +27,7 @@
     "db:seed:observability-logs-view": "node --env-file=.env scripts/seed-observability-logs-permission.mjs",
     "db:seed:observability-logs-clear": "node --env-file=.env scripts/seed-observability-logs-clear-permission.mjs",
     "db:seed:observability-audit-view": "node --env-file=.env scripts/seed-observability-audit-view-permission.mjs",
-    "db:seed:role-display-names": "node --env-file=.env scripts/seed-role-display-names.mjs",
+    "db:install:fresh": "tsx --env-file=.env scripts/install-fresh.ts",
     "db:bootstrap-superadmin": "tsx --env-file=.env scripts/bootstrap-superadmin.ts",
     "db:seed:enrollment-dashboard": "tsx --env-file=.env scripts/seed-enrollment-dashboard.ts",
     "db:seed:aprenda-musica": "tsx --env-file=.env scripts/seed-aprenda-musica.ts",

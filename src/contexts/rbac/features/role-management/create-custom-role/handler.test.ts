@@ -44,7 +44,7 @@ describe("createCustomRoleHandler", () => {
 
   it("rejects an empty name", async () => {
     const { createCustomRoleHandler } = await import("./handler");
-    const result = await createCustomRoleHandler({ key: "editor", name: "   ", permissionKeys: [] });
+    const result = await createCustomRoleHandler({ key: "content-lead", name: "   ", permissionKeys: [] });
 
     expect(result).toEqual({
       success: false,
@@ -60,7 +60,7 @@ describe("createCustomRoleHandler", () => {
     });
 
     const { createCustomRoleHandler } = await import("./handler");
-    const result = await createCustomRoleHandler({ key: "editor", name: "Editor", permissionKeys: [] });
+    const result = await createCustomRoleHandler({ key: "content-lead", name: "Content Lead", permissionKeys: [] });
 
     expect(result).toEqual({
       success: false,
@@ -71,14 +71,14 @@ describe("createCustomRoleHandler", () => {
   });
 
   it("delegates to the service with the resolved actor when input is valid and authorized", async () => {
-    createCustomRole.mockResolvedValue({ success: true, data: { id: "role-1", key: "editor", name: "Editor", isSystem: false } });
+    createCustomRole.mockResolvedValue({ success: true, data: { id: "role-1", key: "content-lead", name: "Content Lead", isSystem: false } });
 
     const { createCustomRoleHandler } = await import("./handler");
-    const result = await createCustomRoleHandler({ key: "editor", name: "Editor", permissionKeys: ["cms.entries.manage"] });
+    const result = await createCustomRoleHandler({ key: "content-lead", name: "Content Lead", permissionKeys: ["cms.entries.manage"] });
 
     expect(createCustomRole).toHaveBeenCalledWith({
-      key: "editor",
-      name: "Editor",
+      key: "content-lead",
+      name: "Content Lead",
       permissionKeys: ["cms.entries.manage"],
       actor: { id: "actor-1" },
     });
