@@ -10,7 +10,6 @@ import { observabilityBreadcrumbSegments } from "@/observability";
 import { academyBreadcrumbSegments } from "@/plugins/academy";
 import { birthdaysBreadcrumbSegments } from "@/plugins/birthdays";
 import { donationsBreadcrumbSegments } from "@/plugins/donations";
-import { enrollmentDashboardBreadcrumbSegments } from "@/plugins/enrollment-dashboard";
 import { getActivePluginKeys } from "@/platform/plugin-engine/get-active-plugin-keys";
 
 // Segmentos que SEMPRE valem — core (platform + contexts). Nenhum depende de plugin.
@@ -32,7 +31,6 @@ const PLUGIN_BREADCRUMB_SEGMENTS: Record<string, BreadcrumbSegmentDefinition[]> 
   academy: academyBreadcrumbSegments,
   birthdays: birthdaysBreadcrumbSegments,
   donations: donationsBreadcrumbSegments,
-  "enrollment-dashboard": enrollmentDashboardBreadcrumbSegments,
 };
 
 // Registro de breadcrumbs (mesmo padrão de platform/admin-shell/admin-navigation-registry.ts):

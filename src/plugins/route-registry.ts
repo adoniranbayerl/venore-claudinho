@@ -3,7 +3,6 @@ import { academyRouteTable } from "./academy/routes/route-table";
 import { birthdaysRouteTable } from "./birthdays/routes/route-table";
 import { donationsRouteTable } from "./donations/routes/route-table";
 import { broadcastRouteTable } from "./broadcast/routes/route-table";
-import { enrollmentDashboardRouteTable } from "./enrollment-dashboard/routes/route-table";
 import { companyMetricsRouteTable } from "./company-metrics/routes/route-table";
 
 // Registro das route-tables dos plugins instalados, chaveado pela mesma `key` do manifesto (ver
@@ -15,6 +14,5 @@ export const PLUGIN_ROUTE_TABLES: Record<string, PluginRouteTable> = {
   birthdays: birthdaysRouteTable,
   donations: donationsRouteTable,
   broadcast: broadcastRouteTable,
-  "enrollment-dashboard": enrollmentDashboardRouteTable,
   "company-metrics": companyMetricsRouteTable,
 };

@@ -22,9 +22,6 @@ vi.mock("@/observability", () => ({ observabilityBreadcrumbSegments: [] }));
 vi.mock("@/plugins/academy", () => ({ academyBreadcrumbSegments: [seg("academy.public.list", ["academy"])] }));
 vi.mock("@/plugins/birthdays", () => ({ birthdaysBreadcrumbSegments: [seg("birthdays.public", ["aniversariantes"])] }));
 vi.mock("@/plugins/donations", () => ({ donationsBreadcrumbSegments: [seg("donations.public", ["donations"])] }));
-vi.mock("@/plugins/enrollment-dashboard", () => ({
-  enrollmentDashboardBreadcrumbSegments: [seg("enrollment-dashboard.admin", ["admin", "enrollment-dashboard"])],
-}));
 
 const { collectBreadcrumbSegments } = await import("./registry");
 
@@ -43,7 +40,6 @@ describe("collectBreadcrumbSegments — filtro por plugin ativo", () => {
     expect(keys).toContain("academy.public.list"); // plugin ativo
     expect(keys).not.toContain("birthdays.public");
     expect(keys).not.toContain("donations.public");
-    expect(keys).not.toContain("enrollment-dashboard.admin");
   });
 
   it("nenhum plugin ativo => nenhum segmento de plugin na trilha", async () => {

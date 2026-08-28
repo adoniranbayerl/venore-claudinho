@@ -39,6 +39,11 @@ export const companyMetricsManifest: PluginManifest = {
       label: "Setores de exemplo",
       description: "Comercial, Financeiro e Marketing — a base para começar a cadastrar métricas.",
     },
+    {
+      key: "matricula",
+      label: "Matrículas (Erasto Gaertner + Fidelis)",
+      description: "Setor 'Matrículas' com meta, rematrícula e novas matrículas por instituição — substitui o antigo Dashboard de Matrícula.",
+    },
   ],
   navigation: [
     {

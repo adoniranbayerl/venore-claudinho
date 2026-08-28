@@ -1,7 +1,6 @@
 import type { OperationResult } from "@/shared/types";
 import { academySeeds } from "@/plugins/academy";
 import { birthdaysSeeds } from "@/plugins/birthdays";
-import { enrollmentDashboardSeeds } from "@/plugins/enrollment-dashboard";
 import { companyMetricsSeeds } from "@/plugins/company-metrics";
 
 // Uma função de seed é idempotente por contrato (list-then-skip pelo próprio seed) e devolve o
@@ -17,7 +16,6 @@ export type PluginSeedFn = () => Promise<OperationResult<void>>;
 const PLUGIN_SEED_REGISTRY: Record<string, Record<string, PluginSeedFn>> = {
   academy: academySeeds,
   birthdays: birthdaysSeeds,
-  "enrollment-dashboard": enrollmentDashboardSeeds,
   "company-metrics": companyMetricsSeeds,
 };
 

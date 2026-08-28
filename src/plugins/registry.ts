@@ -3,7 +3,6 @@ import { academyManifest } from "./academy/manifest";
 import { birthdaysManifest } from "./birthdays/manifest";
 import { donationsManifest } from "./donations/manifest";
 import { broadcastManifest } from "./broadcast/manifest";
-import { enrollmentDashboardManifest } from "./enrollment-dashboard/manifest";
 import { companyMetricsManifest } from "./company-metrics/manifest";
 
 // Registro dos plugins instalados em código (docs/venore-docks.md — "Sistema de plugins"),
@@ -14,6 +13,5 @@ export const PLUGIN_REGISTRY: PluginManifest[] = [
   birthdaysManifest,
   donationsManifest,
   broadcastManifest,
-  enrollmentDashboardManifest,
   companyMetricsManifest,
 ];

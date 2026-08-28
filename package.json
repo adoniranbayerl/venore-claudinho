@@ -19,8 +19,6 @@
     "db:migrate:birthdays": "drizzle-kit migrate --config=src/plugins/birthdays/drizzle.config.ts",
     "db:generate:broadcast": "drizzle-kit generate --config=src/plugins/broadcast/drizzle.config.ts",
     "db:migrate:broadcast": "drizzle-kit migrate --config=src/plugins/broadcast/drizzle.config.ts",
-    "db:generate:enrollment-dashboard": "drizzle-kit generate --config=src/plugins/enrollment-dashboard/drizzle.config.ts",
-    "db:migrate:enrollment-dashboard": "drizzle-kit migrate --config=src/plugins/enrollment-dashboard/drizzle.config.ts",
     "db:generate:company-metrics": "drizzle-kit generate --config=src/plugins/company-metrics/drizzle.config.ts",
     "db:migrate:company-metrics": "drizzle-kit migrate --config=src/plugins/company-metrics/drizzle.config.ts",
     "db:seed:admin-access": "node --env-file=.env scripts/seed-admin-access-permission.mjs",
@@ -31,7 +29,6 @@
     "db:seed:observability-audit-view": "node --env-file=.env scripts/seed-observability-audit-view-permission.mjs",
     "db:install:fresh": "tsx --env-file=.env scripts/install-fresh.ts",
     "db:bootstrap-superadmin": "tsx --env-file=.env scripts/bootstrap-superadmin.ts",
-    "db:seed:enrollment-dashboard": "tsx --env-file=.env scripts/seed-enrollment-dashboard.ts",
     "db:seed:aprenda-musica": "tsx --env-file=.env scripts/seed-aprenda-musica.ts",
     "db:reset-academy-students": "node --env-file=.env scripts/reset-academy-student-data.mjs"
   },

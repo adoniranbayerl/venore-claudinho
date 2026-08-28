@@ -8,15 +8,27 @@ import { previewPluginUninstall } from "./preview-plugin-uninstall";
 import { performPluginUninstall } from "./uninstall-plugin";
 import { runPluginMigrations } from "./run-plugin-migrations";
 
-// Alvo: enrollment-dashboard (schema `enrollment_dashboard`, 2 tabelas, tracking próprio,
-// permissions `enrollment-dashboard.*`). Prova o "modo B" ponta a ponta: dropar schema + limpar
+// Alvo: company-metrics (schema `company_metrics`, tracking próprio, permissions
+// `company-metrics.*`). Prova o "modo B" ponta a ponta: dropar schema + limpar
 // settings/rbac/extension_state numa transação, sem tocar o core. Restaura o schema no afterAll
 // (o globalSetup não roda de novo entre arquivos) — mesmo padrão de
 // run-plugin-migrations.integration.test.ts.
-const PLUGIN_KEY = "enrollment-dashboard";
-const DATA_SCHEMA = "enrollment_dashboard";
-const TRACKING_SCHEMA = "enrollment_dashboard_migrations";
+const PLUGIN_KEY = "company-metrics";
+const DATA_SCHEMA = "company_metrics";
+const TRACKING_SCHEMA = "company_metrics_migrations";
 const NAMESPACE = `${PLUGIN_KEY}.%`;
+
+const PLUGIN_TABLES = [
+  "metric_definitions",
+  "metric_values",
+  "sector_groups",
+  "sector_members",
+  "sectors",
+  "target_inputs",
+  "targets",
+  "tv_boards",
+  "tv_screens",
+];
 
 async function scalar(query: ReturnType<typeof sql>): Promise<number> {
   const result = await db.execute(query);
@@ -59,11 +71,11 @@ describe("performPluginUninstall (integração) — modo B: limpar banco", () =>
 
     // Footprint do plugin: 1 linha de dado, 1 setting no namespace, 1 concessão de permission.
     await db.execute(sql`
-      insert into ${sql.raw(`"${DATA_SCHEMA}"."institutions"`)} (id, key, name, program_label, position)
-      values (${randomUUID()}, ${`inst-${randomUUID()}`}, 'Colégio Teste', 'Cursos', 0)
+      insert into ${sql.raw(`"${DATA_SCHEMA}"."sectors"`)} (id, key, name, position)
+      values (${randomUUID()}, ${`sec-${randomUUID()}`}, 'Setor Teste', 0)
     `);
     await db.execute(sql`
-      insert into settings.settings (key, value) values (${`${PLUGIN_KEY}.layout`}, to_jsonb(${"grid"}::text))
+      insert into settings.settings (key, value) values (${`${PLUGIN_KEY}.timezone`}, to_jsonb(${"UTC"}::text))
     `);
     testRoleId = randomUUID();
     await db.execute(sql`
@@ -84,8 +96,8 @@ describe("performPluginUninstall (integração) — modo B: limpar banco", () =>
     const preview = await previewPluginUninstall(PLUGIN_KEY);
     expect(preview.dataSchema).toBe(DATA_SCHEMA);
     expect(preview.migrationsSchema).toBe(TRACKING_SCHEMA);
-    expect(preview.tables.map((table) => table.name).sort()).toEqual(["institutions", "programs"]);
-    expect(preview.tables.find((table) => table.name === "institutions")?.rowCount).toBe(1);
+    expect(preview.tables.map((table) => table.name).sort()).toEqual(PLUGIN_TABLES);
+    expect(preview.tables.find((table) => table.name === "sectors")?.rowCount).toBe(1);
     expect(preview.settingsCount).toBe(1);
     expect(preview.grantedPermissionCount).toBe(2);
 
