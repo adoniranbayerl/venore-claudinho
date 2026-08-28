@@ -273,7 +273,7 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
             um overlay: enquanto está offline não há conteúdo nenhum atrás pra mostrar. Volta ao
             desligar, sem reload (o próprio evento SSE já traz state.offline=false). */}
         {state.offline ? (
-          <StandbyScreen reason="admin" brandLogoUrl={state.brandLogoUrl} brandColor={state.brandColor} />
+          <StandbyScreen reason="admin" brandLogoUrl={state.brandLogoUrl} />
         ) : (
           <>
             {/* Região que hospeda as camadas posicionadas por percentual (video/agenda/etc) —
@@ -314,7 +314,7 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
             sozinho quando a sincronização volta. Não faz sentido empilhar com a tela offline (que
             já é uma StandbyScreen própria e não depende de sync pra estar correta). */}
         {disconnected && !state.offline && (
-          <StandbyScreen reason="disconnected" brandLogoUrl={state.brandLogoUrl} brandColor={state.brandColor} />
+          <StandbyScreen reason="disconnected" brandLogoUrl={state.brandLogoUrl} />
         )}
       </div>
     </div>

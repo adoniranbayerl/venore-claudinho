@@ -382,7 +382,6 @@ function PlaylistLayer({
   progressBarBottomOffsetPx = 0,
   timeZone,
   brandLogoUrl,
-  brandColor,
 }: {
   items: PlaylistItemSummary[];
   newsArticles: RegionNewsArticle[];
@@ -401,12 +400,11 @@ function PlaylistLayer({
   progressBarBottomOffsetPx?: number;
   // Fuso da instituição — repassado ao FeaturedAgendaEventSlide (formatação da data/hora do evento).
   timeZone: string;
-  // Marca do site — usados quando a playlist não tem nenhum item resolvível OU nenhum item de
-  // vídeo (StandbyScreen "no-content" no lugar do texto cru antigo). Podem vir null/`#111` quando o footer está fechado
-  // e a saída não está offline (get-output-state só resolve a marca sob essas condições) — a
-  // StandbyScreen degrada pra texto sobre fundo escuro nesse caso.
+  // Logo do site — assinatura no rodapé da StandbyScreen "no-content" (playlist sem item
+  // resolvível OU sem nenhum vídeo). Pode vir null quando o footer está fechado e a saída não está
+  // offline (get-output-state só resolve a marca sob essas condições) — a StandbyScreen fica só
+  // com texto nesse caso. As CORES da StandbyScreen vêm do tema, não daqui.
   brandLogoUrl: string | null;
-  brandColor: string;
 }) {
   const [index, setIndex] = useState(0);
   // Incrementado a cada avanço manual por clique — vira resetKey de useTimedAdvance, reiniciando a
@@ -438,7 +436,7 @@ function PlaylistLayer({
   // Sem item resolvível, ou sem nenhum vídeo na playlist — tela de espera branded "nenhum
   // conteúdo" no lugar do texto cru sobre tela preta (Fase 11).
   if (!current || !hasPlayableVideo) {
-    return <StandbyScreen reason="no-content" brandLogoUrl={brandLogoUrl} brandColor={brandColor} />;
+    return <StandbyScreen reason="no-content" brandLogoUrl={brandLogoUrl} />;
   }
 
   // fillMode decide object-contain (letterbox, drawer aberto) vs object-cover (preenche cortando
@@ -649,7 +647,6 @@ function VideoZoneLayer({
           progressBarBottomOffsetPx={compactFooterVisible ? COMPACT_FOOTER_HEIGHT_PX : 0}
           timeZone={timeZone}
           brandLogoUrl={brandLogoUrl}
-          brandColor={brandColor}
         />
       </div>
       {footerOpen && (
