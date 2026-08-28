@@ -201,6 +201,29 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
 
   const stage = useOutputStageTransform();
 
+  // Aviso rápido: esconde a faixa no INSTANTE do vencimento (state.activeAlertExpiresAt), sem
+  // esperar o próximo poll de 15s — era o que fazia um aviso de "10s" ficar ~15-25s na tela. O
+  // relógio só é lido DENTRO do efeito (nunca no render — react-hooks/purity, mesmo racional de
+  // lastSyncAtRef acima); o efeito reseta a flag e reagenda sempre que chega um aviso novo (a
+  // dep muda). O poll seguinte sincroniza activeAlertMessage=null no servidor de todo jeito.
+  // O servidor só manda activeAlertExpiresAt quando há um aviso de fato ativo (o store filtra
+  // expiresAt > now), então toda vez que essa dep muda o aviso está no ar agora → reseta a flag
+  // (setTimeout 0, nunca setState síncrono no corpo do efeito) e agenda a expiração pro instante
+  // exato. Date.now() só aqui dentro, nunca no render.
+  const [alertExpired, setAlertExpired] = useState(false);
+  useEffect(() => {
+    if (!state.activeAlertExpiresAt) return;
+    const msLeft = Date.parse(state.activeAlertExpiresAt) - Date.now();
+    const reset = setTimeout(() => setAlertExpired(false), 0);
+    const expire = setTimeout(() => setAlertExpired(true), Math.max(0, msLeft));
+    return () => {
+      clearTimeout(reset);
+      clearTimeout(expire);
+    };
+  }, [state.activeAlertExpiresAt]);
+
+  const visibleAlertMessage = state.activeAlertMessage && !alertExpired ? state.activeAlertMessage : null;
+
   return (
     // Fundo do canvas — pedido explícito: "altere o background da view [...] para #404040" (era
     // preto puro, bg-black), depois "pode clarear mais, deixa cinza" (#737373), depois "altere de
@@ -286,7 +309,7 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
                 ))}
               </SceneFade>
             </div>
-            <AlertBanner message={state.activeAlertMessage} />
+            <AlertBanner message={visibleAlertMessage} />
           </>
         )}
         {/* Overlay de desconexão — SOBRE o último quadro (não substitui como o offline), sai

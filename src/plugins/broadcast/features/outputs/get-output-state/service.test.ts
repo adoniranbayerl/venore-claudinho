@@ -32,7 +32,7 @@ const findVisiblePlaylistItemsByPlaylistId = vi.fn();
 const findAllAgendas = vi.fn();
 const findAllUpcomingAgendaEvents = vi.fn();
 const findAllOutputAgendaLinks = vi.fn();
-const findActiveAlertMessage = vi.fn();
+const findActiveAlert = vi.fn();
 vi.mock("./store", () => ({
   findOutputByToken: (...args: unknown[]) => findOutputByToken(...args),
   findSceneById: (...args: unknown[]) => findSceneById(...args),
@@ -41,7 +41,7 @@ vi.mock("./store", () => ({
   findAllAgendas: (...args: unknown[]) => findAllAgendas(...args),
   findAllUpcomingAgendaEvents: (...args: unknown[]) => findAllUpcomingAgendaEvents(...args),
   findAllOutputAgendaLinks: (...args: unknown[]) => findAllOutputAgendaLinks(...args),
-  findActiveAlertMessage: (...args: unknown[]) => findActiveAlertMessage(...args),
+  findActiveAlert: (...args: unknown[]) => findActiveAlert(...args),
 }));
 
 describe("getOutputState", () => {
@@ -58,7 +58,7 @@ describe("getOutputState", () => {
     findAllAgendas.mockReset();
     findAllUpcomingAgendaEvents.mockReset();
     findAllOutputAgendaLinks.mockReset();
-    findActiveAlertMessage.mockReset();
+    findActiveAlert.mockReset();
     // Defaults sensatos pra testes que disparam a resolução (agora a camada "video" também
     // dispara clima/logo/cor de marca) mas não se importam com o valor exato.
     getSetting.mockResolvedValue({ success: false });
@@ -111,6 +111,7 @@ describe("getOutputState", () => {
         regionNews: [],
         agendaRotation: [],
         activeAlertMessage: null,
+        activeAlertExpiresAt: null,
         brandLogoUrl: null,
         brandColor: "#111",
         agendaAnimationStyle: "fade",
@@ -124,7 +125,7 @@ describe("getOutputState", () => {
     expect(resolveRegionWeather).not.toHaveBeenCalled();
     expect(resolveRegionNews).not.toHaveBeenCalled();
     expect(findAllAgendas).not.toHaveBeenCalled();
-    expect(findActiveAlertMessage).not.toHaveBeenCalled();
+    expect(findActiveAlert).not.toHaveBeenCalled();
     expect(getBrandConfig).not.toHaveBeenCalled();
   });
 
@@ -137,8 +138,8 @@ describe("getOutputState", () => {
       { id: "l3", type: "text", config: { text: "Bem-vindo" } },
     ]);
     findVisiblePlaylistItemsByPlaylistId.mockResolvedValue([
-      { id: "item-1", order: 0, sourceType: "local", relativePath: "clips/intro.mp4", mediaAssetId: null, url: null, durationSeconds: null },
-      { id: "item-2", order: 1, sourceType: "local", relativePath: "clips/slide.jpg", mediaAssetId: null, url: null, durationSeconds: null },
+      { id: "item-1", order: 0, sourceType: "local", relativePath: "clips/intro.mp4", mediaAssetId: null, url: null, durationSeconds: null, withAudio: true },
+      { id: "item-2", order: 1, sourceType: "local", relativePath: "clips/slide.jpg", mediaAssetId: null, url: null, durationSeconds: null, withAudio: false },
     ]);
     getMediaAsset.mockResolvedValue({ success: true, data: { id: "asset-1", url: "https://blob.example/logo.png" } });
 
@@ -149,8 +150,8 @@ describe("getOutputState", () => {
     if (!result.success) return;
     expect(result.data.playlistItemsByPlaylistId).toEqual({
       p1: [
-        { id: "item-1", order: 0, kind: "video", durationSeconds: null, url: null, event: null },
-        { id: "item-2", order: 1, kind: "image", durationSeconds: 15, url: null, event: null },
+        { id: "item-1", order: 0, kind: "video", durationSeconds: null, url: null, withAudio: true, event: null },
+        { id: "item-2", order: 1, kind: "image", durationSeconds: 15, url: null, withAudio: false, event: null },
       ],
     });
     expect(result.data.resolvedAssetUrlByLayerId).toEqual({ l2: "https://blob.example/logo.png" });
@@ -161,8 +162,8 @@ describe("getOutputState", () => {
     findSceneById.mockResolvedValue({ id: "s1", name: "Principal" });
     findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "video", config: { playlistId: "p1" } }]);
     findVisiblePlaylistItemsByPlaylistId.mockResolvedValue([
-      { id: "item-1", order: 0, sourceType: "webpage", relativePath: null, mediaAssetId: null, url: "/cursos", durationSeconds: null },
-      { id: "item-2", order: 1, sourceType: "news", relativePath: null, mediaAssetId: null, url: null, durationSeconds: null },
+      { id: "item-1", order: 0, sourceType: "webpage", relativePath: null, mediaAssetId: null, url: "/cursos", durationSeconds: null, withAudio: true },
+      { id: "item-2", order: 1, sourceType: "news", relativePath: null, mediaAssetId: null, url: null, durationSeconds: null, withAudio: false },
     ]);
     resolveRegionNews.mockResolvedValue([]);
 
@@ -172,8 +173,8 @@ describe("getOutputState", () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.data.playlistItemsByPlaylistId.p1).toEqual([
-      { id: "item-1", order: 0, kind: "webpage", durationSeconds: 60, url: "/cursos", event: null },
-      { id: "item-2", order: 1, kind: "news", durationSeconds: 30, url: null, event: null },
+      { id: "item-1", order: 0, kind: "webpage", durationSeconds: 60, url: "/cursos", withAudio: true, event: null },
+      { id: "item-2", order: 1, kind: "news", durationSeconds: 30, url: null, withAudio: false, event: null },
     ]);
   });
 
@@ -410,16 +411,18 @@ describe("getOutputState", () => {
     expect(findAllAgendas).not.toHaveBeenCalled();
   });
 
-  it("resolves the active alert message only when the scene has an alert layer", async () => {
+  it("resolves the active alert message and expiry only when the scene has an alert layer", async () => {
     findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: false, currentSceneId: "s1" });
     findSceneById.mockResolvedValue({ id: "s1", name: "Painel" });
     findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "alert", config: {} }]);
-    findActiveAlertMessage.mockResolvedValue("Reunião às 15h no auditório");
+    const expiresAt = new Date("2026-01-01T12:00:10.000Z");
+    findActiveAlert.mockResolvedValue({ message: "Reunião às 15h no auditório", expiresAt });
 
     const { getOutputState } = await import("./service");
     const result = await getOutputState({ token: "tok-1" });
 
     expect(result.success && result.data.activeAlertMessage).toBe("Reunião às 15h no auditório");
+    expect(result.success && result.data.activeAlertExpiresAt).toBe(expiresAt.toISOString());
   });
 
   it("skips a media asset that no longer resolves instead of failing the whole state", async () => {
@@ -447,6 +450,6 @@ describe("getOutputState", () => {
     expect(resolveRegionWeather).not.toHaveBeenCalled();
     expect(resolveRegionNews).not.toHaveBeenCalled();
     expect(findAllAgendas).not.toHaveBeenCalled();
-    expect(findActiveAlertMessage).not.toHaveBeenCalled();
+    expect(findActiveAlert).not.toHaveBeenCalled();
   });
 });

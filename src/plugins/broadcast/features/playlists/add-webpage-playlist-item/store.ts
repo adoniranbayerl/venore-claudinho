@@ -19,6 +19,7 @@ export async function insertWebpagePlaylistItem(input: {
   title: string | null;
   url: string;
   durationSeconds: number | null;
+  withAudio: boolean;
 }): Promise<BroadcastPlaylistItemRecord> {
   const [row] = await db
     .insert(broadcastPlaylistItems)

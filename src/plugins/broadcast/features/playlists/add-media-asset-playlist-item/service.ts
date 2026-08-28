@@ -39,6 +39,7 @@ export async function addMediaAssetPlaylistItem(
     title: command.title?.trim() || null,
     mediaAssetId: command.mediaAssetId,
     durationSeconds: command.durationSeconds ?? null,
+    withAudio: command.withAudio ?? false,
   });
 
   endOperation(handle, { success: true });

@@ -82,6 +82,9 @@ export type BroadcastPlaylistItemRecord = {
   agendaEventId: string | null;
   durationSeconds: number | null;
   hidden: boolean;
+  // Só relevante pra item de vídeo e "webpage" — toca o áudio na view em vez de sair mudo. Ver
+  // o comentário da coluna with_audio em database/schema/index.ts.
+  withAudio: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -194,6 +197,9 @@ export type PlaylistItemSummary = {
   durationSeconds: number | null;
   // Só preenchido pra "webpage".
   url: string | null;
+  // Só relevante pra "video"/"webpage" — a view toca o áudio em vez de sair mudo (ver
+  // with_audio no schema e o render em layer-renderer.tsx).
+  withAudio: boolean;
   // Só preenchido pra "agenda-event" — já resolvido (startAt = próxima ocorrência real mesmo se
   // recorrente, coverUrl já é URL, não id) pelo mesmo racional de AgendaRotationEvent. null quando
   // o evento referenciado não existe mais (ex: apagado depois do item criado) — o client degrada

@@ -16,6 +16,7 @@ export async function applyPlaylistItemUpdate(input: {
   title: string | null;
   durationSeconds: number | null;
   url?: string;
+  withAudio?: boolean;
 }): Promise<BroadcastPlaylistItemRecord> {
   const [row] = await db
     .update(broadcastPlaylistItems)
@@ -23,6 +24,7 @@ export async function applyPlaylistItemUpdate(input: {
       title: input.title,
       durationSeconds: input.durationSeconds,
       ...(input.url !== undefined ? { url: input.url } : {}),
+      ...(input.withAudio !== undefined ? { withAudio: input.withAudio } : {}),
       updatedAt: sql`now()`,
     })
     .where(eq(broadcastPlaylistItems.id, input.id))

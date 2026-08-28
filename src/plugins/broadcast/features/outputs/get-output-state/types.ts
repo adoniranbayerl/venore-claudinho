@@ -42,6 +42,10 @@ export type BroadcastOutputState = {
   regionNews: RegionNewsArticle[];
   agendaRotation: AgendaRotationEntry[];
   activeAlertMessage: string | null;
+  // Vencimento do aviso ativo (ISO). O client esconde a faixa localmente nesse instante e refaz o
+  // fetch de estado, em vez de deixá-la na tela até o próximo poll de 15s — sem isso um aviso de
+  // 10s ficava ~15-25s visível.
+  activeAlertExpiresAt: string | null;
   brandLogoUrl: string | null;
   // Cor da barra de marca (logo+relógio+temperatura) no rodapé da camada "video" — sempre um hex
   // válido (default de BROADCAST_SETTINGS.brandColor quando o operador não configurou nada).

@@ -23,6 +23,7 @@ export async function updatePlaylistItem(command: UpdatePlaylistItemCommand): Pr
     // Só reescreve url quando o item já é "webpage" — pra outros tipos, url continua null
     // (garantido pelo CHECK de forma no schema; não deixamos um valor perdido do form vazar aqui).
     url: existing.sourceType === "webpage" ? command.url?.trim() || existing.url || "" : undefined,
+    withAudio: command.withAudio,
   });
 
   endOperation(handle, { success: true });

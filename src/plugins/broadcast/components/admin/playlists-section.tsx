@@ -215,6 +215,9 @@ function EditPlaylistItemForm({ item, onDone }: { item: BroadcastPlaylistItemRec
     item.sourceType === "local" && item.relativePath
       ? Boolean(streamableContentTypeForExtension(extensionOf(item.relativePath))?.startsWith("video/"))
       : false;
+  // "webpage" e "media-asset" (vídeo ou imagem — não dá pra saber sem resolver a mídia; a caixa é
+  // no-op numa imagem) além do vídeo local.
+  const audioCapable = item.sourceType === "webpage" || item.sourceType === "media-asset" || isVideo;
 
   return (
     <form
@@ -265,6 +268,7 @@ function EditPlaylistItemForm({ item, onDone }: { item: BroadcastPlaylistItemRec
           />
         </div>
       )}
+      {audioCapable && <AudioToggleField defaultChecked={item.withAudio} />}
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={pending}>Salvar</Button>
         <Button type="button" variant="outline" size="sm" onClick={onDone}>Cancelar</Button>
@@ -532,6 +536,26 @@ function ScanPlaylistFlow({ playlistId, onAdded }: { playlistId: string; onAdded
   );
 }
 
+// Checkbox "Tocar áudio na TV" — só faz sentido p/ vídeo e "webpage". O <video> da view sai
+// `muted` por padrão (exigência de autoplay do navegador); ligado aqui, toca com som e o <iframe>
+// ganha allow="autoplay" — mas só funciona de fato num navegador de TV/kiosk configurado pra
+// permitir áudio automático (ex: Chrome com --autoplay-policy=no-user-gesture-required). Se o
+// navegador bloquear, o vídeo volta a tocar mudo sozinho, sem travar a playlist.
+function AudioToggleField({ defaultChecked = false }: { defaultChecked?: boolean }) {
+  return (
+    <div className="space-y-1">
+      <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <input type="checkbox" name="withAudio" defaultChecked={defaultChecked} className="size-4 shrink-0 rounded border-border" />
+        Tocar áudio na TV
+      </label>
+      <p className="text-xs text-muted-foreground">
+        Vídeo e páginas web tocam sem som por padrão. Só funciona se o navegador da TV estiver configurado para permitir áudio
+        automático.
+      </p>
+    </div>
+  );
+}
+
 function AddMediaAssetItemForm({ playlistId, onAdded }: { playlistId: string; onAdded?: () => void }) {
   const [state, formAction, pending] = useActionState(addMediaAssetPlaylistItemAction, initialState);
   useActionToast({ pending, error: state.error, successMessage: "Item adicionado.", onSuccess: onAdded });
@@ -550,6 +574,7 @@ function AddMediaAssetItemForm({ playlistId, onAdded }: { playlistId: string; on
         </label>
         <Input id={`${playlistId}-media-duration`} name="durationSeconds" type="number" placeholder="15" className="w-32" />
       </div>
+      <AudioToggleField />
       <Button type="submit" disabled={pending} className="w-full sm:w-auto">Adicionar</Button>
     </form>
   );
@@ -603,6 +628,7 @@ function AddWebpageItemForm({ playlistId, onAdded }: { playlistId: string; onAdd
         Muitos sites (Google, redes sociais, bancos) bloqueiam ser exibidos dentro de outra página e vão ficar em branco na TV. Use o
         link &quot;Testar&quot; acima pra conferir antes de adicionar — rotas internas do próprio site sempre funcionam.
       </p>
+      <AudioToggleField />
       <Button type="submit" disabled={pending} className="w-full sm:w-auto">Adicionar</Button>
     </form>
   );

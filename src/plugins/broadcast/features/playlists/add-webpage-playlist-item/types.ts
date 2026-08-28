@@ -6,6 +6,8 @@ export type AddWebpagePlaylistItemCommand = {
   url: string;
   title?: string | null;
   durationSeconds?: number | null;
+  // Adiciona allow="autoplay" ao <iframe> na view — a página embutida pode tocar áudio sozinha.
+  withAudio?: boolean;
   actorId: string;
 };
 

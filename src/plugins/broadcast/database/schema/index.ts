@@ -90,6 +90,13 @@ export const broadcastPlaylistItems = broadcastSchema.table(
     agendaEventId: text("agenda_event_id").references(() => broadcastAgendaEvents.id, { onDelete: "cascade" }),
     durationSeconds: real("duration_seconds"),
     hidden: boolean("hidden").notNull().default(false),
+    // Só tem efeito em item de vídeo (local/media-asset que resolve pra vídeo) e "webpage": quando
+    // false (default), o <video> da view sai `muted` (exigência de autoplay do navegador) e o
+    // <iframe> não recebe `allow="autoplay"`. Quando true, o vídeo toca com som e o iframe ganha a
+    // permissão — só funciona de fato num navegador de TV/kiosk configurado pra permitir autoplay
+    // com som (ex: Chrome `--autoplay-policy=no-user-gesture-required`); se o navegador bloquear, o
+    // vídeo cai pra reprodução muda pra não travar a playlist (ver layer-renderer.tsx).
+    withAudio: boolean("with_audio").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

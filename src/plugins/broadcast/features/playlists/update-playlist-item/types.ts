@@ -8,6 +8,8 @@ export type UpdatePlaylistItemCommand = {
   // Só tem efeito em item sourceType "webpage" — ignorado (não sobrescreve) pra local/media-
   // asset/news, cujo url é sempre null por definição (CHECK de forma no schema).
   url?: string | null;
+  // Só relevante pra item de vídeo e "webpage" — undefined = não altera.
+  withAudio?: boolean;
   actorId: string;
 };
 

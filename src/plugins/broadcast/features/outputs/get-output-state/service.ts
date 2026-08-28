@@ -16,7 +16,7 @@ import { streamableContentTypeForExtension } from "../../../shared/video-extensi
 import { resolveEventEndDate, resolveEventOccurrenceDate } from "../../../shared/weekly-recurrence";
 import type { BroadcastAgendaEventRecord, BroadcastPlaylistItemRecord, PlaylistItemKind } from "../../../contracts/types";
 import {
-  findActiveAlertMessage,
+  findActiveAlert,
   findAgendaEventById,
   findAllAgendas,
   findAllOutputAgendaLinks,
@@ -47,6 +47,7 @@ async function classifyPlaylistItem(item: BroadcastPlaylistItemRecord, timeZone:
       kind: "webpage",
       durationSeconds: item.durationSeconds ?? DEFAULT_WEBPAGE_SLIDE_DURATION_SECONDS,
       url: item.url,
+      withAudio: item.withAudio,
       event: null,
     };
   }
@@ -58,6 +59,7 @@ async function classifyPlaylistItem(item: BroadcastPlaylistItemRecord, timeZone:
       kind: "news",
       durationSeconds: item.durationSeconds ?? DEFAULT_NEWS_BLOCK_DURATION_SECONDS,
       url: null,
+      withAudio: false,
       event: null,
     };
   }
@@ -70,6 +72,7 @@ async function classifyPlaylistItem(item: BroadcastPlaylistItemRecord, timeZone:
       kind: "agenda-event",
       durationSeconds: item.durationSeconds ?? DEFAULT_AGENDA_EVENT_SLIDE_DURATION_SECONDS,
       url: null,
+      withAudio: false,
       event: event ? await resolveAgendaRotationEvent(event, timeZone) : null,
     };
   }
@@ -89,6 +92,7 @@ async function classifyPlaylistItem(item: BroadcastPlaylistItemRecord, timeZone:
     kind,
     durationSeconds: kind === "image" ? (item.durationSeconds ?? DEFAULT_SLIDE_DURATION_SECONDS) : null,
     url: null,
+    withAudio: kind === "video" ? item.withAudio : false,
     event: null,
   };
 }
@@ -265,12 +269,12 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
   // BROADCAST_AGENDA_VIEW_SIZE_SCALE) — precisa dela sempre que qualquer uma das duas aparece.
   const needsAgendaViewSize = needsAgenda || output.footerOpen;
 
-  const [regionWeather, regionNews, agendaRotation, activeAlertMessage, brandLogoUrl, brandColor, agendaAnimationStyle, agendaViewSize] =
+  const [regionWeather, regionNews, agendaRotation, activeAlert, brandLogoUrl, brandColor, agendaAnimationStyle, agendaViewSize] =
     await Promise.all([
       needsWeather ? resolveRegionWeather() : Promise.resolve(null),
       needsNews ? resolveRegionNews() : Promise.resolve([]),
       needsAgenda ? resolveAgendaRotation(output.id, timeZone) : Promise.resolve([]),
-      needsAlert ? findActiveAlertMessage() : Promise.resolve(null),
+      needsAlert ? findActiveAlert() : Promise.resolve(null),
       needsBrandLogo ? getBrandConfig("png").then((brand) => brand.logoUrl) : Promise.resolve(null),
       needsBrandColor ? resolveBrandColor() : Promise.resolve(BROADCAST_SETTINGS.brandColor.defaultValue),
       needsAgenda ? resolveAgendaAnimationStyle() : Promise.resolve(BROADCAST_SETTINGS.agendaAnimationStyle.defaultValue as BroadcastAgendaAnimationStyle),
@@ -294,7 +298,8 @@ export async function getOutputState(query: GetOutputStateQuery): Promise<GetOut
       regionWeather,
       regionNews,
       agendaRotation,
-      activeAlertMessage,
+      activeAlertMessage: activeAlert?.message ?? null,
+      activeAlertExpiresAt: activeAlert ? activeAlert.expiresAt.toISOString() : null,
       brandLogoUrl,
       brandColor,
       agendaAnimationStyle,

@@ -113,13 +113,15 @@ export async function findAgendaEventById(id: string): Promise<BroadcastAgendaEv
 
 // O aviso ativo é o mais recentemente publicado ainda não expirado — não há conceito de "fila",
 // um novo aviso publicado só substitui o anterior (ver publish-alert), mesmo que o anterior ainda
-// não tenha expirado.
-export async function findActiveAlertMessage(): Promise<string | null> {
+// não tenha expirado. Devolve o expiresAt junto: o client precisa dele pra esconder a faixa no
+// instante exato do vencimento, sem esperar o poll de 15s (que fazia um aviso de 10s ficar ~20s
+// na tela).
+export async function findActiveAlert(): Promise<{ message: string; expiresAt: Date } | null> {
   const [row] = await db
-    .select({ message: broadcastAlerts.message })
+    .select({ message: broadcastAlerts.message, expiresAt: broadcastAlerts.expiresAt })
     .from(broadcastAlerts)
     .where(gt(broadcastAlerts.expiresAt, new Date()))
     .orderBy(desc(broadcastAlerts.createdAt))
     .limit(1);
-  return row?.message ?? null;
+  return row ?? null;
 }

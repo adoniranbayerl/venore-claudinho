@@ -187,6 +187,7 @@ export async function addMediaAssetPlaylistItemAction(
     mediaAssetId: requireString(formData, "mediaAssetId"),
     title: requireString(formData, "title") || undefined,
     durationSeconds: optionalNumber(formData, "durationSeconds"),
+    withAudio: formData.get("withAudio") === "on",
   });
   if (!result.success) return { error: result.error.message };
 
@@ -205,6 +206,7 @@ export async function addWebpagePlaylistItemAction(
     url: requireString(formData, "url"),
     title: requireString(formData, "title") || undefined,
     durationSeconds: optionalNumber(formData, "durationSeconds"),
+    withAudio: formData.get("withAudio") === "on",
   });
   if (!result.success) return { error: result.error.message };
 
@@ -223,6 +225,7 @@ export async function updatePlaylistItemAction(
     title: requireString(formData, "title") || undefined,
     durationSeconds: optionalNumber(formData, "durationSeconds"),
     url: requireString(formData, "url") || undefined,
+    withAudio: formData.get("withAudio") === "on",
   });
   if (!result.success) return { error: result.error.message };
 

@@ -163,11 +163,13 @@ const GEOMETRY_TRANSITION = "left 400ms ease, top 400ms ease, width 400ms ease, 
 // dos eventos só após terminar a animação do drawer"). Usado como animation-delay base do bloco
 // "fade" e somado ao delay escalonado de cada card no "cascade".
 const AGENDA_ENTRY_ANIMATION_DELAY_MS = 400;
-// Altura (px) da barra de marca compacta (drawer fechado, BrandFooterBar `compact`) — precisa
-// bater com a classe `h-12` usada lá (48px = 3rem), porque PlaylistLayer usa este número pra
-// deslocar a barra de progresso pra cima do footer, que sobrepõe a base da view nesse modo (ver
-// VideoZoneLayer). Par className+px, mesmo padrão de BROADCAST_AGENDA_VIEW_SIZE_SCALE.
-const COMPACT_FOOTER_HEIGHT_PX = 48;
+// Altura (px, no palco de composição de 1920 — ver output-stage.ts) da barra de marca compacta
+// (drawer fechado, BrandFooterBar `compact`) — precisa bater com a classe `h-24` usada lá (96px =
+// 6rem), porque PlaylistLayer usa este número pra deslocar a barra de progresso pra cima do footer,
+// que sobrepõe a base da view nesse modo (ver VideoZoneLayer). Par className+px, mesmo padrão de
+// BROADCAST_AGENDA_VIEW_SIZE_SCALE. Dobrado de 48 pra 96 — pedido explícito: a barra compacta
+// estava "praticamente ilegível".
+const COMPACT_FOOTER_HEIGHT_PX = 96;
 // Rotação interna de manchete dentro de um bloco de notícias (tanto a layer "news" standalone
 // quanto o slide "news" dentro da playlist usam o mesmo componente/timer). O teto do bloco inteiro
 // (quantos segundos o slide "news" fica no ar dentro do rodízio da playlist) é outra coisa — vem
@@ -225,9 +227,9 @@ export function useTimedAdvance(durationMs: number, onDone: () => void, active =
 }
 
 type PlaylistSlide =
-  | { key: string; kind: "video"; itemId: string }
+  | { key: string; kind: "video"; itemId: string; withAudio: boolean }
   | { key: string; kind: "image"; itemId: string; durationSeconds: number }
-  | { key: string; kind: "webpage"; url: string; durationSeconds: number }
+  | { key: string; kind: "webpage"; url: string; durationSeconds: number; withAudio: boolean }
   | { key: string; kind: "news"; durationSeconds: number }
   | { key: string; kind: "agenda-event"; durationSeconds: number; event: AgendaRotationEvent | null };
 
@@ -240,11 +242,11 @@ type PlaylistSlide =
 function buildPlaylistSlides(items: PlaylistItemSummary[]): PlaylistSlide[] {
   return items.map((item) =>
     item.kind === "video"
-      ? { key: item.id, kind: "video", itemId: item.id }
+      ? { key: item.id, kind: "video", itemId: item.id, withAudio: item.withAudio }
       : item.kind === "image"
         ? { key: item.id, kind: "image", itemId: item.id, durationSeconds: item.durationSeconds ?? 15 }
         : item.kind === "webpage"
-          ? { key: item.id, kind: "webpage", url: item.url ?? "", durationSeconds: item.durationSeconds ?? 60 }
+          ? { key: item.id, kind: "webpage", url: item.url ?? "", durationSeconds: item.durationSeconds ?? 60, withAudio: item.withAudio }
           : item.kind === "news"
             ? { key: item.id, kind: "news", durationSeconds: item.durationSeconds ?? 30 }
             : { key: item.id, kind: "agenda-event", durationSeconds: item.durationSeconds ?? 20, event: item.event },
@@ -340,7 +342,7 @@ function ProgressOverlay({ percent, bottomOffsetPx = 0 }: { percent: number; bot
 //    manual por clique (reinicia a contagem automática a partir daqui).
 const WEBPAGE_LOAD_TIMEOUT_MS = 8000;
 
-function WebpageSlide({ url, onFailure }: { url: string; onFailure: () => void }) {
+function WebpageSlide({ url, withAudio, onFailure }: { url: string; withAudio: boolean; onFailure: () => void }) {
   // onFailure numa ref (não nas deps do efeito) — mesmo padrão de useTimedAdvance: o timer não
   // remonta a cada render só porque o closure mudou de identidade.
   const onFailureRef = useRef(onFailure);
@@ -362,6 +364,10 @@ function WebpageSlide({ url, onFailure }: { url: string; onFailure: () => void }
       className="h-full w-full border-0"
       title="Página web da playlist"
       sandbox="allow-scripts allow-same-origin"
+      // Só quando o item está marcado "Tocar áudio na TV" — sem isto (padrão) a política de
+      // autoplay do navegador já barra som vindo do frame; com isto, o frame pode tocar áudio
+      // sozinho num navegador de TV/kiosk que permita autoplay.
+      allow={withAudio ? "autoplay" : undefined}
       referrerPolicy="no-referrer"
       onLoad={() => setLoaded(true)}
       onError={() => onFailureRef.current()}
@@ -444,8 +450,23 @@ function PlaylistLayer({
         className={`relative h-full w-full ${objectFitClassName}`}
         src={`/api/broadcast/stream/${current.itemId}`}
         autoPlay
-        muted
+        // Item marcado "Tocar áudio na TV" (with_audio) sai sem mute; senão, muted (exigência de
+        // autoplay do navegador). onLoadedData tenta o play com som e, se o navegador recusar
+        // (política de autoplay), volta pra reprodução muda — nunca deixa a playlist travada num
+        // vídeo que não começou.
+        muted={!current.withAudio}
         playsInline
+        onLoadedData={
+          current.withAudio
+            ? (event) => {
+                const el = event.currentTarget;
+                el.play().catch(() => {
+                  el.muted = true;
+                  void el.play();
+                });
+              }
+            : undefined
+        }
         onEnded={advance}
       />
     ) : current.kind === "image" ? (
@@ -456,6 +477,7 @@ function PlaylistLayer({
       <WebpageSlide
         key={current.key}
         url={current.url}
+        withAudio={current.withAudio}
         onFailure={() => {
           advance();
           setManualTick((tick) => tick + 1);
@@ -653,11 +675,10 @@ function VideoZoneLayer({
 // layout do Relógio e Clima não deve alterar quando o drawer estiver off" (antes, a variante
 // "compact" só mostrava hora+temperatura numa linha só, sem data nem o rótulo da condição do
 // tempo). "Layout" ali é a ESTRUTURA (hora+data empilhados, clima com divisor+rótulo) — o TAMANHO
-// do texto continua acompanhando a altura da barra ao redor (pedido explícito: "elementos no
-// footer devem seguir o tamanho do height do footer"), já que a compacta (h-12/48px,
-// COMPACT_FOOTER_HEIGHT_PX) é bem mais baixa que qualquer tier aberto (BROADCAST_AGENDA_VIEW_SIZE_SCALE,
-// 80-160px) — o mesmo texto-2xl/4xl que cabe folgado numa barra alta ficaria espremido/cortando
-// numa de 48px.
+// do texto acompanha a altura da barra. Com a barra compacta dobrada pra h-24/96px
+// (COMPACT_FOOTER_HEIGHT_PX) — perto do tier aberto `padrao` (h-20/80px) — o texto compacto usa os
+// MESMOS tamanhos do modo aberto; antes, com a barra de 48px, ele precisava encolher e ficava
+// ilegível de longe.
 function ClockWeatherBlock({
   time,
   date,
@@ -671,16 +692,15 @@ function ClockWeatherBlock({
   palette: ReturnType<typeof resolveContrastPalette>;
   compact?: boolean;
 }) {
+  // compact só reduz o espaçamento lateral — os tamanhos de texto/ícone são os mesmos do modo
+  // aberto (a barra compacta agora é alta o bastante, ver o comentário acima).
   return (
-    <div className={`flex shrink-0 items-center ${compact ? "gap-2.5" : "gap-4 sm:gap-6"}`}>
+    <div className={`flex shrink-0 items-center ${compact ? "gap-4" : "gap-4 sm:gap-6"}`}>
       <div className="text-right leading-none">
-        <div
-          className={`font-bold tracking-tight tabular-nums ${compact ? "text-base" : "text-2xl"}`}
-          style={{ color: palette.foreground }}
-        >
+        <div className="font-bold tracking-tight tabular-nums text-2xl" style={{ color: palette.foreground }}>
           {time}
         </div>
-        <div className={`mt-1 font-medium capitalize ${compact ? "text-[10px]" : "text-xs"}`} style={{ color: palette.muted }}>
+        <div className="mt-1 font-medium capitalize text-xs" style={{ color: palette.muted }}>
           {date}
         </div>
       </div>
@@ -689,14 +709,14 @@ function ClockWeatherBlock({
         // pequeno e discreto embaixo) em vez de só emoji+número soltos, pra ficar visualmente
         // consistente com o resto da barra.
         <>
-          <span aria-hidden="true" className={`w-px shrink-0 ${compact ? "h-5" : "h-8"}`} style={{ background: palette.subtle }} />
-          <div className={`flex items-center ${compact ? "gap-1.5" : "gap-3"}`}>
-            <span className={`leading-none ${compact ? "text-xl" : "text-4xl"}`}>{weather.emoji}</span>
+          <span aria-hidden="true" className="w-px shrink-0 h-8" style={{ background: palette.subtle }} />
+          <div className="flex items-center gap-3">
+            <span className="leading-none text-4xl">{weather.emoji}</span>
             <div className="text-left leading-none">
-              <div className={`font-bold tabular-nums ${compact ? "text-base" : "text-2xl"}`} style={{ color: palette.foreground }}>
+              <div className="font-bold tabular-nums text-2xl" style={{ color: palette.foreground }}>
                 {Math.round(weather.temperatureC)}°
               </div>
-              <div className={`mt-1 font-medium capitalize ${compact ? "text-[10px]" : "text-xs"}`} style={{ color: palette.muted }}>
+              <div className="mt-1 font-medium capitalize text-xs" style={{ color: palette.muted }}>
                 {weather.conditionLabel}
               </div>
             </div>
@@ -740,26 +760,25 @@ export function BrandFooterBar({
   if (compact) {
     return (
       <div className="absolute inset-x-0 bottom-0 flex w-full shrink-0 flex-col" style={{ background: brandColor }}>
-        {/* h-12 (COMPACT_FOOTER_HEIGHT_PX=48, os dois precisam bater — ver a constante) — pedido
-            explícito: "quando a view ficar full width, o height do footer deve diminuir 40%"
-            (era h-20/80px). Logo e ClockWeatherBlock (compact) escalam junto com a barra menor —
-            pedido explícito: "elementos no footer devem seguir o tamanho do height do footer" —
-            mas a ESTRUTURA do relógio/clima continua a mesma do modo aberto, só o tamanho do
-            texto muda (pedido anterior: "o layout do Relógio e Clima não deve alterar quando o
-            drawer estiver off" — layout = estrutura, não tamanho). */}
-        <div className="flex h-12 w-full items-center justify-between gap-3 px-6">
+        {/* h-24 (COMPACT_FOOTER_HEIGHT_PX=96, os dois precisam bater — ver a constante). Era
+            h-12/48px e ficou ilegível de longe; dobrado a pedido explícito. Logo e
+            ClockWeatherBlock (compact) escalam junto — a ESTRUTURA do relógio/clima continua a
+            mesma do modo aberto, só o tamanho do texto muda (pedido anterior: "o layout do Relógio
+            e Clima não deve alterar quando o drawer estiver off" — layout = estrutura, não
+            tamanho). */}
+        <div className="flex h-24 w-full items-center justify-between gap-4 px-7">
           {brandLogoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- logo vem de contexts/media (Blob), domínio arbitrário.
             <img
               src={brandLogoUrl}
               alt=""
-              className="h-6 w-auto shrink-0 object-contain"
+              className="h-12 w-auto shrink-0 object-contain"
               style={palette.isLight ? undefined : { filter: "brightness(0) invert(1)" }}
             />
           ) : (
             <span />
           )}
-          {tickerEnabled && <AgendaTickerInline rotation={agendaRotation} palette={palette} compact timeZone={timeZone} />}
+          {tickerEnabled && <AgendaTickerInline rotation={agendaRotation} palette={palette} timeZone={timeZone} />}
           {now && <ClockWeatherBlock time={time} date={date} weather={weather} palette={palette} compact />}
         </div>
       </div>
@@ -780,7 +799,7 @@ export function BrandFooterBar({
         ) : (
           <span />
         )}
-        {tickerEnabled && <AgendaTickerInline rotation={agendaRotation} palette={palette} compact={false} timeZone={timeZone} />}
+        {tickerEnabled && <AgendaTickerInline rotation={agendaRotation} palette={palette} timeZone={timeZone} />}
         {now && <ClockWeatherBlock time={time} date={date} weather={weather} palette={palette} />}
       </div>
     </div>
@@ -1465,12 +1484,10 @@ const TICKER_AGENDA_DWELL_MS = 30_000;
 function AgendaTickerInline({
   rotation,
   palette,
-  compact,
   timeZone,
 }: {
   rotation: AgendaRotationEntry[];
   palette: ReturnType<typeof resolveContrastPalette>;
-  compact: boolean;
   timeZone: string;
 }) {
   const [agendaIndex, setAgendaIndex] = useState(0);
@@ -1507,7 +1524,7 @@ function AgendaTickerInline({
           animação sozinho. */}
       <span
         key={currentEvent.id}
-        className={`block truncate font-medium ${compact ? "text-xs" : "text-sm"}`}
+        className="block truncate font-medium text-sm"
         style={{ color: palette.muted, animation: "broadcast-news-title-in 500ms ease both" }}
       >
         {parts.join("   •   ")}

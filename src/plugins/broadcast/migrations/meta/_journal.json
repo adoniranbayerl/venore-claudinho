@@ -15,6 +15,13 @@
       "when": 1787936039991,
       "tag": "0001_simple_wendell_rand",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787941075527,
+      "tag": "0002_bizarre_mandrill",
+      "breakpoints": true
     }
   ]
 }

@@ -16,6 +16,7 @@ export async function addWebpagePlaylistItem(command: AddWebpagePlaylistItemComm
     title: command.title?.trim() || null,
     url: command.url.trim(),
     durationSeconds: command.durationSeconds ?? null,
+    withAudio: command.withAudio ?? false,
   });
 
   endOperation(handle, { success: true });
