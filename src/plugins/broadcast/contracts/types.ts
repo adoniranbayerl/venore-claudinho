@@ -107,6 +107,15 @@ export type BroadcastAgendaRecord = {
   updatedAt: Date;
 };
 
+// Uma data avulsa de um evento (ver broadcast_agenda_event_dates no schema) — o evento continua
+// UM card, mas pode acontecer em dias separados, cada um com seu próprio horário. endAt null = sem
+// término definido pra essa data (mesma semântica de BroadcastAgendaEventRecord.endAt).
+export type BroadcastAgendaEventDate = {
+  id: string;
+  startAt: Date;
+  endAt: Date | null;
+};
+
 export type BroadcastAgendaEventRecord = {
   id: string;
   agendaId: string;
@@ -125,6 +134,10 @@ export type BroadcastAgendaEventRecord = {
   coverMediaAssetId: string | null;
   // Local/sala do evento — texto livre, opcional, só exibição.
   location: string | null;
+  // Datas EXTRAS (além da primária startAt/endAt) — sempre anexadas pelos finders de evento, nunca
+  // uma coluna. [] pra evento sem datas extras e pra evento recorrente (não se aplica). Um evento
+  // não-recorrente só sai do rodízio da agenda quando a ÚLTIMA data (primária ou extra) já passou.
+  extraDates: BroadcastAgendaEventDate[];
   createdAt: Date;
   updatedAt: Date;
 };
@@ -139,7 +152,8 @@ export type BroadcastAlertRecord = {
 
 // Evento com a URL de capa já resolvida (coverMediaAssetId -> coverUrl, via getMediaAsset) —
 // mesmo racional de PlaylistItemSummary: client component de view de saída não resolve mídia
-// sozinho, só recebe a URL pronta.
+// sozinho, só recebe a URL pronta. extraDates passa cru (one-off, sem recorrência a resolver);
+// depois do round-trip JSON os Date viram string, e as helpers da view já aceitam string|Date.
 export type AgendaRotationEvent = BroadcastAgendaEventRecord & { coverUrl: string | null };
 
 // Um "canal" de agenda com seus próximos eventos e logo já resolvidos — deliberadamente aqui em

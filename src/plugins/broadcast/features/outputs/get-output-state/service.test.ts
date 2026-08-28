@@ -203,7 +203,7 @@ describe("getOutputState", () => {
       { id: "a2", name: "Mensal", displaySeconds: 30, order: 1, backgroundColor: "#1a1a2e", logoMediaAssetId: null },
     ]);
     findAllUpcomingAgendaEvents.mockResolvedValue([
-      { id: "e1", agendaId: "a1", title: "Reunião", startAt: new Date(), coverMediaAssetId: null },
+      { id: "e1", agendaId: "a1", title: "Reunião", startAt: new Date(), coverMediaAssetId: null, extraDates: [] },
     ]);
     findAllOutputAgendaLinks.mockResolvedValue([{ outputId: "o1", agendaId: "a1" }]);
     getBrandConfig.mockResolvedValue({ logoUrl: "https://example.com/logo.png" });
@@ -217,7 +217,16 @@ describe("getOutputState", () => {
       {
         agenda: { id: "a1", name: "Semanal", displaySeconds: 20, order: 0, backgroundColor: null, logoMediaAssetId: null },
         events: [
-          { id: "e1", agendaId: "a1", title: "Reunião", startAt: expect.any(Date), endAt: null, coverMediaAssetId: null, coverUrl: null },
+          {
+            id: "e1",
+            agendaId: "a1",
+            title: "Reunião",
+            startAt: expect.any(Date),
+            endAt: null,
+            coverMediaAssetId: null,
+            extraDates: [],
+            coverUrl: null,
+          },
         ],
         logoUrl: null,
       },
@@ -256,6 +265,29 @@ describe("getOutputState", () => {
     // A data mandada pro client não é a âncora crua — é a próxima ocorrência, sempre >= agora.
     expect(event.startAt.getTime()).toBeGreaterThan(Date.now());
     expect(event.startAt.getDay()).toBe(oldAnchor.getDay());
+  });
+
+  it("passes a one-off event's extra dates through to the client untouched", async () => {
+    findOutputByToken.mockResolvedValue({ id: "o1", drawerOpen: true, currentSceneId: "s1" });
+    findSceneById.mockResolvedValue({ id: "s1", name: "Painel" });
+    findLayersBySceneId.mockResolvedValue([{ id: "l1", type: "agenda", config: {} }]);
+    findAllAgendas.mockResolvedValue([
+      { id: "a1", name: "Semanal", displaySeconds: 20, order: 0, backgroundColor: null, logoMediaAssetId: null },
+    ]);
+    const primary = new Date("2026-09-10T14:00:00Z");
+    const extra = { id: "d1", startAt: new Date("2026-09-15T14:00:00Z"), endAt: new Date("2026-09-15T16:00:00Z") };
+    findAllUpcomingAgendaEvents.mockResolvedValue([
+      { id: "e1", agendaId: "a1", title: "Evento em dois dias", startAt: primary, endAt: null, recurring: false, coverMediaAssetId: null, extraDates: [extra] },
+    ]);
+    findAllOutputAgendaLinks.mockResolvedValue([{ outputId: "o1", agendaId: "a1" }]);
+
+    const { getOutputState } = await import("./service");
+    const result = await getOutputState({ token: "tok-1" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const [event] = result.data.agendaRotation[0].events;
+    expect(event.extraDates).toEqual([extra]);
   });
 
   it("only shows an agenda on an output it's explicitly linked to — excludes agendas linked elsewhere and agendas with no link at all (opt-in model)", async () => {

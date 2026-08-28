@@ -184,6 +184,23 @@ export const broadcastAgendaEvents = broadcastSchema.table("agenda_events", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Datas EXTRAS de um evento não recorrente — pedido explícito: "um evento que acontece em dois
+// dias NÃO consecutivos (ex: dia 10 e dia 15)". O evento continua UM card (broadcastAgendaEvents);
+// esta tabela só acrescenta ocorrências avulsas à data primária (startAt/endAt do próprio evento).
+// Cada data extra tem início e término PRÓPRIOS — mesma semântica de startAt/endAt do evento
+// (endAt opcional, timestamp completo, só exibição). NÃO se aplica a evento recurring=true: o
+// service persiste zero linhas aqui quando recurring, e a seção fica escondida no admin. onDelete
+// cascade: apagar o evento apaga suas datas extras. Sem created_at/updated_at de propósito — é
+// dado auxiliar, sempre lido/gravado junto com o evento pai, nunca versionado sozinho.
+export const broadcastAgendaEventDates = broadcastSchema.table("agenda_event_dates", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => broadcastAgendaEvents.id, { onDelete: "cascade" }),
+  startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+  endAt: timestamp("end_at", { withTimezone: true }),
+});
+
 // Aviso rápido (lower-third/alerta) — no máximo um "ativo" por vez (o mais recente com expiresAt
 // no futuro). Criado com uma duração; expira sozinho, sem precisar de ação manual pra sumir. Lido
 // pela layer "alert", que ignora a geometria configurada e sempre sobrepõe tudo quando há um

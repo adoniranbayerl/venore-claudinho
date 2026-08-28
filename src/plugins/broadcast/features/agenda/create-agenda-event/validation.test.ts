@@ -47,4 +47,40 @@ describe("validateCreateAgendaEventInput", () => {
       })?.code,
     ).toBe("broadcast.create-agenda-event.invalid_end_date");
   });
+
+  it("accepts valid extra dates (with and without an end)", () => {
+    expect(
+      validateCreateAgendaEventInput({
+        agendaId: "a1",
+        title: "Evento em dois dias",
+        startAt: new Date("2026-09-10T14:00:00Z"),
+        extraDates: [
+          { startAt: new Date("2026-09-15T14:00:00Z") },
+          { startAt: new Date("2026-09-20T09:00:00Z"), endAt: new Date("2026-09-20T11:00:00Z") },
+        ],
+      }),
+    ).toBeNull();
+  });
+
+  it("rejects an extra date with an invalid startAt", () => {
+    expect(
+      validateCreateAgendaEventInput({
+        agendaId: "a1",
+        title: "Evento",
+        startAt: new Date("2026-09-10T14:00:00Z"),
+        extraDates: [{ startAt: new Date("not-a-date") }],
+      })?.code,
+    ).toBe("broadcast.create-agenda-event.invalid_extra_date");
+  });
+
+  it("rejects an extra date whose endAt is at or before its startAt", () => {
+    expect(
+      validateCreateAgendaEventInput({
+        agendaId: "a1",
+        title: "Evento",
+        startAt: new Date("2026-09-10T14:00:00Z"),
+        extraDates: [{ startAt: new Date("2026-09-15T14:00:00Z"), endAt: new Date("2026-09-15T13:00:00Z") }],
+      })?.code,
+    ).toBe("broadcast.create-agenda-event.invalid_extra_date");
+  });
 });

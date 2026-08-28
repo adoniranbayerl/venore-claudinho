@@ -1,6 +1,7 @@
-import { and, asc, desc, eq, gt, gte, isNotNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import {
+  broadcastAgendaEventDates,
   broadcastAgendaEvents,
   broadcastAgendas,
   broadcastAlerts,
@@ -10,7 +11,9 @@ import {
   broadcastPlaylistItems,
   broadcastScenes,
 } from "../../../database/schema";
+import { isAgendaEventUpcoming } from "../../../shared/agenda-occurrences";
 import type {
+  BroadcastAgendaEventDate,
   BroadcastAgendaEventRecord,
   BroadcastAgendaRecord,
   BroadcastLayerRecord,
@@ -18,6 +21,28 @@ import type {
   BroadcastPlaylistItemRecord,
   BroadcastSceneRecord,
 } from "../../../contracts/types";
+
+// Datas avulsas de um conjunto de eventos, agrupadas por eventId (ordenadas por início). Uma
+// query só pra toda a tabela — ela é pequena (poucas linhas por evento) e o filtro de "qual
+// evento" acontece em JS, mesmo racional de findAllOutputAgendaLinks.
+async function findAgendaEventDatesByEventId(): Promise<Map<string, BroadcastAgendaEventDate[]>> {
+  const rows = await db
+    .select({
+      id: broadcastAgendaEventDates.id,
+      eventId: broadcastAgendaEventDates.eventId,
+      startAt: broadcastAgendaEventDates.startAt,
+      endAt: broadcastAgendaEventDates.endAt,
+    })
+    .from(broadcastAgendaEventDates)
+    .orderBy(asc(broadcastAgendaEventDates.startAt));
+  const byEventId = new Map<string, BroadcastAgendaEventDate[]>();
+  for (const row of rows) {
+    const bucket = byEventId.get(row.eventId) ?? [];
+    bucket.push({ id: row.id, startAt: row.startAt, endAt: row.endAt });
+    byEventId.set(row.eventId, bucket);
+  }
+  return byEventId;
+}
 
 export async function findOutputByToken(token: string): Promise<BroadcastOutputRecord | null> {
   const [row] = await db.select().from(broadcastOutputs).where(eq(broadcastOutputs.token, token)).limit(1);
@@ -63,35 +88,24 @@ export async function findAllAgendas(): Promise<BroadcastAgendaRecord[]> {
   return rows as BroadcastAgendaRecord[];
 }
 
-// Todos os eventos futuros OU em andamento de todas as agendas numa query só (evita N+1 — o
-// agrupamento por agenda acontece em JS, no service) — MAIS todo evento recurring=true, mesmo com
-// startAt no passado: pra um evento "toda semana" (ver shared/weekly-recurrence.ts), startAt é só
-// a âncora do padrão (dia da semana + horário), nunca a data real da próxima ocorrência, então
-// filtrar por "startAt >= agora" excluiria injustamente uma recorrência antiga cujo padrão
-// continua valendo.
-//
-// "startAt >= agora" sozinho excluiria um evento que JÁ COMEÇOU mas ainda não acabou (ex: um
-// evento de dias, ou só algumas horas, com endAt no futuro) — pedido explícito: "apenas quando o
-// evento acabar, retire ele". Por isso o segundo braço do OR: evento com endAt definido E ainda no
-// futuro conta como "em andamento", mesmo com startAt no passado. Evento sem endAt mantém o
-// comportamento original (some assim que o horário de início passa).
+// Todos os eventos "no ar" de todas as agendas — buscados junto com suas datas avulsas (duas
+// queries, agrupamento por evento/agenda em JS no service, sem N+1). O filtro de "no ar" mora numa
+// helper pura (isAgendaEventUpcoming, shared/agenda-occurrences.ts) porque agora depende das datas
+// extras — mais simples testar/entender em JS do que um SQL com MAX sobre um join. Um evento
+// não-recorrente continua na lista enquanto a ÚLTIMA data (primária OU extra) ainda não terminou;
+// recorrente entra sempre (startAt é só a âncora do padrão semanal, ver shared/weekly-recurrence.ts).
 //
 // A ordem por startAt aqui é só um pré-filtro grosseiro — a ordem real (por ocorrência efetiva)
-// acontece em JS no service, depois de resolver a data de cada evento recorrente.
+// acontece em JS no service.
 export async function findAllUpcomingAgendaEvents(): Promise<BroadcastAgendaEventRecord[]> {
   const now = new Date();
-  const rows = await db
-    .select()
-    .from(broadcastAgendaEvents)
-    .where(
-      or(
-        gte(broadcastAgendaEvents.startAt, now),
-        and(isNotNull(broadcastAgendaEvents.endAt), gte(broadcastAgendaEvents.endAt, now)),
-        eq(broadcastAgendaEvents.recurring, true),
-      ),
-    )
-    .orderBy(asc(broadcastAgendaEvents.startAt));
-  return rows as BroadcastAgendaEventRecord[];
+  const [rows, datesByEventId] = await Promise.all([
+    db.select().from(broadcastAgendaEvents).orderBy(asc(broadcastAgendaEvents.startAt)),
+    findAgendaEventDatesByEventId(),
+  ]);
+  return (rows as Omit<BroadcastAgendaEventRecord, "extraDates">[])
+    .map((row) => ({ ...row, extraDates: datesByEventId.get(row.id) ?? [] }))
+    .filter((event) => isAgendaEventUpcoming(event, now));
 }
 
 // Tabela inteira (pequena — um vínculo por linha) carregada de uma vez; o filtro "essa agenda
@@ -108,7 +122,17 @@ export async function findAllOutputAgendaLinks(): Promise<{ outputId: string; ag
 // degrada bem pra esse caso, mesmo racional de bloco de notícias vazio).
 export async function findAgendaEventById(id: string): Promise<BroadcastAgendaEventRecord | null> {
   const [row] = await db.select().from(broadcastAgendaEvents).where(eq(broadcastAgendaEvents.id, id)).limit(1);
-  return (row as BroadcastAgendaEventRecord) ?? null;
+  if (!row) return null;
+  const extraDates = await db
+    .select({
+      id: broadcastAgendaEventDates.id,
+      startAt: broadcastAgendaEventDates.startAt,
+      endAt: broadcastAgendaEventDates.endAt,
+    })
+    .from(broadcastAgendaEventDates)
+    .where(eq(broadcastAgendaEventDates.eventId, id))
+    .orderBy(asc(broadcastAgendaEventDates.startAt));
+  return { ...(row as Omit<BroadcastAgendaEventRecord, "extraDates">), extraDates: extraDates as BroadcastAgendaEventDate[] };
 }
 
 // O aviso ativo é o mais recentemente publicado ainda não expirado — não há conceito de "fila",

@@ -93,6 +93,32 @@ function optionalDateInZone(formData: FormData, field: string, timeZone: string)
   return value && !Number.isNaN(value.getTime()) ? value : undefined;
 }
 
+// Datas extras do evento chegam como JSON num campo hidden (mesmo padrão de outputIds/agendaIds):
+// [{ startAt: "YYYY-MM-DDTHH:mm", endAt: "YYYY-MM-DDTHH:mm" | null }]. Cada string de parede é
+// interpretada no fuso da instituição, igual startAt/endAt. Linha sem início válido é descartada
+// aqui (lenient) — a validação de negócio fina fica na feature. Campo ausente/ inválido = [].
+function parseExtraDatesInZone(formData: FormData, timeZone: string): { startAt: Date; endAt: Date | null }[] {
+  const raw = requireString(formData, "extraDates");
+  if (!raw) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  const result: { startAt: Date; endAt: Date | null }[] = [];
+  for (const entry of parsed) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const record = entry as { startAt?: unknown; endAt?: unknown };
+    const startAt = typeof record.startAt === "string" && record.startAt ? parseWallTimeInZone(record.startAt, timeZone) : null;
+    if (!startAt || Number.isNaN(startAt.getTime())) continue;
+    const endRaw = typeof record.endAt === "string" && record.endAt ? parseWallTimeInZone(record.endAt, timeZone) : null;
+    result.push({ startAt, endAt: endRaw && !Number.isNaN(endRaw.getTime()) ? endRaw : null });
+  }
+  return result;
+}
+
 export async function createPlaylistAction(_prevState: BroadcastActionState, formData: FormData): Promise<BroadcastActionState> {
   if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
 
@@ -583,6 +609,7 @@ export async function createAgendaEventAction(_prevState: BroadcastActionState, 
     startAt,
     recurring: formData.get("recurring") === "on",
     endAt: optionalDateInZone(formData, "endAt", timeZone),
+    extraDates: parseExtraDatesInZone(formData, timeZone),
     coverMediaAssetId: requireString(formData, "coverMediaAssetId") || undefined,
     location: requireString(formData, "location") || undefined,
   });
@@ -605,6 +632,7 @@ export async function updateAgendaEventAction(_prevState: BroadcastActionState, 
     startAt,
     recurring: formData.get("recurring") === "on",
     endAt: optionalDateInZone(formData, "endAt", timeZone),
+    extraDates: parseExtraDatesInZone(formData, timeZone),
     coverMediaAssetId: requireString(formData, "coverMediaAssetId") || undefined,
     location: requireString(formData, "location") || undefined,
   });

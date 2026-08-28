@@ -700,14 +700,15 @@ function ClockWeatherBlock({
         <div className="font-bold tracking-tight tabular-nums text-2xl" style={{ color: palette.foreground }}>
           {time}
         </div>
-        <div className="mt-1 font-medium capitalize text-xs" style={{ color: palette.muted }}>
+        <div className="mt-1.5 font-semibold capitalize text-lg" style={{ color: palette.muted }}>
           {date}
         </div>
       </div>
       {weather && (
         // UX "premium" — mesmo par tipográfico do horário ao lado (número grande em cima, rótulo
-        // pequeno e discreto embaixo) em vez de só emoji+número soltos, pra ficar visualmente
-        // consistente com o resto da barra.
+        // embaixo) em vez de só emoji+número soltos, pra ficar visualmente consistente com o resto
+        // da barra. O rótulo (data / condição do tempo) usa text-lg semibold — pedido explícito:
+        // "muito pequeno... aumentar e aumentar o peso" (era text-xs medium, ilegível de longe).
         <>
           <span aria-hidden="true" className="w-px shrink-0 h-8" style={{ background: palette.subtle }} />
           <div className="flex items-center gap-3">
@@ -716,7 +717,7 @@ function ClockWeatherBlock({
               <div className="font-bold tabular-nums text-2xl" style={{ color: palette.foreground }}>
                 {Math.round(weather.temperatureC)}°
               </div>
-              <div className="mt-1 font-medium capitalize text-xs" style={{ color: palette.muted }}>
+              <div className="mt-1.5 font-semibold capitalize text-lg" style={{ color: palette.muted }}>
                 {weather.conditionLabel}
               </div>
             </div>
@@ -926,14 +927,21 @@ function FeaturedAgendaEventSlide({
   const now = useClock();
   if (!event) return <div className="h-full w-full bg-black" />;
 
-  const { day, month, weekday, time } = formatEventDay(event.startAt, timeZone);
-  const today = isSameDay(event.startAt, timeZone);
+  // Datas do evento (primária + avulsas). Com avulsas, o badge grande mostra a PRÓXIMA data ainda
+  // futura entre todas, e uma lista de linhas substitui o "dia • horário" único; "Hoje"/
+  // "Acontecendo" olham QUALQUER data.
+  const occurrences = eventOccurrences(event);
+  const hasExtraDates = occurrences.length > 1;
+  const displayOccurrence = hasExtraDates ? nextFutureOccurrence(event, now ?? new Date()) : occurrences[0];
+  const { day, month, weekday, time } = formatEventDay(displayOccurrence.startAt, timeZone);
+  const today = occurrences.some((occurrence) => isSameDay(occurrence.startAt, timeZone));
   // "Acontecendo agora" — pedido explícito: "quando o evento começar, coloque o status
   // 'acontecendo', e destaque as cores". Prevalece sobre "Hoje"/"Agenda" quando true (ver o badge
   // abaixo) — laranja (TV_HAPPENING_NOW_COLOR) em vez da cor de destaque padrão, pra ficar
   // visualmente distinto dos outros dois estados.
-  const happeningNow = now !== null && isEventHappeningNow(event.startAt, event.endAt, now);
-  const weekdayAndTime = `${weekday} • ${time}${formatEndTimeSuffix(event.startAt, event.endAt, timeZone)}`;
+  const happeningNow =
+    now !== null && occurrences.some((occurrence) => isEventHappeningNow(occurrence.startAt, occurrence.endAt, now));
+  const weekdayAndTime = `${weekday} • ${time}${formatEndTimeSuffix(displayOccurrence.startAt, displayOccurrence.endAt, timeZone)}`;
   const hasCover = Boolean(event.coverUrl);
 
   // Badge "Acontecendo"/"Hoje"/"Agenda" — mesma regra visual do card da gaveta lateral
@@ -1016,10 +1024,25 @@ function FeaturedAgendaEventSlide({
           </p>
         )}
         <div className={`flex flex-wrap items-center gap-x-10 gap-y-4 ${hasCover ? "" : "justify-center"}`}>
-          <span className="flex items-center gap-4 text-3xl font-bold" style={{ color: TV_ACCENT_COLOR }}>
-            <Clock className="size-10 shrink-0" aria-hidden />
-            {weekdayAndTime}
-          </span>
+          {hasExtraDates ? (
+            <div className={`flex flex-col gap-2 ${hasCover ? "" : "items-center"}`}>
+              {occurrences.map((occurrence, occurrenceIndex) => (
+                <span
+                  key={occurrenceIndex}
+                  className="flex items-center gap-4 text-3xl font-bold"
+                  style={{ color: TV_ACCENT_COLOR }}
+                >
+                  <Clock className="size-10 shrink-0" aria-hidden />
+                  {formatOccurrenceLine(occurrence, timeZone)}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="flex items-center gap-4 text-3xl font-bold" style={{ color: TV_ACCENT_COLOR }}>
+              <Clock className="size-10 shrink-0" aria-hidden />
+              {weekdayAndTime}
+            </span>
+          )}
           {event.location && (
             <span className="flex items-center gap-4 text-3xl font-bold" style={{ color: "rgba(255,255,255,0.95)" }}>
               <MapPin className="size-10 shrink-0" aria-hidden />
@@ -1109,6 +1132,42 @@ function formatEndTimeSuffix(startAt: string | Date, endAt: string | Date | null
 function isSameDay(startAt: string | Date, timeZone: string): boolean {
   const date = typeof startAt === "string" ? new Date(startAt) : startAt;
   return isSameZonedCalendarDay(date, new Date(), timeZone);
+}
+
+// Uma ocorrência do evento: a data primária + cada data avulsa (broadcast_agenda_event_dates).
+// startAt/endAt chegam como string depois do round-trip JSON — as helpers de formatação já lidam.
+type EventOccurrence = { startAt: string | Date; endAt: string | Date | null };
+
+function occurrenceStartMs(occurrence: EventOccurrence): number {
+  return new Date(occurrence.startAt).getTime();
+}
+
+function occurrenceEndMs(occurrence: EventOccurrence): number {
+  return new Date(occurrence.endAt ?? occurrence.startAt).getTime();
+}
+
+// Todas as datas do evento (primária + extras), ordenadas por início. Sem extras devolve só a
+// primária — o chamador decide entre a linha única de sempre e uma lista.
+function eventOccurrences(event: AgendaRotationEvent): EventOccurrence[] {
+  const all: EventOccurrence[] = [
+    { startAt: event.startAt, endAt: event.endAt },
+    ...(event.extraDates ?? []).map((date) => ({ startAt: date.startAt, endAt: date.endAt })),
+  ];
+  return all.sort((a, b) => occurrenceStartMs(a) - occurrenceStartMs(b));
+}
+
+// A próxima ocorrência ainda não terminada entre todas — o badge grande de data e o ticker mostram
+// essa. Quando todas já passaram (o evento ainda pode estar visível "no dia" da última), cai na
+// última.
+function nextFutureOccurrence(event: AgendaRotationEvent, now: Date): EventOccurrence {
+  const occurrences = eventOccurrences(event);
+  return occurrences.find((occurrence) => occurrenceEndMs(occurrence) >= now.getTime()) ?? occurrences[occurrences.length - 1];
+}
+
+// "12 set • qua 14:00–15:30" — uma linha por data quando o evento tem datas avulsas.
+function formatOccurrenceLine(occurrence: EventOccurrence, timeZone: string): string {
+  const { day, month, weekday, time } = formatEventDay(occurrence.startAt, timeZone);
+  return `${day} ${month} • ${weekday} ${time}${formatEndTimeSuffix(occurrence.startAt, occurrence.endAt, timeZone)}`;
 }
 
 
@@ -1260,16 +1319,24 @@ function AgendaLayer({
           </div>
           <div className="flex flex-1 flex-col gap-2.5 overflow-hidden">
             {current.events.map((event, eventIndex) => {
-              const { day, month, weekday, time: eventTime } = formatEventDay(event.startAt, timeZone);
-              const today = isSameDay(event.startAt, timeZone);
+              // Datas do evento (primária + avulsas). Com avulsas, o dateBadge mostra a próxima
+              // data futura entre todas e a linha "seg • 14:00" vira uma lista; "Hoje"/"Acontecendo"
+              // olham QUALQUER data.
+              const occurrences = eventOccurrences(event);
+              const hasExtraDates = occurrences.length > 1;
+              const displayOccurrence = hasExtraDates ? nextFutureOccurrence(event, now ?? new Date()) : occurrences[0];
+              const { day, month, weekday, time: eventTime } = formatEventDay(displayOccurrence.startAt, timeZone);
+              const today = occurrences.some((occurrence) => isSameDay(occurrence.startAt, timeZone));
               // "Acontecendo agora" — mesmo racional/helper de FeaturedAgendaEventSlide (pedido
               // explícito: "quando o evento começar, coloque o status 'acontecendo', e destaque
               // as cores"). Prevalece sobre "Hoje" no badge/pill abaixo quando true.
-              const happeningNow = now !== null && isEventHappeningNow(event.startAt, event.endAt, now);
+              const happeningNow =
+                now !== null &&
+                occurrences.some((occurrence) => isEventHappeningNow(occurrence.startAt, occurrence.endAt, now));
               // "seg • 14:00" — pedido explícito: eventos recorrentes toda semana ficam óbvios de
               // bater o olho ("toda seg") sem precisar calcular a partir do número do dia. Com
               // horário de término opcional, vira "seg • 14:00–15:30".
-              const weekdayAndTime = `${weekday} • ${eventTime}${formatEndTimeSuffix(event.startAt, event.endAt, timeZone)}`;
+              const weekdayAndTime = `${weekday} • ${eventTime}${formatEndTimeSuffix(displayOccurrence.startAt, displayOccurrence.endAt, timeZone)}`;
               // 120ms entre cada card (mais espaçado que a primeira versão, pedido explícito: "mais
               // expressiva") — devagar o bastante pra cada entrada da direita ser individualmente
               // percebida, não só um blur de movimento. Delay base de AGENDA_ENTRY_ANIMATION_DELAY_MS
@@ -1339,7 +1406,15 @@ function AgendaLayer({
                     )}
                     <span className="mt-1.5 flex items-start gap-2 text-xl font-semibold" style={{ color: palette.foreground }}>
                       <Clock className="mt-1 size-5 shrink-0" aria-hidden />
-                      <span>{weekdayAndTime}</span>
+                      {hasExtraDates ? (
+                        <span className="flex flex-col gap-0.5">
+                          {occurrences.map((occurrence, occurrenceIndex) => (
+                            <span key={occurrenceIndex}>{formatOccurrenceLine(occurrence, timeZone)}</span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span>{weekdayAndTime}</span>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -1508,7 +1583,8 @@ function AgendaTickerInline({
 
   if (!currentAgenda || !currentEvent) return null;
 
-  const { weekday, time } = formatEventDay(currentEvent.startAt, timeZone);
+  // Com datas avulsas, mostra a próxima data futura entre todas (não a primária crua).
+  const { weekday, time } = formatEventDay(nextFutureOccurrence(currentEvent, new Date()).startAt, timeZone);
   const parts = [currentAgenda.agenda.name, currentEvent.title, `${weekday} • ${time}`, currentEvent.location].filter(
     (part): part is string => Boolean(part),
   );

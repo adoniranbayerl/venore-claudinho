@@ -19,5 +19,19 @@ export function validateUpdateAgendaEventInput(input: UpdateAgendaEventInput): {
       return { code: "broadcast.update-agenda-event.invalid_end_date", message: "O término precisa ser depois do início." };
     }
   }
+  // Mesmo racional de create-agenda-event/validation.ts (datas extras, lenient).
+  for (const extra of input.extraDates ?? []) {
+    if (!(extra.startAt instanceof Date) || Number.isNaN(extra.startAt.getTime())) {
+      return { code: "broadcast.update-agenda-event.invalid_extra_date", message: "Uma das datas extras é inválida." };
+    }
+    if (extra.endAt) {
+      if (!(extra.endAt instanceof Date) || Number.isNaN(extra.endAt.getTime())) {
+        return { code: "broadcast.update-agenda-event.invalid_extra_date", message: "O término de uma data extra é inválido." };
+      }
+      if (extra.endAt.getTime() <= extra.startAt.getTime()) {
+        return { code: "broadcast.update-agenda-event.invalid_extra_date", message: "O término de uma data extra precisa ser depois do início." };
+      }
+    }
+  }
   return null;
 }

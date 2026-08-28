@@ -8,6 +8,9 @@ export type UpdateAgendaEventCommand = {
   startAt: Date;
   recurring?: boolean;
   endAt?: Date | null;
+  // Substitui TODAS as datas avulsas do evento (replaceAgendaEventDates). Ignoradas quando
+  // recurring=true (o service grava zero). Ver broadcast_agenda_event_dates no schema.
+  extraDates?: { startAt: Date; endAt?: Date | null }[];
   coverMediaAssetId?: string | null;
   location?: string | null;
   actorId: string;

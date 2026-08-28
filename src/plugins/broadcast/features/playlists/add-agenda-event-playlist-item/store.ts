@@ -16,9 +16,11 @@ export async function findMaxPlaylistItemOrder(playlistId: string): Promise<numb
 // Confere que o evento existe antes de gravar o item — mesmo racional de
 // add-media-asset-playlist-item validando o asset (evita um item de playlist referenciando um
 // evento inexistente, já que a FK sozinha não conta o suficiente pra devolver um erro amigável).
+// Não precisa das datas avulsas aqui (só confere existência e lê o título) — extraDates fica [].
 export async function findAgendaEventById(id: string): Promise<BroadcastAgendaEventRecord | null> {
   const [row] = await db.select().from(broadcastAgendaEvents).where(eq(broadcastAgendaEvents.id, id)).limit(1);
-  return (row as BroadcastAgendaEventRecord) ?? null;
+  if (!row) return null;
+  return { ...(row as Omit<BroadcastAgendaEventRecord, "extraDates">), extraDates: [] };
 }
 
 export async function insertAgendaEventPlaylistItem(input: {

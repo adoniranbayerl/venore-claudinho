@@ -13,7 +13,12 @@ import type { PickableMedia } from "@/components/media-picker-field.actions";
 import { useActionToast } from "@/hooks/use-action-toast";
 // Importa direto de contracts/, nunca do barrel (@/plugins/broadcast) — mesmo racional de
 // outputs-section.tsx.
-import type { BroadcastAgendaEventRecord, BroadcastAgendaRecord, BroadcastOutputRecord } from "@/plugins/broadcast/contracts/types";
+import type {
+  BroadcastAgendaEventDate,
+  BroadcastAgendaEventRecord,
+  BroadcastAgendaRecord,
+  BroadcastOutputRecord,
+} from "@/plugins/broadcast/contracts/types";
 // Import direto do módulo compartilhado (não do barrel @/plugins/broadcast) — mesma regra dos
 // tipos acima: client component nunca pode arrastar o barrel de server (Drizzle/pg) pro bundle.
 import { isEventHappeningNow, resolveEventEndDate, resolveEventOccurrenceDate } from "@/plugins/broadcast/shared/weekly-recurrence";
@@ -281,6 +286,84 @@ function buildWeekdayAnchor(weekday: number, time: string): Date {
   return anchor;
 }
 
+type ExtraDateRow = { key: string; start: string; end: string };
+
+// "Outras datas" — para um evento que acontece em dias separados (ex: dia 10 e dia 15, sem nada
+// entre eles). Cada linha tem início e término (opcional) próprios. Linhas repetíveis, serializadas
+// num <input type="hidden" name="extraDates"> em JSON (mesmo padrão de setAgendaOutputs). Fica
+// escondido quando "repete toda semana" está marcado (quem monta este componente já cuida disso) —
+// e, escondido, o hidden input some do form, então a action recebe [] e o service não grava nada.
+function ExtraDatesFields({ idPrefix, defaultExtraDates }: { idPrefix: string; defaultExtraDates: BroadcastAgendaEventDate[] }) {
+  const [rows, setRows] = useState<ExtraDateRow[]>(() =>
+    defaultExtraDates.map((date, index) => ({
+      key: `initial-${index}`,
+      start: toDatetimeLocalValue(date.startAt),
+      end: date.endAt ? toDatetimeLocalValue(date.endAt) : "",
+    })),
+  );
+
+  const serialized = JSON.stringify(
+    rows.filter((row) => row.start).map((row) => ({ startAt: row.start, endAt: row.end || null })),
+  );
+
+  function addRow() {
+    setRows((current) => [...current, { key: `new-${Date.now()}-${current.length}`, start: "", end: "" }]);
+  }
+  function removeRow(key: string) {
+    setRows((current) => current.filter((row) => row.key !== key));
+  }
+  function patchRow(key: string, patch: Partial<Pick<ExtraDateRow, "start" | "end">>) {
+    setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+  }
+
+  return (
+    <div className="space-y-2.5 border-t border-border/60 pt-3">
+      <div>
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Outras datas</p>
+        <p className="text-xs text-muted-foreground">
+          Para um evento que acontece em dias separados. Cada data tem seu próprio horário. O card fica na TV até a última data passar.
+        </p>
+      </div>
+      <input type="hidden" name="extraDates" value={serialized} />
+      {rows.map((row) => (
+        <div key={row.key} className="flex flex-wrap items-end gap-2.5 rounded-md border border-border/60 bg-muted/20 p-2.5">
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground" htmlFor={`${idPrefix}-extra-${row.key}-start`}>
+              Começa
+            </label>
+            <Input
+              id={`${idPrefix}-extra-${row.key}-start`}
+              type="datetime-local"
+              value={row.start}
+              onChange={(event) => patchRow(row.key, { start: event.target.value })}
+              className="w-52"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground" htmlFor={`${idPrefix}-extra-${row.key}-end`}>
+              Termina (opcional)
+            </label>
+            <Input
+              id={`${idPrefix}-extra-${row.key}-end`}
+              type="datetime-local"
+              value={row.end}
+              min={row.start || undefined}
+              onChange={(event) => patchRow(row.key, { end: event.target.value })}
+              className="w-52"
+            />
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => removeRow(row.key)}>
+            Remover
+          </Button>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" onClick={addRow}>
+        Adicionar data
+      </Button>
+    </div>
+  );
+}
+
 // Campos de data/hora do evento — separados (não mais um único <input type="datetime-local">) e
 // com um modo dedicado pra recorrência: marcando "repete toda semana", o campo de data específica
 // vira um seletor de dia da semana (informar o dia da semana já basta, não precisa também de uma
@@ -292,11 +375,14 @@ function AgendaEventDateTimeFields({
   defaultDate,
   defaultRecurring,
   defaultEndAt,
+  defaultExtraDates,
 }: {
   idPrefix: string;
   defaultDate: Date;
   defaultRecurring: boolean;
   defaultEndAt?: Date | null;
+  // Datas avulsas já cadastradas (só no form de editar) — pré-preenchem "Outras datas".
+  defaultExtraDates?: BroadcastAgendaEventDate[];
 }) {
   const [recurring, setRecurring] = useState(defaultRecurring);
   const [date, setDate] = useState(() => toDateInputValue(defaultDate));
@@ -441,6 +527,10 @@ function AgendaEventDateTimeFields({
           })()}
         </p>
       )}
+
+      {/* Datas avulsas só existem pra evento de data única — escondido (e ignorado pelo backend)
+          quando "repete toda semana". */}
+      {!recurring && <ExtraDatesFields idPrefix={idPrefix} defaultExtraDates={defaultExtraDates ?? []} />}
     </div>
   );
 }
@@ -579,6 +669,7 @@ function EditAgendaEventForm({
             defaultDate={resolveEventOccurrenceDate(event)}
             defaultRecurring={event.recurring}
             defaultEndAt={resolveEventEndDate(event)}
+            defaultExtraDates={event.extraDates}
           />
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground" htmlFor={`${event.id}-edit-description`}>Descrição (opcional)</label>
@@ -631,6 +722,11 @@ function AgendaEventRow({ event, coverMedia }: { event: BroadcastAgendaEventReco
           {event.coverMediaAssetId && (
             <span className="shrink-0 rounded-full bg-accent/14 px-2 py-0.5 text-[11px] text-muted-foreground">com capa</span>
           )}
+          {event.extraDates.length > 0 && (
+            <span className="shrink-0 rounded-full bg-accent/14 px-2 py-0.5 text-[11px] text-muted-foreground">
+              {event.extraDates.length + 1} datas
+            </span>
+          )}
           <div className="min-w-0">
             <p className="truncate font-medium text-foreground">{event.title}</p>
             {/* Data mostrada é sempre a PRÓXIMA ocorrência (resolveEventOccurrenceDate é no-op pra
@@ -639,6 +735,14 @@ function AgendaEventRow({ event, coverMedia }: { event: BroadcastAgendaEventReco
               {formatEventDate(resolvedStart)}
               {formatEndTimeSuffix(resolvedStart, resolvedEnd)}
             </p>
+            {event.extraDates.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Também:{" "}
+                {event.extraDates
+                  .map((date) => `${formatEventDate(date.startAt)}${formatEndTimeSuffix(date.startAt, date.endAt)}`)
+                  .join("  ·  ")}
+              </p>
+            )}
             {event.description && <p className="truncate text-xs text-muted-foreground">{event.description}</p>}
             {event.location && (
               <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">

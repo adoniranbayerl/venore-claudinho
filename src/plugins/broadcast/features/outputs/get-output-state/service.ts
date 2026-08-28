@@ -114,6 +114,9 @@ async function resolveAgendaRotationEvent(event: BroadcastAgendaEventRecord, tim
     ...event,
     startAt: resolveEventOccurrenceDate(event, new Date(), timeZone),
     endAt: resolveEventEndDate(event, new Date(), timeZone),
+    // Datas avulsas passam cru — são one-off (sem recorrência a resolver); o client formata cada
+    // uma direto (as helpers da view já aceitam string|Date depois do round-trip JSON).
+    extraDates: event.extraDates ?? [],
     coverUrl: await resolveMediaAssetUrl(event.coverMediaAssetId),
   };
 }

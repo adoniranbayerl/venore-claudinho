@@ -1,5 +1,5 @@
 import { beginOperation, endOperation } from "@/observability";
-import { applyAgendaEventUpdate, findAgendaEventById } from "./store";
+import { applyAgendaEventUpdate, findAgendaEventById, replaceAgendaEventDates } from "./store";
 import type { UpdateAgendaEventCommand, UpdateAgendaEventResult } from "./types";
 
 export async function updateAgendaEvent(command: UpdateAgendaEventCommand): Promise<UpdateAgendaEventResult> {
@@ -16,12 +16,21 @@ export async function updateAgendaEvent(command: UpdateAgendaEventCommand): Prom
     return { success: false, error };
   }
 
+  const recurring = command.recurring ?? false;
+
+  // Substitui as datas avulsas ANTES do update do evento — assim applyAgendaEventUpdate relê e
+  // devolve o registro já com extraDates coerente. Recorrente zera as datas avulsas.
+  await replaceAgendaEventDates(
+    command.eventId,
+    recurring ? [] : (command.extraDates ?? []).map((date) => ({ startAt: date.startAt, endAt: date.endAt ?? null })),
+  );
+
   const record = await applyAgendaEventUpdate({
     id: command.eventId,
     title: command.title.trim(),
     description: command.description?.trim() || null,
     startAt: command.startAt,
-    recurring: command.recurring ?? false,
+    recurring,
     endAt: command.endAt ?? null,
     coverMediaAssetId: command.coverMediaAssetId?.trim() || null,
     location: command.location?.trim() || null,

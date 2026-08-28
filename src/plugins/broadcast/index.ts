@@ -254,6 +254,7 @@ export type { ClearAlertResult } from "./features/alerts/clear-alert/types";
 export type {
   BroadcastAgendaRecord,
   BroadcastAgendaEventRecord,
+  BroadcastAgendaEventDate,
   BroadcastAlertRecord,
   PlaylistItemKind,
   RegionNewsArticle,
