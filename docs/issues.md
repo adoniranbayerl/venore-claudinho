@@ -391,7 +391,7 @@ O que eu quero
 ### Broadcast — plano de correções, responsividade e fallback (2026-08-28)
 
 Sessão de revisão do plugin `broadcast` (já em produção, servidor sempre local/processo único).
-Plano completo em **`docs/broadcast-plano-correcoes.md`**: 11 fases, cada uma com prompt de sessão
+Plano completo em **`docs/broadcast-plano-correcoes.md`**: 12 fases, cada uma com prompt de sessão
 pronto. Resumo:
 
 - **Fases 1–2** — responsividade da view (720p/1080p/4K quebram; feita com root font-size fluida
@@ -414,9 +414,19 @@ pronto. Resumo:
   vídeo foi avaliada e descartada como mecanismo). Opt-in `cropWhenDrawerOpen` por item, opcional.
 - **Fase 11** — tela de standby/offline (marca + animação + texto): campo `broadcastOutputs.offline`
   ligado pelo admin, + detecção client-side de "sem conexão" e "sem conteúdo".
+- **Fase 12** — evento de agenda com datas espaçadas (não consecutivas): tabela
+  `broadcast_agenda_event_dates`, "um card com todas as datas", horário próprio por data extra,
+  escondida quando "toda semana". Sai do rodízio só quando a última data passa.
 
 Issues fechados na triagem: token previsível (intencional), stream sem PIN (conteúdo não precisa de
 proteção), bus em memória (ok com servidor local).
+
+**Já implementado fora do plano (commits nesta branch, 2026-08-28):** `withAudio` por item de
+playlist (coluna `with_audio`, migration 0002 — checkbox "Tocar áudio na TV", `<video>` sem mute +
+`allow="autoplay"` no iframe, fallback pra mudo); timer real do aviso rápido (`activeAlertExpiresAt`
+no estado, a view esconde a faixa no vencimento em vez de esperar o poll de 15s); footer compacto
+com altura dobrada (h-12→h-24) e texto legível. `broadcastOutputs.offline` (migration 0001) e o
+squash do baseline (0000) também já estão aplicados.
 
 Erro de typecheck pré-existente em `components/admin/outputs-section.tsx` (props de
 `EditPinDialog` / select de playlist, WIP desta branch) — a primeira fase que tocar o arquivo

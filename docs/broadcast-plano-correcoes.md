@@ -164,7 +164,8 @@ construído sobre o palco escalado das Fases 1–2.
 | 10 | Fim da faixa preta (blurred fill) | 1, 2 |
 | 11 | Tela de standby / offline | 1, 2, 4 |
 | 9 | Hardening do PIN + reset via admin | — |
-| 7 | Fechar verificação de migrations | 9, 11 (roda por último) |
+| 12 | Evento de agenda com datas espaçadas | — |
+| 7 | Fechar verificação de migrations | 9, 11, 12 (roda por último) |
 
 ---
 
@@ -407,4 +408,91 @@ Definition of Done:
 - Playlist sem itens -> tela de espera "nenhum conteúdo", não texto cru.
 - Servidor derrubado ~1min -> TV mostra "sem conexão" sobre o último quadro e se recupera sozinha.
 - QA nas 3 resoluções (720p/1080p/4K): logo + texto + animação proporcionais, legíveis de longe.
+```
+
+---
+
+### Fase 12 — Evento de agenda com datas espaçadas (não consecutivas)
+
+Decisões de design (já tomadas com o usuário): **um card com todas as datas** (o evento fica um
+só, listando as datas, e sai do rodízio só quando a ÚLTIMA passa) + **horário próprio por data**
+(cada data extra tem início e fim próprios).
+
+```
+Contexto: plugin broadcast, já em produção, servidor sempre local. Hoje um evento de agenda
+(broadcastAgendaEvents) é um span único startAt -> endAt. Um evento que acontece em dois dias
+NÃO consecutivos (ex: dia 10 e dia 15, sem nada entre eles) não é representável.
+
+Objetivo: permitir adicionar datas extras a um evento. O evento continua UM card, listando todas
+as datas; sai do rodízio da agenda só quando a última data (primária ou extra) já passou. Cada
+data extra tem horário de início e término próprios. Datas extras NÃO se aplicam a evento "toda
+semana" (recurring) — a seção fica escondida/ignorada quando recurring está marcado.
+
+Schema (src/plugins/broadcast/database/schema/index.ts): nova tabela broadcast_agenda_event_dates
+- id text pk ($defaultFn randomUUID)
+- eventId text not null references broadcastAgendaEvents.id onDelete cascade
+- startAt timestamptz not null
+- endAt timestamptz (nullable)
+Migration incremental (0003_*, sobre o baseline). db:generate:broadcast + db:migrate:broadcast
+(aplicar no banco — não esquecer).
+
+contracts/types.ts:
+- BroadcastAgendaEventDate = { id: string; startAt: Date; endAt: Date | null }
+- BroadcastAgendaEventRecord += extraDates: BroadcastAgendaEventDate[]
+- AgendaRotationEvent (resolvido) carrega extraDates como estão (one-off, sem recorrência a
+  resolver; JSON serializa Date -> string, as helpers da view já aceitam string|Date).
+
+Features create-agenda-event / update-agenda-event:
+- command/input += extraDates?: { startAt: Date; endAt?: Date | null }[]
+- validation: cada data extra Date válida; se tiver endAt, endAt > startAt. (lenient no resto)
+- service: se recurring, persiste ZERO datas extras. Create: insere evento, insere datas, retorna
+  { ...row, extraDates }. Update: substitui todas as datas do evento (replaceAgendaEventDates),
+  retorna com extraDates.
+- store: insertAgendaEventDates(eventId, dates), replaceAgendaEventDates(eventId, dates); os
+  finders de evento (findAgendaEventById aqui e nos outros) passam a anexar extraDates (query
+  extra + group). Manter o padrão handler->service->store.
+
+list-agenda-events (admin): store busca as datas de todos os eventos e agrupa por eventId ->
+event.extraDates, pro formulário de editar prefill.
+
+get-output-state:
+- store findAllUpcomingAgendaEvents: um evento é "upcoming" se recurring OU
+  max(sobre {primário, extras}) de (endAt ?? startAt) >= now. Mais simples buscar eventos + datas
+  e filtrar em JS do que SQL com MAX/join. Anexar extraDates ao retorno.
+- service resolveAgendaRotationEvent: anexar extraDates (one-off, passam cru). AGENDA_EVENTS_PER_
+  ROTATION_LIMIT continua contando EVENTOS, não datas (modelo "um card").
+
+View (components/output/layer-renderer.tsx):
+- AgendaLayer card: quando extraDates.length > 0, trocar a linha única weekdayAndTime por uma
+  LISTA de linhas "DD MMM • weekday HH:MM–HH:MM" (primária + extras, ordenadas por data). O
+  dateBadge grande mostra a próxima data ainda futura entre todas. Sem extras: layout atual
+  inalterado.
+- FeaturedAgendaEventSlide: mesma lista de datas.
+- "Acontecendo agora" / "Hoje": checar QUALQUER data (primária ou extra) — isEventHappeningNow /
+  isSameDay aplicados sobre cada uma.
+- AgendaTickerInline: mostrar a próxima data futura entre todas.
+- Reaproveitar formatEventDay / formatEndTimeSuffix por data.
+
+Admin (components/admin/agenda-section.tsx): componente cliente repetível "Outras datas" no form
+de criar e editar evento — linhas { datetime-local início, datetime-local fim (opcional), remover }
++ "adicionar data", serializado num <input type="hidden" name="extraDates" value={JSON}> (mesmo
+padrão de setAgendaOutputs). Escondido quando "toda semana" está marcado. Editar prefill de
+event.extraDates. Sem dev jargon (memory feedback_admin_ux_no_dev_jargon).
+
+actions.ts: createAgendaEventAction / updateAgendaEventAction parseiam extraDates do FormData
+(JSON.parse -> [{ startAt: new Date, endAt: Date|null }]).
+
+Testes: validation de data extra (create + update); get-output-state — evento com primária no
+passado mas uma data extra futura AINDA aparece, e some quando todas passaram; update substitui as
+datas. Estender fixtures que constroem BroadcastAgendaEventRecord com extraDates: [].
+
+Restrições: fluxo handler->service->store + OperationResult; plugin não toca core; cor da view em
+style inline; sem breakpoints no canvas.
+
+Definition of Done:
+- lint / typecheck / test passam; migration 0003 gerada E aplicada (db:migrate:broadcast).
+- Criar um evento com data primária dia 10 e uma data extra dia 15 -> o card na TV mostra as duas
+  datas com seus horários; continua aparecendo entre 10 e 15; some depois do dia 15.
+- Marcar "toda semana" esconde a seção de datas extras.
+- QA visual do card (720p/1080p/4K) com 2 e 3 datas — a lista cabe e fica legível.
 ```
