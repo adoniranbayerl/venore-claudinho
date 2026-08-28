@@ -154,3 +154,56 @@ export const metricValues = companyMetricsSchema.table(
   },
   (table) => [uniqueIndex("company_metrics_metric_values_period_idx").on(table.definitionId, table.periodStart)],
 );
+
+// Fase 3 — docs/metricas-internas-plugin.md §2.2.
+
+// Uma meta do setor num intervalo ("300 entradas em 2026/2"). on_track_threshold é a fração de
+// conclusão a partir da qual a meta conta como "no ritmo" (default 0.85) — decisão por meta, não
+// constante mágica. group_id opcional (mesmo racional das definições).
+export const targets = companyMetricsSchema.table(
+  "targets",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    sectorId: text("sector_id")
+      .notNull()
+      .references(() => sectors.id, { onDelete: "cascade" }),
+    groupId: text("group_id").references(() => sectorGroups.id, { onDelete: "set null" }),
+    label: text("label").notNull(),
+    description: text("description"),
+    targetValue: doublePrecision("target_value").notNull(),
+    periodStart: date("period_start", { mode: "string" }).notNull(),
+    periodEnd: date("period_end", { mode: "string" }).notNull(),
+    onTrackThreshold: doublePrecision("on_track_threshold").notNull().default(0.85),
+    position: integer("position").notNull().default(0),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+);
+
+// O relacionamento meta ↔ métricas: cada linha liga uma definição à meta com um peso e uma
+// classificação. classification decide como o valor entra no cálculo (shared/metric-rollup.ts):
+// realized conta pro número principal; at_risk/projected só na leitura otimista; subtract abate.
+export const targetInputs = companyMetricsSchema.table(
+  "target_inputs",
+  {
+    targetId: text("target_id")
+      .notNull()
+      .references(() => targets.id, { onDelete: "cascade" }),
+    definitionId: text("definition_id")
+      .notNull()
+      .references(() => metricDefinitions.id, { onDelete: "cascade" }),
+    weight: doublePrecision("weight").notNull().default(1),
+    classification: text("classification").notNull(),
+    position: integer("position").notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.targetId, table.definitionId] }),
+    check(
+      "company_metrics_target_inputs_classification_check",
+      sql`${table.classification} in ('realized','at_risk','projected','subtract')`,
+    ),
+  ],
+);

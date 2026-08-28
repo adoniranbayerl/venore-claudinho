@@ -14,12 +14,23 @@ export type {
   MetricDefinitionGranularity,
   MetricDirection,
 } from "./contracts/types";
+export type {
+  TargetRecord,
+  TargetInputRecord,
+  TargetWithInputs,
+  TargetClassification,
+  TargetRollup,
+  TargetRollupStatus,
+  TargetRollupLine,
+  TargetRollupView,
+} from "./contracts/types";
 export {
   SECTOR_MEMBER_ROLES,
   METRIC_UNITS,
   METRIC_AGGREGATIONS,
   METRIC_DEFINITION_GRANULARITIES,
   METRIC_DIRECTIONS,
+  TARGET_CLASSIFICATIONS,
 } from "./contracts/types";
 
 // Fase 1 — setores
@@ -69,6 +80,20 @@ export { listMetricValuesHandler as listMetricValues } from "./features/values/l
 
 export type { UpsertMetricValueInput, UpsertMetricValueResult } from "./features/values/upsert-metric-value/types";
 export type { ListMetricValuesQuery, ListMetricValuesResult } from "./features/values/list-metric-values/types";
+
+// Fase 3 — metas e composição
+export { createTargetHandler as createTarget } from "./features/targets/create-target/handler";
+export { updateTargetHandler as updateTarget } from "./features/targets/update-target/handler";
+export { deleteTargetHandler as deleteTarget } from "./features/targets/delete-target/handler";
+export { listTargetsHandler as listTargets } from "./features/targets/list-targets/handler";
+export { getTargetRollupsHandler as getTargetRollups } from "./features/targets/get-target-rollups/handler";
+
+export type { CreateTargetInput, CreateTargetResult } from "./features/targets/create-target/types";
+export type { UpdateTargetInput, UpdateTargetResult } from "./features/targets/update-target/types";
+export type { DeleteTargetInput, DeleteTargetResult } from "./features/targets/delete-target/types";
+export type { ListTargetsResult } from "./features/targets/list-targets/types";
+export type { GetTargetRollupsResult } from "./features/targets/get-target-rollups/types";
+export type { TargetInputDraft } from "./features/targets/shared/target-input";
 
 // Resumo de acesso do ator (quais setores configura/lança/vê)
 export { getMyAccessHandler as getMyCompanyMetricsAccess } from "./features/access/get-my-access/handler";

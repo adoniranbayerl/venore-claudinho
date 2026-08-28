@@ -15,6 +15,13 @@
       "when": 1787957599700,
       "tag": "0001_woozy_thanos",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787958389427,
+      "tag": "0002_mute_edwin_jarvis",
+      "breakpoints": true
     }
   ]
 }

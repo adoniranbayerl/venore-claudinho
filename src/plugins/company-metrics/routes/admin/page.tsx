@@ -6,20 +6,24 @@ import { EmptyState } from "@/components/empty-state";
 import { getCompanyMetricsPageData } from "@/platform/admin-shell/get-company-metrics-page-data";
 import {
   getMyCompanyMetricsAccess,
+  getTargetRollups,
   listMetricDefinitions,
   listMetricValues,
   listSectorGroups,
   listSectorMembers,
   listSectors,
+  listTargets,
   type CompanyMetricsAccess,
   type SectorListItem,
 } from "@/plugins/company-metrics";
+import type { TargetInputRecord } from "@/plugins/company-metrics/contracts/types";
 import type { SectorGroupRecord, SectorMemberRecord } from "@/plugins/company-metrics/contracts/types";
 import { bucketStart, zonedCivilDate } from "@/plugins/company-metrics/shared/period";
 import { isValidCivilDate } from "@/plugins/company-metrics/shared/period";
 import { normalizeTimeZone } from "@/plugins/company-metrics/shared/settings";
 import { AdminTabs } from "./admin-tabs";
 import { LancamentosView } from "./lancamentos-view";
+import { MetasView } from "./metas-view";
 import { MetricasView } from "./metricas-view";
 import { SetoresView } from "./setores-view";
 
@@ -62,6 +66,7 @@ export default async function CompanyMetricsAdminPage({
   const tabs: { key: string; label: string }[] = [];
   if (canManage) tabs.push({ key: "setores", label: "Setores" });
   if (canSeeMetricas) tabs.push({ key: "metricas", label: "Métricas" });
+  if (canSeeMetricas) tabs.push({ key: "metas", label: "Metas" });
   if (canSeeLancamentos) tabs.push({ key: "lançamentos", label: "Lançamentos" });
 
   const activeTab = tabs.some((tab) => tab.key === first(params.tab)) ? first(params.tab)! : tabs[0]?.key;
@@ -96,6 +101,14 @@ export default async function CompanyMetricsAdminPage({
           {activeTab === "setores" && <SetoresTab sectors={sectors} canManage={canManage} />}
           {activeTab === "metricas" && (
             <MetricasTab
+              sectorOptions={sectorOptions}
+              activeSectorId={activeSectorId}
+              activeSectorName={activeSector?.name}
+              canConfigure={canManage || (activeSectorId ? access.adminSectorIds.includes(activeSectorId) : false)}
+            />
+          )}
+          {activeTab === "metas" && (
+            <MetasTab
               sectorOptions={sectorOptions}
               activeSectorId={activeSectorId}
               activeSectorName={activeSector?.name}
@@ -181,6 +194,55 @@ async function MetricasTab({
       activeSectorName={activeSectorName}
       definitions={definitionsResult.success ? definitionsResult.data : []}
       groups={groupsResult.success ? groupsResult.data : []}
+      canConfigure={canConfigure}
+    />
+  );
+}
+
+async function MetasTab({
+  sectorOptions,
+  activeSectorId,
+  activeSectorName,
+  canConfigure,
+}: {
+  sectorOptions: { id: string; name: string }[];
+  activeSectorId: string | undefined;
+  activeSectorName: string | undefined;
+  canConfigure: boolean;
+}) {
+  if (!activeSectorId) {
+    return (
+      <MetasView
+        sectors={sectorOptions}
+        activeSectorId={undefined}
+        activeSectorName={undefined}
+        rollups={[]}
+        inputsByTarget={new Map()}
+        definitions={[]}
+        canConfigure={canConfigure}
+      />
+    );
+  }
+
+  const [rollupsResult, targetsResult, definitionsResult] = await Promise.all([
+    getTargetRollups(activeSectorId),
+    listTargets({ sectorId: activeSectorId, includeArchived: false }),
+    listMetricDefinitions({ sectorId: activeSectorId, includeArchived: true }),
+  ]);
+
+  const inputsByTarget = new Map<string, TargetInputRecord[]>();
+  if (targetsResult.success) {
+    for (const entry of targetsResult.data) inputsByTarget.set(entry.target.id, entry.inputs);
+  }
+
+  return (
+    <MetasView
+      sectors={sectorOptions}
+      activeSectorId={activeSectorId}
+      activeSectorName={activeSectorName}
+      rollups={rollupsResult.success ? rollupsResult.data : []}
+      inputsByTarget={inputsByTarget}
+      definitions={definitionsResult.success ? definitionsResult.data : []}
       canConfigure={canConfigure}
     />
   );

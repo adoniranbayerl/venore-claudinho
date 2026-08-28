@@ -76,6 +76,69 @@ export type MetricValueRecord = {
   updatedAt: Date;
 };
 
+// --- Fase 3: metas e composição ---
+
+export const TARGET_CLASSIFICATIONS = ["realized", "at_risk", "projected", "subtract"] as const;
+export type TargetClassification = (typeof TARGET_CLASSIFICATIONS)[number];
+
+export type TargetRecord = {
+  id: string;
+  sectorId: string;
+  groupId: string | null;
+  label: string;
+  description: string | null;
+  targetValue: number;
+  periodStart: string;
+  periodEnd: string;
+  onTrackThreshold: number;
+  position: number;
+  archivedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type TargetInputRecord = {
+  targetId: string;
+  definitionId: string;
+  weight: number;
+  classification: TargetClassification;
+  position: number;
+};
+
+export type TargetWithInputs = { target: TargetRecord; inputs: TargetInputRecord[] };
+
+// Resultado do cálculo de uma meta (§2.2). Reusado pela visualização interativa e pela TV.
+export type TargetRollupStatus = "met" | "on_track" | "below";
+
+export type TargetRollupLine = {
+  definitionId: string;
+  label: string;
+  classification: TargetClassification;
+  weight: number;
+  // Valor consolidado da definição no período da meta.
+  resolvedValue: number;
+};
+
+export type TargetRollup = {
+  targetValue: number;
+  realized: number;
+  atRisk: number;
+  projected: number;
+  subtract: number;
+  headline: number;
+  optimistic: number;
+  gap: number;
+  completion: number;
+  optimisticCompletion: number;
+  status: TargetRollupStatus;
+};
+
+export type TargetRollupView = {
+  target: TargetRecord;
+  lines: TargetRollupLine[];
+  rollup: TargetRollup;
+};
+
 // Delegação: quem pode o quê num setor. `userId` é texto solto sem FK (plugin não importa
 // contexts/auth/database/schema — regra 7/8 do AGENTS.md); nome/e-mail resolvidos via
 // @/contexts/auth (listUsers). Estar aqui não substitui a permission company-metrics.contribute —

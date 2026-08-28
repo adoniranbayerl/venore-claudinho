@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
-import { metricDefinitions, metricValues, sectorGroups, sectorMembers, sectors } from "../../database/schema";
+import { metricDefinitions, metricValues, sectorGroups, sectorMembers, sectors, targets } from "../../database/schema";
 import type { SectorMemberRole, SectorRecord } from "../../contracts/types";
 
 // Acesso a banco fora de um store.ts por feature — exceção deliberada, mesmo racional de
@@ -51,6 +51,11 @@ export async function findSectorIdByDefinitionId(definitionId: string): Promise<
     .from(metricDefinitions)
     .where(eq(metricDefinitions.id, definitionId))
     .limit(1);
+  return row?.sectorId ?? null;
+}
+
+export async function findSectorIdByTargetId(targetId: string): Promise<string | null> {
+  const [row] = await db.select({ sectorId: targets.sectorId }).from(targets).where(eq(targets.id, targetId)).limit(1);
   return row?.sectorId ?? null;
 }
 

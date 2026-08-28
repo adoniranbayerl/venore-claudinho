@@ -8,13 +8,17 @@ import {
   createMetricDefinition,
   createSector,
   createSectorGroup,
+  createTarget,
   deleteSectorGroup,
+  deleteTarget,
   setSectorMembers,
   updateMetricDefinition,
   updateSector,
   updateSectorGroup,
+  updateTarget,
   upsertMetricValue,
   type SectorMemberAssignment,
+  type TargetInputDraft,
 } from "@/plugins/company-metrics";
 import {
   METRIC_AGGREGATIONS,
@@ -22,11 +26,13 @@ import {
   METRIC_DIRECTIONS,
   METRIC_UNITS,
   SECTOR_MEMBER_ROLES,
+  TARGET_CLASSIFICATIONS,
   type MetricAggregation,
   type MetricDefinitionGranularity,
   type MetricDirection,
   type MetricUnit,
   type SectorMemberRole,
+  type TargetClassification,
 } from "@/plugins/company-metrics/contracts/types";
 
 export type CompanyMetricsActionState = { error: string | null };
@@ -261,6 +267,96 @@ export async function upsertMetricValueAction(
     value,
     note: optional(formData, "note") ?? null,
   });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(RETURN_TO);
+  return { error: null };
+}
+
+// --- Fase 3: metas e composição ---
+
+function num(formData: FormData, name: string): number {
+  return Number(String(formData.get(name) ?? "").trim().replace(",", "."));
+}
+
+// A composição chega como JSON [{ definitionId, weight, classification }] de um input hidden.
+function parseComposition(raw: string): TargetInputDraft[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw || "[]");
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .filter(
+      (entry): entry is { definitionId: unknown; weight: unknown; classification: unknown } =>
+        Boolean(entry) && typeof entry === "object",
+    )
+    .map((entry) => ({
+      definitionId: String(entry.definitionId ?? ""),
+      weight: Number(entry.weight),
+      classification: (TARGET_CLASSIFICATIONS as readonly string[]).includes(String(entry.classification))
+        ? (String(entry.classification) as TargetClassification)
+        : ("realized" as TargetClassification),
+    }));
+}
+
+export async function createTargetAction(
+  _prev: CompanyMetricsActionState,
+  formData: FormData,
+): Promise<CompanyMetricsActionState> {
+  if (!(await isPluginActive("company-metrics"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const thresholdRaw = optional(formData, "onTrackThreshold");
+  const result = await createTarget({
+    sectorId: String(formData.get("sectorId") ?? ""),
+    groupId: optionalRef(formData, "groupId") ?? null,
+    label: String(formData.get("label") ?? ""),
+    description: optional(formData, "description") ?? null,
+    targetValue: num(formData, "targetValue"),
+    periodStart: String(formData.get("periodStart") ?? ""),
+    periodEnd: String(formData.get("periodEnd") ?? ""),
+    onTrackThreshold: thresholdRaw ? Number(thresholdRaw.replace(",", ".")) : undefined,
+    inputs: parseComposition(String(formData.get("compositionJson") ?? "[]")),
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(RETURN_TO);
+  return { error: null };
+}
+
+export async function updateTargetAction(
+  _prev: CompanyMetricsActionState,
+  formData: FormData,
+): Promise<CompanyMetricsActionState> {
+  if (!(await isPluginActive("company-metrics"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const thresholdRaw = optional(formData, "onTrackThreshold");
+  const result = await updateTarget({
+    targetId: String(formData.get("targetId") ?? ""),
+    groupId: optionalRef(formData, "groupId") ?? null,
+    label: String(formData.get("label") ?? ""),
+    description: optional(formData, "description") ?? null,
+    targetValue: num(formData, "targetValue"),
+    periodStart: String(formData.get("periodStart") ?? ""),
+    periodEnd: String(formData.get("periodEnd") ?? ""),
+    onTrackThreshold: thresholdRaw ? Number(thresholdRaw.replace(",", ".")) : 0.85,
+    inputs: parseComposition(String(formData.get("compositionJson") ?? "[]")),
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(RETURN_TO);
+  return { error: null };
+}
+
+export async function deleteTargetAction(
+  _prev: CompanyMetricsActionState,
+  formData: FormData,
+): Promise<CompanyMetricsActionState> {
+  if (!(await isPluginActive("company-metrics"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await deleteTarget({ targetId: String(formData.get("targetId") ?? "") });
   if (!result.success) return { error: result.error.message };
 
   revalidatePath(RETURN_TO);

@@ -3,6 +3,7 @@ import type { SectorMemberRole } from "../../contracts/types";
 import {
   findSectorIdByDefinitionId,
   findSectorIdByGroupId,
+  findSectorIdByTargetId,
   findSectorIdsForUser,
   findSectorMemberRole,
   roleSatisfies,
@@ -86,10 +87,20 @@ export async function authorizeMetricValueContributionActor(definitionId: string
   return authorizeSectorContributionActor(sectorId);
 }
 
+// Configurar/apagar uma meta = papel "admin" no setor dono (ou manage).
+export async function authorizeTargetConfigActor(targetId: string): Promise<AuthorizeActorResult> {
+  const sectorId = await findSectorIdByTargetId(targetId);
+  if (!sectorId) {
+    return { authorized: false, error: { code: "company-metrics.target.not_found", message: "Meta não encontrada." } };
+  }
+  return authorizeSectorConfigActor(sectorId);
+}
+
 export {
   findSectorById,
   findSectorIdByDefinitionId,
   findSectorIdByGroupId,
+  findSectorIdByTargetId,
   findSectorIdByValueId,
   findSectorIdsForUser,
   findSectorMemberRole,
