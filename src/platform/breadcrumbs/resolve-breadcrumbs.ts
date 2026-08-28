@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { BREADCRUMB_PATHNAME_HEADER } from "./pathname-header";
 import { collectBreadcrumbSegments } from "./registry";
 import { matchSegments } from "./match-segments";
+import { BREADCRUMB_SEGMENT_NOT_OWNED } from "./types";
 import type { ResolvedBreadcrumbs } from "./types";
 
 function splitPathname(pathname: string): string[] {
@@ -47,6 +48,11 @@ export const resolveBreadcrumbs = cache(async (): Promise<ResolvedBreadcrumbs> =
   const resolved = await Promise.all(
     matches.map(async (match) => {
       const result = await match.definition.resolve(match.params);
+      // Wildcard posicional que casou pela forma da URL mas o caminho é de outro dono (rota de
+      // plugin, 404, plugin desativado) — omite sem avisar: não é rótulo faltando.
+      if (result === BREADCRUMB_SEGMENT_NOT_OWNED) {
+        return null;
+      }
       if (result === null) {
         warnUnresolvedSegment(match.definition.key, match.definition.segments);
         return null;

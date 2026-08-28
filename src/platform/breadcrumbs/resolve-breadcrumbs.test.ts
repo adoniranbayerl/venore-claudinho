@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { staticBreadcrumbSegment, dynamicBreadcrumbSegment } from "./define-segment";
 import { BREADCRUMB_PATHNAME_HEADER } from "./pathname-header";
+import { BREADCRUMB_SEGMENT_NOT_OWNED } from "./types";
 import type { BreadcrumbSegmentDefinition } from "./types";
 
 let mockPathname: string | null = "/admin/cms";
@@ -101,6 +102,27 @@ describe("resolveBreadcrumbs — segmento sem rótulo registrado", () => {
     // "Conteúdos" vira o item atual (último que resolveu), não o segmento sem rótulo.
     expect(items.at(-1)).toMatchObject({ key: "admin.cms.entries", current: true });
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("admin.cms.entry"));
+  });
+
+  it("segmento que devolve BREADCRUMB_SEGMENT_NOT_OWNED é omitido SEM avisar (caminho de outro dono, não rótulo faltando)", async () => {
+    // Simula o wildcard posicional do CMS (":categorySlug/:entrySlug") casando com uma URL de 2
+    // níveis que não é conteúdo do CMS (rota de plugin, 404): resolve devolve NOT_OWNED.
+    mockPathname = "/cursos/algum-curso";
+    testDefinitions = [
+      HOME,
+      {
+        key: "cms.public.entry-in-category",
+        segments: [":categorySlug", ":entrySlug"],
+        resolve: () => BREADCRUMB_SEGMENT_NOT_OWNED,
+      },
+    ];
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const { resolveBreadcrumbs } = await import("./resolve-breadcrumbs");
+    const { items } = await resolveBreadcrumbs();
+
+    expect(items.map((item) => item.key)).toEqual(["home"]);
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 
   it("sem nenhum segmento casando (pathname totalmente fora do registro), devolve trilha vazia sem lançar", async () => {

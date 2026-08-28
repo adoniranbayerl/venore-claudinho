@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { BREADCRUMB_SEGMENT_NOT_OWNED } from "@/platform/breadcrumbs/types";
 import type { BreadcrumbSegmentDefinition } from "@/platform/breadcrumbs/types";
 import { staticBreadcrumbSegment, dynamicBreadcrumbSegment } from "@/platform/breadcrumbs/define-segment";
 import { getEntryHandler } from "./features/entries/get-entry/handler";
@@ -72,18 +73,28 @@ export const cmsBreadcrumbSegments: BreadcrumbSegmentDefinition[] = [
   // mesma ordem de resolução da própria página (categoria tem precedência). Sem colisão com
   // "academy"/"birthdays"/"donations"/etc. registrados noutros contexts/plugins: match-segments.ts
   // sempre prefere o literal específico a este wildcard, não importa a ordem de registro aqui.
-  dynamicBreadcrumbSegment({
+  // Usa o BreadcrumbSegmentDefinition cru (não o helper dynamicBreadcrumbSegment) só pra poder
+  // devolver BREADCRUMB_SEGMENT_NOT_OWNED — ver o guard no nível 2 abaixo.
+  {
     key: "cms.public.category-or-entry",
     segments: [":slug"],
-    paramName: "slug",
-    resolveLabel: async (slug) => {
-      const categoryResult = await getCachedCategoryBySlug(slug);
-      if (categoryResult.success && categoryResult.data) return categoryResult.data.name;
+    resolve: async (params) => {
+      const categoryResult = await getCachedCategoryBySlug(params.slug);
+      if (categoryResult.success && categoryResult.data) {
+        return { label: categoryResult.data.name, href: `/${params.slug}` };
+      }
 
-      const entryResult = await getCachedPublishedEntryBySlug(null, slug);
-      return entryResult.success && entryResult.data ? entryResult.data.title : null;
+      const entryResult = await getCachedPublishedEntryBySlug(null, params.slug);
+      if (entryResult.success && entryResult.data) {
+        return { label: entryResult.data.title, href: `/${params.slug}` };
+      }
+
+      // Nem categoria nem entry raiz com esse slug: este segmento é um wildcard posicional que casa
+      // com QUALQUER rota pública de 1 nível — o caminho aqui é de outro dono (plugin, 404, plugin
+      // desativado), não conteúdo do CMS. NOT_OWNED omite sem o aviso de "rótulo não resolvido".
+      return BREADCRUMB_SEGMENT_NOT_OWNED;
     },
-  }),
+  },
   // Nível 2: entry dentro de categoria (/<categoria>/<entry>) — precisa dos dois parâmetros pra
   // resolver o id da categoria antes de buscar a entry, por isso usa o BreadcrumbSegmentDefinition
   // cru em vez do helper dynamicBreadcrumbSegment (que só expõe um paramName por segmento).
@@ -92,9 +103,14 @@ export const cmsBreadcrumbSegments: BreadcrumbSegmentDefinition[] = [
     segments: [":categorySlug", ":entrySlug"],
     resolve: async (params) => {
       const categoryResult = await getCachedCategoryBySlug(params.categorySlug);
-      if (!categoryResult.success || !categoryResult.data) return null;
+      // Sem categoria com esse slug: ":categorySlug/:entrySlug" é um wildcard posicional que casa
+      // com QUALQUER rota pública de 2 níveis — o caminho é de outro dono (rota de plugin, 404,
+      // plugin desativado com o caminho reservado). NOT_OWNED omite da trilha SEM avisar.
+      if (!categoryResult.success || !categoryResult.data) return BREADCRUMB_SEGMENT_NOT_OWNED;
 
       const entryResult = await getCachedPublishedEntryBySlug(categoryResult.data.id, params.entrySlug);
+      // Categoria existe mas a entry publicada não: aí é uma trilha do CMS que não fechou (link
+      // quebrado pra /categoria/entry). Mantém `null` pra sair o aviso em dev.
       if (!entryResult.success || !entryResult.data) return null;
 
       return { label: entryResult.data.title, href: `/${params.categorySlug}/${params.entrySlug}` };
