@@ -2,10 +2,23 @@ https://claude.ai/code/artifact/4e690c27-bcdc-431f-bac6-bc53fad48555
 
 # Plugin `company-metrics` (Métricas Internas) — documento de arquitetura
 
-> Status: **proposta para revisão (2026-08-28).** Nada implementado. Este documento decide a
-> forma do plugin: entidades e schema, modelo de delegação por setor, as três superfícies de
-> consumo (admin, visualização interativa, saída para TV/Broadcast), estrutura de arquivos e
-> faseamento. A implementação começa depois do aval — um prompt por fase no apêndice.
+> Status: **Fases 1–3 implementadas (2026-08-28)**, branch `company-metrics-plugin` (commits
+> `9f63bd1`, `50911c6`, `2c07c7f` — sem push). Verde: `lint` + `typecheck` + `npm run test`
+> (1397 testes). Fases 4–7 pendentes — as três primeiras são schema + lógica + testes; as
+> próximas têm UI/telão/remoção de plugin e pedem revisão visual.
+>
+> Ajustes feitos na implementação, ainda dentro do desenho:
+> - `sector_groups` entrou já na Fase 1 (era Fase 1 no doc revisado — ok).
+> - "Metas" virou **aba própria** no admin (não dentro de "Métricas") — Setores · Métricas ·
+>   Metas · Lançamentos, todas dirigidas por `?tab=`.
+> - `package.json` ganhou `db:{generate,migrate}:company-metrics` (mesmo padrão de todo plugin
+>   com schema — `academy`/`broadcast`/…). É o único toque fora de `src/plugins/company-metrics/`
+>   + os 4 pontos de registro já previstos (§7).
+> - `logo` de `sector_groups` fica sem picker na UI até a Fase 5/6 (coluna já existe).
+>
+> Este documento decidiu a forma do plugin: entidades e schema, modelo de delegação por setor, as
+> três superfícies de consumo (admin, visualização interativa, saída para TV/Broadcast), estrutura
+> de arquivos e faseamento. Um prompt por fase no apêndice.
 >
 > Segue as regras do `AGENTS.md` (fluxo de camadas §1, barrel §2, tokens de cor §3, mobile-first
 > §4, DoD §6) e **reusa por cópia** (não por import — ver §0) dois precedentes já no código:
@@ -335,9 +348,9 @@ contagem batendo; mobile-first; sem cor hardcoded).
 
 | Fase | Entrega | Risco |
 | --- | --- | --- |
-| **1 — Setores + grupos + delegação** | `sectors`, `sector_groups`, `sector_members`, permissions, `scoped-authorization/`, aba **Setores** (CRUD de setor + grupos + membros), seed comercial/financeiro/marketing, gate de seção, item de nav. Sem métricas ainda. | baixo |
-| **2 — Definições + lançamento** | `metric_definitions`, `metric_values`, `shared/period.ts`, setting de fuso, aba **Métricas** (CRUD de definição), aba **Lançamentos** (grade de entrada, mobile-first). `editor` já lança dado. | baixo/médio |
-| **3 — Metas e composição** | `targets`, `target_inputs`, construtor de meta na aba Métricas, `shared/metric-rollup.ts` puro + testes (cobre o exemplo das 300 entradas). | médio |
+| **1 — Setores + grupos + delegação** ✅ | `sectors`, `sector_groups`, `sector_members`, permissions, `scoped-authorization/`, aba **Setores** (CRUD de setor + grupos + membros), seed comercial/financeiro/marketing, gate de seção, item de nav. Sem métricas ainda. | baixo |
+| **2 — Definições + lançamento** ✅ | `metric_definitions`, `metric_values`, `shared/period.ts`, setting de fuso, aba **Métricas** (CRUD de definição), aba **Lançamentos** (grade de entrada, mobile-first). `editor` já lança dado. | baixo/médio |
+| **3 — Metas e composição** ✅ | `targets`, `target_inputs`, aba **Metas** (construtor de composição), `shared/metric-rollup.ts` puro + testes (cobre o exemplo das 300 entradas), `get-target-rollups` (view model reusável). | médio |
 | **4 — Visualização interativa** | Rota `/metricas` (autenticada, recortada por setor), `get-metrics-overview` + `get-sector-dashboard`, overview + drill-down + gráficos de tendência + filtro de período. Teste de integração (rbac × dado do plugin). | médio |
 | **5 — Saída para TV** | `tv_boards`, `tv_screens`, aba **Apresentação** (montar rotação, copiar link), `/company-metrics/tv/[token]` com `PresentationCanvas` (copiado) + polling, seguindo o tema. Consumido pelo Broadcast como item `webpage`. | médio |
 | **6 — Substituição do `enrollment-dashboard`** | Seed "matrícula" no modelo geral (Erasto/Fidelis como `sector_groups`, turmas/cursos como `targets` com 2 definições `realized`), migração de dados reais se houver, telas de slide portadas por cópia. Desinstalar o `enrollment-dashboard` (uninstall Mode B) e remover o shim `app/enrollment-dashboard/`. Ver §9.1. | médio |
