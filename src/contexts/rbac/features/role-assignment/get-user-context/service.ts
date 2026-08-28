@@ -1,5 +1,5 @@
 import { getCachedUserContext, setCachedUserContext } from "../../../user-context-cache";
-import { findUserRoleRows } from "./store";
+import { findUserRoleRows, findUserScopeRows } from "./store";
 import { toUserRbacContext } from "./view";
 import type { GetUserContextQuery, GetUserContextResult } from "./types";
 
@@ -9,8 +9,11 @@ export async function getUserContext(query: GetUserContextQuery): Promise<GetUse
     return { success: true, data: cached };
   }
 
-  const rows = await findUserRoleRows(query.userId);
-  const context = toUserRbacContext(query.userId, rows);
+  const [roleRows, scopeRows] = await Promise.all([
+    findUserRoleRows(query.userId),
+    findUserScopeRows(query.userId),
+  ]);
+  const context = toUserRbacContext(query.userId, roleRows, scopeRows);
 
   setCachedUserContext(query.userId, context);
 

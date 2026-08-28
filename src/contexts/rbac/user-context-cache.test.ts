@@ -7,6 +7,7 @@ function makeContext(overrides: Partial<UserRbacContext> = {}): UserRbacContext 
     roles: [],
     permissions: [],
     isSuperadmin: false,
+    scopedPermissions: {},
     ...overrides,
   };
 }

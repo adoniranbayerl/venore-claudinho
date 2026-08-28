@@ -5,7 +5,15 @@
 > **Fase A concluída (2026-08-28)** — papéis `editor`/`author` de sistema, aliases canônicos de
 > exibição (Overlord/Administrador/Editor/Autor/Membro) no self-heal, `EDITOR_/AUTHOR_BASE_PERMISSION_KEYS`,
 > `scripts/seed-role-display-names.mjs` aposentado. `editor`/`author` ainda **globais** no CMS —
-> o recorte por categoria é a Fase C. Fases B–D não implementadas.
+> o recorte por categoria é a Fase C.
+> **Fase B concluída (2026-08-28)** — infra de escopo **dormente**: tabela `rbac.role_assignment_scopes`
+> (migration `drizzle/0035_parallel_doctor_octopus.sql`), `contracts/scope-types.ts`
+> (`RBAC_SCOPE_TYPES`, só `cms.category`), `UserRbacContext.scopedPermissions` montado em
+> `get-user-context` (store faz uma 2ª query, view aplica a regra D2), `authorizeActor(perm, scope?)`
+> + `resolveScope(perm, scopeType)` + erro `rbac.authorization.forbidden_scope`, features
+> `assign-scope-to-role-assignment` / `remove-scope-from-role-assignment` (gated `rbac.roles.assign`),
+> barrel `rbac/index.ts` exportando tudo. **Nenhum call site passa `scope`** — comportamento do
+> sistema idêntico ao de antes. Fases C–D não implementadas.
 > Origem: `docs/issues.md:258-268` ("Sobre Papéis e Permissões") + gap em aberto registrado em
 > `docs/venore-docks.md` ("Modelo de RBAC" → *"permission com escopo dentro de um recurso … essa
 > decisão merece um documento próprio"*) e em `docs/venore-docks.md` → "Ainda não coberto".
@@ -481,7 +489,7 @@ As fases são incrementais e cada uma fecha sozinha (lint + typecheck + test ver
   "coordenação editorial" sem multi-tenancy de categoria.
 - Testes: `ensure-base-rbac-data.test.ts` cobre os 5 papéis + as listas de permission.
 
-### Fase B — Infra de escopo dormente  ·  *hot path, risco baixo/médio*
+### Fase B — Infra de escopo dormente  ·  *hot path, risco baixo/médio*  ·  ✅ concluída (2026-08-28)
 
 - Migration `role_assignment_scopes`.
 - `get-user-context` (store+view+types) → `scopedPermissions`. `contracts/scope-types.ts`.

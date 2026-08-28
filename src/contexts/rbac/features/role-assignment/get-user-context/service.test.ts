@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UserRoleRow } from "./store";
 
 const findUserRoleRows = vi.fn();
+const findUserScopeRows = vi.fn();
 
 vi.mock("./store", () => ({
   findUserRoleRows: (...args: unknown[]) => findUserRoleRows(...args),
+  findUserScopeRows: (...args: unknown[]) => findUserScopeRows(...args),
 }));
 
 const getCachedUserContext = vi.fn();
@@ -18,12 +20,20 @@ vi.mock("../../../user-context-cache", () => ({
 describe("getUserContext", () => {
   beforeEach(() => {
     findUserRoleRows.mockReset();
+    findUserScopeRows.mockReset();
+    findUserScopeRows.mockResolvedValue([]);
     getCachedUserContext.mockReset();
     setCachedUserContext.mockReset();
   });
 
   it("returns the cached context without touching the store on a cache hit", async () => {
-    const cached = { userId: "user-1", roles: [], permissions: ["cms.entries.manage"], isSuperadmin: false };
+    const cached = {
+      userId: "user-1",
+      roles: [],
+      permissions: ["cms.entries.manage"],
+      isSuperadmin: false,
+      scopedPermissions: {},
+    };
     getCachedUserContext.mockReturnValue(cached);
 
     const { getUserContext } = await import("./service");
@@ -31,6 +41,7 @@ describe("getUserContext", () => {
 
     expect(result).toEqual({ success: true, data: cached });
     expect(findUserRoleRows).not.toHaveBeenCalled();
+    expect(findUserScopeRows).not.toHaveBeenCalled();
     expect(setCachedUserContext).not.toHaveBeenCalled();
   });
 
@@ -46,6 +57,7 @@ describe("getUserContext", () => {
 
     expect(result.success).toBe(true);
     expect(findUserRoleRows).toHaveBeenCalledWith("user-1");
+    expect(findUserScopeRows).toHaveBeenCalledWith("user-1");
     expect(setCachedUserContext).toHaveBeenCalledWith("user-1", result.success ? result.data : undefined);
   });
 
@@ -93,7 +105,26 @@ describe("getUserContext", () => {
 
     expect(result).toEqual({
       success: true,
-      data: { userId: "user-1", roles: [], permissions: [], isSuperadmin: false },
+      data: { userId: "user-1", roles: [], permissions: [], isSuperadmin: false, scopedPermissions: {} },
     });
+  });
+
+  it("threads scope rows from the store into scopedPermissions", async () => {
+    getCachedUserContext.mockReturnValue(null);
+    findUserRoleRows.mockResolvedValue([
+      { roleId: "role-ed", roleKey: "editor", roleName: "Editor", roleIsSystem: true, permissionKey: "cms.entries.manage" },
+    ]);
+    findUserScopeRows.mockResolvedValue([
+      { roleId: "role-ed", scopeType: "cms.category", resourceId: "cat-news" },
+    ]);
+
+    const { getUserContext } = await import("./service");
+    const result = await getUserContext({ userId: "user-1" });
+
+    if (!result.success) throw new Error("expected success");
+    expect(result.data.scopedPermissions).toEqual({
+      "cms.entries.manage": { "cms.category": ["cat-news"] },
+    });
+    expect(result.data.permissions).toEqual(["cms.entries.manage"]);
   });
 });
