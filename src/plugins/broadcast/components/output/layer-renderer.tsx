@@ -401,8 +401,8 @@ function PlaylistLayer({
   progressBarBottomOffsetPx?: number;
   // Fuso da instituição — repassado ao FeaturedAgendaEventSlide (formatação da data/hora do evento).
   timeZone: string;
-  // Marca do site — só usados quando a playlist não tem NENHUM item resolvível (StandbyScreen
-  // "no-content" no lugar do texto cru antigo). Podem vir null/`#111` quando o footer está fechado
+  // Marca do site — usados quando a playlist não tem nenhum item resolvível OU nenhum item de
+  // vídeo (StandbyScreen "no-content" no lugar do texto cru antigo). Podem vir null/`#111` quando o footer está fechado
   // e a saída não está offline (get-output-state só resolve a marca sob essas condições) — a
   // StandbyScreen degrada pra texto sobre fundo escuro nesse caso.
   brandLogoUrl: string | null;
@@ -414,6 +414,11 @@ function PlaylistLayer({
   const [manualTick, setManualTick] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const slides = buildPlaylistSlides(items);
+  // O canal é essencialmente vídeo: uma tela sem playlist cadastrada (items vazio), ou com uma
+  // playlist que não tem NENHUM item de vídeo (só imagem/página/notícia/evento), cai na tela de
+  // espera branded em vez de rodar esses itens — pedido explícito. `slides` vazio já cobria o
+  // primeiro caso; `hasPlayableVideo` cobre o segundo.
+  const hasPlayableVideo = slides.some((slide) => slide.kind === "video");
 
   const advance = () => setIndex((previous) => (previous + 1) % slides.length);
   const current = slides.length > 0 ? slides[index % slides.length] : null;
@@ -430,9 +435,9 @@ function PlaylistLayer({
 
   useTimedAdvance(timedDurationMs, advance, timedActive, manualTick);
 
-  // Playlist sem nenhum item resolvível — tela de espera branded "nenhum conteúdo" no lugar do
-  // texto cru sobre tela preta (Fase 11).
-  if (!current) {
+  // Sem item resolvível, ou sem nenhum vídeo na playlist — tela de espera branded "nenhum
+  // conteúdo" no lugar do texto cru sobre tela preta (Fase 11).
+  if (!current || !hasPlayableVideo) {
     return <StandbyScreen reason="no-content" brandLogoUrl={brandLogoUrl} brandColor={brandColor} />;
   }
 

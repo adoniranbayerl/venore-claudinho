@@ -247,11 +247,9 @@ export function OutputCanvas({ token, initialState }: { token: string; initialSt
           "@keyframes broadcast-agenda-cascade-item { from { opacity: 0; transform: translateX(64px); } to { opacity: 1; transform: translateX(0); } }" +
           "@keyframes broadcast-alert-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }" +
           "@keyframes broadcast-news-title-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }" +
-          "@keyframes broadcast-news-parallax { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.1) translate(-2%, -2%); } }" +
-          // "Respiração" lenta da StandbyScreen (Fase 11) — ciclo longo, variação mínima de
-          // opacidade/escala: própria pra ficar horas ligada numa TV sem virar um pulso agressivo
-          // nem um spinner.
-          "@keyframes broadcast-standby-breathe { 0%, 100% { opacity: 0.82; transform: scale(1); } 50% { opacity: 1; transform: scale(1.015); } }"}
+          // A StandbyScreen (Fase 11) carrega os próprios @keyframes num <style> local — ver
+          // components/output/standby-screen.tsx — pra continuar íntegra renderizada fora deste canvas.
+          "@keyframes broadcast-news-parallax { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.1) translate(-2%, -2%); } }"}
       </style>
       {/* Palco de composição: largura de referência FIXA (OUTPUT_STAGE_WIDTH_PX) + altura na
           proporção do viewport, escalado uniformemente pro tamanho real da tela via
