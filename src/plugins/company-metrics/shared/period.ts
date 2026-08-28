@@ -98,6 +98,16 @@ export function currentBucket(granularity: MetricGranularity, timeZone: string, 
   return bucketStart(zonedCivilDate(now, timeZone), granularity);
 }
 
+// Data civil `months` meses antes da dada (dia preservado, com clamp no fim do mês).
+export function subtractMonths(dateStr: string, months: number): string {
+  const { y, m, d } = toCivil(dateStr);
+  const totalMonths = y * 12 + (m - 1) - months;
+  const ny = Math.floor(totalMonths / 12);
+  const nm = (totalMonths % 12 + 12) % 12; // 0-11
+  const daysInMonth = new Date(Date.UTC(ny, nm + 1, 0, 12)).getUTCDate();
+  return fromCivil({ y: ny, m: nm + 1, d: Math.min(d, daysInMonth) });
+}
+
 export function isValidCivilDate(value: string): boolean {
   if (!CIVIL_RE.test(value)) return false;
   const { y, m, d } = toCivil(value);

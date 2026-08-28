@@ -99,5 +99,20 @@ export type { TargetInputDraft } from "./features/targets/shared/target-input";
 export { getMyAccessHandler as getMyCompanyMetricsAccess } from "./features/access/get-my-access/handler";
 export type { CompanyMetricsAccess, GetMyAccessResult } from "./features/access/get-my-access/types";
 
+// Fase 4 — visualização interativa
+export { getMetricsOverviewHandler as getMetricsOverview } from "./features/dashboard/get-metrics-overview/handler";
+export { getSectorDashboardHandler as getSectorDashboard } from "./features/dashboard/get-sector-dashboard/handler";
+export type {
+  GetMetricsOverviewResult,
+  MetricsOverview,
+  SectorOverview,
+} from "./features/dashboard/get-metrics-overview/types";
+export type {
+  GetSectorDashboardResult,
+  SectorDashboard,
+  MetricSeries,
+  MetricSeriesPoint,
+} from "./features/dashboard/get-sector-dashboard/types";
+
 // Ponto de extensão "seeds" do plugin engine (platform/plugin-engine/plugin-seed-registry.ts).
 export { companyMetricsSeeds } from "./seeds";

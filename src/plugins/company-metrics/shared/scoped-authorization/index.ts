@@ -42,6 +42,21 @@ export function authorizeSectorContributionActor(sectorId: string): Promise<Auth
   return authorizeSectorActor(sectorId, "editor");
 }
 
+// Gate de LEITURA (visualização interativa /metricas, Fase 4): company-metrics.manage vê tudo;
+// senão precisa de company-metrics.read OU company-metrics.contribute E ser membro do setor
+// (qualquer papel).
+export async function authorizeSectorViewActor(sectorId: string): Promise<AuthorizeActorResult> {
+  const full = await authorizeActor("company-metrics.manage");
+  if (full.authorized) return full;
+
+  const viewer = await authorizeActor(["company-metrics.read", "company-metrics.contribute"]);
+  if (!viewer.authorized) return viewer;
+
+  const role = await findSectorMemberRole(sectorId, viewer.actorId);
+  if (role === null) return { authorized: false, error: FORBIDDEN_SECTOR };
+  return viewer;
+}
+
 export type ManageableSectors =
   | { scope: "all" }
   | { scope: "scoped"; sectorIds: string[] }
@@ -58,6 +73,17 @@ export async function resolveManageableSectors(): Promise<ManageableSectors> {
   if (!scoped.authorized) return { scope: "none" };
 
   return { scope: "scoped", sectorIds: await findSectorIdsForUser(scoped.actorId) };
+}
+
+// Recorte da visualização interativa: manage → todos; read/contribute → setores em que é membro.
+export async function resolveViewableSectors(): Promise<ManageableSectors> {
+  const full = await authorizeActor("company-metrics.manage");
+  if (full.authorized) return { scope: "all" };
+
+  const viewer = await authorizeActor(["company-metrics.read", "company-metrics.contribute"]);
+  if (!viewer.authorized) return { scope: "none" };
+
+  return { scope: "scoped", sectorIds: await findSectorIdsForUser(viewer.actorId) };
 }
 
 // Resolve o setor pai e autoriza como configuração — pra features que só recebem groupId.

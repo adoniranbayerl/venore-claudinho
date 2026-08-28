@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bucketStart, currentBucket, isValidCivilDate, listBuckets, nextBucket } from "./period";
+import { bucketStart, currentBucket, isValidCivilDate, listBuckets, nextBucket, subtractMonths } from "./period";
 
 describe("bucketStart", () => {
   it("daily is the same day", () => {
@@ -50,6 +50,17 @@ describe("currentBucket", () => {
     const instant = new Date("2026-08-01T02:00:00Z");
     expect(currentBucket("monthly", "America/Sao_Paulo", instant)).toBe("2026-07-01");
     expect(currentBucket("monthly", "UTC", instant)).toBe("2026-08-01");
+  });
+});
+
+describe("subtractMonths", () => {
+  it("goes back whole months, crossing years", () => {
+    expect(subtractMonths("2026-08-15", 6)).toBe("2026-02-15");
+    expect(subtractMonths("2026-02-15", 3)).toBe("2025-11-15");
+  });
+
+  it("clamps the day to the end of the shorter month", () => {
+    expect(subtractMonths("2026-03-31", 1)).toBe("2026-02-28");
   });
 });
 
