@@ -1,37 +1,123 @@
 import { listUsers } from "@/contexts/auth";
+import { getSetting } from "@/contexts/settings";
 import { AdminAccessDenied } from "@/components/admin-access-denied";
 import { AdminPageHeader } from "@/components/admin-page-header";
 import { EmptyState } from "@/components/empty-state";
-import { Badge } from "@/components/ui/badge";
 import { getCompanyMetricsPageData } from "@/platform/admin-shell/get-company-metrics-page-data";
 import {
+  getMyCompanyMetricsAccess,
+  listMetricDefinitions,
+  listMetricValues,
   listSectorGroups,
   listSectorMembers,
   listSectors,
+  type CompanyMetricsAccess,
   type SectorListItem,
 } from "@/plugins/company-metrics";
 import type { SectorGroupRecord, SectorMemberRecord } from "@/plugins/company-metrics/contracts/types";
-import { ArchiveSectorButton } from "./archive-sector-button";
-import { CreateSectorDialog } from "./create-sector-dialog";
-import { EditSectorDialog } from "./edit-sector-dialog";
-import { SectorGroupsDialog } from "./sector-groups-dialog";
-import { SectorIcon } from "./sector-icon";
-import { SectorMembersDialog } from "./sector-members-dialog";
+import { bucketStart, zonedCivilDate } from "@/plugins/company-metrics/shared/period";
+import { isValidCivilDate } from "@/plugins/company-metrics/shared/period";
+import { normalizeTimeZone } from "@/plugins/company-metrics/shared/settings";
+import { AdminTabs } from "./admin-tabs";
+import { LancamentosView } from "./lancamentos-view";
+import { MetricasView } from "./metricas-view";
+import { SetoresView } from "./setores-view";
 
-export default async function CompanyMetricsAdminPage() {
+const EMPTY_ACCESS: CompanyMetricsAccess = {
+  canManageAll: false,
+  adminSectorIds: [],
+  contributorSectorIds: [],
+  memberSectorIds: [],
+};
+
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function CompanyMetricsAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const gate = await getCompanyMetricsPageData();
   if (!gate.granted) {
     return <AdminAccessDenied message="Você não tem permissão para ver Métricas Internas." />;
   }
 
-  const canManage = gate.actor.isSuperadmin || gate.actor.permissions.includes("company-metrics.manage");
+  const params = await searchParams;
+  const [accessResult, sectorsResult, tzSetting] = await Promise.all([
+    getMyCompanyMetricsAccess(),
+    listSectors({ includeArchived: true }),
+    getSetting({ key: "company-metrics.timezone" }),
+  ]);
 
-  const sectorsResult = await listSectors({ includeArchived: true });
-  if (!sectorsResult.success) {
-    return <p className="text-sm text-destructive">Erro ao carregar os setores: {sectorsResult.error.message}</p>;
-  }
-  const sectors = sectorsResult.data;
+  const access = accessResult.success ? accessResult.data : EMPTY_ACCESS;
+  const sectors = sectorsResult.success ? sectorsResult.data : [];
+  const canManage = access.canManageAll;
+  const timeZone = normalizeTimeZone(tzSetting.success ? tzSetting.data?.value : undefined);
 
+  const canSeeMetricas = canManage || access.adminSectorIds.length > 0;
+  const canSeeLancamentos = canManage || access.contributorSectorIds.length > 0;
+
+  const tabs: { key: string; label: string }[] = [];
+  if (canManage) tabs.push({ key: "setores", label: "Setores" });
+  if (canSeeMetricas) tabs.push({ key: "metricas", label: "Métricas" });
+  if (canSeeLancamentos) tabs.push({ key: "lançamentos", label: "Lançamentos" });
+
+  const activeTab = tabs.some((tab) => tab.key === first(params.tab)) ? first(params.tab)! : tabs[0]?.key;
+
+  const sectorOptions = sectors.map((sector) => ({ id: sector.id, name: sector.name }));
+  const requestedSector = first(params.sector);
+  const activeSectorId =
+    requestedSector && sectors.some((sector) => sector.id === requestedSector)
+      ? requestedSector
+      : sectorOptions[0]?.id;
+  const activeSector = sectors.find((sector) => sector.id === activeSectorId);
+
+  const referenceDateRaw = first(params.date);
+  const referenceDate =
+    referenceDateRaw && isValidCivilDate(referenceDateRaw) ? referenceDateRaw : zonedCivilDate(new Date(), timeZone);
+
+  return (
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Métricas Internas"
+        description="Setores da empresa, suas métricas e o lançamento dos números. Metas e telas de TV entram nas próximas etapas."
+      />
+
+      {tabs.length === 0 ? (
+        <EmptyState
+          title="Sem acesso a nenhum setor"
+          description="Você tem a permissão de Métricas Internas mas ainda não foi atribuído a nenhum setor como editor ou administrador."
+        />
+      ) : (
+        <>
+          <AdminTabs tabs={tabs} active={activeTab ?? tabs[0].key} />
+          {activeTab === "setores" && <SetoresTab sectors={sectors} canManage={canManage} />}
+          {activeTab === "metricas" && (
+            <MetricasTab
+              sectorOptions={sectorOptions}
+              activeSectorId={activeSectorId}
+              activeSectorName={activeSector?.name}
+              canConfigure={canManage || (activeSectorId ? access.adminSectorIds.includes(activeSectorId) : false)}
+            />
+          )}
+          {activeTab === "lançamentos" && (
+            <LancamentosTab
+              sectorOptions={sectorOptions}
+              activeSectorId={activeSectorId}
+              activeSectorName={activeSector?.name}
+              referenceDate={referenceDate}
+              canContribute={canManage || (activeSectorId ? access.contributorSectorIds.includes(activeSectorId) : false)}
+            />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+async function SetoresTab({ sectors, canManage }: { sectors: SectorListItem[]; canManage: boolean }) {
   const [groupsResult, usersResult, ...membersResults] = await Promise.all([
     listSectorGroups(),
     listUsers(),
@@ -53,90 +139,98 @@ export default async function CompanyMetricsAdminPage() {
     membersBySector.set(sector.id, result?.success ? result.data : []);
   });
 
-  const users = usersResult.success ? usersResult.data.map((user) => ({ id: user.id, name: user.name, email: user.email })) : [];
+  const users = usersResult.success
+    ? usersResult.data.map((user) => ({ id: user.id, name: user.name, email: user.email }))
+    : [];
 
   return (
-    <div className="space-y-6">
-      <AdminPageHeader
-        title="Métricas Internas"
-        description="Setores da empresa, com seus responsáveis e grupos. Métricas, metas e telas de TV entram nas próximas etapas."
-        actions={canManage && sectors.length > 0 ? <CreateSectorDialog /> : undefined}
-      />
-
-      {sectors.length === 0 ? (
-        <EmptyState
-          title="Nenhum setor ainda"
-          description={
-            canManage
-              ? "Crie o primeiro setor (comercial, financeiro, marketing…) para começar."
-              : "Você ainda não é responsável por nenhum setor. Peça a um administrador para atribuir você."
-          }
-          action={canManage ? <CreateSectorDialog /> : undefined}
-        />
-      ) : (
-        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {sectors.map((sector) => (
-            <SectorCard
-              key={sector.id}
-              sector={sector}
-              canManage={canManage}
-              groups={groupsBySector.get(sector.id) ?? []}
-              members={membersBySector.get(sector.id) ?? []}
-              users={users}
-            />
-          ))}
-        </ul>
-      )}
-    </div>
+    <SetoresView
+      sectors={sectors}
+      groupsBySector={groupsBySector}
+      membersBySector={membersBySector}
+      users={users}
+      canManage={canManage}
+    />
   );
 }
 
-function SectorCard({
-  sector,
-  canManage,
-  groups,
-  members,
-  users,
+async function MetricasTab({
+  sectorOptions,
+  activeSectorId,
+  activeSectorName,
+  canConfigure,
 }: {
-  sector: SectorListItem;
-  canManage: boolean;
-  groups: SectorGroupRecord[];
-  members: SectorMemberRecord[];
-  users: { id: string; name: string | null; email: string }[];
+  sectorOptions: { id: string; name: string }[];
+  activeSectorId: string | undefined;
+  activeSectorName: string | undefined;
+  canConfigure: boolean;
 }) {
-  const archived = sector.archivedAt !== null;
+  if (!activeSectorId) {
+    return <MetricasView sectors={sectorOptions} activeSectorId={undefined} activeSectorName={undefined} definitions={[]} groups={[]} canConfigure={canConfigure} />;
+  }
+
+  const [definitionsResult, groupsResult] = await Promise.all([
+    listMetricDefinitions({ sectorId: activeSectorId, includeArchived: true }),
+    listSectorGroups(activeSectorId),
+  ]);
 
   return (
-    <li className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
-      <div className="flex items-start gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent/14 text-primary">
-          <SectorIcon icon={sector.icon} className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-semibold text-foreground">{sector.name}</h2>
-            {archived && <Badge variant="outline">Arquivado</Badge>}
-          </div>
-          {sector.description && <p className="mt-0.5 text-sm text-muted-foreground">{sector.description}</p>}
-          <p className="mt-1 text-xs text-muted-foreground/56">
-            {sector.memberCount} {sector.memberCount === 1 ? "responsável" : "responsáveis"} · {sector.groupCount}{" "}
-            {sector.groupCount === 1 ? "grupo" : "grupos"}
-          </p>
-        </div>
-      </div>
+    <MetricasView
+      sectors={sectorOptions}
+      activeSectorId={activeSectorId}
+      activeSectorName={activeSectorName}
+      definitions={definitionsResult.success ? definitionsResult.data : []}
+      groups={groupsResult.success ? groupsResult.data : []}
+      canConfigure={canConfigure}
+    />
+  );
+}
 
-      <div className="flex flex-wrap gap-2">
-        <EditSectorDialog sector={sector} />
-        <SectorMembersDialog
-          sectorId={sector.id}
-          sectorName={sector.name}
-          allUsers={users}
-          members={members.map((member) => ({ userId: member.userId, role: member.role }))}
-          canManageAdmins={canManage}
-        />
-        <SectorGroupsDialog sectorId={sector.id} sectorName={sector.name} groups={groups} />
-        {canManage && <ArchiveSectorButton sectorId={sector.id} archived={archived} />}
-      </div>
-    </li>
+async function LancamentosTab({
+  sectorOptions,
+  activeSectorId,
+  activeSectorName,
+  referenceDate,
+  canContribute,
+}: {
+  sectorOptions: { id: string; name: string }[];
+  activeSectorId: string | undefined;
+  activeSectorName: string | undefined;
+  referenceDate: string;
+  canContribute: boolean;
+}) {
+  if (!activeSectorId) {
+    return (
+      <LancamentosView
+        sectors={sectorOptions}
+        activeSectorId={undefined}
+        activeSectorName={undefined}
+        referenceDate={referenceDate}
+        definitions={[]}
+        values={[]}
+        canContribute={canContribute}
+      />
+    );
+  }
+
+  const definitionsResult = await listMetricDefinitions({ sectorId: activeSectorId, includeArchived: false });
+  const definitions = definitionsResult.success ? definitionsResult.data : [];
+
+  const buckets = definitions.map((definition) => bucketStart(referenceDate, definition.granularity));
+  const from = buckets.length > 0 ? buckets.reduce((a, b) => (a < b ? a : b)) : referenceDate;
+  const to = buckets.length > 0 ? buckets.reduce((a, b) => (a > b ? a : b)) : referenceDate;
+
+  const valuesResult = await listMetricValues({ sectorId: activeSectorId, from, to });
+
+  return (
+    <LancamentosView
+      sectors={sectorOptions}
+      activeSectorId={activeSectorId}
+      activeSectorName={activeSectorName}
+      referenceDate={referenceDate}
+      definitions={definitions}
+      values={valuesResult.success ? valuesResult.data : []}
+      canContribute={canContribute}
+    />
   );
 }

@@ -3,16 +3,31 @@
 import { revalidatePath } from "next/cache";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 import {
+  archiveMetricDefinition,
   archiveSector,
+  createMetricDefinition,
   createSector,
   createSectorGroup,
   deleteSectorGroup,
   setSectorMembers,
+  updateMetricDefinition,
   updateSector,
   updateSectorGroup,
+  upsertMetricValue,
   type SectorMemberAssignment,
 } from "@/plugins/company-metrics";
-import { SECTOR_MEMBER_ROLES, type SectorMemberRole } from "@/plugins/company-metrics/contracts/types";
+import {
+  METRIC_AGGREGATIONS,
+  METRIC_DEFINITION_GRANULARITIES,
+  METRIC_DIRECTIONS,
+  METRIC_UNITS,
+  SECTOR_MEMBER_ROLES,
+  type MetricAggregation,
+  type MetricDefinitionGranularity,
+  type MetricDirection,
+  type MetricUnit,
+  type SectorMemberRole,
+} from "@/plugins/company-metrics/contracts/types";
 
 export type CompanyMetricsActionState = { error: string | null };
 
@@ -22,6 +37,12 @@ const PLUGIN_DISABLED_ERROR = "O plugin Métricas Internas está desabilitado.";
 function optional(formData: FormData, name: string): string | undefined {
   const value = String(formData.get(name) ?? "").trim();
   return value.length > 0 ? value : undefined;
+}
+
+// Selects do Radix não aceitam value="" — "none" é o placeholder de "sem grupo".
+function optionalRef(formData: FormData, name: string): string | undefined {
+  const value = optional(formData, name);
+  return value && value !== "none" ? value : undefined;
 }
 
 export async function createSectorAction(
@@ -152,6 +173,94 @@ export async function deleteSectorGroupAction(
   if (!(await isPluginActive("company-metrics"))) return { error: PLUGIN_DISABLED_ERROR };
 
   const result = await deleteSectorGroup({ groupId: String(formData.get("groupId") ?? "") });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(RETURN_TO);
+  return { error: null };
+}
+
+// --- Fase 2: definições de métrica ---
+
+function pick<T extends string>(formData: FormData, name: string, allowed: readonly T[], fallback: T): T {
+  const value = String(formData.get(name) ?? "");
+  return (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
+}
+
+export async function createMetricDefinitionAction(
+  _prev: CompanyMetricsActionState,
+  formData: FormData,
+): Promise<CompanyMetricsActionState> {
+  if (!(await isPluginActive("company-metrics"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await createMetricDefinition({
+    sectorId: String(formData.get("sectorId") ?? ""),
+    groupId: optionalRef(formData, "groupId") ?? null,
+    label: String(formData.get("label") ?? ""),
+    description: optional(formData, "description") ?? null,
+    unit: pick<MetricUnit>(formData, "unit", METRIC_UNITS, "count"),
+    aggregation: pick<MetricAggregation>(formData, "aggregation", METRIC_AGGREGATIONS, "sum"),
+    granularity: pick<MetricDefinitionGranularity>(formData, "granularity", METRIC_DEFINITION_GRANULARITIES, "monthly"),
+    direction: pick<MetricDirection>(formData, "direction", METRIC_DIRECTIONS, "up_good"),
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(RETURN_TO);
+  return { error: null };
+}
+
+export async function updateMetricDefinitionAction(
+  _prev: CompanyMetricsActionState,
+  formData: FormData,
+): Promise<CompanyMetricsActionState> {
+  if (!(await isPluginActive("company-metrics"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await updateMetricDefinition({
+    definitionId: String(formData.get("definitionId") ?? ""),
+    label: String(formData.get("label") ?? ""),
+    description: optional(formData, "description") ?? null,
+    groupId: optionalRef(formData, "groupId") ?? null,
+    unit: pick<MetricUnit>(formData, "unit", METRIC_UNITS, "count"),
+    direction: pick<MetricDirection>(formData, "direction", METRIC_DIRECTIONS, "up_good"),
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(RETURN_TO);
+  return { error: null };
+}
+
+export async function archiveMetricDefinitionAction(
+  _prev: CompanyMetricsActionState,
+  formData: FormData,
+): Promise<CompanyMetricsActionState> {
+  if (!(await isPluginActive("company-metrics"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await archiveMetricDefinition({
+    definitionId: String(formData.get("definitionId") ?? ""),
+    archived: String(formData.get("archived") ?? "") === "true",
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(RETURN_TO);
+  return { error: null };
+}
+
+// --- Fase 2: lançamento de valores ---
+
+export async function upsertMetricValueAction(
+  _prev: CompanyMetricsActionState,
+  formData: FormData,
+): Promise<CompanyMetricsActionState> {
+  if (!(await isPluginActive("company-metrics"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const raw = String(formData.get("value") ?? "").trim().replace(",", ".");
+  const value = raw.length === 0 ? null : Number(raw);
+
+  const result = await upsertMetricValue({
+    definitionId: String(formData.get("definitionId") ?? ""),
+    periodDate: String(formData.get("periodDate") ?? ""),
+    value,
+    note: optional(formData, "note") ?? null,
+  });
   if (!result.success) return { error: result.error.message };
 
   revalidatePath(RETURN_TO);

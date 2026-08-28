@@ -1,4 +1,5 @@
 import type { PluginManifest } from "@/platform/plugin-engine/manifest-schema";
+import { COMPANY_METRICS_SETTINGS } from "./shared/settings";
 
 // Faixa de compatibilidade escrita à mão, não importada de core-version.ts — mesmo motivo dos
 // demais manifestos (importar o CORE_VERSION corrente tornaria a checagem trivial).
@@ -31,6 +32,7 @@ export const companyMetricsManifest: PluginManifest = {
       label: "Ver a visualização de Métricas Internas dos setores autorizados",
     },
   ],
+  settings: Object.values(COMPANY_METRICS_SETTINGS).map(({ key, defaultValue }) => ({ key, defaultValue })),
   seeds: [
     {
       key: "example",

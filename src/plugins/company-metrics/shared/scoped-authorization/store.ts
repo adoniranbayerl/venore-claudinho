@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
-import { sectorGroups, sectorMembers, sectors } from "../../database/schema";
+import { metricDefinitions, metricValues, sectorGroups, sectorMembers, sectors } from "../../database/schema";
 import type { SectorMemberRole, SectorRecord } from "../../contracts/types";
 
 // Acesso a banco fora de um store.ts por feature — exceção deliberada, mesmo racional de
@@ -42,5 +42,24 @@ export async function findSectorById(id: string): Promise<SectorRecord | null> {
 // checar autorização (mesmo padrão de broadcast findAgendaIdByEventId).
 export async function findSectorIdByGroupId(groupId: string): Promise<string | null> {
   const [row] = await db.select({ sectorId: sectorGroups.sectorId }).from(sectorGroups).where(eq(sectorGroups.id, groupId)).limit(1);
+  return row?.sectorId ?? null;
+}
+
+export async function findSectorIdByDefinitionId(definitionId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ sectorId: metricDefinitions.sectorId })
+    .from(metricDefinitions)
+    .where(eq(metricDefinitions.id, definitionId))
+    .limit(1);
+  return row?.sectorId ?? null;
+}
+
+export async function findSectorIdByValueId(valueId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ sectorId: metricDefinitions.sectorId })
+    .from(metricValues)
+    .innerJoin(metricDefinitions, eq(metricValues.definitionId, metricDefinitions.id))
+    .where(eq(metricValues.id, valueId))
+    .limit(1);
   return row?.sectorId ?? null;
 }

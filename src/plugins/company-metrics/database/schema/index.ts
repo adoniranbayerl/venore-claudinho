@@ -1,5 +1,15 @@
 import { sql } from "drizzle-orm";
-import { check, integer, pgSchema, primaryKey, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  check,
+  date,
+  doublePrecision,
+  integer,
+  pgSchema,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 export const companyMetricsSchema = pgSchema("company_metrics");
 
@@ -70,4 +80,77 @@ export const sectorMembers = companyMetricsSchema.table(
     primaryKey({ columns: [table.sectorId, table.userId] }),
     check("company_metrics_sector_members_role_check", sql`${table.role} in ('admin','editor','viewer')`),
   ],
+);
+
+// Fase 2 — docs/metricas-internas-plugin.md §2.1.
+
+// Uma métrica que o setor acompanha ("Alunos matriculados", "Receita recorrente", "Leads").
+// group_id (opcional) → sector_groups com onDelete "set null": apagar o grupo desvincula, não
+// apaga a definição. key é slug do label, único por setor.
+// - unit: formatação/eixo (contagem, R$, %, dias).
+// - aggregation: como os valores de vários períodos viram um número num intervalo maior
+//   (sum: leads/entradas; last: estoque/saldo; average: ticket médio/NPS).
+// - granularity: cadência de lançamento (o editor lança "valor de agosto", "da semana 32"…).
+// - direction: se subir é bom (up_good) ou ruim (down_good) — só leitura/cor no painel.
+export const metricDefinitions = companyMetricsSchema.table(
+  "metric_definitions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    sectorId: text("sector_id")
+      .notNull()
+      .references(() => sectors.id, { onDelete: "cascade" }),
+    groupId: text("group_id").references(() => sectorGroups.id, { onDelete: "set null" }),
+    key: text("key").notNull(),
+    label: text("label").notNull(),
+    description: text("description"),
+    unit: text("unit").notNull(),
+    aggregation: text("aggregation").notNull(),
+    granularity: text("granularity").notNull(),
+    direction: text("direction").notNull(),
+    position: integer("position").notNull().default(0),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("company_metrics_metric_definitions_key_idx").on(table.sectorId, table.key),
+    check("company_metrics_metric_definitions_unit_check", sql`${table.unit} in ('count','currency_brl','percent','days')`),
+    check(
+      "company_metrics_metric_definitions_aggregation_check",
+      sql`${table.aggregation} in ('sum','last','average')`,
+    ),
+    check(
+      "company_metrics_metric_definitions_granularity_check",
+      sql`${table.granularity} in ('daily','weekly','monthly')`,
+    ),
+    check(
+      "company_metrics_metric_definitions_direction_check",
+      sql`${table.direction} in ('up_good','down_good')`,
+    ),
+  ],
+);
+
+// Um valor lançado para uma definição, num período. É o que o papel "editor" atualiza.
+// period_start é sempre um início de bucket normalizado à granularity da definição
+// (shared/period.ts). uq (definition_id, period_start) → o lançamento é um upsert por período.
+// entered_by_user_id é texto solto sem FK (mesmo racional de sector_members.user_id).
+export const metricValues = companyMetricsSchema.table(
+  "metric_values",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    definitionId: text("definition_id")
+      .notNull()
+      .references(() => metricDefinitions.id, { onDelete: "cascade" }),
+    periodStart: date("period_start", { mode: "string" }).notNull(),
+    value: doublePrecision("value").notNull(),
+    note: text("note"),
+    enteredByUserId: text("entered_by_user_id"),
+    enteredAt: timestamp("entered_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("company_metrics_metric_values_period_idx").on(table.definitionId, table.periodStart)],
 );

@@ -1,6 +1,12 @@
 import { authorizeActor, type AuthorizeActorResult } from "@/contexts/rbac";
 import type { SectorMemberRole } from "../../contracts/types";
-import { findSectorIdByGroupId, findSectorIdsForUser, findSectorMemberRole, roleSatisfies } from "./store";
+import {
+  findSectorIdByDefinitionId,
+  findSectorIdByGroupId,
+  findSectorIdsForUser,
+  findSectorMemberRole,
+  roleSatisfies,
+} from "./store";
 
 // Camada de autorização por setor — espelha broadcast/shared/scoped-authorization/index.ts.
 // company-metrics.manage sempre passa (todos os setores, ignora atribuição). Quem só tem a
@@ -62,4 +68,30 @@ export async function authorizeSectorGroupConfigActor(groupId: string): Promise<
   return authorizeSectorConfigActor(sectorId);
 }
 
-export { findSectorById, findSectorIdByGroupId, findSectorIdsForUser, findSectorMemberRole, roleSatisfies } from "./store";
+// Configurar/arquivar uma definição de métrica = papel "admin" no setor dono (ou manage).
+export async function authorizeMetricDefinitionConfigActor(definitionId: string): Promise<AuthorizeActorResult> {
+  const sectorId = await findSectorIdByDefinitionId(definitionId);
+  if (!sectorId) {
+    return { authorized: false, error: { code: "company-metrics.metric-definition.not_found", message: "Métrica não encontrada." } };
+  }
+  return authorizeSectorConfigActor(sectorId);
+}
+
+// Lançar valor de uma definição = papel "editor" pra cima no setor dono (ou manage).
+export async function authorizeMetricValueContributionActor(definitionId: string): Promise<AuthorizeActorResult> {
+  const sectorId = await findSectorIdByDefinitionId(definitionId);
+  if (!sectorId) {
+    return { authorized: false, error: { code: "company-metrics.metric-definition.not_found", message: "Métrica não encontrada." } };
+  }
+  return authorizeSectorContributionActor(sectorId);
+}
+
+export {
+  findSectorById,
+  findSectorIdByDefinitionId,
+  findSectorIdByGroupId,
+  findSectorIdByValueId,
+  findSectorIdsForUser,
+  findSectorMemberRole,
+  roleSatisfies,
+} from "./store";
