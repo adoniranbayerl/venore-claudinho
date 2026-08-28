@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
 import {
   Clapperboard,
   CalendarDays,
@@ -8,6 +8,7 @@ import {
   ChevronUp,
   Eye,
   EyeOff,
+  Gauge,
   Globe,
   MoreVertical,
   Newspaper,
@@ -44,10 +45,12 @@ import { playlistItemStatus } from "./status";
 import {
   addAgendaEventPlaylistItemAction,
   addMediaAssetPlaylistItemAction,
+  addMetricsBoardPlaylistItemAction,
   addNewsPlaylistItemAction,
   addScannedPlaylistItemsAction,
   addWebpagePlaylistItemAction,
   createPlaylistAction,
+  listMetricsBoardOptionsAction,
   deletePlaylistAction,
   deletePlaylistItemAction,
   reorderPlaylistItemsAction,
@@ -738,7 +741,7 @@ function AddAgendaEventItemForm({
   );
 }
 
-type AddItemKind = "scan" | "media" | "webpage" | "news" | "agenda-event";
+type AddItemKind = "scan" | "media" | "webpage" | "news" | "agenda-event" | "metrics-board";
 
 // Ícone renderizado (não componente) — mesmo racional de renderItemIcon.
 function renderAddOptionIcon(kind: AddItemKind): ReactNode {
@@ -754,7 +757,59 @@ function renderAddOptionIcon(kind: AddItemKind): ReactNode {
       return <Newspaper className={className} aria-hidden="true" />;
     case "agenda-event":
       return <CalendarDays className={className} aria-hidden="true" />;
+    case "metrics-board":
+      return <Gauge className={className} aria-hidden="true" />;
   }
+}
+
+// Atalho "Painel de métricas" (§9.3): só aparece quando o plugin company-metrics está ativo E
+// tem ao menos um painel — listMetricsBoardOptionsAction devolve [] caso contrário. Insere um
+// item "webpage" apontando pra /company-metrics/tv/{token}, sem o operador colar URL.
+function AddMetricsBoardItemForm({
+  playlistId,
+  boards,
+  onAdded,
+}: {
+  playlistId: string;
+  boards: { token: string; label: string }[];
+  onAdded?: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(addMetricsBoardPlaylistItemAction, initialState);
+  useActionToast({ pending, error: state.error, successMessage: "Painel de métricas adicionado.", onSuccess: onAdded });
+  const [boardToken, setBoardToken] = useState(boards[0]?.token ?? "");
+
+  return (
+    <form action={formAction} className="space-y-3">
+      <input type="hidden" name="playlistId" value={playlistId} />
+      <input type="hidden" name="boardToken" value={boardToken} />
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">Painel</label>
+        <Select value={boardToken} onValueChange={setBoardToken}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="selecione..." />
+          </SelectTrigger>
+          <SelectContent>
+            {boards.map((board) => (
+              <SelectItem key={board.token} value={board.token}>
+                {board.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground" htmlFor={`${playlistId}-mb-title`}>Título (opcional)</label>
+        <Input id={`${playlistId}-mb-title`} name="title" className="w-full" />
+      </div>
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground" htmlFor={`${playlistId}-mb-duration`}>
+          Segundos na tela (padrão 60)
+        </label>
+        <Input id={`${playlistId}-mb-duration`} name="durationSeconds" type="number" placeholder="60" className="w-32" />
+      </div>
+      <Button type="submit" disabled={pending || !boardToken} className="w-full sm:w-auto">Adicionar</Button>
+    </form>
+  );
 }
 
 // Chips (um por tipo de conteúdo) + um único formulário visível por vez, em vez dos quatro
@@ -773,12 +828,26 @@ function PlaylistAddSection({
   const [active, setActive] = useState<AddItemKind | null>(null);
   const close = () => setActive(null);
 
+  // Painéis de métricas (§9.3) — carregados sob demanda; [] quando o plugin company-metrics não
+  // está ativo ou não há painel, e aí o chip nem aparece.
+  const [metricsBoards, setMetricsBoards] = useState<{ token: string; label: string }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    listMetricsBoardOptionsAction().then((boards) => {
+      if (!cancelled) setMetricsBoards(boards);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const options: { kind: AddItemKind; label: string }[] = [
     ...(playlist.folderPath ? [{ kind: "scan" as const, label: "Vídeos da pasta" }] : []),
     { kind: "media", label: "Mídia avulsa" },
     { kind: "webpage", label: "Página web" },
     { kind: "news", label: "Bloco de notícias" },
     { kind: "agenda-event", label: "Evento em destaque" },
+    ...(metricsBoards.length > 0 ? [{ kind: "metrics-board" as const, label: "Painel de métricas" }] : []),
   ];
 
   return (
@@ -810,6 +879,9 @@ function PlaylistAddSection({
           {active === "news" && <AddNewsItemForm playlistId={playlist.id} onAdded={close} />}
           {active === "agenda-event" && (
             <AddAgendaEventItemForm playlistId={playlist.id} agendas={agendas} agendaEvents={agendaEvents} onAdded={close} />
+          )}
+          {active === "metrics-board" && (
+            <AddMetricsBoardItemForm playlistId={playlist.id} boards={metricsBoards} onAdded={close} />
           )}
         </div>
       )}

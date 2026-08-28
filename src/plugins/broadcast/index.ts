@@ -55,6 +55,14 @@ export type {
   AddWebpagePlaylistItemInput,
   AddWebpagePlaylistItemResult,
 } from "./features/playlists/add-webpage-playlist-item/types";
+// Atalho "Painel de métricas" — só funciona com o plugin company-metrics ativo (§9.3).
+export {
+  addMetricsBoardPlaylistItemHandler as addMetricsBoardPlaylistItem,
+} from "./features/playlists/add-metrics-board-playlist-item/handler";
+export type {
+  AddMetricsBoardPlaylistItemInput,
+  AddMetricsBoardPlaylistItemResult,
+} from "./features/playlists/add-metrics-board-playlist-item/types";
 export {
   addNewsPlaylistItemHandler as addNewsPlaylistItem,
 } from "./features/playlists/add-news-playlist-item/handler";

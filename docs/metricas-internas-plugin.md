@@ -2,19 +2,30 @@ https://claude.ai/code/artifact/4e690c27-bcdc-431f-bac6-bc53fad48555
 
 # Plugin `company-metrics` (Métricas Internas) — documento de arquitetura
 
-> Status: **Fases 1–3 implementadas (2026-08-28)**, branch `company-metrics-plugin` (commits
-> `9f63bd1`, `50911c6`, `2c07c7f` — sem push). Verde: `lint` + `typecheck` + `npm run test`
-> (1397 testes). Fases 4–7 pendentes — as três primeiras são schema + lógica + testes; as
-> próximas têm UI/telão/remoção de plugin e pedem revisão visual.
+> Status: **Fases 1–7 implementadas (2026-08-28)**, branch `company-metrics-plugin` (sem push).
+> Verde: `lint` + `typecheck` + `npm run test` (1401 testes). Testes de **integração** (`npm run
+> test:integration`, precisa de `TEST_DATABASE_URL`) NÃO rodados nesta sessão — os alvos
+> `run-plugin-migrations` / `uninstall-plugin` foram retargetados de `enrollment-dashboard` para
+> `company-metrics` e devem passar no CI. Revisão visual das superfícies (admin, `/metricas`, TV)
+> pendente — nada foi aberto num browser.
+>
+> Commits: `9f63bd1` F1 · `50911c6` F2 · `2c07c7f` F3 · `2776657` F4 · `a563f9a` F5 ·
+> `382cb8d` F6 · (F7 no commit seguinte).
 >
 > Ajustes feitos na implementação, ainda dentro do desenho:
-> - `sector_groups` entrou já na Fase 1 (era Fase 1 no doc revisado — ok).
-> - "Metas" virou **aba própria** no admin (não dentro de "Métricas") — Setores · Métricas ·
->   Metas · Lançamentos, todas dirigidas por `?tab=`.
-> - `package.json` ganhou `db:{generate,migrate}:company-metrics` (mesmo padrão de todo plugin
->   com schema — `academy`/`broadcast`/…). É o único toque fora de `src/plugins/company-metrics/`
->   + os 4 pontos de registro já previstos (§7).
-> - `logo` de `sector_groups` fica sem picker na UI até a Fase 5/6 (coluna já existe).
+> - `sector_groups` entrou já na Fase 1. "Metas" virou **aba própria** (Setores · Métricas ·
+>   Metas · Lançamentos · Apresentação, dirigidas por `?tab=`).
+> - `package.json` ganhou `db:{generate,migrate}:company-metrics` e perdeu os equivalentes de
+>   `enrollment-dashboard` (F6).
+> - **Fase 7 não alterou o schema do Broadcast.** O item `metrics-board` é gravado como um item
+>   `webpage` comum (`url = /company-metrics/tv/{token}`) — sem migration, sem novo `sourceType`,
+>   a view de saída já renderiza. O atalho é uma feature `add-metrics-board-playlist-item` +
+>   um chip na UI de playlist que só aparece com `company-metrics` ativo. Mais simples e menos
+>   invasivo que o `sourceType` novo previsto no §9.3, com o mesmo efeito.
+> - `sector_groups.logo` e o **bloco de CMS** `company-metrics.target.board` ficaram sem UI
+>   (colunas/gancho existem) — trabalho incremental.
+> - Gráficos: sparkline SVG inline própria (`components/dashboard/metric-trend`), não `recharts`
+>   (que está nas deps mas puxa peso pro bundle do telão).
 >
 > Este documento decidiu a forma do plugin: entidades e schema, modelo de delegação por setor, as
 > três superfícies de consumo (admin, visualização interativa, saída para TV/Broadcast), estrutura
@@ -351,10 +362,10 @@ contagem batendo; mobile-first; sem cor hardcoded).
 | **1 — Setores + grupos + delegação** ✅ | `sectors`, `sector_groups`, `sector_members`, permissions, `scoped-authorization/`, aba **Setores** (CRUD de setor + grupos + membros), seed comercial/financeiro/marketing, gate de seção, item de nav. Sem métricas ainda. | baixo |
 | **2 — Definições + lançamento** ✅ | `metric_definitions`, `metric_values`, `shared/period.ts`, setting de fuso, aba **Métricas** (CRUD de definição), aba **Lançamentos** (grade de entrada, mobile-first). `editor` já lança dado. | baixo/médio |
 | **3 — Metas e composição** ✅ | `targets`, `target_inputs`, aba **Metas** (construtor de composição), `shared/metric-rollup.ts` puro + testes (cobre o exemplo das 300 entradas), `get-target-rollups` (view model reusável). | médio |
-| **4 — Visualização interativa** | Rota `/metricas` (autenticada, recortada por setor), `get-metrics-overview` + `get-sector-dashboard`, overview + drill-down + gráficos de tendência + filtro de período. Teste de integração (rbac × dado do plugin). | médio |
-| **5 — Saída para TV** | `tv_boards`, `tv_screens`, aba **Apresentação** (montar rotação, copiar link), `/company-metrics/tv/[token]` com `PresentationCanvas` (copiado) + polling, seguindo o tema. Consumido pelo Broadcast como item `webpage`. | médio |
-| **6 — Substituição do `enrollment-dashboard`** | Seed "matrícula" no modelo geral (Erasto/Fidelis como `sector_groups`, turmas/cursos como `targets` com 2 definições `realized`), migração de dados reais se houver, telas de slide portadas por cópia. Desinstalar o `enrollment-dashboard` (uninstall Mode B) e remover o shim `app/enrollment-dashboard/`. Ver §9.1. | médio |
-| **7 — Atalho nativo no Broadcast** | Origem `metrics-board` na tela de playlist do Broadcast — **feature do `broadcast`**, dependência **opcional**, degrada sem `company-metrics`. `company-metrics` só expõe `listMetricsBoards()` no barrel. + bloco de CMS `company-metrics.target.board`. Ver §9.3. Independente da Fase 6. | isolado |
+| **4 — Visualização interativa** ✅ | Rota `/metricas` (autenticada, recortada por setor), `get-metrics-overview` + `get-sector-dashboard`, overview + drill-down + sparkline de tendência + janela 3/6/12 meses. Testes unitários dos services (integração fica pro CI). | médio |
+| **5 — Saída para TV** ✅ | `tv_boards`, `tv_screens`, aba **Apresentação** (montar rotação, copiar link), `/company-metrics/tv/[token]` com `PresentationCanvas` (copiado) + `router.refresh()` periódico, seguindo o tema. Consumido pelo Broadcast como item `webpage`. | médio |
+| **6 — Substituição do `enrollment-dashboard`** ✅ | Seed "matricula" no modelo geral (Erasto/Fidelis como `sector_groups`, meta agregada por instituição com Rematriculados + Novas como composição `realized`). `enrollment-dashboard` removido por inteiro (plugin + shim + gate + scripts + registros); testes de integração retargetados. Ver §9.1. | médio |
+| **7 — Atalho nativo no Broadcast** ✅ | `dependencies: [{ pluginKey: "company-metrics", type: "optional" }]` no manifesto do `broadcast`; feature `add-metrics-board-playlist-item` com `isPluginActive` (grava um item `webpage` — sem schema novo); chip "Painel de métricas" na UI de playlist só quando o plugin está ativo. `company-metrics` só expõe `listMetricsBoards()` no barrel. Bloco de CMS: não feito (incremental). Ver §9.3. | isolado |
 
 Fases 6 e 7 são independentes entre si; ambas exigem a Fase 5.
 

@@ -129,6 +129,10 @@ export { listTvBoardsHandler as listTvBoards } from "./features/presentation/lis
 export { deleteTvBoardHandler as deleteTvBoard } from "./features/presentation/delete-tv-board/handler";
 export { setTvScreensHandler as setTvScreens } from "./features/presentation/set-tv-screens/handler";
 export { getTvBoardHandler as getTvBoard } from "./features/presentation/get-tv-board/handler";
+// Superfície pública mínima para o Broadcast montar um seletor de painel (§9.3) — dependência
+// OPCIONAL declarada no manifesto do Broadcast; company-metrics não conhece o Broadcast.
+export { listMetricsBoardsHandler as listMetricsBoards } from "./features/presentation/list-metrics-boards/handler";
+export type { MetricsBoardRef, ListMetricsBoardsResult } from "./features/presentation/list-metrics-boards/types";
 
 export type { CreateTvBoardInput, CreateTvBoardResult } from "./features/presentation/create-tv-board/types";
 export type { ListTvBoardsResult } from "./features/presentation/list-tv-boards/types";

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import {
   addAgendaEventPlaylistItem,
   addMediaAssetPlaylistItem,
+  addMetricsBoardPlaylistItem,
   addNewsPlaylistItem,
   addScannedPlaylistItems,
   addWebpagePlaylistItem,
@@ -42,6 +43,9 @@ import {
 } from "@/plugins/broadcast";
 import { getSetting, setSetting } from "@/contexts/settings";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
+// Dependência OPCIONAL declarada no manifesto (§9.3) — só o barrel público, e todo uso é
+// guardado por isPluginActive("company-metrics").
+import { listMetricsBoards } from "@/plugins/company-metrics";
 import { isValidTimeZone, normalizeTimeZone, parseWallTimeInZone } from "@/plugins/broadcast/shared/timezone";
 import type { BroadcastOutputRecord } from "@/plugins/broadcast/contracts/types";
 
@@ -233,6 +237,34 @@ export async function addWebpagePlaylistItemAction(
     title: requireString(formData, "title") || undefined,
     durationSeconds: optionalNumber(formData, "durationSeconds"),
     withAudio: formData.get("withAudio") === "on",
+  });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(returnTo);
+  return { error: null };
+}
+
+// Atalho "Painel de métricas" (§9.3) — só aparece na UI quando o plugin company-metrics está
+// ativo. listMetricsBoardOptionsAction devolve [] quando inativo, o que naturalmente esconde a
+// aba. addMetricsBoardPlaylistItemAction delega ao handler do broadcast, que revalida a
+// atividade do plugin em runtime.
+export async function listMetricsBoardOptionsAction(): Promise<{ token: string; label: string }[]> {
+  if (!(await isPluginActive("company-metrics"))) return [];
+  const result = await listMetricsBoards();
+  return result.success ? result.data : [];
+}
+
+export async function addMetricsBoardPlaylistItemAction(
+  _prevState: BroadcastActionState,
+  formData: FormData,
+): Promise<BroadcastActionState> {
+  if (!(await isPluginActive("broadcast"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const result = await addMetricsBoardPlaylistItem({
+    playlistId: requireString(formData, "playlistId"),
+    boardToken: requireString(formData, "boardToken"),
+    title: requireString(formData, "title") || undefined,
+    durationSeconds: optionalNumber(formData, "durationSeconds"),
   });
   if (!result.success) return { error: result.error.message };
 
