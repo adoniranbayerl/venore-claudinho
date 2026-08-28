@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Menu as MenuIcon } from "lucide-react";
-import { listCategories, listContentTypes, listEntriesForAdmin } from "@/contexts/cms";
+import { listCategoriesForAdmin, listContentTypes, listEntriesForAdmin } from "@/contexts/cms";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { EditorialDashboard } from "./_components/editorial-dashboard";
 
@@ -26,7 +26,7 @@ export default async function CmsAdminPage() {
   // abaixo, nenhum dado extra carregado pra quem não tem a permission correspondente.
   const [entriesResult, categoriesResult, contentTypesResult] = await Promise.all([
     canManageEntries ? listEntriesForAdmin() : null,
-    canManageCategories ? listCategories() : null,
+    canManageCategories ? listCategoriesForAdmin() : null,
     canManageContentTypes ? listContentTypes() : null,
   ]);
 

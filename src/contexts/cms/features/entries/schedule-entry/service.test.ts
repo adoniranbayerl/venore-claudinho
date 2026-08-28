@@ -13,10 +13,36 @@ vi.mock("./store", () => ({
   markEntryScheduled: (...args: unknown[]) => markEntryScheduled(...args),
 }));
 
+const assertCmsCategoryScope = vi.fn();
+vi.mock("../../../shared/scoped-authorization", () => ({
+  assertCmsCategoryScope: (...args: unknown[]) => assertCmsCategoryScope(...args),
+}));
+
 describe("scheduleEntry", () => {
   beforeEach(() => {
     findEntryById.mockReset();
     markEntryScheduled.mockReset();
+    assertCmsCategoryScope.mockReset();
+    assertCmsCategoryScope.mockResolvedValue({ success: true, data: undefined });
+  });
+
+  it("rejects when cms.entries.publish does not reach the entry's category (Fase C / D6)", async () => {
+    findEntryById.mockResolvedValue({ id: "entry-1", status: "draft", categoryId: "cat-a" });
+    assertCmsCategoryScope.mockResolvedValue({
+      success: false,
+      error: { code: "cms.entries.forbidden_scope", message: "sem publish nesta categoria" },
+    });
+
+    const { scheduleEntry } = await import("./service");
+    const result = await scheduleEntry({
+      id: "entry-1",
+      scheduledPublishAt: new Date("2099-01-01T00:00:00.000Z"),
+      actorId: "actor-1",
+    });
+
+    expect(result.success).toBe(false);
+    expect(assertCmsCategoryScope).toHaveBeenCalledWith("actor-1", ["cms.entries.publish"], "cat-a");
+    expect(markEntryScheduled).not.toHaveBeenCalled();
   });
 
   it("schedules a draft entry with a future publish date", async () => {

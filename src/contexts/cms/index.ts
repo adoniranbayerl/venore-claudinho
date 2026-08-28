@@ -3,6 +3,10 @@ export { getOrCreateReservedContentType } from "./get-or-create-reserved-content
 export { listContentTypesHandler as listContentTypes } from "./features/content-types/list-content-types/handler";
 export { createCategoryHandler as createCategory } from "./features/categories/create-category/handler";
 export { listCategoriesHandler as listCategories } from "./features/categories/list-categories/handler";
+// Versão administrativa e escopável do catálogo de categorias (Fase C de
+// docs/rbac-scoped-roles.md §4.3) — gateada por cms.categories.manage OU cms.entries.manage e
+// recortada pelo escopo do ator. O `listCategories` acima segue público, sem recorte.
+export { listCategoriesForAdminHandler as listCategoriesForAdmin } from "./features/categories/list-categories-for-admin/handler";
 export { getCategoryBySlugHandler as getCategoryBySlug } from "./features/categories/get-category-by-slug/handler";
 export { createEntryHandler as createEntry } from "./features/entries/create-entry/handler";
 export { updateEntryHandler as updateEntry } from "./features/entries/update-entry/handler";
@@ -94,6 +98,10 @@ export type { CreateContentTypeInput, CreateContentTypeResult } from "./features
 export type { ListContentTypesResult } from "./features/content-types/list-content-types/types";
 export type { CreateCategoryInput, CreateCategoryResult } from "./features/categories/create-category/types";
 export type { ListCategoriesResult } from "./features/categories/list-categories/types";
+export type {
+  ListCategoriesForAdminQuery,
+  ListCategoriesForAdminResult,
+} from "./features/categories/list-categories-for-admin/types";
 export type {
   GetCategoryBySlugQuery,
   GetCategoryBySlugResult,

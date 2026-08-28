@@ -7,9 +7,10 @@ export async function publishEntryHandler(input: PublishEntryInput): Promise<Pub
     return { success: false, error: { code: "cms.entries.invalid_id", message: "id não pode ser vazio." } };
   }
 
-  // Fase 4/P3: publicar exige a permission estreita (cms.entries.publish) ou a ampla
-  // (cms.entries.manage, que já cobria isso antes — quem já tem continua podendo).
-  const authz = await authorizeActor(["cms.entries.publish", "cms.entries.manage"]);
+  // Fase C / D6 (docs/rbac-scoped-roles.md): publicar exige `cms.entries.publish` — deixou de
+  // aceitar `cms.entries.manage` como atalho. Author (só `manage`) não publica. `admin` tem
+  // `cms.entries.publish` global; `superadmin` ignora. O recorte por categoria é no service.
+  const authz = await authorizeActor("cms.entries.publish");
   if (!authz.authorized) {
     return { success: false, error: authz.error };
   }

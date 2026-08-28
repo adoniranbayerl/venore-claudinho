@@ -34,8 +34,10 @@ export async function scheduleEntryHandler(input: ScheduleEntryInput): Promise<S
     };
   }
 
-  // Fase 4/P3: agendar publicação é uma forma de publicar — mesma permission de publish-entry.
-  const authz = await authorizeActor(["cms.entries.publish", "cms.entries.manage"]);
+  // Fase C / D6: agendar publicação é publicar — mesma permission de publish-entry
+  // (`cms.entries.publish`, sem o atalho por `cms.entries.manage`). O recorte por categoria é no
+  // service.
+  const authz = await authorizeActor("cms.entries.publish");
   if (!authz.authorized) {
     return { success: false, error: authz.error };
   }

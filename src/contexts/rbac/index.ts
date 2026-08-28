@@ -6,7 +6,9 @@ export type { AuthorizeActorResult } from "./authorize-actor";
 // Resolve o alcance efetivo de uma permission escopável pro ator corrente — para listagens
 // filtrarem por id (Fase B de docs/rbac-scoped-roles.md, D3). Dormente: nenhum call site passa
 // escopo ainda. A resolução das INSTÂNCIAS (nomes de categoria etc.) é composição em platform/.
-export { resolveScope } from "./authorize-actor";
+// resolveScope lê o ator corrente; resolveScopeForActor recebe o id explícito (usado pelos
+// service.ts de escrita do CMS na Fase C — ver docs/rbac-scoped-roles.md §4.4).
+export { resolveScope, resolveScopeForActor } from "./authorize-actor";
 export type { AuthorizeActorScope, ResolveScopeResult } from "./authorize-actor";
 
 export { createCustomRoleHandler as createCustomRole } from "./features/role-management/create-custom-role/handler";
@@ -25,6 +27,9 @@ export { removeRoleFromUserHandler as removeRoleFromUser } from "./features/role
 // precisa é composição em platform/ — rbac não importa cms (D5).
 export { assignScopeToRoleAssignmentHandler as assignScopeToRoleAssignment } from "./features/role-assignment/assign-scope-to-role-assignment/handler";
 export { removeScopeFromRoleAssignmentHandler as removeScopeFromRoleAssignment } from "./features/role-assignment/remove-scope-from-role-assignment/handler";
+// Escopos de UMA atribuição (userId × roleId) — para a tela de atribuição mostrar/editar o
+// recorte por categoria. Gated por `rbac.roles.assign`.
+export { listScopesForRoleAssignmentHandler as listScopesForRoleAssignment } from "./features/role-assignment/list-scopes-for-role-assignment/handler";
 export { getUserContextHandler as getUserContext } from "./features/role-assignment/get-user-context/handler";
 export { listUsersByRoleHandler as listUsersByRole } from "./features/role-assignment/list-users-by-role/handler";
 export { countUsersWithPermissionsHandler as countUsersWithPermissions } from "./features/role-assignment/count-users-with-permissions/handler";
@@ -70,6 +75,11 @@ export type {
   RemoveScopeFromRoleAssignmentInput,
   RemoveScopeFromRoleAssignmentResult,
 } from "./features/role-assignment/remove-scope-from-role-assignment/types";
+export type {
+  ListScopesForRoleAssignmentInput,
+  ListScopesForRoleAssignmentResult,
+  RoleAssignmentScopeRef,
+} from "./features/role-assignment/list-scopes-for-role-assignment/types";
 export type { GetUserContextQuery, GetUserContextResult } from "./features/role-assignment/get-user-context/types";
 export type { ListUsersByRoleInput, ListUsersByRoleResult, RoleUserRef } from "./features/role-assignment/list-users-by-role/types";
 export type {

@@ -1,4 +1,4 @@
-import { listCategories } from "@/contexts/cms";
+import { listCategoriesForAdmin } from "@/contexts/cms";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { EmptyState } from "@/components/empty-state";
 import { CreateCategoryForm } from "../_components/create-category-form";
@@ -27,7 +27,7 @@ export default async function CmsCategoriesAdminPage() {
     );
   }
 
-  const categoriesResult = await listCategories();
+  const categoriesResult = await listCategoriesForAdmin();
 
   if (!categoriesResult.success) {
     return <p className="text-sm text-destructive">Não foi possível carregar as categorias agora. Tente recarregar a página.</p>;

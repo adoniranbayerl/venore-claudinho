@@ -5,6 +5,7 @@ import type { Block } from "../../../contracts/block";
 import { isBlockConfigured } from "../../../contracts/block-config";
 import type { ResolveBlockDefinition } from "../../../contracts/block-definition";
 import { getEntryComposition as extractComposition } from "../../../contracts/entry-body";
+import { assertCmsCategoryScope } from "../../../shared/scoped-authorization";
 import { findEntryById, markEntryPublished } from "./store";
 import type { PublishEntryCommand, PublishEntryResult } from "./types";
 
@@ -67,6 +68,14 @@ export async function publishEntry(command: PublishEntryCommand): Promise<Publis
     const error = { code: "cms.entries.not_found", message: `Entry "${command.id}" não encontrada.` };
     endOperation(handle, { success: false, error });
     return { success: false, error };
+  }
+
+  // Fase C / D6: publicar exige `cms.entries.publish` ALCANÇANDO a categoria da entry. Um author
+  // escopado (só `cms.entries.manage`) cai aqui e não publica (docs/rbac-scoped-roles.md D6).
+  const scope = await assertCmsCategoryScope(command.actorId, ["cms.entries.publish"], existing.categoryId);
+  if (!scope.success) {
+    endOperation(handle, { success: false, error: scope.error });
+    return { success: false, error: scope.error };
   }
 
   const composition = extractComposition(existing.data);

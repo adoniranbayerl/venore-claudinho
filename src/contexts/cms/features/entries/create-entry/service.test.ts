@@ -20,11 +20,41 @@ vi.mock("./store", () => ({
   insertEntry: (...args: unknown[]) => insertEntry(...args),
 }));
 
+const assertCmsCategoryScope = vi.fn();
+vi.mock("../../../shared/scoped-authorization", () => ({
+  assertCmsCategoryScope: (...args: unknown[]) => assertCmsCategoryScope(...args),
+}));
+
 describe("createEntry", () => {
   beforeEach(() => {
     findEntryByCategoryAndSlug.mockReset();
     insertEntry.mockReset();
     getMediaAsset.mockReset();
+    assertCmsCategoryScope.mockReset();
+    assertCmsCategoryScope.mockResolvedValue({ success: true, data: undefined });
+  });
+
+  it("rejects when the actor's category scope does not reach the target category (Fase C)", async () => {
+    assertCmsCategoryScope.mockResolvedValue({
+      success: false,
+      error: { code: "cms.entries.forbidden_scope", message: "fora do escopo" },
+    });
+
+    const { createEntry } = await import("./service");
+    const result = await createEntry({
+      contentTypeIds: ["ct-1"],
+      categoryId: "cat-z",
+      title: "Hello",
+      slug: "hello",
+      actorId: "actor-1",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "cms.entries.forbidden_scope", message: expect.any(String) },
+    });
+    expect(assertCmsCategoryScope).toHaveBeenCalledWith("actor-1", ["cms.entries.manage"], "cat-z");
+    expect(insertEntry).not.toHaveBeenCalled();
   });
 
   it("creates an entry when the slug is not taken for the category, and invalidates the tag entryCount cache", async () => {

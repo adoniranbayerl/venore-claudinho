@@ -24,16 +24,16 @@ describe("publishEntryHandler", () => {
     expect(authorizeActor).not.toHaveBeenCalled();
   });
 
-  // Fase 4/P3: publicar aceita a permission estreita OU a ampla (não AND) — quem só tem
-  // cms.entries.manage (papéis já existentes, ex: admin) continua publicando sem regressão.
-  it("authorizes against either cms.entries.publish or cms.entries.manage (OR, not AND)", async () => {
+  // Fase C / D6 (docs/rbac-scoped-roles.md): publicar exige `cms.entries.publish` e NÃO aceita
+  // mais `cms.entries.manage` como atalho — um author (só `manage`) não publica.
+  it("authorizes strictly against cms.entries.publish (no cms.entries.manage shortcut)", async () => {
     authorizeActor.mockResolvedValue({ authorized: true, actorId: "actor-1" });
     publishEntry.mockResolvedValue({ success: true, data: { id: "entry-1" } });
 
     const { publishEntryHandler } = await import("./handler");
     await publishEntryHandler({ id: "entry-1", resolveDefinition: () => null });
 
-    expect(authorizeActor).toHaveBeenCalledWith(["cms.entries.publish", "cms.entries.manage"]);
+    expect(authorizeActor).toHaveBeenCalledWith("cms.entries.publish");
   });
 
   it("propagates the authorization error without calling the service", async () => {

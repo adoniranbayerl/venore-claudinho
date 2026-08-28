@@ -4,6 +4,10 @@ export type AdminActor = {
   email: string | null;
   isSuperadmin: boolean;
   permissions: string[];
+  // Fase C de docs/rbac-scoped-roles.md (§4.3): resumo do alcance do ator sobre categorias do
+  // CMS, anexado só por getCmsPageData (por isso opcional). "global" = admin/superadmin ou papel
+  // que concede cms.entries.manage sem escopo; string[] = editor/author escopado.
+  cmsCategoryScope?: "global" | string[];
 };
 
 export type AdminPageGate =

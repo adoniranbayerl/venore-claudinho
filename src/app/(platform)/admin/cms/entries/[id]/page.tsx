@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCachedEntry, getEntryBody, listCategories, listContentTypes } from "@/contexts/cms";
+import { getCachedEntry, getEntryBody, listCategoriesForAdmin, listContentTypes } from "@/contexts/cms";
 import { getMediaAsset } from "@/contexts/media";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { EditEntryForm } from "./_components/edit-entry-form";
@@ -31,7 +31,7 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
 
   const [entryResult, categoriesResult, contentTypesResult] = await Promise.all([
     getCachedEntry(id),
-    listCategories(),
+    listCategoriesForAdmin(),
     listContentTypes(),
   ]);
 

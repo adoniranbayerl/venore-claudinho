@@ -1,9 +1,10 @@
 import { listUsers } from "@/contexts/auth";
-import { listRoles, listUsersByRole } from "@/contexts/rbac";
+import { listRoles, listScopesForRoleAssignment, listUsersByRole } from "@/contexts/rbac";
 import { registerPlugins } from "@/platform/plugin-engine/register-plugins";
 import { getRbacPageData } from "@/platform/admin-shell/get-rbac-page-data";
+import { getRbacScopeOptions } from "@/platform/admin-shell/get-rbac-scope-options";
 import { CreateRoleForm } from "./_components/create-role-form";
-import { RoleMatrix, type RoleMatrixRole } from "./_components/role-matrix";
+import { RoleMatrix, type RoleMatrixRole, type ScopesByAssignment } from "./_components/role-matrix";
 import { buildPermissionGroups } from "./_components/permission-catalog";
 
 export default async function RbacAdminPage() {
@@ -18,7 +19,12 @@ export default async function RbacAdminPage() {
     );
   }
 
-  const [rolesResult, usersResult, pluginReport] = await Promise.all([listRoles(), listUsers(), registerPlugins()]);
+  const [rolesResult, usersResult, pluginReport, scopeOptions] = await Promise.all([
+    listRoles(),
+    listUsers(),
+    registerPlugins(),
+    getRbacScopeOptions(),
+  ]);
 
   if (!rolesResult.success) {
     return <p className="text-sm text-destructive">Não foi possível carregar os papéis agora. Tente recarregar a página.</p>;
@@ -38,6 +44,30 @@ export default async function RbacAdminPage() {
     }),
   );
   const usersByRoleId = new Map(usersByRole.map((entry) => [entry.roleId, entry.users]));
+
+  // Fase C: escopos por atribuição (userId × roleId), só para papéis que concedem alguma
+  // permission recortável por "cms.category". roleId → userId → ids de categoria.
+  const scopableRoleIds = new Set(
+    roles
+      .filter((role) => role.key !== "superadmin" && role.permissionKeys.some((key) => scopeOptions.scopablePermissionKeys.includes(key)))
+      .map((role) => role.id),
+  );
+  const scopesByAssignment: ScopesByAssignment = {};
+  await Promise.all(
+    [...scopableRoleIds].map(async (roleId) => {
+      const roleUsers = usersByRoleId.get(roleId) ?? [];
+      const perUser: Record<string, string[]> = {};
+      await Promise.all(
+        roleUsers.map(async (user) => {
+          const result = await listScopesForRoleAssignment({ userId: user.id, roleId });
+          perUser[user.id] = result.success
+            ? result.data.filter((scope) => scope.scopeType === "cms.category").map((scope) => scope.resourceId)
+            : [];
+        }),
+      );
+      scopesByAssignment[roleId] = perUser;
+    }),
+  );
 
   const matrixRoles: RoleMatrixRole[] = roles.map((role) => {
     const roleUsers = usersByRoleId.get(role.id) ?? [];
@@ -68,7 +98,13 @@ export default async function RbacAdminPage() {
       </section>
 
       <section>
-        <RoleMatrix roles={matrixRoles} groups={groups} />
+        <RoleMatrix
+          roles={matrixRoles}
+          groups={groups}
+          categories={scopeOptions.categories}
+          scopablePermissionKeys={scopeOptions.scopablePermissionKeys}
+          scopesByAssignment={scopesByAssignment}
+        />
       </section>
     </div>
   );

@@ -1,6 +1,7 @@
 import { getMediaAsset } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
 import { invalidateCache } from "../../../../../infrastructure/cache/memory-cache";
+import { assertCmsCategoryScope } from "../../../shared/scoped-authorization";
 import { findEntryByCategoryAndSlug, insertEntry } from "./store";
 import type { CreateEntryCommand, CreateEntryResult } from "./types";
 
@@ -10,6 +11,14 @@ export async function createEntry(command: CreateEntryCommand): Promise<CreateEn
     actor: { id: command.actorId, type: "user" },
     kind: "write",
   });
+
+  // Fase C: um editor/author escopado só cria dentro das suas categorias; entry sem categoria
+  // exige a permission global (docs/rbac-scoped-roles.md §4.4).
+  const scope = await assertCmsCategoryScope(command.actorId, ["cms.entries.manage"], command.categoryId ?? null);
+  if (!scope.success) {
+    endOperation(handle, { success: false, error: scope.error });
+    return { success: false, error: scope.error };
+  }
 
   const existing = await findEntryByCategoryAndSlug(command.categoryId ?? null, command.slug);
   if (existing) {

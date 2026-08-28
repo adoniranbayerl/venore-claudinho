@@ -1,5 +1,6 @@
 import { beginOperation, endOperation } from "@/observability";
 import { compositionSchema } from "../../../contracts/block";
+import { assertCmsCategoryScope } from "../../../shared/scoped-authorization";
 import { validateComposition } from "../../../validate-composition";
 import { findEntryById, saveEntryComposition } from "./store";
 import type { UpdateEntryCompositionCommand, UpdateEntryCompositionResult } from "./types";
@@ -18,6 +19,13 @@ export async function updateEntryComposition(
     const error = { code: "cms.entries.not_found", message: `Entry "${command.id}" não encontrada.` };
     endOperation(handle, { success: false, error });
     return { success: false, error };
+  }
+
+  // Fase C: só edita a composição de entries nas categorias do próprio escopo.
+  const scope = await assertCmsCategoryScope(command.actorId, ["cms.entries.manage"], existing.categoryId);
+  if (!scope.success) {
+    endOperation(handle, { success: false, error: scope.error });
+    return { success: false, error: scope.error };
   }
 
   const parsed = compositionSchema.safeParse(command.composition);

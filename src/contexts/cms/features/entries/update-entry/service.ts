@@ -1,6 +1,7 @@
 import { getMediaAsset } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
 import { invalidateCache, invalidateCacheByPrefix } from "../../../../../infrastructure/cache/memory-cache";
+import { assertCmsCategoryScope } from "../../../shared/scoped-authorization";
 import { findEntryById, findOtherEntryByCategoryAndSlug, updateEntryFields } from "./store";
 import type { UpdateEntryCommand, UpdateEntryResult } from "./types";
 
@@ -16,6 +17,22 @@ export async function updateEntry(command: UpdateEntryCommand): Promise<UpdateEn
     const error = { code: "cms.entries.not_found", message: `Entry "${command.id}" não encontrada.` };
     endOperation(handle, { success: false, error });
     return { success: false, error };
+  }
+
+  // Fase C: precisa alcançar a categoria ATUAL da entry; e, se estiver movendo a entry, também
+  // a categoria ALVO — trocar uma entry para fora do próprio escopo é bloqueado
+  // (docs/rbac-scoped-roles.md §4.4).
+  const currentScope = await assertCmsCategoryScope(command.actorId, ["cms.entries.manage"], existing.categoryId);
+  if (!currentScope.success) {
+    endOperation(handle, { success: false, error: currentScope.error });
+    return { success: false, error: currentScope.error };
+  }
+  if (command.categoryId !== undefined && command.categoryId !== existing.categoryId) {
+    const targetScope = await assertCmsCategoryScope(command.actorId, ["cms.entries.manage"], command.categoryId);
+    if (!targetScope.success) {
+      endOperation(handle, { success: false, error: targetScope.error });
+      return { success: false, error: targetScope.error };
+    }
   }
 
   const effectiveCategoryId = command.categoryId !== undefined ? command.categoryId : existing.categoryId;

@@ -1,4 +1,5 @@
 import { beginOperation, endOperation } from "@/observability";
+import { assertCmsCategoryScope } from "../../../shared/scoped-authorization";
 import { findEntryById, markEntryScheduled } from "./store";
 import type { ScheduleEntryCommand, ScheduleEntryResult } from "./types";
 
@@ -26,6 +27,14 @@ export async function scheduleEntry(command: ScheduleEntryCommand): Promise<Sche
     };
     endOperation(handle, { success: false, error });
     return { success: false, error };
+  }
+
+  // Fase C / D6: agendar publicação é publicar — exige `cms.entries.publish` alcançando a
+  // categoria da entry. Author escopado não passa.
+  const scope = await assertCmsCategoryScope(command.actorId, ["cms.entries.publish"], existing.categoryId);
+  if (!scope.success) {
+    endOperation(handle, { success: false, error: scope.error });
+    return { success: false, error: scope.error };
   }
 
   const entry = await markEntryScheduled(command.id, {

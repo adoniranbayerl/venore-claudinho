@@ -25,8 +25,13 @@ const INTEGRATION_TEST_TABLES = [
   "birthdays.birthdays",
   "cms.entries",
   "cms.content_types",
+  "cms.categories",
   "auth.users",
 ];
+// rbac.user_roles / rbac.role_assignment_scopes não precisam entrar aqui: ambas têm FK
+// (onDelete: cascade) para auth.users, então o TRUNCATE ... CASCADE de "auth.users" já as
+// esvazia. rbac.roles / rbac.role_permissions ficam de fora de propósito — são semeados uma vez
+// e o self-heal (ensureBaseRbacDataSeeded) é idempotente.
 
 beforeEach(async () => {
   // Import dinâmico de propósito: um import estático seria hoisted e avaliado antes da

@@ -87,22 +87,22 @@ export async function authorizeActor(
   };
 }
 
-// Resolve o alcance efetivo de UMA permission key num scopeType, pro ator corrente — para
-// listagens filtrarem por id em vez de fazer um sim/não por recurso (D3). Lê o mesmo
-// getUserContext / getCurrentUser de authorizeActor.
+// Resolve o alcance efetivo de UMA permission key num scopeType, para um ator DADO pelo id —
+// para listagens filtrarem por id em vez de fazer um sim/não por recurso (D3), e para os
+// service.ts de escrita do CMS (Fase C) que já recebem `actorId` e não podem depender de
+// getCurrentUser (todo teste de integração bypassa o handler e o next-auth é stubado).
 //
 // - superadmin, ou algum papel concede a key sem escopo daquele tipo → { kind: "global" }.
 // - a key é escopada → { kind: "scoped", resourceIds } (união dos ids permitidos).
 // - o ator não tem a key de jeito nenhum → { kind: "none" }.
 // - tem a key mas ela não é recortável por esse scopeType (não está em RBAC_SCOPE_TYPES) →
 //   { kind: "global" }: sem recorte nesse eixo, o alcance é o da permission que ele de fato tem.
-export async function resolveScope(permissionKey: string, scopeType: string): Promise<ResolveScopeResult> {
-  const currentUser = await getCurrentUser();
-  if (!currentUser.success || !currentUser.data) {
-    return { kind: "none" };
-  }
-
-  const context = await getUserContext({ userId: currentUser.data.id });
+export async function resolveScopeForActor(
+  actorId: string,
+  permissionKey: string,
+  scopeType: string,
+): Promise<ResolveScopeResult> {
+  const context = await getUserContext({ userId: actorId });
   if (!context.success) {
     return { kind: "none" };
   }
@@ -120,4 +120,14 @@ export async function resolveScope(permissionKey: string, scopeType: string): Pr
     return { kind: "scoped", resourceIds: value };
   }
   return { kind: "global" };
+}
+
+// Mesma resolução, para o ator corrente (via getCurrentUser) — açúcar para gates de UI/loader.
+export async function resolveScope(permissionKey: string, scopeType: string): Promise<ResolveScopeResult> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser.success || !currentUser.data) {
+    return { kind: "none" };
+  }
+
+  return resolveScopeForActor(currentUser.data.id, permissionKey, scopeType);
 }

@@ -1,4 +1,4 @@
-import { listCategories, listContentTypes } from "@/contexts/cms";
+import { listCategoriesForAdmin, listContentTypes } from "@/contexts/cms";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { CreateEntryForm } from "./_components/create-entry-form";
 
@@ -24,7 +24,7 @@ export default async function NewEntryPage() {
     );
   }
 
-  const [contentTypesResult, categoriesResult] = await Promise.all([listContentTypes(), listCategories()]);
+  const [contentTypesResult, categoriesResult] = await Promise.all([listContentTypes(), listCategoriesForAdmin()]);
 
   if (!contentTypesResult.success) {
     return <p className="text-sm text-destructive">Não foi possível carregar as tags agora. Tente recarregar a página.</p>;

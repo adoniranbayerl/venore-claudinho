@@ -28,6 +28,11 @@ vi.mock("./store", () => ({
   updateEntryFields: (...args: unknown[]) => updateEntryFields(...args),
 }));
 
+const assertCmsCategoryScope = vi.fn();
+vi.mock("../../../shared/scoped-authorization", () => ({
+  assertCmsCategoryScope: (...args: unknown[]) => assertCmsCategoryScope(...args),
+}));
+
 const existingEntry = {
   id: "entry-1",
   contentTypeId: "ct-1",
@@ -52,6 +57,38 @@ describe("updateEntry", () => {
     getMediaAsset.mockReset();
     invalidateCacheByPrefix.mockReset();
     invalidateCache.mockReset();
+    assertCmsCategoryScope.mockReset();
+    assertCmsCategoryScope.mockResolvedValue({ success: true, data: undefined });
+  });
+
+  it("rejects when the actor's scope does not reach the entry's current category (Fase C)", async () => {
+    findEntryById.mockResolvedValue({ ...existingEntry, categoryId: "cat-a" });
+    assertCmsCategoryScope.mockResolvedValue({
+      success: false,
+      error: { code: "cms.entries.forbidden_scope", message: "fora do escopo" },
+    });
+
+    const { updateEntry } = await import("./service");
+    const result = await updateEntry({ id: "entry-1", title: "Updated", actorId: "actor-1" });
+
+    expect(result.success).toBe(false);
+    expect(assertCmsCategoryScope).toHaveBeenCalledWith("actor-1", ["cms.entries.manage"], "cat-a");
+    expect(updateEntryFields).not.toHaveBeenCalled();
+  });
+
+  it("also checks the target category when the entry is being moved (Fase C)", async () => {
+    findEntryById.mockResolvedValue({ ...existingEntry, categoryId: "cat-a" });
+    assertCmsCategoryScope
+      .mockResolvedValueOnce({ success: true, data: undefined }) // current category
+      .mockResolvedValueOnce({ success: false, error: { code: "cms.entries.forbidden_scope", message: "alvo fora do escopo" } });
+
+    const { updateEntry } = await import("./service");
+    const result = await updateEntry({ id: "entry-1", categoryId: "cat-b", actorId: "actor-1" });
+
+    expect(result.success).toBe(false);
+    expect(assertCmsCategoryScope).toHaveBeenNthCalledWith(1, "actor-1", ["cms.entries.manage"], "cat-a");
+    expect(assertCmsCategoryScope).toHaveBeenNthCalledWith(2, "actor-1", ["cms.entries.manage"], "cat-b");
+    expect(updateEntryFields).not.toHaveBeenCalled();
   });
 
   it("invalidates the tag entryCount cache when contentTypeIds changes", async () => {

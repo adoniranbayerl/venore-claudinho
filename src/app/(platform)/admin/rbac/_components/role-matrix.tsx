@@ -6,14 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { EmptyState } from "@/components/empty-state";
+import type { CmsCategoryOption } from "@/platform/admin-shell/get-rbac-scope-options";
 import { AssignRoleForm } from "./assign-role-form";
 import { RemoveRoleButton } from "./remove-role-button";
 import { RenameRoleForm } from "./rename-role-form";
+import { RoleAssignmentScopeEditor } from "./role-assignment-scope-editor";
 import { RolePermissionsEditor } from "./role-permissions-editor";
 import { PermissionMatrixTable } from "./permission-matrix-table";
 import type { PermissionGroupView } from "./permission-catalog";
 
 export type RoleMatrixUser = { id: string; name: string | null; email: string };
+
+// roleId → userId → ids de categoria do escopo daquela atribuição (Fase C).
+export type ScopesByAssignment = Record<string, Record<string, string[]>>;
 
 export type RoleMatrixRole = {
   id: string;
@@ -26,7 +31,19 @@ export type RoleMatrixRole = {
   assignableUsers: RoleMatrixUser[];
 };
 
-export function RoleMatrix({ roles, groups }: { roles: RoleMatrixRole[]; groups: PermissionGroupView[] }) {
+export function RoleMatrix({
+  roles,
+  groups,
+  categories,
+  scopablePermissionKeys,
+  scopesByAssignment,
+}: {
+  roles: RoleMatrixRole[];
+  groups: PermissionGroupView[];
+  categories: CmsCategoryOption[];
+  scopablePermissionKeys: string[];
+  scopesByAssignment: ScopesByAssignment;
+}) {
   const [view, setView] = useState<"single" | "matrix">("single");
 
   return (
@@ -74,7 +91,13 @@ export function RoleMatrix({ roles, groups }: { roles: RoleMatrixRole[]; groups:
                   </span>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <RolePanel role={role} groups={groups} />
+                  <RolePanel
+                    role={role}
+                    groups={groups}
+                    categories={categories}
+                    scopablePermissionKeys={scopablePermissionKeys}
+                    scopesByAssignment={scopesByAssignment}
+                  />
                 </AccordionContent>
               </AccordionItem>
             );
@@ -85,9 +108,25 @@ export function RoleMatrix({ roles, groups }: { roles: RoleMatrixRole[]; groups:
   );
 }
 
-function RolePanel({ role, groups }: { role: RoleMatrixRole; groups: PermissionGroupView[] }) {
+function RolePanel({
+  role,
+  groups,
+  categories,
+  scopablePermissionKeys,
+  scopesByAssignment,
+}: {
+  role: RoleMatrixRole;
+  groups: PermissionGroupView[];
+  categories: CmsCategoryOption[];
+  scopablePermissionKeys: string[];
+  scopesByAssignment: ScopesByAssignment;
+}) {
   const hasNoPermissions = !role.isSuperadmin && role.permissionKeys.length === 0;
   const searchInputId = `permission-search-${role.id}`;
+  // O papel abre o recorte por categoria se conceder alguma permission recortável por
+  // "cms.category" (RBAC_SCOPE_TYPES) e não for o superadmin (que ignora escopo).
+  const isScopable = !role.isSuperadmin && role.permissionKeys.some((key) => scopablePermissionKeys.includes(key));
+  const roleScopes = scopesByAssignment[role.id] ?? {};
 
   return (
     <div className="space-y-4">
@@ -151,18 +190,34 @@ function RolePanel({ role, groups }: { role: RoleMatrixRole; groups: PermissionG
             description={role.assignableUsers.length > 0 ? "Atribua para a primeira pessoa logo abaixo." : undefined}
           />
         ) : (
-          <ul className="mt-2 space-y-1">
+          <ul className="mt-2 space-y-2">
             {role.users.map((user) => (
-              <li key={user.id} className="flex items-start justify-between text-sm text-muted-foreground">
-                <span>
-                  {user.name ?? "(sem nome)"} — {user.email}
-                </span>
-                <RemoveRoleButton roleId={role.id} userId={user.id} />
+              <li key={user.id} className="text-sm text-muted-foreground">
+                <div className="flex items-start justify-between">
+                  <span>
+                    {user.name ?? "(sem nome)"} — {user.email}
+                  </span>
+                  <RemoveRoleButton roleId={role.id} userId={user.id} />
+                </div>
+                {isScopable && (
+                  <RoleAssignmentScopeEditor
+                    roleId={role.id}
+                    userId={user.id}
+                    categories={categories}
+                    currentCategoryIds={roleScopes[user.id] ?? []}
+                  />
+                )}
               </li>
             ))}
           </ul>
         )}
-        {role.assignableUsers.length > 0 && <AssignRoleForm roleId={role.id} assignableUsers={role.assignableUsers} />}
+        {role.assignableUsers.length > 0 && (
+          <AssignRoleForm
+            roleId={role.id}
+            assignableUsers={role.assignableUsers}
+            scopableCategories={isScopable ? categories : []}
+          />
+        )}
       </div>
     </div>
   );

@@ -13,7 +13,17 @@
 > + `resolveScope(perm, scopeType)` + erro `rbac.authorization.forbidden_scope`, features
 > `assign-scope-to-role-assignment` / `remove-scope-from-role-assignment` (gated `rbac.roles.assign`),
 > barrel `rbac/index.ts` exportando tudo. **Nenhum call site passa `scope`** — comportamento do
-> sistema idêntico ao de antes. Fases C–D não implementadas.
+> sistema idêntico ao de antes.
+> **Fase C concluída (2026-08-28)** — recorte por categoria do CMS ligado. `resolveScopeForActor(actorId, …)`
+> (irmão de `resolveScope` que recebe o id explícito), helper `contexts/cms/shared/scoped-authorization`
+> (`assertCmsCategoryScope`), enforcement nos `service.ts` de escrita de entries/categorias
+> (`create/update/update-composition/archive/delete-entry`, `publish/schedule-entry` com
+> `cms.entries.publish`, `create-category` só global), `list-entries-for-admin` + novo
+> `list-categories-for-admin` recortados por escopo, `getCmsPageData` anexa `cmsCategoryScope` no
+> gate, UI de atribuição em `/admin/rbac` com multi-select de categorias por nome
+> (`get-rbac-scope-options` compõe cms+rbac em `platform/`). D6 aplicada: `publish/schedule-entry`
+> deixaram de aceitar `cms.entries.manage` como atalho. **Enforcement mora no `service.ts`, não no
+> `handler.ts`** — ver §4.4 e o checklist da §6. Fase D não implementada.
 > Origem: `docs/issues.md:258-268` ("Sobre Papéis e Permissões") + gap em aberto registrado em
 > `docs/venore-docks.md` ("Modelo de RBAC" → *"permission com escopo dentro de um recurso … essa
 > decisão merece um documento próprio"*) e em `docs/venore-docks.md` → "Ainda não coberto".
@@ -410,9 +420,17 @@ Leitura:
 - Telas de composição/entry (`update-entry-composition`, editores de página) filtram o seletor de
   categoria pelos ids do escopo.
 
-Escrita (todos passam a mandar `scope`):
+Escrita (todos resolvem o escopo antes de mutar):
 
-- `create-entry` → `authorizeActor("cms.entries.manage", { type: "cms.category", resourceId: input.categoryId })`.
+> **Nota de implementação (Fase C):** o esboço abaixo previa a checagem no `handler.ts` via
+> `authorizeActor(perm, { type: "cms.category", resourceId })`. Na implementação ela ficou no
+> `service.ts`, através do helper `assertCmsCategoryScope(actorId, keys, categoryId)`
+> (`contexts/cms/shared/scoped-authorization`), porque os testes de integração chamam `service.ts`
+> direto (o `next-auth`/`getCurrentUser` é stubado e `authorizeActor` sempre veria
+> "unauthenticated"). O `handler.ts` mantém `authorizeActor(perm)` como gate de seção. O efeito de
+> autorização é o mesmo; muda a camada.
+
+- `create-entry` → `assertCmsCategoryScope(actorId, ["cms.entries.manage"], input.categoryId ?? null)`.
   Bloqueia criar entry fora do escopo. Entry sem categoria: só quem tem a permission global.
 - `update-entry` / `update-entry-composition` / `archive-entry` / `delete-entry` → resolvem a
   categoria **atual** da entry (store lookup, igual `broadcast` resolve o pai por `eventId`) e
@@ -422,6 +440,10 @@ Escrita (todos passam a mandar `scope`):
 - `create-category` / `update-category` / `delete-category` → `cms.categories.manage` +
   `scope`. Um editor com `cms.categories.manage` escopada edita metadados só das suas; criar
   categoria nova continua exigindo global (não dá pra escopar algo que ainda não existe).
+  **Estado na Fase C:** só `create-category` existe como feature — recebeu
+  `assertCmsCategoryScope(actorId, ["cms.categories.manage"], null)` (⇒ só global). `update-category`
+  e `delete-category` **não existem** ainda; quando forem criados, entram no mesmo helper
+  resolvendo a categoria alvo. (Known Gap.)
 
 Auditoria: os handlers acima já chamam `beginOperation`/`endOperation`; adicionar
 `recordAuditEvent` pro caso "negado por escopo" entra no trabalho incremental de auditoria já
@@ -500,18 +522,34 @@ As fases são incrementais e cada uma fecha sozinha (lint + typecheck + test ver
 - Testes: unidade de `view.ts` (união global+escopado), `authorize-actor` com escopo (novos
   casos, os 7 atuais intactos), `resolveScope`.
 
-### Fase C — Escopo por categoria no CMS  ·  *muitos handlers, risco médio*
+### Fase C — Escopo por categoria no CMS  ·  *muitos services, risco médio*  ·  ✅ concluída (2026-08-28)
 
-- Loader de composição em `platform/` servindo o multi-select de categorias da tela de
-  atribuição (`listCategories` + `listRoles` via barris).
-- `getCmsPageData` anexa `cmsCategoryScope` no `actor` do gate.
-- `list-entries-for-admin` + `list-categories-for-admin` (novo) filtram por escopo.
-- `create/update/archive/delete-entry`, `update-entry-composition`,
-  `create/update/delete-category` passam `scope`.
-- `publish-entry`/`schedule-entry` deixam de aceitar `cms.entries.manage` como atalho (D6).
-- Seletor de categoria nas telas de edição filtrado pelo escopo.
-- Testes: integração (cruza `rbac` + `cms`) — editor escopado não lista/edita/publica fora da
-  categoria; autor escopado não publica; admin global inalterado.
+- `resolveScopeForActor(actorId, permKey, scopeType)` — irmão de `resolveScope` que recebe o id
+  explícito (o `resolveScope` passou a delegar nele). Exportado pelo barrel.
+- `get-rbac-scope-options.ts` em `platform/admin-shell/` — compõe `listCategories()` (barrel
+  `@/contexts/cms`) + `RBAC_SCOPE_TYPES` pro multi-select da tela de atribuição (`rbac` não
+  importa `cms` — D5).
+- `getCmsPageData` anexa `cmsCategoryScope: "global" | string[]` no `actor` do gate.
+- `list-entries-for-admin` (handler resolve o escopo e injeta `allowedCategoryIds`) +
+  `list-categories-for-admin` (novo use case gated) filtram por escopo. `list-categories` público
+  **intacto**.
+- **Enforcement de escrita no `service.ts`** (não no `handler.ts`): helper
+  `contexts/cms/shared/scoped-authorization` (`assertCmsCategoryScope(actorId, keys, categoryId)`),
+  chamado por `create/update/update-composition/archive/delete-entry`, `publish/schedule-entry` e
+  `create-category`. Motivo: todo teste de integração bypassa o handler (next-auth stubado), então
+  o ponto que recebe `actorId` direto é o único exercitável. O handler segue com
+  `authorizeActor(perm)` como gate de seção.
+- `publish-entry`/`schedule-entry` passam a exigir `cms.entries.publish` e **deixam de aceitar
+  `cms.entries.manage`** como atalho (D6). `update-category`/`delete-category` não existem como
+  features hoje — só `create-category` (que exige global) foi tratado; ver Known Gaps.
+- UI em `/admin/rbac`: multi-select de categorias por nome no fluxo de atribuir papel + editor de
+  escopo por pessoa já atribuída (`assign-role-form.tsx`, `role-assignment-scope-editor.tsx`,
+  `category-scope-picker.tsx`); `listScopesForRoleAssignment` (novo, gated `rbac.roles.assign`)
+  alimenta o estado atual.
+- Telas admin de categoria/entry trocaram `listCategories()` → `listCategoriesForAdmin()`.
+- Testes: `scoped-cms.integration.test.ts` (cruza `rbac` + `cms`) — editor escopado não
+  lista/edita/publica fora da categoria, autor escopado não publica, admin global inalterado,
+  mover entry pra fora do escopo falha; unitários de cada service afetado + do helper.
 - **Entregável:** o modelo do `issues.md` de fato — Editor de setor, Autor sem publish.
 
 ### Fase D — Administrador de seção  ·  *depende de "seção" existir, risco médio*
@@ -520,9 +558,12 @@ As fases são incrementais e cada uma fecha sozinha (lint + typecheck + test ver
   `get-*-page-data` honram o escopo; `authorizeActor("platform.admin.access", {type:"admin.section",...})`.
 - Provavelmente depois do rename CMS→Editorial (roadmap Fase 3).
 
-**Checklist de revisão recorrente (a partir da Fase C):** todo `handler.ts` de escrita que opera
-sobre uma instância de recurso escopável **passa `scope`** — `authorizeActor` sem 2º argumento num
-handler de escrita do CMS é achado de review.
+**Checklist de revisão recorrente (a partir da Fase C):** todo `service.ts` de escrita que opera
+sobre uma instância de recurso escopável **resolve o escopo** — via `assertCmsCategoryScope(...)`
+(CMS) ou `resolveScopeForActor(actorId, …)` direto. Um `service.ts` de escrita do CMS que carrega
+`existing.categoryId` mas não passa por `assertCmsCategoryScope` é achado de review. (A Fase B
+previa isso no `handler.ts` via `authorizeActor(perm, scope)`; a Fase C moveu pro `service.ts`
+para caber nos testes de integração, que não passam pelo handler — ver §4.4.)
 
 ---
 

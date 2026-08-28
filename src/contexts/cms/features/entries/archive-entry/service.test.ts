@@ -14,10 +14,32 @@ vi.mock("./store", () => ({
   markEntryArchived: (...args: unknown[]) => markEntryArchived(...args),
 }));
 
+const assertCmsCategoryScope = vi.fn();
+vi.mock("../../../shared/scoped-authorization", () => ({
+  assertCmsCategoryScope: (...args: unknown[]) => assertCmsCategoryScope(...args),
+}));
+
 describe("archiveEntry", () => {
   beforeEach(() => {
     findEntryById.mockReset();
     markEntryArchived.mockReset();
+    assertCmsCategoryScope.mockReset();
+    assertCmsCategoryScope.mockResolvedValue({ success: true, data: undefined });
+  });
+
+  it("rejects when the actor's scope does not reach the entry's category (Fase C)", async () => {
+    findEntryById.mockResolvedValue({ id: "entry-1", status: "published", categoryId: "cat-a" });
+    assertCmsCategoryScope.mockResolvedValue({
+      success: false,
+      error: { code: "cms.entries.forbidden_scope", message: "fora do escopo" },
+    });
+
+    const { archiveEntry } = await import("./service");
+    const result = await archiveEntry({ id: "entry-1", actorId: "actor-1" });
+
+    expect(result.success).toBe(false);
+    expect(assertCmsCategoryScope).toHaveBeenCalledWith("actor-1", ["cms.entries.manage"], "cat-a");
+    expect(markEntryArchived).not.toHaveBeenCalled();
   });
 
   it("archives a published entry and invalidates the published-entries and navigation caches", async () => {

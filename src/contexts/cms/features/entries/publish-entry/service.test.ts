@@ -31,10 +31,32 @@ vi.mock("./store", () => ({
   markEntryPublished: (...args: unknown[]) => markEntryPublished(...args),
 }));
 
+const assertCmsCategoryScope = vi.fn();
+vi.mock("../../../shared/scoped-authorization", () => ({
+  assertCmsCategoryScope: (...args: unknown[]) => assertCmsCategoryScope(...args),
+}));
+
 describe("publishEntry", () => {
   beforeEach(() => {
     findEntryById.mockReset();
     markEntryPublished.mockReset();
+    assertCmsCategoryScope.mockReset();
+    assertCmsCategoryScope.mockResolvedValue({ success: true, data: undefined });
+  });
+
+  it("rejects when cms.entries.publish does not reach the entry's category — an author scoped here (Fase C / D6)", async () => {
+    findEntryById.mockResolvedValue({ id: "entry-1", status: "draft", categoryId: "cat-a", data: {} });
+    assertCmsCategoryScope.mockResolvedValue({
+      success: false,
+      error: { code: "cms.entries.forbidden_scope", message: "sem publish nesta categoria" },
+    });
+
+    const { publishEntry } = await import("./service");
+    const result = await publishEntry({ id: "entry-1", resolveDefinition, actorId: "actor-1" });
+
+    expect(result.success).toBe(false);
+    expect(assertCmsCategoryScope).toHaveBeenCalledWith("actor-1", ["cms.entries.publish"], "cat-a");
+    expect(markEntryPublished).not.toHaveBeenCalled();
   });
 
   it("publishes an existing entry and invalidates the published-entries cache", async () => {

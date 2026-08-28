@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { FileText } from "lucide-react";
-import { listCategories, listContentTypes, listEntriesForAdmin } from "@/contexts/cms";
+import { listCategoriesForAdmin, listContentTypes, listEntriesForAdmin } from "@/contexts/cms";
 import { getCmsPageData } from "@/platform/admin-shell/get-cms-page-data";
 import { EmptyState } from "@/components/empty-state";
 import { EntriesTable } from "../_components/entries-table";
@@ -29,7 +29,7 @@ export default async function CmsEntriesAdminPage() {
 
   const [contentTypesResult, categoriesResult, entriesResult] = await Promise.all([
     listContentTypes(),
-    listCategories(),
+    listCategoriesForAdmin(),
     listEntriesForAdmin(),
   ]);
 

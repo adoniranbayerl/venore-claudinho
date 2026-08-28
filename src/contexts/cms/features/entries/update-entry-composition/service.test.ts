@@ -15,6 +15,11 @@ vi.mock("./store", () => ({
   saveEntryComposition: (...args: unknown[]) => saveEntryComposition(...args),
 }));
 
+const assertCmsCategoryScope = vi.fn();
+vi.mock("../../../shared/scoped-authorization", () => ({
+  assertCmsCategoryScope: (...args: unknown[]) => assertCmsCategoryScope(...args),
+}));
+
 const textDefinition: BlockDefinition = {
   key: "text",
   label: "Texto",
@@ -52,6 +57,28 @@ describe("updateEntryComposition", () => {
   beforeEach(() => {
     findEntryById.mockReset();
     saveEntryComposition.mockReset();
+    assertCmsCategoryScope.mockReset();
+    assertCmsCategoryScope.mockResolvedValue({ success: true, data: undefined });
+  });
+
+  it("rejects when the actor's scope does not reach the entry's category (Fase C)", async () => {
+    findEntryById.mockResolvedValue({ ...existingEntry, categoryId: "cat-a" });
+    assertCmsCategoryScope.mockResolvedValue({
+      success: false,
+      error: { code: "cms.entries.forbidden_scope", message: "fora do escopo" },
+    });
+
+    const { updateEntryComposition } = await import("./service");
+    const result = await updateEntryComposition({
+      id: "entry-1",
+      composition: [],
+      resolveDefinition,
+      actorId: "actor-1",
+    });
+
+    expect(result.success).toBe(false);
+    expect(assertCmsCategoryScope).toHaveBeenCalledWith("actor-1", ["cms.entries.manage"], "cat-a");
+    expect(saveEntryComposition).not.toHaveBeenCalled();
   });
 
   it("fails when the entry does not exist", async () => {

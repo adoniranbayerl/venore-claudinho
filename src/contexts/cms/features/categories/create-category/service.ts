@@ -1,5 +1,6 @@
 import { beginOperation, endOperation } from "@/observability";
 import { invalidateCacheByPrefix } from "../../../../../infrastructure/cache/memory-cache";
+import { assertCmsCategoryScope } from "../../../shared/scoped-authorization";
 import { findCategoryByKey, findCategoryBySlug, insertCategory } from "./store";
 import type { CreateCategoryCommand, CreateCategoryResult } from "./types";
 
@@ -9,6 +10,15 @@ export async function createCategory(command: CreateCategoryCommand): Promise<Cr
     actor: { id: command.actorId, type: "user" },
     kind: "write",
   });
+
+  // Fase C: criar categoria nova exige `cms.categories.manage` GLOBAL — não dá para escopar algo
+  // que ainda não existe (docs/rbac-scoped-roles.md §4.4). Um editor com a permission escopada
+  // edita só as suas (quando update-category existir), mas não cria.
+  const scope = await assertCmsCategoryScope(command.actorId, ["cms.categories.manage"], null);
+  if (!scope.success) {
+    endOperation(handle, { success: false, error: scope.error });
+    return { success: false, error: scope.error };
+  }
 
   const existingByKey = await findCategoryByKey(command.key);
   if (existingByKey) {

@@ -1,5 +1,6 @@
 import { beginOperation, endOperation } from "@/observability";
 import { invalidateCacheByPrefix } from "../../../../../infrastructure/cache/memory-cache";
+import { assertCmsCategoryScope } from "../../../shared/scoped-authorization";
 import { findEntryById, markEntryArchived } from "./store";
 import type { ArchiveEntryCommand, ArchiveEntryResult } from "./types";
 
@@ -21,6 +22,13 @@ export async function archiveEntry(command: ArchiveEntryCommand): Promise<Archiv
     const error = { code: "cms.entries.already_archived", message: `Entry "${command.id}" já está arquivada.` };
     endOperation(handle, { success: false, error });
     return { success: false, error };
+  }
+
+  // Fase C: só arquiva entries nas categorias do próprio escopo.
+  const scope = await assertCmsCategoryScope(command.actorId, ["cms.entries.manage"], existing.categoryId);
+  if (!scope.success) {
+    endOperation(handle, { success: false, error: scope.error });
+    return { success: false, error: scope.error };
   }
 
   const entry = await markEntryArchived(command.id);

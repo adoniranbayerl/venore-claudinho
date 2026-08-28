@@ -300,3 +300,73 @@ describe("resolveScope (Fase B)", () => {
     expect(await resolveScope("cms.entries.manage", "cms.category")).toEqual({ kind: "none" });
   });
 });
+
+describe("resolveScopeForActor (Fase C)", () => {
+  beforeEach(() => {
+    getCurrentUser.mockReset();
+    getUserContext.mockReset();
+  });
+
+  it("resolves against the given actor id without touching getCurrentUser", async () => {
+    getUserContext.mockResolvedValue({
+      success: true,
+      data: {
+        userId: "actor-7",
+        roles: [],
+        permissions: ["cms.entries.manage"],
+        isSuperadmin: false,
+        scopedPermissions: { "cms.entries.manage": { "cms.category": ["cat-a"] } },
+      },
+    });
+
+    const { resolveScopeForActor } = await import("./authorize-actor");
+    const result = await resolveScopeForActor("actor-7", "cms.entries.manage", "cms.category");
+
+    expect(result).toEqual({ kind: "scoped", resourceIds: ["cat-a"] });
+    expect(getUserContext).toHaveBeenCalledWith({ userId: "actor-7" });
+    expect(getCurrentUser).not.toHaveBeenCalled();
+  });
+
+  it("returns { kind: 'global' } for a superadmin", async () => {
+    getUserContext.mockResolvedValue({
+      success: true,
+      data: { userId: "actor-7", roles: [], permissions: [], isSuperadmin: true, scopedPermissions: {} },
+    });
+
+    const { resolveScopeForActor } = await import("./authorize-actor");
+    expect(await resolveScopeForActor("actor-7", "cms.entries.manage", "cms.category")).toEqual({ kind: "global" });
+  });
+
+  it("returns { kind: 'global' } when a role grants the permission without a scope of that type", async () => {
+    getUserContext.mockResolvedValue({
+      success: true,
+      data: {
+        userId: "actor-7",
+        roles: [],
+        permissions: ["cms.entries.manage"],
+        isSuperadmin: false,
+        scopedPermissions: { "cms.entries.manage": { "cms.category": "global" } },
+      },
+    });
+
+    const { resolveScopeForActor } = await import("./authorize-actor");
+    expect(await resolveScopeForActor("actor-7", "cms.entries.manage", "cms.category")).toEqual({ kind: "global" });
+  });
+
+  it("returns { kind: 'none' } when the actor does not hold the permission at all", async () => {
+    getUserContext.mockResolvedValue({
+      success: true,
+      data: { userId: "actor-7", roles: [], permissions: [], isSuperadmin: false, scopedPermissions: {} },
+    });
+
+    const { resolveScopeForActor } = await import("./authorize-actor");
+    expect(await resolveScopeForActor("actor-7", "cms.entries.manage", "cms.category")).toEqual({ kind: "none" });
+  });
+
+  it("returns { kind: 'none' } when getUserContext fails", async () => {
+    getUserContext.mockResolvedValue({ success: false, error: { code: "rbac.roles.invalid_id", message: "x" } });
+
+    const { resolveScopeForActor } = await import("./authorize-actor");
+    expect(await resolveScopeForActor("actor-7", "cms.entries.manage", "cms.category")).toEqual({ kind: "none" });
+  });
+});
