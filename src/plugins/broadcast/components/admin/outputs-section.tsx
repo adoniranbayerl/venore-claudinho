@@ -96,6 +96,36 @@ function CreateOutputForm({ playlists }: { playlists: BroadcastPlaylistRecord[] 
   );
 }
 
+// navigator.clipboard só existe em contexto seguro (HTTPS ou localhost). O build deste plugin é
+// servido por HTTP na LAN (o cenário-alvo — servidor local), onde navigator.clipboard é undefined:
+// sem este guard o clique quebrava com "Cannot read properties of undefined (reading 'writeText')".
+// Fallback: <textarea> fora da tela + execCommand("copy"), que funciona em HTTP; e se nem isso,
+// o chamador mostra o link pra cópia manual.
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // cai no fallback abaixo
+  }
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 // Cor própria (variant="default", primary sólido) em vez do outline neutro de antes — pedido
 // explícito: "deixe esse botão com outra cor, essa seção do card deve demonstrar para o usuário
 // que é ali que ele precisa copiar o link". w-full pra ocupar o rodapé inteiro, reforçando que é
@@ -112,9 +142,13 @@ function CopyOutputUrlButton({ token }: { token: string }) {
       className="w-full"
       onClick={() => {
         const url = typeof window !== "undefined" ? `${window.location.origin}${path}` : path;
-        void navigator.clipboard.writeText(url).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
+        void copyTextToClipboard(url).then((ok) => {
+          if (ok) {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          } else {
+            window.prompt("Copie o link da TV:", url);
+          }
         });
       }}
     >
