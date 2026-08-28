@@ -21,6 +21,8 @@
     "db:migrate:broadcast": "drizzle-kit migrate --config=src/plugins/broadcast/drizzle.config.ts",
     "db:generate:enrollment-dashboard": "drizzle-kit generate --config=src/plugins/enrollment-dashboard/drizzle.config.ts",
     "db:migrate:enrollment-dashboard": "drizzle-kit migrate --config=src/plugins/enrollment-dashboard/drizzle.config.ts",
+    "db:generate:company-metrics": "drizzle-kit generate --config=src/plugins/company-metrics/drizzle.config.ts",
+    "db:migrate:company-metrics": "drizzle-kit migrate --config=src/plugins/company-metrics/drizzle.config.ts",
     "db:seed:admin-access": "node --env-file=.env scripts/seed-admin-access-permission.mjs",
     "db:seed:media-manage": "node --env-file=.env scripts/seed-media-manage-permission.mjs",
     "db:seed:cms-menus-manage": "node --env-file=.env scripts/seed-cms-menus-permission.mjs",
