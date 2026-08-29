@@ -456,6 +456,18 @@ conveniência de UI, não substituto, e é o único caminho enquanto a Fase 7 n�
 
 ## 10. Riscos e Known Gaps
 
+- **Ingestão via API do Prima (futuro, planejado pelo dono — 2026-08-29).** Hoje todo `metric_value`
+  entra por lançamento manual na aba Lançamentos. A direção é: puxar dados de aluno da **API do
+  Prima** (o app que a instituição já usa) e popular o banco a partir dela. Onde isso encaixa:
+  um use case novo `features/ingestion/` que mapeia a resposta da API para `upsertMetricValueForPeriod`
+  (por `metric_definition` + bucket), rodado por cron ou webhook — **não** um acesso direto do
+  Prima ao schema `company_metrics`. As `metric_definitions` continuam sendo o contrato (o mapa
+  "campo do Prima → definição" vive na config da ingestão). O lançamento manual permanece para o
+  que a API não cobre. Não começar isso sem a doc da API do Prima e a lista de métricas reais.
+- **Métricas reais por setor pendentes.** As do seed `fluxo-completo` (leads, MQL, ticket médio,
+  inadimplência, matriculados por turma/curso…) são plausíveis mas provisórias — o dono vai
+  levantar a lista de verdade por setor. O modelo (definição + unidade + cadência + composição de
+  meta) não muda com isso; só o conteúdo do seed e o mapa de ingestão.
 - **Métrica derivada de métrica** (`taxa de conversão = fechados ÷ leads` como uma definição
   calculada) fica de fora. Hoje só **meta ← soma ponderada e classificada de definições**
   (`target_inputs`). Se virar requisito: fase própria com `derived_definitions` (expressão
