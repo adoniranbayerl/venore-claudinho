@@ -20,8 +20,8 @@ import {
 import type { TargetInputRecord } from "@/plugins/company-metrics/contracts/types";
 import type { SectorGroupRecord, SectorMemberRecord } from "@/plugins/company-metrics/contracts/types";
 import { bucketStart, zonedCivilDate } from "@/plugins/company-metrics/shared/period";
-import { isValidCivilDate } from "@/plugins/company-metrics/shared/period";
 import { normalizeTimeZone } from "@/plugins/company-metrics/shared/settings";
+import { ChartTokens } from "@/plugins/company-metrics/components/dashboard/chart-tokens";
 import { AdminTabs } from "./admin-tabs";
 import { ApresentacaoView } from "./apresentacao-view";
 import { LancamentosView } from "./lancamentos-view";
@@ -83,12 +83,13 @@ export default async function CompanyMetricsAdminPage({
       : sectorOptions[0]?.id;
   const activeSector = sectors.find((sector) => sector.id === activeSectorId);
 
-  const referenceDateRaw = first(params.date);
-  const referenceDate =
-    referenceDateRaw && isValidCivilDate(referenceDateRaw) ? referenceDateRaw : zonedCivilDate(new Date(), timeZone);
+  // Lançamento é sempre no período ATUAL — sem seletor de data. O que a UI mostra é a "última
+  // atualização" de cada métrica (ver LancamentosView).
+  const referenceDate = zonedCivilDate(new Date(), timeZone);
 
   return (
     <div className="space-y-6">
+      <ChartTokens />
       <AdminPageHeader
         title="Métricas Internas"
         description="Setores da empresa, suas métricas e o lançamento dos números. Metas e telas de TV entram nas próximas etapas."
@@ -254,7 +255,11 @@ async function MetasTab({
 }
 
 async function ApresentacaoTab({ sectorOptions }: { sectorOptions: { id: string; name: string }[] }) {
-  const [boardsResult, targetsResult] = await Promise.all([listTvBoards(), listTargets({ includeArchived: false })]);
+  const [boardsResult, targetsResult, definitionsResult] = await Promise.all([
+    listTvBoards(),
+    listTargets({ includeArchived: false }),
+    listMetricDefinitions({ includeArchived: false }),
+  ]);
 
   const sectorNameById = new Map(sectorOptions.map((sector) => [sector.id, sector.name]));
   const targetOptions = targetsResult.success
@@ -264,12 +269,20 @@ async function ApresentacaoTab({ sectorOptions }: { sectorOptions: { id: string;
         sectorName: sectorNameById.get(entry.target.sectorId) ?? "setor",
       }))
     : [];
+  const definitionOptions = definitionsResult.success
+    ? definitionsResult.data.map((definition) => ({
+        id: definition.id,
+        label: definition.label,
+        sectorName: sectorNameById.get(definition.sectorId) ?? "setor",
+      }))
+    : [];
 
   return (
     <ApresentacaoView
       boards={boardsResult.success ? boardsResult.data : []}
       sectors={sectorOptions}
       targets={targetOptions}
+      definitions={definitionOptions}
     />
   );
 }

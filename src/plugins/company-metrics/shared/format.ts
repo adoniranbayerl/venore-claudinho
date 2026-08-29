@@ -38,6 +38,27 @@ export const METRIC_DIRECTION_LABELS: Record<string, string> = {
   down_good: "Quanto menor, melhor",
 };
 
+// "há X" legível em pt-BR a partir de um instante. Aceita Date ou string ISO.
+export function formatRelativeTime(value: Date | string | null | undefined): string {
+  if (!value) return "sem lançamento ainda";
+  const date = value instanceof Date ? value : new Date(value);
+  const ms = Date.now() - date.getTime();
+  if (Number.isNaN(ms)) return "—";
+  const min = Math.round(ms / 60000);
+  if (min < 1) return "agora mesmo";
+  if (min < 60) return `há ${min} min`;
+  const hours = Math.round(min / 60);
+  if (hours < 24) return `há ${hours} h`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return `há ${days} ${days === 1 ? "dia" : "dias"}`;
+  if (days < 45) {
+    const weeks = Math.round(days / 7);
+    return `há ${weeks} ${weeks === 1 ? "semana" : "semanas"}`;
+  }
+  const months = Math.round(days / 30);
+  return `há ${months} ${months === 1 ? "mês" : "meses"}`;
+}
+
 // Rótulo legível de um bucket "YYYY-MM-DD".
 export function formatBucketLabel(periodStart: string, granularity: string): string {
   const [y, m, d] = periodStart.split("-").map(Number);

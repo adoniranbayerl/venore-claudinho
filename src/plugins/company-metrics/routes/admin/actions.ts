@@ -413,6 +413,7 @@ function parseScreens(raw: string): TvScreenDraft[] {
         : ("overview" as TvScreenKind),
       sectorId: entry.sectorId ? String(entry.sectorId) : null,
       targetId: entry.targetId ? String(entry.targetId) : null,
+      definitionId: entry.definitionId ? String(entry.definitionId) : null,
       dwellSeconds: Number(entry.dwellSeconds) || 20,
     }));
 }

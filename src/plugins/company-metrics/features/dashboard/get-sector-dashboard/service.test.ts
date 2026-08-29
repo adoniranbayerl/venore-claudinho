@@ -7,6 +7,7 @@ vi.mock("./store", () => ({
   findSectorById: (...a: unknown[]) => findSectorById(...a),
   findActiveDefinitions: (...a: unknown[]) => findActiveDefinitions(...a),
   findValuesSince: (...a: unknown[]) => findValuesSince(...a),
+  findLastValueUpdate: async () => null,
 }));
 
 const getTargetRollups = vi.fn();

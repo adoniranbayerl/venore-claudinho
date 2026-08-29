@@ -13,6 +13,8 @@ export type SectorDashboard = {
   windowMonths: number;
   targets: TargetRollupView[];
   metrics: MetricSeries[];
+  // Instante do lançamento mais recente do setor (qualquer métrica) — null se nunca lançaram.
+  lastUpdatedAt: Date | null;
 };
 
 export type GetSectorDashboardResult = OperationResult<SectorDashboard>;

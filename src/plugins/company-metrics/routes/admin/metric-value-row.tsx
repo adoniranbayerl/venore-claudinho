@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { METRIC_UNIT_LABELS } from "@/plugins/company-metrics/shared/format";
+import { formatRelativeTime, METRIC_UNIT_LABELS } from "@/plugins/company-metrics/shared/format";
 import type { MetricUnit } from "@/plugins/company-metrics/contracts/types";
 import { upsertMetricValueAction, type CompanyMetricsActionState } from "./actions";
 
@@ -20,6 +20,7 @@ export function MetricValueRow({
   periodDate,
   currentValue,
   currentNote,
+  lastUpdatedAt,
 }: {
   definitionId: string;
   label: string;
@@ -28,6 +29,7 @@ export function MetricValueRow({
   periodDate: string;
   currentValue: number | null;
   currentNote: string | null;
+  lastUpdatedAt: Date | string | null;
 }) {
   const [state, formAction, pending] = useActionState(upsertMetricValueAction, initialState);
   useActionToast({ pending, error: state.error, successMessage: "Valor lançado." });
@@ -44,7 +46,7 @@ export function MetricValueRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{label}</p>
         <p className="text-xs text-muted-foreground/56">
-          {METRIC_UNIT_LABELS[unit]} · {periodLabel}
+          {METRIC_UNIT_LABELS[unit]} · {periodLabel} · última atualização {formatRelativeTime(lastUpdatedAt)}
         </p>
       </div>
 

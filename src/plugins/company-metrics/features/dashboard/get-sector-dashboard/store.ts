@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, max } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import { metricDefinitions, metricValues, sectors } from "../../../database/schema";
 import type { MetricDefinitionRecord, MetricValueRecord, SectorRecord } from "../../../contracts/types";
@@ -15,6 +15,15 @@ export async function findActiveDefinitions(sectorId: string): Promise<MetricDef
     .where(and(eq(metricDefinitions.sectorId, sectorId), isNull(metricDefinitions.archivedAt)))
     .orderBy(asc(metricDefinitions.position), asc(metricDefinitions.createdAt));
   return rows as MetricDefinitionRecord[];
+}
+
+export async function findLastValueUpdate(sectorId: string): Promise<Date | null> {
+  const [row] = await db
+    .select({ latest: max(metricValues.updatedAt) })
+    .from(metricValues)
+    .innerJoin(metricDefinitions, eq(metricValues.definitionId, metricDefinitions.id))
+    .where(eq(metricDefinitions.sectorId, sectorId));
+  return row?.latest ? new Date(row.latest) : null;
 }
 
 export async function findValuesSince(definitionIds: string[], since: string): Promise<MetricValueRecord[]> {

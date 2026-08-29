@@ -2,7 +2,7 @@ import { getTargetRollups } from "../../targets/get-target-rollups/service";
 import { subtractMonths, zonedCivilDate } from "../../../shared/period";
 import { DEFAULT_COMPANY_METRICS_TIMEZONE } from "../../../shared/settings";
 import type { MetricSeries } from "./types";
-import { findActiveDefinitions, findSectorById, findValuesSince } from "./store";
+import { findActiveDefinitions, findLastValueUpdate, findSectorById, findValuesSince } from "./store";
 import type { GetSectorDashboardResult } from "./types";
 
 const ALLOWED_WINDOWS = [3, 6, 12];
@@ -23,9 +23,10 @@ export async function getSectorDashboard(options: {
   const today = zonedCivilDate(options.now ?? new Date(), timeZone);
   const since = subtractMonths(today, windowMonths);
 
-  const [rollups, definitions] = await Promise.all([
+  const [rollups, definitions, lastUpdatedAt] = await Promise.all([
     getTargetRollups(options.sectorId),
     findActiveDefinitions(options.sectorId),
+    findLastValueUpdate(options.sectorId),
   ]);
 
   const values = await findValuesSince(definitions.map((definition) => definition.id), since);
@@ -48,6 +49,7 @@ export async function getSectorDashboard(options: {
       windowMonths,
       targets: rollups.success ? rollups.data : [],
       metrics,
+      lastUpdatedAt,
     },
   };
 }

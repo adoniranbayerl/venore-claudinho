@@ -15,19 +15,26 @@ const KIND_LABELS: Record<TvScreenKind, string> = {
   overview: "Panorama — todos os setores",
   sector_kpis: "Métricas de um setor",
   target_board: "Painel de uma meta",
+  sector_targets: "Todas as metas de um setor",
+  group_summary: "Resumo por grupo (instituições)",
+  metric_spotlight: "Métrica em destaque",
 };
 
-type ScreenLine = { kind: TvScreenKind; sectorId: string | null; targetId: string | null; dwellSeconds: number };
+const SECTOR_KINDS = new Set<TvScreenKind>(["sector_kpis", "sector_targets", "group_summary"]);
+
+type ScreenLine = { kind: TvScreenKind; sectorId: string | null; targetId: string | null; definitionId: string | null; dwellSeconds: number };
 
 export function TvBoardEditor({
   boardId,
   sectors,
   targets,
+  definitions,
   initialScreens,
 }: {
   boardId: string;
   sectors: { id: string; name: string }[];
   targets: { id: string; label: string; sectorName: string }[];
+  definitions: { id: string; label: string; sectorName: string }[];
   initialScreens: ScreenLine[];
 }) {
   const [screens, setScreens] = useState<ScreenLine[]>(initialScreens);
@@ -35,7 +42,7 @@ export function TvBoardEditor({
   useActionToast({ pending, error: state.error, successMessage: "Telas salvas." });
 
   function addScreen() {
-    setScreens((current) => [...current, { kind: "overview", sectorId: null, targetId: null, dwellSeconds: 20 }]);
+    setScreens((current) => [...current, { kind: "overview", sectorId: null, targetId: null, definitionId: null, dwellSeconds: 20 }]);
   }
 
   function patch(index: number, next: Partial<ScreenLine>) {
@@ -53,7 +60,12 @@ export function TvBoardEditor({
         <div key={index} className="flex flex-wrap items-end gap-2 rounded-lg border border-border p-3">
           <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
             Tipo
-            <Select value={line.kind} onValueChange={(value) => patch(index, { kind: value as TvScreenKind, sectorId: null, targetId: null })}>
+            <Select
+              value={line.kind}
+              onValueChange={(value) =>
+                patch(index, { kind: value as TvScreenKind, sectorId: null, targetId: null, definitionId: null })
+              }
+            >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -67,7 +79,7 @@ export function TvBoardEditor({
             </Select>
           </label>
 
-          {line.kind === "sector_kpis" && (
+          {SECTOR_KINDS.has(line.kind) && (
             <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
               Setor
               <Select value={line.sectorId ?? ""} onValueChange={(value) => patch(index, { sectorId: value })}>
@@ -96,6 +108,24 @@ export function TvBoardEditor({
                   {targets.map((target) => (
                     <SelectItem key={target.id} value={target.id}>
                       {target.sectorName} · {target.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          )}
+
+          {line.kind === "metric_spotlight" && (
+            <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
+              Métrica
+              <Select value={line.definitionId ?? ""} onValueChange={(value) => patch(index, { definitionId: value })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {definitions.map((definition) => (
+                    <SelectItem key={definition.id} value={definition.id}>
+                      {definition.sectorName} · {definition.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

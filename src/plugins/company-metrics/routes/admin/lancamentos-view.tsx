@@ -1,5 +1,5 @@
 import { EmptyState } from "@/components/empty-state";
-import { formatBucketLabel } from "@/plugins/company-metrics/shared/format";
+import { formatBucketLabel, formatRelativeTime } from "@/plugins/company-metrics/shared/format";
 import { bucketStart } from "@/plugins/company-metrics/shared/period";
 import type { MetricDefinitionRecord, MetricValueRecord } from "@/plugins/company-metrics/contracts/types";
 import { MetricValueRow } from "./metric-value-row";
@@ -27,10 +27,19 @@ export function LancamentosView({
   }
 
   const valueByKey = new Map(values.map((value) => [`${value.definitionId}:${value.periodStart}`, value]));
+  const lastUpdatedAt = values.reduce<Date | null>((latest, value) => {
+    const stamp = value.updatedAt instanceof Date ? value.updatedAt : new Date(value.updatedAt);
+    return !latest || stamp > latest ? stamp : latest;
+  }, null);
 
   return (
     <div className="space-y-4">
-      <ScopeControls sectors={sectors} activeSectorId={activeSectorId} showDate activeDate={referenceDate} />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <ScopeControls sectors={sectors} activeSectorId={activeSectorId} />
+        <p className="text-xs text-muted-foreground">
+          Última atualização: <span className="font-medium text-foreground">{formatRelativeTime(lastUpdatedAt)}</span>
+        </p>
+      </div>
 
       {!canContribute ? (
         <EmptyState
@@ -45,8 +54,8 @@ export function LancamentosView({
       ) : (
         <div className="rounded-xl border border-border">
           <p className="border-b border-border px-3 py-2 text-xs text-muted-foreground/56">
-            Cada métrica lança no período que contém a data de referência, conforme a cadência dela. Deixe o valor vazio e
-            salve para limpar o lançamento.
+            Cada métrica lança no período atual conforme a cadência dela. Deixe o valor vazio e salve para limpar o
+            lançamento.
           </p>
           {definitions.map((definition) => {
             const periodStart = bucketStart(referenceDate, definition.granularity);
@@ -61,6 +70,7 @@ export function LancamentosView({
                 periodDate={referenceDate}
                 currentValue={existing ? existing.value : null}
                 currentNote={existing ? existing.note : null}
+                lastUpdatedAt={existing ? existing.updatedAt : null}
               />
             );
           })}

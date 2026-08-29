@@ -1,5 +1,6 @@
 import type { MetricDirection, MetricUnit } from "@/plugins/company-metrics/contracts/types";
 import { formatBucketLabel, formatMetricValue, METRIC_UNIT_LABELS } from "@/plugins/company-metrics/shared/format";
+import { chartColor, chartColorSoft } from "./chart-tokens";
 
 // Sparkline em SVG inline — sem biblioteca, tema-aware via currentColor/tokens. Endpoint
 // enfatizado; área sutil sob a linha. Reusada pela visualização interativa e pela TV.
@@ -16,12 +17,14 @@ export function MetricTrend({
   direction,
   granularity,
   points,
+  colorIndex = 0,
 }: {
   label: string;
   unit: MetricUnit;
   direction: MetricDirection;
   granularity: string;
   points: Point[];
+  colorIndex?: number;
 }) {
   const values = points.map((point) => point.value);
   const last = values.length > 0 ? values[values.length - 1] : null;
@@ -57,8 +60,14 @@ export function MetricTrend({
       </div>
 
       {coords.length >= 2 ? (
-        <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 h-14 w-full text-primary" preserveAspectRatio="none" aria-hidden="true">
-          <path d={areaPath} className="fill-primary/12" />
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="mt-2 h-14 w-full"
+          style={{ color: chartColor(colorIndex) }}
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path d={areaPath} style={{ fill: chartColorSoft(colorIndex) }} />
           <path d={linePath} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
           <circle cx={coords[coords.length - 1].x} cy={coords[coords.length - 1].y} r="2.5" fill="currentColor" />
         </svg>

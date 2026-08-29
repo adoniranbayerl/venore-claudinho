@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTvBoard } from "@/plugins/company-metrics";
+import { ChartTokens } from "@/plugins/company-metrics/components/dashboard/chart-tokens";
 import { PresentationCanvas } from "@/plugins/company-metrics/components/tv/presentation-canvas";
 import { TvRotator } from "@/plugins/company-metrics/components/tv/tv-rotator";
 import { TvScreenContent } from "@/plugins/company-metrics/components/tv/tv-screens";
@@ -23,8 +24,11 @@ export default async function CompanyMetricsTvPage({ params }: { params: Promise
   }));
 
   return (
-    <PresentationCanvas>
-      <TvRotator slides={slides} />
-    </PresentationCanvas>
+    <>
+      <ChartTokens />
+      <PresentationCanvas>
+        <TvRotator slides={slides} />
+      </PresentationCanvas>
+    </>
   );
 }

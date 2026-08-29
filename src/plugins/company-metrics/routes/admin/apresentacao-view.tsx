@@ -48,10 +48,12 @@ export function ApresentacaoView({
   boards,
   sectors,
   targets,
+  definitions,
 }: {
   boards: TvBoardWithScreens[];
   sectors: { id: string; name: string }[];
   targets: { id: string; label: string; sectorName: string }[];
+  definitions: { id: string; label: string; sectorName: string }[];
 }) {
   return (
     <div className="space-y-6">
@@ -80,10 +82,12 @@ export function ApresentacaoView({
                 boardId={board.id}
                 sectors={sectors}
                 targets={targets}
+                definitions={definitions}
                 initialScreens={screens.map((screen) => ({
                   kind: screen.kind,
                   sectorId: screen.sectorId,
                   targetId: screen.targetId,
+                  definitionId: screen.definitionId,
                   dwellSeconds: screen.dwellSeconds,
                 }))}
               />

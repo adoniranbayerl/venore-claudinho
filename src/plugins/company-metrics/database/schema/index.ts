@@ -228,9 +228,12 @@ export const tvBoards = companyMetricsSchema.table(
 );
 
 // Uma tela dentro de um board (o que rotaciona no telão). kind decide o conteúdo:
-// - overview: semáforo de todos os setores (não usa sector_id/target_id)
+// - overview: semáforo de todos os setores (não usa sector_id/target_id/definition_id)
 // - sector_kpis: as métricas de um setor (usa sector_id)
 // - target_board: o painel de uma meta (usa target_id)
+// - sector_targets: todas as metas de um setor em mosaico (usa sector_id)
+// - group_summary: metas agregadas por grupo de um setor, ex. instituições (usa sector_id)
+// - metric_spotlight: uma métrica em destaque, número gigante + tendência (usa definition_id)
 export const tvScreens = companyMetricsSchema.table(
   "tv_screens",
   {
@@ -243,10 +246,14 @@ export const tvScreens = companyMetricsSchema.table(
     kind: text("kind").notNull(),
     sectorId: text("sector_id").references(() => sectors.id, { onDelete: "set null" }),
     targetId: text("target_id").references(() => targets.id, { onDelete: "set null" }),
+    definitionId: text("definition_id").references(() => metricDefinitions.id, { onDelete: "set null" }),
     dwellSeconds: integer("dwell_seconds").notNull().default(20),
     position: integer("position").notNull().default(0),
   },
   (table) => [
-    check("company_metrics_tv_screens_kind_check", sql`${table.kind} in ('overview','sector_kpis','target_board')`),
+    check(
+      "company_metrics_tv_screens_kind_check",
+      sql`${table.kind} in ('overview','sector_kpis','target_board','sector_targets','group_summary','metric_spotlight')`,
+    ),
   ],
 );

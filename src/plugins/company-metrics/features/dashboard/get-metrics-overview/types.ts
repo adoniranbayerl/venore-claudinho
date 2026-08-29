@@ -7,6 +7,7 @@ export type SectorOverview = {
   statusCounts: Record<TargetRollupStatus, number>;
   // Média simples da conclusão (headline) das metas do setor, 0-1. null quando não há meta.
   averageCompletion: number | null;
+  lastUpdatedAt: Date | null;
 };
 
 export type MetricsOverview = {

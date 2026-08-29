@@ -8,9 +8,10 @@ import {
   type SectorDashboard,
   type SectorOverview,
 } from "@/plugins/company-metrics";
+import { ChartTokens } from "@/plugins/company-metrics/components/dashboard/chart-tokens";
 import { MetricTrend } from "@/plugins/company-metrics/components/dashboard/metric-trend";
 import { TargetBoard } from "@/plugins/company-metrics/components/dashboard/target-board";
-import { formatBucketLabel } from "@/plugins/company-metrics/shared/format";
+import { formatBucketLabel, formatRelativeTime } from "@/plugins/company-metrics/shared/format";
 import type { MetricUnit } from "@/plugins/company-metrics/contracts/types";
 import { WindowSelect } from "./window-select";
 
@@ -53,6 +54,7 @@ export default async function CompanyMetricsPublicPage({
 
   return (
     <div className="space-y-6">
+      <ChartTokens />
       <header>
         <h1 className="text-xl font-semibold text-foreground">Métricas Internas</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -110,6 +112,7 @@ function SectorMiniSummary({ entry }: { entry: SectorOverview }) {
           </span>
         </div>
       )}
+      <p className="text-xs text-muted-foreground/56">Última atualização {formatRelativeTime(entry.lastUpdatedAt)}</p>
     </div>
   );
 }
@@ -123,6 +126,7 @@ function SectorDashboardView({ data }: { data: SectorDashboard }) {
 
   return (
     <div className="space-y-6">
+      <ChartTokens />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href="/metricas" className="mb-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
@@ -130,6 +134,7 @@ function SectorDashboardView({ data }: { data: SectorDashboard }) {
             Todos os setores
           </Link>
           <h1 className="text-xl font-semibold text-foreground">{data.sector.name}</h1>
+          <p className="mt-0.5 text-xs text-muted-foreground/56">Última atualização {formatRelativeTime(data.lastUpdatedAt)}</p>
         </div>
         <WindowSelect value={data.windowMonths} />
       </div>
@@ -158,7 +163,7 @@ function SectorDashboardView({ data }: { data: SectorDashboard }) {
           <p className="text-sm text-muted-foreground/56">Nenhuma métrica cadastrada.</p>
         ) : (
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {data.metrics.map((series) => (
+            {data.metrics.map((series, index) => (
               <li key={series.definition.id}>
                 <MetricTrend
                   label={series.definition.label}
@@ -166,6 +171,7 @@ function SectorDashboardView({ data }: { data: SectorDashboard }) {
                   direction={series.definition.direction}
                   granularity={series.definition.granularity}
                   points={series.points}
+                  colorIndex={index}
                 />
               </li>
             ))}

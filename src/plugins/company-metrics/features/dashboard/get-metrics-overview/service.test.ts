@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const findActiveSectors = vi.fn();
 vi.mock("./store", () => ({
   findActiveSectors: (...a: unknown[]) => findActiveSectors(...a),
+  findLastUpdateBySector: async () => new Map(),
 }));
 
 const getTargetRollups = vi.fn();

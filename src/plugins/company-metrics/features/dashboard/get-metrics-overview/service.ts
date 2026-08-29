@@ -1,6 +1,6 @@
 import type { TargetRollupStatus } from "../../../contracts/types";
 import { getTargetRollups } from "../../targets/get-target-rollups/service";
-import { findActiveSectors } from "./store";
+import { findActiveSectors, findLastUpdateBySector } from "./store";
 import type { GetMetricsOverviewResult, SectorOverview } from "./types";
 
 function emptyCounts(): Record<TargetRollupStatus, number> {
@@ -9,6 +9,7 @@ function emptyCounts(): Record<TargetRollupStatus, number> {
 
 export async function getMetricsOverview(options: { sectorIds?: string[] }): Promise<GetMetricsOverviewResult> {
   const sectors = await findActiveSectors(options.sectorIds);
+  const lastUpdateBySector = await findLastUpdateBySector(sectors.map((sector) => sector.id));
 
   const overviews: SectorOverview[] = await Promise.all(
     sectors.map(async (sector) => {
@@ -27,6 +28,7 @@ export async function getMetricsOverview(options: { sectorIds?: string[] }): Pro
         targetCount: rollups.length,
         statusCounts,
         averageCompletion: rollups.length > 0 ? completionSum / rollups.length : null,
+        lastUpdatedAt: lastUpdateBySector.get(sector.id) ?? null,
       };
     }),
   );

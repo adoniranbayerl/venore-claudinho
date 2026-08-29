@@ -5,6 +5,7 @@ export type TvScreenDraft = {
   kind: TvScreenKind;
   sectorId?: string | null;
   targetId?: string | null;
+  definitionId?: string | null;
   dwellSeconds: number;
 };
 

@@ -12,10 +12,12 @@ vi.mock("../shared/store", () => ({
 
 const existingSectorIds = vi.fn();
 const existingTargetIds = vi.fn();
+const existingDefinitionIds = vi.fn();
 const replaceScreens = vi.fn();
 vi.mock("./store", () => ({
   existingSectorIds: (...a: unknown[]) => existingSectorIds(...a),
   existingTargetIds: (...a: unknown[]) => existingTargetIds(...a),
+  existingDefinitionIds: (...a: unknown[]) => existingDefinitionIds(...a),
   replaceScreens: (...a: unknown[]) => replaceScreens(...a),
 }));
 
@@ -24,6 +26,7 @@ describe("setTvScreens", () => {
     findBoardById.mockReset().mockResolvedValue({ id: "b1", label: "TV" });
     existingSectorIds.mockReset().mockResolvedValue(new Set(["s1"]));
     existingTargetIds.mockReset().mockResolvedValue(new Set(["t1"]));
+    existingDefinitionIds.mockReset().mockResolvedValue(new Set(["d1"]));
     replaceScreens.mockReset();
   });
 
@@ -68,12 +71,36 @@ describe("setTvScreens", () => {
     if (!result.success) expect(result.error.code).toBe("company-metrics.set-tv-screens.target_not_found");
   });
 
-  it("saves a valid mixed set", async () => {
+  it("rejects a metric_spotlight without a definition", async () => {
+    const { setTvScreens } = await import("./service");
+    const result = await setTvScreens({
+      boardId: "b1",
+      screens: [{ kind: "metric_spotlight", dwellSeconds: 20, sectorId: null, targetId: null, definitionId: null }],
+      actorId: "a1",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.code).toBe("company-metrics.set-tv-screens.missing_definition");
+  });
+
+  it("rejects a metric_spotlight pointing at a missing definition", async () => {
+    existingDefinitionIds.mockResolvedValue(new Set());
+    const { setTvScreens } = await import("./service");
+    const result = await setTvScreens({
+      boardId: "b1",
+      screens: [{ kind: "metric_spotlight", dwellSeconds: 20, sectorId: null, targetId: null, definitionId: "gone" }],
+      actorId: "a1",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.code).toBe("company-metrics.set-tv-screens.definition_not_found");
+  });
+
+  it("saves a valid mixed set including the new screen kinds", async () => {
     const { setTvScreens } = await import("./service");
     const screens = [
-      { kind: "overview" as const, dwellSeconds: 15, sectorId: null, targetId: null },
-      { kind: "sector_kpis" as const, dwellSeconds: 20, sectorId: "s1", targetId: null },
-      { kind: "target_board" as const, dwellSeconds: 25, sectorId: null, targetId: "t1" },
+      { kind: "overview" as const, dwellSeconds: 15, sectorId: null, targetId: null, definitionId: null },
+      { kind: "sector_targets" as const, dwellSeconds: 20, sectorId: "s1", targetId: null, definitionId: null },
+      { kind: "group_summary" as const, dwellSeconds: 20, sectorId: "s1", targetId: null, definitionId: null },
+      { kind: "metric_spotlight" as const, dwellSeconds: 25, sectorId: null, targetId: null, definitionId: "d1" },
     ];
     const result = await setTvScreens({ boardId: "b1", screens, actorId: "a1" });
 

@@ -141,7 +141,14 @@ export type TargetRollupView = {
 
 // --- Fase 5: telas de TV ---
 
-export const TV_SCREEN_KINDS = ["overview", "sector_kpis", "target_board"] as const;
+export const TV_SCREEN_KINDS = [
+  "overview",
+  "sector_kpis",
+  "target_board",
+  "sector_targets",
+  "group_summary",
+  "metric_spotlight",
+] as const;
 export type TvScreenKind = (typeof TV_SCREEN_KINDS)[number];
 
 export type TvBoardRecord = {
@@ -158,6 +165,7 @@ export type TvScreenRecord = {
   kind: TvScreenKind;
   sectorId: string | null;
   targetId: string | null;
+  definitionId: string | null;
   dwellSeconds: number;
   position: number;
 };
@@ -171,19 +179,38 @@ export type SectorOverviewLite = {
   averageCompletion: number | null;
 };
 
+export type TargetBoardLite = {
+  label: string;
+  unit: MetricUnit;
+  periodStart: string;
+  periodEnd: string;
+  rollup: TargetRollup;
+};
+
+export type GroupSummaryLite = {
+  label: string;
+  // Meta agregada do grupo (a primeira meta ligada a esse group_id), se houver.
+  headline: TargetBoardLite | null;
+  targetCount: number;
+};
+
 // Tela já resolvida para renderizar no telão (get-tv-board, sem auth — acesso por token).
 export type ResolvedTvScreen =
   | { id: string; kind: "overview"; dwellSeconds: number; sectors: SectorOverviewLite[] }
   | { id: string; kind: "sector_kpis"; dwellSeconds: number; sectorName: string; metrics: MetricSeriesLite[] }
+  | ({ id: string; kind: "target_board"; dwellSeconds: number } & TargetBoardLite)
+  | { id: string; kind: "sector_targets"; dwellSeconds: number; sectorName: string; targets: TargetBoardLite[] }
+  | { id: string; kind: "group_summary"; dwellSeconds: number; sectorName: string; groups: GroupSummaryLite[] }
   | {
       id: string;
-      kind: "target_board";
+      kind: "metric_spotlight";
       dwellSeconds: number;
       label: string;
       unit: MetricUnit;
-      periodStart: string;
-      periodEnd: string;
-      rollup: TargetRollup;
+      direction: MetricDirection;
+      granularity: MetricDefinitionGranularity;
+      points: { periodStart: string; value: number }[];
+      current: number | null;
     };
 
 export type MetricSeriesLite = {
