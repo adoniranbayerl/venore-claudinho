@@ -10,7 +10,22 @@ https://claude.ai/code/artifact/4e690c27-bcdc-431f-bac6-bc53fad48555
 > pendente — nada foi aberto num browser.
 >
 > Commits: `9f63bd1` F1 · `50911c6` F2 · `2c07c7f` F3 · `2776657` F4 · `a563f9a` F5 ·
-> `382cb8d` F6 · (F7 no commit seguinte).
+> `382cb8d` F6 · `36b250c` F7.
+>
+> **Rodada de melhorias (`c2e4dec`), após o dono instalar e testar:**
+> - seed `fluxo-completo`: funil do aluno (Marketing → Comercial → Financeiro → Secretaria) com
+>   ~11 meses de histórico mensal por métrica + turmas do colégio e cursos da faculdade como
+>   metas por instituição. Substitui o seed `matricula`. Idempotente (reaproveita setor vazio).
+> - **"Última atualização"** no lugar do seletor de data: Lançamentos sempre grava no período
+>   atual e mostra "atualizado há X" por métrica; `/metricas` mostra o mesmo nos cards e no
+>   cabeçalho do setor.
+> - +3 telas de TV: `sector_targets`, `group_summary` (por instituição), `metric_spotlight`
+>   (migration 0004 — `tv_screens.definition_id` + kinds novos).
+> - **Cores no domínio do plugin**: `components/dashboard/chart-tokens.tsx` injeta `--cm-chart-1..8`
+>   (oklch, tema-aware por `.dark`) via `<ChartTokens/>` no topo de cada superfície — não toca
+>   `globals.css`/`theme.css`, sai junto com o plugin. `MetricTrend` colore por série.
+> - Ainda a fazer na parte gráfica (pedido adiado pelo dono): mais densidade de cor nos painéis
+>   de meta e no overview, e polir os layouts de TV.
 >
 > Ajustes feitos na implementação, ainda dentro do desenho:
 > - `sector_groups` entrou já na Fase 1. "Metas" virou **aba própria** (Setores · Métricas ·
