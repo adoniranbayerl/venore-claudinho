@@ -48,8 +48,15 @@ const CSS = `
 }
 `;
 
+// href + precedence => React 19 trata como folha de estilo içável: move pra <head>, deduplica
+// pelo href (renderizar <ChartTokens/> em 3 páginas = um só <style>), e aceita string como
+// filho (sem dangerouslySetInnerHTML, sem o aviso "script/style tag" do dev overlay).
 export function ChartTokens() {
-  return <style dangerouslySetInnerHTML={{ __html: CSS }} />;
+  return (
+    <style href="company-metrics:chart-tokens" precedence="high">
+      {CSS}
+    </style>
+  );
 }
 
 // Cor de série por índice (0-based), cíclica em 8. Usada via style inline (não via className, que
