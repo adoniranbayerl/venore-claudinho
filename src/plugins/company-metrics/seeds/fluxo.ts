@@ -1,29 +1,37 @@
 import type { OperationResult } from "@/shared/types";
-import type {
-  MetricAggregation,
-  MetricDirection,
-  MetricUnit,
-  TargetClassification,
-} from "../contracts/types";
-import { createMetricDefinition } from "../features/definitions/create-metric-definition/service";
+import type { MetricAggregation, MetricDirection, MetricUnit, TargetClassification } from "../contracts/types";
 import { listMetricDefinitions } from "../features/definitions/list-metric-definitions/service";
-import { createSector } from "../features/sectors/create-sector/service";
-import { createSectorGroup } from "../features/groups/create-sector-group/service";
-import { createTarget } from "../features/targets/create-target/service";
 import { listSectors } from "../features/sectors/list-sectors/service";
-import { bulkInsertMetricValues } from "./shared/bulk-store";
+import { slugify } from "../shared/slugify";
+import {
+  bulkInsertMetricDefinitions,
+  bulkInsertMetricValues,
+  bulkInsertSectorGroups,
+  bulkInsertSectors,
+  bulkInsertTargetInputs,
+  bulkInsertTargets,
+  bulkInsertTvBoards,
+  bulkInsertTvScreens,
+} from "./shared/bulk-store";
 import { monthlyBuckets, series } from "./shared/history";
 
-// Seed grande cobrindo TODO o fluxo do aluno: lead (Marketing) → venda (Comercial) → pagamento
-// (Financeiro) → matrícula (Secretaria, por instituição/turma/curso). Gera ~11 meses de histórico
-// mensal por métrica, então os gráficos de tendência e as telas de TV têm o que mostrar.
-// Idempotente: pula setor já existente pelo nome.
+// Seed grande — mocka o plugin INTEIRO: 4 setores do funil do aluno (Marketing → Comercial →
+// Financeiro → Secretaria), CADA UM com os grupos Colégio Erasto Gaertner e Faculdade Fidelis;
+// métricas e metas por grupo; turmas do colégio e cursos da faculdade como metas detalhadas;
+// ~11 meses de histórico mensal; e 2 painéis de TV já montados com todas as espécies de tela.
+// Idempotente: se "Secretaria" já tem métricas, é no-op. Reaproveita setor vazio de mesmo nome
+// (ex: vindo do seed "example").
 const SEED_ACTOR_ID = "system-seed";
+const YEAR_START = "2026-01-01";
+const YEAR_END = "2026-12-31";
+const ERASTO_LOGO = "2078515e-4c28-45cd-adf9-d92ed5bd5c34";
+const FIDELIS_LOGO = "9da8e513-7cda-424a-b17b-1ffbddfeef92";
 
-const ERASTO_LOGO_MEDIA_ID = "2078515e-4c28-45cd-adf9-d92ed5bd5c34";
-const FIDELIS_LOGO_MEDIA_ID = "9da8e513-7cda-424a-b17b-1ffbddfeef92";
+const uuid = () => crypto.randomUUID();
+const token = () => crypto.randomUUID().replace(/-/g, "");
 
-type DefSpec = {
+type DefInput = {
+  groupId: string | null;
   label: string;
   unit: MetricUnit;
   aggregation: MetricAggregation;
@@ -33,27 +41,131 @@ type DefSpec = {
   jitter: number;
 };
 
-type TargetSpec = {
-  label: string;
-  value: number;
-  inputs: { def: string; weight?: number; as: TargetClassification }[];
-};
+class Builder {
+  sectors: Parameters<typeof bulkInsertSectors>[0] = [];
+  groups: Parameters<typeof bulkInsertSectorGroups>[0] = [];
+  definitions: Parameters<typeof bulkInsertMetricDefinitions>[0] = [];
+  targets: Parameters<typeof bulkInsertTargets>[0] = [];
+  targetInputs: Parameters<typeof bulkInsertTargetInputs>[0] = [];
+  values: Parameters<typeof bulkInsertMetricValues>[0] = [];
+  boards: Parameters<typeof bulkInsertTvBoards>[0] = [];
+  screens: Parameters<typeof bulkInsertTvScreens>[0] = [];
 
-type GroupSpec = { label: string; logoMediaId: string; defs: DefSpec[]; targets: TargetSpec[] };
+  private buckets = monthlyBuckets();
+  private usedKeys = new Map<string, Set<string>>(); // scopeKey -> keys
+  private counters = new Map<string, number>();
 
-type SectorSpec = {
-  name: string;
-  icon: string;
-  description: string;
-  defs: DefSpec[];
-  targets: TargetSpec[];
-  groups?: GroupSpec[];
-};
+  private nextKey(scope: string, label: string): string {
+    const set = this.usedKeys.get(scope) ?? new Set<string>();
+    this.usedKeys.set(scope, set);
+    const base = slugify(label) || "item";
+    let candidate = base;
+    let n = 1;
+    while (set.has(candidate)) {
+      n += 1;
+      candidate = `${base}-${n}`;
+    }
+    set.add(candidate);
+    return candidate;
+  }
 
-const YEAR_START = "2026-01-01";
-const YEAR_END = "2026-12-31";
+  private nextPos(scope: string): number {
+    const current = this.counters.get(scope) ?? 0;
+    this.counters.set(scope, current + 1);
+    return current;
+  }
 
-// --- Turmas do colégio e cursos da faculdade ---
+  sector(input: { id?: string; name: string; description: string; icon: string; isNew: boolean }): string {
+    const id = input.id ?? uuid();
+    if (input.isNew) {
+      this.sectors.push({
+        id,
+        key: this.nextKey("sectors", input.name),
+        name: input.name,
+        description: input.description,
+        icon: input.icon,
+        position: this.nextPos("sectors:pos"),
+      });
+    }
+    return id;
+  }
+
+  group(sectorId: string, label: string, logoMediaId: string): string {
+    const id = uuid();
+    this.groups.push({
+      id,
+      sectorId,
+      key: this.nextKey(`groups:${sectorId}`, label),
+      label,
+      logoMediaId,
+      position: this.nextPos(`groups:pos:${sectorId}`),
+    });
+    return id;
+  }
+
+  definition(sectorId: string, def: DefInput): string {
+    const id = uuid();
+    this.definitions.push({
+      id,
+      sectorId,
+      groupId: def.groupId,
+      key: this.nextKey(`defs:${sectorId}`, def.label),
+      label: def.label,
+      description: null,
+      unit: def.unit,
+      aggregation: def.aggregation,
+      granularity: "monthly",
+      direction: def.direction ?? "up_good",
+      position: this.nextPos(`defs:pos:${sectorId}`),
+    });
+    const round = def.unit !== "percent";
+    const points = series({ key: `${sectorId}:${def.label}`, base: def.base, monthlyGrowth: def.growth, jitter: def.jitter, round });
+    this.buckets.forEach((periodStart, i) => {
+      this.values.push({ definitionId: id, periodStart, value: points[i], enteredByUserId: SEED_ACTOR_ID });
+    });
+    return id;
+  }
+
+  target(input: {
+    sectorId: string;
+    groupId: string | null;
+    label: string;
+    value: number;
+    inputs: { definitionId: string; weight?: number; as: TargetClassification }[];
+  }): string {
+    const id = uuid();
+    this.targets.push({
+      id,
+      sectorId: input.sectorId,
+      groupId: input.groupId,
+      label: input.label,
+      description: null,
+      targetValue: input.value,
+      periodStart: YEAR_START,
+      periodEnd: YEAR_END,
+      onTrackThreshold: 0.85,
+      position: this.nextPos(`targets:pos:${input.sectorId}`),
+    });
+    input.inputs.forEach((line, i) => {
+      this.targetInputs.push({
+        targetId: id,
+        definitionId: line.definitionId,
+        weight: line.weight ?? 1,
+        classification: line.as,
+        position: i,
+      });
+    });
+    return id;
+  }
+
+  board(label: string, screens: Omit<Parameters<typeof bulkInsertTvScreens>[0][number], "id" | "boardId" | "position">[]): void {
+    const id = uuid();
+    this.boards.push({ id, token: token(), label });
+    screens.forEach((screen, i) => this.screens.push({ ...screen, id: uuid(), boardId: id, position: i }));
+  }
+}
+
+// --- Turmas e cursos ---
 const ERASTO_TURMAS: { label: string; goal: number; base: number }[] = [
   { label: "Nível II", goal: 24, base: 15 },
   { label: "Nível III", goal: 26, base: 17 },
@@ -82,252 +194,161 @@ const FIDELIS_CURSOS: { label: string; goal: number; base: number }[] = [
   { label: "Direito", goal: 200, base: 128 },
 ];
 
-function turmaDefs(items: { label: string; base: number }[]): DefSpec[] {
-  return items.map((item) => ({
-    label: `Matriculados — ${item.label}`,
-    unit: "count" as const,
-    aggregation: "last" as const,
-    direction: "up_good" as const,
-    base: item.base,
-    growth: 0.03,
-    jitter: 0.08,
-  }));
-}
+type GroupCtx = { colegio: string; fidelis: string };
 
-function turmaTargets(items: { label: string; goal: number }[]): TargetSpec[] {
-  return items.map((item) => ({
-    label: item.label,
-    value: item.goal,
-    inputs: [{ def: `Matriculados — ${item.label}`, as: "realized" }],
-  }));
-}
-
-const SECTORS: SectorSpec[] = [
-  {
-    name: "Marketing",
-    icon: "megaphone",
-    description: "Topo do funil: alcance, geração e qualificação de leads.",
-    defs: [
-      { label: "Alcance das campanhas", unit: "count", aggregation: "sum", base: 42000, growth: 0.04, jitter: 0.18 },
-      { label: "Leads captados", unit: "count", aggregation: "sum", base: 820, growth: 0.035, jitter: 0.14 },
-      { label: "Leads qualificados (MQL)", unit: "count", aggregation: "sum", base: 300, growth: 0.03, jitter: 0.12 },
-      { label: "Investimento em mídia", unit: "currency_brl", aggregation: "sum", base: 68000, growth: 0.02, jitter: 0.1 },
-      { label: "Custo por lead", unit: "currency_brl", aggregation: "average", direction: "down_good", base: 83, growth: -0.01, jitter: 0.09 },
-      { label: "Conversão lead → MQL", unit: "percent", aggregation: "average", base: 36, growth: 0.004, jitter: 0.06 },
-    ],
-    targets: [
-      { label: "Leads qualificados 2026", value: 3600, inputs: [{ def: "Leads qualificados (MQL)", as: "realized" }] },
-    ],
-  },
-  {
-    name: "Comercial",
-    icon: "trending-up",
-    description: "Meio do funil: oportunidades, propostas e matrículas vendidas.",
-    defs: [
-      { label: "Oportunidades abertas", unit: "count", aggregation: "sum", base: 224, growth: 0.03, jitter: 0.12 },
-      { label: "Propostas enviadas", unit: "count", aggregation: "sum", base: 182, growth: 0.028, jitter: 0.11 },
-      { label: "Matrículas vendidas", unit: "count", aggregation: "sum", base: 132, growth: 0.03, jitter: 0.12 },
-      { label: "Ticket médio", unit: "currency_brl", aggregation: "average", base: 1180, growth: 0.006, jitter: 0.05 },
-      { label: "Conversão MQL → venda", unit: "percent", aggregation: "average", base: 44, growth: 0.003, jitter: 0.06 },
-      { label: "Ciclo de venda (dias)", unit: "days", aggregation: "average", direction: "down_good", base: 19, growth: -0.008, jitter: 0.1 },
-    ],
-    targets: [{ label: "Vendas 2026", value: 1300, inputs: [{ def: "Matrículas vendidas", as: "realized" }] }],
-  },
-  {
-    name: "Financeiro",
-    icon: "wallet",
-    description: "Cobrança, confirmação de pagamento e receita reconhecida.",
-    defs: [
-      { label: "Boletos emitidos", unit: "count", aggregation: "sum", base: 138, growth: 0.028, jitter: 0.1 },
-      { label: "Pagamentos confirmados", unit: "count", aggregation: "sum", base: 118, growth: 0.03, jitter: 0.11 },
-      { label: "Receita reconhecida", unit: "currency_brl", aggregation: "sum", base: 690000, growth: 0.03, jitter: 0.12 },
-      { label: "Inadimplência", unit: "percent", aggregation: "average", direction: "down_good", base: 11.5, growth: -0.01, jitter: 0.08 },
-      { label: "Descontos concedidos", unit: "currency_brl", aggregation: "sum", direction: "down_good", base: 42000, growth: 0.01, jitter: 0.12 },
-      { label: "Ticket médio recebido", unit: "currency_brl", aggregation: "average", base: 1090, growth: 0.005, jitter: 0.05 },
-    ],
-    targets: [
-      { label: "Receita 2026", value: 9000000, inputs: [{ def: "Receita reconhecida", as: "realized" }] },
-      { label: "Pagamentos confirmados 2026", value: 1200, inputs: [{ def: "Pagamentos confirmados", as: "realized" }] },
-    ],
-  },
-  {
-    name: "Secretaria",
-    icon: "clipboard-list",
-    description: "Fim do funil: documentação, contratos e matrícula efetivada por instituição.",
-    defs: [
-      { label: "Documentos pendentes", unit: "count", aggregation: "last", direction: "down_good", base: 46, growth: -0.02, jitter: 0.16 },
-      { label: "Contratos assinados", unit: "count", aggregation: "sum", base: 112, growth: 0.03, jitter: 0.11 },
-      { label: "Matrículas efetivadas", unit: "count", aggregation: "sum", base: 110, growth: 0.03, jitter: 0.11 },
-    ],
-    targets: [
-      { label: "Matrículas efetivadas 2026", value: 1250, inputs: [{ def: "Matrículas efetivadas", as: "realized" }] },
-    ],
-    groups: [
-      {
-        label: "Colégio Erasto Gaertner",
-        logoMediaId: ERASTO_LOGO_MEDIA_ID,
-        defs: [
-          { label: "Rematrículas — Erasto", unit: "count", aggregation: "last", direction: "up_good", base: 300, growth: 0.02, jitter: 0.07 },
-          { label: "Novas matrículas — Erasto", unit: "count", aggregation: "last", direction: "up_good", base: 96, growth: 0.03, jitter: 0.1 },
-          ...turmaDefs(ERASTO_TURMAS),
-        ],
-        targets: [
-          {
-            label: "Matrículas Erasto Gaertner 2026",
-            value: ERASTO_TURMAS.reduce((sum, turma) => sum + turma.goal, 0),
-            inputs: [
-              { def: "Rematrículas — Erasto", as: "realized" },
-              { def: "Novas matrículas — Erasto", as: "realized" },
-            ],
-          },
-          ...turmaTargets(ERASTO_TURMAS),
-        ],
-      },
-      {
-        label: "Faculdade Fidelis",
-        logoMediaId: FIDELIS_LOGO_MEDIA_ID,
-        defs: [
-          { label: "Rematrículas — Fidelis", unit: "count", aggregation: "last", direction: "up_good", base: 470, growth: 0.02, jitter: 0.07 },
-          { label: "Novas matrículas — Fidelis", unit: "count", aggregation: "last", direction: "up_good", base: 236, growth: 0.03, jitter: 0.1 },
-          ...turmaDefs(FIDELIS_CURSOS),
-        ],
-        targets: [
-          {
-            label: "Matrículas Faculdade Fidelis 2026",
-            value: FIDELIS_CURSOS.reduce((sum, curso) => sum + curso.goal, 0),
-            inputs: [
-              { def: "Rematrículas — Fidelis", as: "realized" },
-              { def: "Novas matrículas — Fidelis", as: "realized" },
-            ],
-          },
-          ...turmaTargets(FIDELIS_CURSOS),
-        ],
-      },
-    ],
-  },
-];
-
-async function seedDefsAndValues(
-  sectorId: string,
-  groupId: string | null,
-  defs: DefSpec[],
-  buckets: string[],
-  valueRows: { definitionId: string; periodStart: string; value: number; enteredByUserId: string }[],
-): Promise<OperationResult<Map<string, string>>> {
-  const idByLabel = new Map<string, string>();
-  for (const spec of defs) {
-    const created = await createMetricDefinition({
-      sectorId,
-      groupId,
-      label: spec.label,
-      unit: spec.unit,
-      aggregation: spec.aggregation,
-      granularity: "monthly",
-      direction: spec.direction ?? "up_good",
-      actorId: SEED_ACTOR_ID,
-    });
-    if (!created.success) return { success: false, error: created.error };
-    idByLabel.set(spec.label, created.data.id);
-
-    const points = series({
-      key: `${sectorId}:${spec.label}`,
-      base: spec.base,
-      monthlyGrowth: spec.growth,
-      jitter: spec.jitter,
-      round: spec.unit !== "percent" && spec.unit !== "currency_brl" ? true : spec.unit === "currency_brl",
-      months: buckets.length,
-    });
-    buckets.forEach((periodStart, index) => {
-      valueRows.push({ definitionId: created.data.id, periodStart, value: points[index], enteredByUserId: SEED_ACTOR_ID });
-    });
+// Cada setor recebe o MESMO conjunto de métricas em duas versões (uma por grupo), com bases
+// diferentes pra dar contraste colégio × faculdade.
+function buildMarketing(b: Builder, sectorId: string, g: GroupCtx): void {
+  for (const [gid, tag, mult] of [
+    [g.colegio, "Colégio", 0.72] as const,
+    [g.fidelis, "Faculdade", 1] as const,
+  ]) {
+    const leads = b.definition(sectorId, { groupId: gid, label: `Leads captados — ${tag}`, unit: "count", aggregation: "sum", base: 520 * mult, growth: 0.035, jitter: 0.14 });
+    const mql = b.definition(sectorId, { groupId: gid, label: `Leads qualificados (MQL) — ${tag}`, unit: "count", aggregation: "sum", base: 200 * mult, growth: 0.03, jitter: 0.12 });
+    b.definition(sectorId, { groupId: gid, label: `Custo por lead — ${tag}`, unit: "currency_brl", aggregation: "average", direction: "down_good", base: 88 - 8 * mult, growth: -0.01, jitter: 0.09 });
+    b.definition(sectorId, { groupId: gid, label: `Conversão lead → MQL — ${tag}`, unit: "percent", aggregation: "average", base: 36 + 2 * mult, growth: 0.004, jitter: 0.06 });
+    void leads;
+    b.target({ sectorId, groupId: gid, label: `MQL 2026 — ${tag}`, value: Math.round(2400 * mult), inputs: [{ definitionId: mql, as: "realized" }] });
   }
-  return { success: true, data: idByLabel };
 }
 
-async function seedTargets(
-  sectorId: string,
-  groupId: string | null,
-  targets: TargetSpec[],
-  defIds: Map<string, string>,
-): Promise<OperationResult<void>> {
-  for (const spec of targets) {
-    const inputs = spec.inputs.map((input) => ({
-      definitionId: defIds.get(input.def) ?? "",
-      weight: input.weight ?? 1,
-      classification: input.as,
-    }));
-    if (inputs.some((input) => input.definitionId === "")) {
-      return { success: false, error: { code: "company-metrics.seed.fluxo.bad_target_input", message: `Meta "${spec.label}" referencia métrica inexistente.` } };
+function buildComercial(b: Builder, sectorId: string, g: GroupCtx): void {
+  for (const [gid, tag, mult] of [
+    [g.colegio, "Colégio", 0.8] as const,
+    [g.fidelis, "Faculdade", 1] as const,
+  ]) {
+    b.definition(sectorId, { groupId: gid, label: `Oportunidades abertas — ${tag}`, unit: "count", aggregation: "sum", base: 128 * mult, growth: 0.03, jitter: 0.12 });
+    b.definition(sectorId, { groupId: gid, label: `Propostas enviadas — ${tag}`, unit: "count", aggregation: "sum", base: 104 * mult, growth: 0.028, jitter: 0.11 });
+    const vendas = b.definition(sectorId, { groupId: gid, label: `Matrículas vendidas — ${tag}`, unit: "count", aggregation: "sum", base: 74 * mult, growth: 0.03, jitter: 0.12 });
+    b.definition(sectorId, { groupId: gid, label: `Ticket médio — ${tag}`, unit: "currency_brl", aggregation: "average", base: 1380 * (tag === "Colégio" ? 0.71 : 1), growth: 0.006, jitter: 0.05 });
+    b.target({ sectorId, groupId: gid, label: `Vendas 2026 — ${tag}`, value: Math.round(760 * mult), inputs: [{ definitionId: vendas, as: "realized" }] });
+  }
+}
+
+function buildFinanceiro(b: Builder, sectorId: string, g: GroupCtx): void {
+  for (const [gid, tag, mult] of [
+    [g.colegio, "Colégio", 0.62] as const,
+    [g.fidelis, "Faculdade", 1] as const,
+  ]) {
+    b.definition(sectorId, { groupId: gid, label: `Boletos emitidos — ${tag}`, unit: "count", aggregation: "sum", base: 78 * mult, growth: 0.028, jitter: 0.1 });
+    const pagos = b.definition(sectorId, { groupId: gid, label: `Pagamentos confirmados — ${tag}`, unit: "count", aggregation: "sum", base: 66 * mult, growth: 0.03, jitter: 0.11 });
+    const receita = b.definition(sectorId, { groupId: gid, label: `Receita reconhecida — ${tag}`, unit: "currency_brl", aggregation: "sum", base: 520000 * mult, growth: 0.03, jitter: 0.12 });
+    b.definition(sectorId, { groupId: gid, label: `Inadimplência — ${tag}`, unit: "percent", aggregation: "average", direction: "down_good", base: 12.5 - 3 * mult, growth: -0.01, jitter: 0.08 });
+    void pagos;
+    b.target({ sectorId, groupId: gid, label: `Receita 2026 — ${tag}`, value: Math.round(6500000 * mult), inputs: [{ definitionId: receita, as: "realized" }] });
+  }
+}
+
+function buildSecretaria(b: Builder, sectorId: string, g: GroupCtx): { spotlightColegio: string; spotlightFidelis: string; firstTurmaTarget: string } {
+  const spotlight: Record<string, string> = {};
+  let firstTurmaTarget = "";
+
+  const groups = [
+    { gid: g.colegio, tag: "Colégio", mult: 0.62, items: ERASTO_TURMAS, kind: "turma" },
+    { gid: g.fidelis, tag: "Faculdade", mult: 1, items: FIDELIS_CURSOS, kind: "curso" },
+  ] as const;
+
+  for (const grp of groups) {
+    b.definition(sectorId, { groupId: grp.gid, label: `Documentos pendentes — ${grp.tag}`, unit: "count", aggregation: "last", direction: "down_good", base: 28 * grp.mult, growth: -0.02, jitter: 0.16 });
+    b.definition(sectorId, { groupId: grp.gid, label: `Contratos assinados — ${grp.tag}`, unit: "count", aggregation: "sum", base: 62 * grp.mult, growth: 0.03, jitter: 0.11 });
+    const remat = b.definition(sectorId, { groupId: grp.gid, label: `Rematrículas — ${grp.tag}`, unit: "count", aggregation: "last", base: 470 * grp.mult, growth: 0.02, jitter: 0.07 });
+    const novas = b.definition(sectorId, { groupId: grp.gid, label: `Novas matrículas — ${grp.tag}`, unit: "count", aggregation: "last", base: 236 * grp.mult, growth: 0.03, jitter: 0.1 });
+    const efet = b.definition(sectorId, { groupId: grp.gid, label: `Matrículas efetivadas — ${grp.tag}`, unit: "count", aggregation: "sum", base: 62 * grp.mult, growth: 0.03, jitter: 0.11 });
+    spotlight[grp.tag] = efet;
+
+    b.target({
+      sectorId,
+      groupId: grp.gid,
+      label: `Matrículas 2026 — ${grp.tag}`,
+      value: grp.items.reduce((sum, item) => sum + item.goal, 0),
+      inputs: [
+        { definitionId: remat, as: "realized" },
+        { definitionId: novas, as: "realized" },
+      ],
+    });
+
+    for (const item of grp.items) {
+      const def = b.definition(sectorId, { groupId: grp.gid, label: `Matriculados — ${item.label}`, unit: "count", aggregation: "last", base: item.base, growth: 0.03, jitter: 0.08 });
+      const targetId = b.target({ sectorId, groupId: grp.gid, label: `${item.label} (${grp.tag})`, value: item.goal, inputs: [{ definitionId: def, as: "realized" }] });
+      if (!firstTurmaTarget) firstTurmaTarget = targetId;
     }
-    const created = await createTarget({
-      sectorId,
-      groupId,
-      label: spec.label,
-      targetValue: spec.value,
-      periodStart: YEAR_START,
-      periodEnd: YEAR_END,
-      inputs,
-      actorId: SEED_ACTOR_ID,
-    });
-    if (!created.success) return { success: false, error: created.error };
   }
-  return { success: true, data: undefined };
+
+  return { spotlightColegio: spotlight.Colégio, spotlightFidelis: spotlight.Faculdade, firstTurmaTarget };
 }
 
 export async function seedCompanyMetricsFluxo(): Promise<OperationResult<void>> {
   const existing = await listSectors({ includeArchived: true });
   if (!existing.success) return { success: false, error: existing.error };
-  const existingByName = new Map(existing.data.map((sector) => [sector.name.toLowerCase(), sector.id]));
+  const idByName = new Map(existing.data.map((s) => [s.name.toLowerCase(), s.id]));
 
-  const buckets = monthlyBuckets();
-
-  for (const spec of SECTORS) {
-    // Reaproveita um setor de mesmo nome se ele existir e estiver VAZIO (ex: veio do seed
-    // "example"); pula se já tem métricas; cria do zero se não existe.
-    let sectorId = existingByName.get(spec.name.toLowerCase()) ?? null;
-    if (sectorId) {
-      const defs = await listMetricDefinitions({ sectorId, includeArchived: true });
-      if (defs.success && defs.data.length > 0) continue;
-    } else {
-      const sector = await createSector({
-        name: spec.name,
-        description: spec.description,
-        icon: spec.icon,
-        actorId: SEED_ACTOR_ID,
-      });
-      if (!sector.success) return { success: false, error: sector.error };
-      sectorId = sector.data.id;
-    }
-
-    const valueRows: { definitionId: string; periodStart: string; value: number; enteredByUserId: string }[] = [];
-
-    const sectorDefIds = await seedDefsAndValues(sectorId, null, spec.defs, buckets, valueRows);
-    if (!sectorDefIds.success) return { success: false, error: sectorDefIds.error };
-
-    const allDefIds = new Map(sectorDefIds.data);
-
-    for (const group of spec.groups ?? []) {
-      const createdGroup = await createSectorGroup({
-        sectorId,
-        label: group.label,
-        logoMediaId: group.logoMediaId,
-        actorId: SEED_ACTOR_ID,
-      });
-      if (!createdGroup.success) return { success: false, error: createdGroup.error };
-
-      const groupDefIds = await seedDefsAndValues(sectorId, createdGroup.data.id, group.defs, buckets, valueRows);
-      if (!groupDefIds.success) return { success: false, error: groupDefIds.error };
-      for (const [label, id] of groupDefIds.data) allDefIds.set(label, id);
-
-      const groupTargets = await seedTargets(sectorId, createdGroup.data.id, group.targets, groupDefIds.data);
-      if (!groupTargets.success) return { success: false, error: groupTargets.error };
-    }
-
-    const sectorTargets = await seedTargets(sectorId, null, spec.targets, allDefIds);
-    if (!sectorTargets.success) return { success: false, error: sectorTargets.error };
-
-    await bulkInsertMetricValues(valueRows);
+  // Já semeado? (Secretaria com métricas)
+  const secretariaId = idByName.get("secretaria");
+  if (secretariaId) {
+    const defs = await listMetricDefinitions({ sectorId: secretariaId, includeArchived: true });
+    if (defs.success && defs.data.length > 0) return { success: true, data: undefined };
   }
+
+  const b = new Builder();
+
+  const specs = [
+    { name: "Marketing", description: "Topo do funil: alcance, geração e qualificação de leads por instituição.", icon: "megaphone", build: buildMarketing },
+    { name: "Comercial", description: "Meio do funil: oportunidades, propostas e matrículas vendidas por instituição.", icon: "trending-up", build: buildComercial },
+    { name: "Financeiro", description: "Cobrança, confirmação de pagamento e receita por instituição.", icon: "wallet", build: buildFinanceiro },
+  ] as const;
+
+  const sectorIds: Record<string, string> = {};
+
+  for (const spec of specs) {
+    const existingId = idByName.get(spec.name.toLowerCase());
+    const id = b.sector({ id: existingId, name: spec.name, description: spec.description, icon: spec.icon, isNew: !existingId });
+    sectorIds[spec.name] = id;
+    const g: GroupCtx = {
+      colegio: b.group(id, "Colégio Erasto Gaertner", ERASTO_LOGO),
+      fidelis: b.group(id, "Faculdade Fidelis", FIDELIS_LOGO),
+    };
+    spec.build(b, id, g);
+  }
+
+  const secId = b.sector({
+    id: secretariaId,
+    name: "Secretaria",
+    description: "Fim do funil: documentação, contratos e matrícula efetivada por instituição, turma e curso.",
+    icon: "clipboard-list",
+    isNew: !secretariaId,
+  });
+  sectorIds.Secretaria = secId;
+  const secGroups: GroupCtx = {
+    colegio: b.group(secId, "Colégio Erasto Gaertner", ERASTO_LOGO),
+    fidelis: b.group(secId, "Faculdade Fidelis", FIDELIS_LOGO),
+  };
+  const { spotlightColegio, spotlightFidelis, firstTurmaTarget } = buildSecretaria(b, secId, secGroups);
+
+  // --- Painéis de TV (mocka as telas também) ---
+  b.board("Painel geral", [
+    { kind: "overview", sectorId: null, targetId: null, definitionId: null, dwellSeconds: 18 },
+    { kind: "sector_targets", sectorId: sectorIds.Marketing, targetId: null, definitionId: null, dwellSeconds: 18 },
+    { kind: "sector_targets", sectorId: sectorIds.Comercial, targetId: null, definitionId: null, dwellSeconds: 18 },
+    { kind: "sector_targets", sectorId: sectorIds.Financeiro, targetId: null, definitionId: null, dwellSeconds: 18 },
+    { kind: "group_summary", sectorId: sectorIds.Secretaria, targetId: null, definitionId: null, dwellSeconds: 24 },
+  ]);
+  b.board("Recepção — matrículas", [
+    { kind: "group_summary", sectorId: sectorIds.Secretaria, targetId: null, definitionId: null, dwellSeconds: 24 },
+    { kind: "sector_targets", sectorId: sectorIds.Secretaria, targetId: null, definitionId: null, dwellSeconds: 20 },
+    { kind: "metric_spotlight", sectorId: null, targetId: null, definitionId: spotlightColegio, dwellSeconds: 15 },
+    { kind: "metric_spotlight", sectorId: null, targetId: null, definitionId: spotlightFidelis, dwellSeconds: 15 },
+    { kind: "target_board", sectorId: null, targetId: firstTurmaTarget, definitionId: null, dwellSeconds: 15 },
+  ]);
+
+  // --- Grava tudo (poucas queries, em ordem de dependência) ---
+  await bulkInsertSectors(b.sectors);
+  await bulkInsertSectorGroups(b.groups);
+  await bulkInsertMetricDefinitions(b.definitions);
+  await bulkInsertTargets(b.targets);
+  await bulkInsertTargetInputs(b.targetInputs);
+  await bulkInsertMetricValues(b.values);
+  await bulkInsertTvBoards(b.boards);
+  await bulkInsertTvScreens(b.screens);
 
   return { success: true, data: undefined };
 }
