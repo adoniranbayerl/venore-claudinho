@@ -48,15 +48,13 @@ const CSS = `
 }
 `;
 
-// href + precedence => React 19 trata como folha de estilo içável: move pra <head>, deduplica
-// pelo href (renderizar <ChartTokens/> em 3 páginas = um só <style>), e aceita string como
-// filho (sem dangerouslySetInnerHTML, sem o aviso "script/style tag" do dev overlay).
+// <style> simples com filho string — mesmo padrão de birthdays/routes/public/
+// birthdays-public-board.tsx e broadcast/components/output/standby-screen.tsx. Um <style> em
+// qualquer posição do documento aplica as custom properties globalmente (elas cascateiam de
+// qualquer lugar); renderizar em 3 rotas distintas é inofensivo (as rotas nunca montam juntas, e
+// `:root{}` duplicado idêntico não custa nada).
 export function ChartTokens() {
-  return (
-    <style href="company-metrics:chart-tokens" precedence="high">
-      {CSS}
-    </style>
-  );
+  return <style>{CSS}</style>;
 }
 
 // Cor de série por índice (0-based), cíclica em 8. Usada via style inline (não via className, que
