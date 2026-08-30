@@ -48,6 +48,20 @@ export const academyManifest: PluginManifest = {
   ],
   seeds: [
     { key: "example", label: "Dados de exemplo", description: "Um curso de exemplo com três aulas." },
+    {
+      key: "teoria-musical",
+      label: "Curso: Teoria Musical na Prática",
+      description:
+        "Curso público de 19 aulas (ritmo, intervalos, harmonia funcional) com seções de texto, " +
+        "exemplos de partitura, perguntas de treino de ouvido e atividades — ver docs/curso-teoria-musical.md.",
+    },
+    {
+      key: "jesus-cristo-mudou-meu-viver",
+      label: "Curso: Jesus Cristo mudou meu viver (Lá maior)",
+      description:
+        "Curso público de 8 aulas destrinchando uma música: origem, andamento, groove, melodia, " +
+        "harmonia, vozes e arranjo — ver docs/curso-jesus-cristo-mudou-meu-viver.md.",
+    },
   ],
   blocks: [
     { key: "academy.course.list", label: "Academy — Lista de cursos" },
@@ -56,5 +70,7 @@ export const academyManifest: PluginManifest = {
     { key: "academy.course.progress", label: "Academy — Progresso do curso" },
     { key: "academy.course.lesson-trail", label: "Academy — Trilha de lições" },
     { key: "academy.course.dashboard-chart", label: "Academy — Gráfico de progresso do curso" },
+    { key: "academy.notation.sheet", label: "Academy — Partitura interativa" },
+    { key: "academy.progression", label: "Academy — Progressão de acordes" },
   ],
 };

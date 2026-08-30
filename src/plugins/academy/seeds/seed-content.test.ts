@@ -1,0 +1,74 @@
+import { describe, expect, it } from "vitest";
+import { parseAbcToComposition } from "../components/notation-abc-parse";
+import { validateQuizAudioShape } from "../shared/quiz-audio";
+import { MUSICA_LESSONS } from "./jesus-cristo-mudou-meu-viver.lessons";
+import type { SeedLesson } from "./shared/course-builder";
+import { TEORIA_LESSONS } from "./teoria-musical.lessons";
+
+// Seeds são conteúdo, mas um ABC inválido vira bloco quebrado silenciosamente e um correctIndex
+// fora do range faz addQuizQuestion recusar a pergunta inteira. Esta suíte pega os dois antes do
+// install.
+
+function collectAbc(lessons: SeedLesson[]): { label: string; abc: string }[] {
+  const out: { label: string; abc: string }[] = [];
+  lessons.forEach((lesson) => {
+    lesson.examples?.forEach((example, index) => out.push({ label: `${lesson.title} — exemplo ${index + 1}`, abc: example.abc }));
+    lesson.sections.forEach((section) =>
+      section.blocks?.forEach((block, index) => {
+        if (block.kind === "notation") out.push({ label: `${lesson.title} — bloco ${index + 1}`, abc: block.abc });
+      }),
+    );
+    lesson.quiz?.forEach((quiz, index) => {
+      if (quiz.promptAbc) out.push({ label: `${lesson.title} — quiz ${index + 1} (enunciado)`, abc: quiz.promptAbc });
+      quiz.optionAbcs?.forEach((abc, optionIndex) => {
+        if (abc) out.push({ label: `${lesson.title} — quiz ${index + 1} opção ${optionIndex + 1}`, abc });
+      });
+    });
+  });
+  return out;
+}
+
+describe.each([
+  ["Teoria Musical", TEORIA_LESSONS],
+  ["Jesus Cristo mudou meu viver", MUSICA_LESSONS],
+])("seed %s", (_name, lessons) => {
+  it("toda notação ABC dos exemplos, blocos e quizzes é válida", () => {
+    for (const { label, abc } of collectAbc(lessons)) {
+      const result = parseAbcToComposition(abc);
+      expect(result, `ABC inválido em: ${label}`).not.toHaveProperty("error");
+    }
+  });
+
+  it("todo quiz tem correctIndex dentro do range e forma de áudio consistente", () => {
+    lessons.forEach((lesson) => {
+      lesson.quiz?.forEach((quiz, index) => {
+        const where = `${lesson.title} — quiz ${index + 1}`;
+        expect(quiz.options.length, `${where}: precisa de ao menos 2 opções`).toBeGreaterThanOrEqual(2);
+        expect(quiz.correctIndex, `${where}: correctIndex fora do range`).toBeGreaterThanOrEqual(0);
+        expect(quiz.correctIndex, `${where}: correctIndex fora do range`).toBeLessThan(quiz.options.length);
+        if (quiz.promptAbc || quiz.optionAbcs) {
+          const error = validateQuizAudioShape({
+            questionKind: "audio",
+            options: quiz.options,
+            optionNotations: quiz.optionAbcs ?? null,
+            promptNotation: quiz.promptAbc ?? null,
+          });
+          expect(error, `${where}: ${error?.message ?? ""}`).toBeNull();
+        }
+      });
+    });
+  });
+
+  it("toda aula com atividade tem instruções não vazias", () => {
+    lessons.forEach((lesson) => {
+      if (lesson.activity) {
+        expect(lesson.activity.instructions.trim().length, lesson.title).toBeGreaterThan(0);
+      }
+    });
+  });
+});
+
+it("os dois cursos juntos têm a contagem de aulas esperada", () => {
+  expect(TEORIA_LESSONS).toHaveLength(19);
+  expect(MUSICA_LESSONS).toHaveLength(8);
+});
