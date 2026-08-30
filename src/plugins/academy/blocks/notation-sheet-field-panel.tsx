@@ -2,7 +2,7 @@
 
 import type { Block, BlockDefinition } from "@/contexts/cms";
 import { NotationEditor } from "../components/notation-editor";
-import type { KeySignature, NotationToken, TimeSignature } from "../components/notation-abc";
+import type { KeySignature, NotationToken, NotationVoice, TimeSignature } from "../components/notation-abc";
 
 function readTokens(data: Block["data"]): NotationToken[] {
   const value = data.tokens;
@@ -32,6 +32,23 @@ function readBpm(data: Block["data"]): number {
 
 function readShowNoteNames(data: Block["data"]): boolean {
   return data.showNoteNames === true;
+}
+
+function readLyrics(data: Block["data"]): string[] | undefined {
+  const value = data.lyrics;
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : undefined;
+}
+
+function readVoices(data: Block["data"]): NotationVoice[] | undefined {
+  const value = data.voices;
+  if (!Array.isArray(value)) return undefined;
+  const voices = value
+    .filter((entry): entry is { name?: unknown; tokens?: unknown } => typeof entry === "object" && entry !== null)
+    .map((entry) => ({
+      name: typeof entry.name === "string" ? entry.name : undefined,
+      tokens: Array.isArray(entry.tokens) ? (entry.tokens as NotationToken[]) : [],
+    }));
+  return voices.length > 0 ? voices : undefined;
 }
 
 // Painel custom (registrado em field-panels.ts) em vez do genérico BlockFieldsPanel: "tokens"
@@ -76,8 +93,10 @@ export function NotationSheetFieldPanel({
               timeSignature: readTimeSignature(block.data),
               bpm: readBpm(block.data),
               showNoteNames: readShowNoteNames(block.data),
+              lyrics: readLyrics(block.data),
+              voices: readVoices(block.data),
             }}
-            onChange={(next) => onChange({ ...block.data, ...next })}
+            onChange={(next) => onChange({ ...block.data, ...next, voices: next.voices ?? [] })}
           />
         </div>
       </div>

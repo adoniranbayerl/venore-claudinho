@@ -62,12 +62,24 @@ export type NotationToken =
 // (synth e TimingCallbacks) em todo lugar que reproduz a melodia. showNoteNames é global (liga o
 // nome da nota embaixo de TODA nota, não por nota individual) — diferente de `chord`, que é uma
 // escolha por nota.
+// Voz adicional (2ª voz, baixo vocal, contracanto…) na mesma pauta. `tokens` de nível raiz da
+// composição é sempre a voz 1; `voices` são só as vozes 2..N. Sem `voices` (ou vazio), a saída ABC
+// é exatamente a de antes — sem `V:` nenhum.
+export type NotationVoice = { name?: string; tokens: NotationToken[] };
+
 export type NotationComposition = {
   tokens: NotationToken[];
   key: KeySignature;
   timeSignature: TimeSignature;
   bpm: number;
   showNoteNames: boolean;
+  // Letra sob a pauta — uma entrada por verso, cada string é o corpo de uma linha `w:` do ABC
+  // (sílabas separadas por espaço; `-` separa sílabas da mesma palavra; `_` prolonga a anterior;
+  // `*` pula uma nota). Opcional: composição sem letra não emite `w:`. Em multi-voz a letra alinha
+  // à voz 1.
+  lyrics?: string[];
+  // Vozes 2..N. A letra e os campos de cabeçalho (tom/compasso/andamento) são compartilhados.
+  voices?: NotationVoice[];
 };
 
 export const PITCH_LABELS_PT: Record<PitchLetter, string> = { C: "Dó", D: "Ré", E: "Mi", F: "Fá", G: "Sol", A: "Lá", B: "Si" };
@@ -112,7 +124,10 @@ export function tokenToAbc(token: NotationToken, opts?: { showNoteNames?: boolea
     token.crescendo === "start" ? "!crescendo(!" : token.crescendo === "end" ? "!crescendo)!" : "",
     token.accent ? "!accent!" : "",
     token.fermata ? "!fermata!" : "",
-    token.staccato ? "!staccato!" : "",
+    // Forma curta "." em vez de "!staccato!": o parser do abcjs (parseOnly) reconhece "." e ignora
+    // "!staccato!" (abcjs 6.6.4), então isto é o que sobrevive ao round-trip ABC<->tokens
+    // (notation-abc-parse.ts). Renderiza igual.
+    token.staccato ? "." : "",
   ].join("");
   const accidentalPrefix = token.accidental ? ACCIDENTAL_PREFIX[token.accidental] : "";
   const tieSuffix = token.tied ? "-" : "";
@@ -153,15 +168,17 @@ const BEAT_LENGTH_IN_EIGHTHS: Record<TimeSignature, number> = {
 // desenhar o travessão que liga colcheias/semicolcheias (um espaço força cada nota a ganhar sua
 // própria bandeirola, mesmo dentro do mesmo tempo). Espaço só entra nas fronteiras de tempo, e
 // sempre antes/depois de pausa e barra (que resetam o agrupamento).
-export function compositionToAbcWithRanges({ key, timeSignature, tokens, bpm, showNoteNames }: NotationComposition): {
-  abc: string;
-  noteRanges: NoteTokenRange[];
-} {
-  const header = `X:1\nM:${timeSignature}\nL:1/8\nQ:1/4=${bpm}\nK:${key}\n`;
-  const beatLength = BEAT_LENGTH_IN_EIGHTHS[timeSignature];
-  const noteRanges: NoteTokenRange[] = [];
-
-  let cursor = header.length;
+// Corpo ABC de UMA voz (a lógica de agrupamento de colcheias/espaços é a mesma pra todas), mais os
+// ranges de caractere de cada token de nota, contados a partir de `startCursor` (offset da voz na
+// string final).
+function buildVoiceBody(
+  tokens: NotationToken[],
+  showNoteNames: boolean,
+  beatLength: number,
+  startCursor: number,
+): { body: string; ranges: NoteTokenRange[] } {
+  const ranges: NoteTokenRange[] = [];
+  let cursor = startCursor;
   let body = "";
   let groupAccumulator = 0;
 
@@ -182,12 +199,60 @@ export function compositionToAbcWithRanges({ key, timeSignature, tokens, bpm, sh
       body += " ";
       cursor += 1;
     }
-    if (token.type === "note") noteRanges.push({ tokenIndex, start: cursor, end: cursor + str.length });
+    if (token.type === "note") ranges.push({ tokenIndex, start: cursor, end: cursor + str.length });
     body += str;
     cursor += str.length;
   });
 
-  return { abc: `${header}${body}\n`, noteRanges };
+  return { body, ranges };
+}
+
+// `options.rangesForVoice` = qual voz os `noteRanges` devem cobrir (0 = voz 1 / `tokens`). O ABC
+// devolvido tem SEMPRE todas as vozes; só os ranges (usados pelo clique-pra-selecionar do editor)
+// são de uma voz por vez.
+export function compositionToAbcWithRanges(
+  { key, timeSignature, tokens, bpm, showNoteNames, lyrics, voices }: NotationComposition,
+  options?: { rangesForVoice?: number },
+): { abc: string; noteRanges: NoteTokenRange[] } {
+  const beatLength = BEAT_LENGTH_IN_EIGHTHS[timeSignature];
+  const rangesForVoice = options?.rangesForVoice ?? 0;
+
+  const allVoices: NotationVoice[] = [{ tokens }, ...(voices ?? [])];
+  const isMulti = allVoices.length > 1;
+
+  const voiceDecls = isMulti
+    ? allVoices
+        .map((voice, index) => `V:${index + 1}${voice.name ? ` name="${voice.name.replace(/"/g, "")}"` : ""}\n`)
+        .join("")
+    : "";
+  const header = `X:1\nM:${timeSignature}\nL:1/8\nQ:1/4=${bpm}\n${voiceDecls}K:${key}\n`;
+
+  // `w:` alinha à linha de música anterior — em multi-voz, colocamos logo depois da voz 1.
+  const lyricBlock = (lyrics ?? [])
+    .map((verse) => verse.trim())
+    .filter((verse) => verse.length > 0)
+    .map((verse) => `w: ${verse}`)
+    .join("\n");
+
+  let noteRanges: NoteTokenRange[] = [];
+  const parts: string[] = [];
+  let cursor = header.length;
+
+  allVoices.forEach((voice, index) => {
+    const prefix = isMulti ? `[V:${index + 1}] ` : "";
+    const { body, ranges } = buildVoiceBody(voice.tokens, showNoteNames, beatLength, cursor + prefix.length);
+    const line = `${prefix}${body}`;
+    parts.push(line);
+    if (index === rangesForVoice) noteRanges = ranges;
+    cursor += line.length + 1; // +1 pelo "\n" do join
+
+    if (index === 0 && lyricBlock) {
+      parts.push(lyricBlock);
+      cursor += lyricBlock.length + 1;
+    }
+  });
+
+  return { abc: `${header}${parts.join("\n")}\n`, noteRanges };
 }
 
 export function compositionToAbc(composition: NotationComposition): string {

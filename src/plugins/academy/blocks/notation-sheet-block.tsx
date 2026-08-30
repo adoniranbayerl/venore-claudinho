@@ -1,5 +1,12 @@
 import type { BlockRendererProps } from "@/platform/page-builder/block-renderers";
-import { compositionToAbc, type KeySignature, type NotationToken, type TimeSignature } from "../components/notation-abc";
+import {
+  compositionToAbc,
+  type KeySignature,
+  type NotationComposition,
+  type NotationToken,
+  type NotationVoice,
+  type TimeSignature,
+} from "../components/notation-abc";
 import { NotationSheetBlockClient } from "../components/notation-sheet-block-client";
 
 function readTokens(data: Record<string, unknown>): NotationToken[] {
@@ -32,6 +39,24 @@ function readShowNoteNames(data: Record<string, unknown>): boolean {
   return data.showNoteNames === true;
 }
 
+function readLyrics(data: Record<string, unknown>): string[] | undefined {
+  const value = data.lyrics;
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : undefined;
+}
+
+function readVoices(data: Record<string, unknown>): NotationVoice[] | undefined {
+  const value = data.voices;
+  if (!Array.isArray(value)) return undefined;
+  const voices = value
+    .filter((entry): entry is { name?: unknown; tokens?: unknown } => typeof entry === "object" && entry !== null)
+    .map((entry) => ({
+      name: typeof entry.name === "string" ? entry.name : undefined,
+      tokens: Array.isArray(entry.tokens) ? (entry.tokens as NotationToken[]) : [],
+    }))
+    .filter((voice) => voice.tokens.length > 0);
+  return voices.length > 0 ? voices : undefined;
+}
+
 // Mesmo padrão de RichtextBlock (block-renderers.tsx): bloco sem conteúdo não renderiza nada em
 // nenhum modo — tokens: [] é o estado inicial de todo bloco recém-adicionado, antes do professor
 // compor a melodia.
@@ -43,14 +68,41 @@ export function AcademyNotationSheetBlock({ block }: BlockRendererProps) {
   if (!hasNotationTokens(block.data)) return null;
 
   const tokens = readTokens(block.data);
-  const abc = compositionToAbc({
+  const voices = readVoices(block.data);
+  const composition: NotationComposition = {
     key: readKey(block.data),
     timeSignature: readTimeSignature(block.data),
     tokens,
     bpm: readBpm(block.data),
     showNoteNames: readShowNoteNames(block.data),
-  });
+    lyrics: readLyrics(block.data),
+    voices,
+  };
+
+  const abc = compositionToAbc(composition);
+  const melodyAbc = compositionToAbc({ ...composition, voices: undefined });
+
+  // Uma opção de reprodução por voz + "Tudo" — é isto que dá o "ouvir só a melodia" (pedido do
+  // dono). Sem vozes extras, só um botão "Ouvir".
+  const playback = voices
+    ? [
+        { label: "Tudo", abc },
+        { label: "Melodia", abc: melodyAbc },
+        ...voices.map((voice, index) => ({
+          label: voice.name ?? `Voz ${index + 2}`,
+          abc: compositionToAbc({ ...composition, tokens: voice.tokens, voices: undefined, lyrics: undefined }),
+        })),
+      ]
+    : [{ label: "Ouvir", abc }];
+
   return (
-    <NotationSheetBlockClient abc={abc} caption={readCaption(block.data)} allowSingAlong={readAllowSingAlong(block.data)} tokens={tokens} />
+    <NotationSheetBlockClient
+      abc={abc}
+      singAlongAbc={melodyAbc}
+      playback={playback}
+      caption={readCaption(block.data)}
+      allowSingAlong={readAllowSingAlong(block.data)}
+      tokens={tokens}
+    />
   );
 }
