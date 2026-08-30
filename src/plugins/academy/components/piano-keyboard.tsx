@@ -30,17 +30,20 @@ export function PianoKeyboard({
   return (
     <div className="-mx-1 flex gap-0.5 overflow-x-auto px-1 pb-1" role="group" aria-label="Teclado">
       {octaves.map((octave) => (
-        <div key={octave} className="relative flex w-56 shrink-0">
+        // Largura da oitava = 7 teclas brancas de w-11 (44px, alvo de toque mínimo acessível —
+        // público idoso, docs/academy-recursos-musicais.md #8). O left % das teclas pretas é
+        // relativo a esta largura, então os dois precisam andar juntos.
+        <div key={octave} className="relative flex w-77 shrink-0">
           {WHITE_KEYS.map((pitch) => (
             <button
               key={pitch}
               type="button"
               onClick={() => onKeyClick(pitch, octave, null)}
-              className="flex h-20 w-8 shrink-0 flex-col items-center justify-end border border-border bg-card pb-1 text-xs font-medium text-foreground outline-none ui-motion-base first:rounded-l-md last:rounded-r-md hover:bg-accent/14 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-28 w-11 shrink-0 flex-col items-center justify-end border border-border bg-card pb-1 text-sm font-medium text-foreground outline-none ui-motion-base first:rounded-l-md last:rounded-r-md hover:bg-accent/14 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={`${pitch}${octave}`}
             >
               {pitch}
-              {pitch === "C" && <span className="text-[9px] text-muted-foreground/56">{octave}</span>}
+              {pitch === "C" && <span className="text-[10px] text-muted-foreground/56">{octave}</span>}
             </button>
           ))}
           {BLACK_KEYS.map(({ afterWhiteIndex, pitch }) => (
@@ -48,7 +51,7 @@ export function PianoKeyboard({
               key={pitch}
               type="button"
               onClick={() => onKeyClick(pitch, octave, "sharp")}
-              className="absolute top-0 h-12 w-5 -translate-x-1/2 rounded-b-md bg-foreground outline-none ui-motion-base hover:bg-foreground/80 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring"
+              className="absolute top-0 h-16 w-7 -translate-x-1/2 rounded-b-md bg-foreground outline-none ui-motion-base hover:bg-foreground/80 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring"
               style={{ left: `${((afterWhiteIndex + 1) / WHITE_KEYS.length) * 100}%` }}
               aria-label={`${pitch}♯${octave}`}
             />

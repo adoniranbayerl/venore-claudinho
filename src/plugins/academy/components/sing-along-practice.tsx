@@ -348,6 +348,13 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
         )}
       </div>
 
+      {phase === "idle" && (
+        <p className="text-xs text-muted-foreground/56">
+          Ao tocar em “Cantar junto”, o navegador vai pedir acesso ao microfone. O áudio é analisado só no seu aparelho, em
+          tempo real — nada é gravado nem enviado.
+        </p>
+      )}
+
       {micMessage && <p className="text-xs text-destructive">{micMessage}</p>}
 
       {phase === "results" && results && counts && (
