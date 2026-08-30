@@ -214,12 +214,16 @@ export async function addQuizQuestionAction(_prevState: LessonActionState, formD
   const lessonId = String(formData.get("lessonId") ?? "");
   const options = formData.getAll("options").map((option) => String(option).trim()).filter((option) => option.length > 0);
   const correctOptionIndex = Number(formData.get("correctOptionIndex") ?? "-1");
+  const questionKind = formData.get("questionKind") === "audio" ? ("audio" as const) : ("text" as const);
+  const promptNotation = String(formData.get("promptNotation") ?? "").trim();
 
   const result = await addQuizQuestion({
     lessonId,
     text: String(formData.get("text") ?? ""),
     options,
     correctOptionIndex,
+    questionKind,
+    promptNotation: questionKind === "audio" && promptNotation.length > 0 ? promptNotation : null,
   });
 
   if (!result.success) {

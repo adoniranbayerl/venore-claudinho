@@ -220,6 +220,7 @@ export type {
   SubmissionReviewStatus,
   LessonActivitySubmissionRecord,
   QuizAnswer,
+  QuizQuestionKind,
   QuizQuestionRecord,
   StudentQuizQuestionRecord,
   QuizAttemptRecord,

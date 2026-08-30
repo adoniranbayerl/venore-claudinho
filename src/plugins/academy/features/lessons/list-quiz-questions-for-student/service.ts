@@ -39,11 +39,16 @@ export async function listQuizQuestionsForStudent(
   }
 
   const questions = await findQuizQuestionsByLesson(command.lessonId);
+  // Mantém optionNotations/promptNotation/questionKind (o aluno precisa deles pra TOCAR o áudio) e
+  // omite só correctOptionIndex — nenhum dos campos de notação revela a resposta.
   const studentQuestions = questions.map((question) => ({
     id: question.id,
     lessonId: question.lessonId,
     text: question.text,
     options: question.options,
+    optionNotations: question.optionNotations,
+    questionKind: question.questionKind,
+    promptNotation: question.promptNotation,
     createdAt: question.createdAt,
   }));
 

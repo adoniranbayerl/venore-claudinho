@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { NotationPlayButton } from "@/plugins/academy/components/notation-play-button";
 import { submitQuizAction, type QuizActionState } from "../actions";
 import type { StudentQuizQuestionRecord } from "@/plugins/academy";
 
@@ -116,27 +117,35 @@ function QuizAttempt({
           Pergunta {questionIndex + 1} de {questions.length}
         </p>
         <legend className="text-sm font-medium text-foreground">{question.text}</legend>
+        {question.promptNotation && (
+          <div className="flex items-center gap-2">
+            <NotationPlayButton abc={question.promptNotation} label="Ouvir a pergunta" />
+          </div>
+        )}
         <div className="space-y-2">
-          {question.options.map((option, index) => (
-            <label
-              key={index}
-              className="flex cursor-pointer items-center gap-3 rounded-md border border-border bg-card px-3.5 py-2.5 text-sm ui-motion-base has-checked:border-primary has-checked:bg-primary/5 has-focus-visible:ring-2 has-focus-visible:ring-ring hover:border-ring"
-            >
-              <input
-                type="radio"
-                checked={selected === index}
-                onChange={() => setAnswers((prev) => ({ ...prev, [question.id]: index }))}
-                className="peer sr-only"
-              />
-              <span
-                className={cn(
-                  "size-4 shrink-0 rounded-full border border-border",
-                  selected === index && "border-primary bg-primary",
-                )}
-              />
-              {option}
-            </label>
-          ))}
+          {question.options.map((option, index) => {
+            const optionNotation = question.optionNotations?.[index] ?? null;
+            return (
+              <div key={index} className="flex items-center gap-2">
+                <label className="flex flex-1 cursor-pointer items-center gap-3 rounded-md border border-border bg-card px-3.5 py-2.5 text-sm ui-motion-base has-checked:border-primary has-checked:bg-primary/5 has-focus-visible:ring-2 has-focus-visible:ring-ring hover:border-ring">
+                  <input
+                    type="radio"
+                    checked={selected === index}
+                    onChange={() => setAnswers((prev) => ({ ...prev, [question.id]: index }))}
+                    className="peer sr-only"
+                  />
+                  <span
+                    className={cn(
+                      "size-4 shrink-0 rounded-full border border-border",
+                      selected === index && "border-primary bg-primary",
+                    )}
+                  />
+                  <span className="flex-1">{option}</span>
+                </label>
+                {optionNotation && <NotationPlayButton abc={optionNotation} label="Ouvir" size="xs" />}
+              </div>
+            );
+          })}
         </div>
       </fieldset>
 

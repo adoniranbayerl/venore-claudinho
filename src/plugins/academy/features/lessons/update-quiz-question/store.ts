@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import { quizQuestions } from "../../../database/schema";
-import type { QuizQuestionRecord } from "../../../contracts/types";
+import type { QuizQuestionKind, QuizQuestionRecord } from "../../../contracts/types";
 
 export async function findQuizQuestionById(id: string): Promise<QuizQuestionRecord | null> {
   const [row] = await db.select().from(quizQuestions).where(eq(quizQuestions.id, id)).limit(1);
@@ -10,7 +10,14 @@ export async function findQuizQuestionById(id: string): Promise<QuizQuestionReco
 
 export async function updateQuizQuestion(
   id: string,
-  input: { text?: string; options?: string[]; correctOptionIndex?: number },
+  input: {
+    text?: string;
+    options?: string[];
+    optionNotations?: (string | null)[] | null;
+    correctOptionIndex?: number;
+    questionKind?: QuizQuestionKind;
+    promptNotation?: string | null;
+  },
 ): Promise<QuizQuestionRecord> {
   const [row] = await db.update(quizQuestions).set(input).where(eq(quizQuestions.id, id)).returning();
   return row as QuizQuestionRecord;

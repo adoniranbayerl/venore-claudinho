@@ -1,4 +1,5 @@
 import { authorizeActor } from "@/contexts/rbac";
+import { validateQuizAudioShape } from "../../../shared/quiz-audio";
 import { addQuizQuestion } from "./service";
 import type { AddQuizQuestionInput, AddQuizQuestionResult } from "./types";
 
@@ -23,6 +24,16 @@ export async function addQuizQuestionHandler(input: AddQuizQuestionInput): Promi
       success: false,
       error: { code: "academy.quiz.invalid_correct_option", message: "correctOptionIndex precisa apontar pra uma opção existente." },
     };
+  }
+
+  const audioError = validateQuizAudioShape({
+    questionKind: input.questionKind ?? "text",
+    options: input.options,
+    optionNotations: input.optionNotations ?? null,
+    promptNotation: input.promptNotation ?? null,
+  });
+  if (audioError) {
+    return { success: false, error: audioError };
   }
 
   const authz = await authorizeActor("academy.courses.manage");

@@ -20,7 +20,10 @@ export async function addQuizQuestion(command: AddQuizQuestionCommand): Promise<
     lessonId: command.lessonId,
     text: command.text,
     options: command.options,
+    optionNotations: command.optionNotations ?? null,
     correctOptionIndex: command.correctOptionIndex,
+    questionKind: command.questionKind ?? "text",
+    promptNotation: command.promptNotation ?? null,
   });
 
   endOperation(handle, { success: true });

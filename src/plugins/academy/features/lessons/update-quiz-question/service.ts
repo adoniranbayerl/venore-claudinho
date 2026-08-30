@@ -1,4 +1,5 @@
 import { beginOperation, endOperation } from "@/observability";
+import { validateQuizAudioShape } from "../../../shared/quiz-audio";
 import { findQuizQuestionById, updateQuizQuestion } from "./store";
 import type { UpdateQuizQuestionCommand, UpdateQuizQuestionResult } from "./types";
 
@@ -28,10 +29,26 @@ export async function updateQuizQuestionService(command: UpdateQuizQuestionComma
     return { success: false, error };
   }
 
+  // Estado FINAL (o que já estava salvo, com o patch aplicado por cima) — undefined = "não mexe",
+  // null = "limpa".
+  const audioError = validateQuizAudioShape({
+    questionKind: command.questionKind ?? existing.questionKind ?? "text",
+    options: finalOptions,
+    optionNotations: command.optionNotations !== undefined ? command.optionNotations : existing.optionNotations,
+    promptNotation: command.promptNotation !== undefined ? command.promptNotation : existing.promptNotation,
+  });
+  if (audioError) {
+    endOperation(handle, { success: false, error: audioError });
+    return { success: false, error: audioError };
+  }
+
   const question = await updateQuizQuestion(command.id, {
     text: command.text,
     options: command.options,
+    optionNotations: command.optionNotations,
     correctOptionIndex: command.correctOptionIndex,
+    questionKind: command.questionKind,
+    promptNotation: command.promptNotation,
   });
 
   endOperation(handle, { success: true });

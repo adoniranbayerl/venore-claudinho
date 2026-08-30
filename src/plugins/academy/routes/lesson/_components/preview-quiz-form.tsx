@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { NotationPlayButton } from "@/plugins/academy/components/notation-play-button";
 import type { QuizQuestionRecord } from "@/plugins/academy";
 
 type PreviewResult = { score: number; grade: number; passed: boolean };
@@ -41,17 +42,21 @@ export function PreviewQuizForm({
       {questions.map((question) => (
         <fieldset key={question.id} className="space-y-2.5">
           <legend className="text-sm font-medium text-foreground">{question.text}</legend>
+          {question.promptNotation && <NotationPlayButton abc={question.promptNotation} label="Ouvir a pergunta" />}
           <div className="space-y-2">
-            {question.options.map((option, index) => (
-              <label
-                key={index}
-                className="flex cursor-pointer items-center gap-3 rounded-md border border-border bg-card px-3.5 py-2.5 text-sm ui-motion-base has-checked:border-primary has-checked:bg-primary/5 has-focus-visible:ring-2 has-focus-visible:ring-ring hover:border-ring"
-              >
-                <input type="radio" name={`answer-${question.id}`} value={index} required className="peer sr-only" />
-                <span className="size-4 shrink-0 rounded-full border border-border peer-checked:border-primary peer-checked:bg-primary" />
-                {option}
-              </label>
-            ))}
+            {question.options.map((option, index) => {
+              const optionNotation = question.optionNotations?.[index] ?? null;
+              return (
+                <div key={index} className="flex items-center gap-2">
+                  <label className="flex flex-1 cursor-pointer items-center gap-3 rounded-md border border-border bg-card px-3.5 py-2.5 text-sm ui-motion-base has-checked:border-primary has-checked:bg-primary/5 has-focus-visible:ring-2 has-focus-visible:ring-ring hover:border-ring">
+                    <input type="radio" name={`answer-${question.id}`} value={index} required className="peer sr-only" />
+                    <span className="size-4 shrink-0 rounded-full border border-border peer-checked:border-primary peer-checked:bg-primary" />
+                    <span className="flex-1">{option}</span>
+                  </label>
+                  {optionNotation && <NotationPlayButton abc={optionNotation} label="Ouvir" size="xs" />}
+                </div>
+              );
+            })}
           </div>
         </fieldset>
       ))}

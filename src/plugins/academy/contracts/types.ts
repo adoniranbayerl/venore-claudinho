@@ -138,18 +138,32 @@ export type LessonActivitySubmissionRecord = {
   submittedAt: Date;
 };
 
+// "text": múltipla escolha comum. "audio": treino de ouvido — a pergunta e/ou as opções têm
+// notação ABC tocável, e o aluno responde pelo que ouviu (ver database/schema/index.ts,
+// docs/academy-recursos-musicais.md #2).
+export type QuizQuestionKind = "text" | "audio";
+
 export type QuizQuestionRecord = {
   id: string;
   lessonId: string;
   text: string;
   options: string[];
+  // Array paralelo a `options` (mesmo comprimento) quando presente: entrada i = notação ABC
+  // tocável da opção i, ou null pra opção só-texto. null no lugar do array inteiro = pergunta sem
+  // áudio nas opções.
+  optionNotations: (string | null)[] | null;
   correctOptionIndex: number;
+  questionKind: QuizQuestionKind;
+  // Notação ABC do enunciado ("ouça isto") — só em questionKind "audio", e nem sempre (a pergunta
+  // pode ter o áudio só nas opções).
+  promptNotation: string | null;
   createdAt: Date;
 };
 
 // Mesma forma de QuizQuestionRecord, sem correctOptionIndex — leitura de aluno respondendo o
 // quiz, que não pode saber a resposta certa antes de responder (ver
-// list-quiz-questions-for-student/service.ts).
+// list-quiz-questions-for-student/service.ts). Mantém optionNotations/promptNotation: o aluno
+// precisa deles pra tocar o áudio, e nenhum revela a resposta.
 export type StudentQuizQuestionRecord = Omit<QuizQuestionRecord, "correctOptionIndex">;
 
 export type QuizAnswer = { questionId: string; selectedOptionIndex: number };

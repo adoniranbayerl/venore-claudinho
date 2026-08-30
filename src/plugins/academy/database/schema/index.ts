@@ -185,6 +185,14 @@ export const lessonRequirements = academySchema.table("lesson_requirements", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// questionKind = "text" (múltipla escolha comum) | "audio" (treino de ouvido: o aluno ouve algo
+// e escolhe — ver docs/academy-recursos-musicais.md #2). options continua sendo só os RÓTULOS
+// (string) — nenhuma migração de dado; promptNotation e optionNotations são colunas novas,
+// nuláveis, que só a pergunta "audio" preenche. optionNotations, quando presente, é um array
+// paralelo a options (mesmo comprimento): a entrada i é a notação ABC tocável da opção i, ou null
+// pra opção que é só texto. promptNotation é o "ouça isto" da própria pergunta. A consistência
+// ("audio" exige promptNotation OU ao menos uma optionNotation) é validada no handler/service, não
+// no banco — depende de comparar colunas entre si de um jeito que um check() não expressa bem.
 export const quizQuestions = academySchema.table("quiz_questions", {
   id: text("id")
     .primaryKey()
@@ -194,7 +202,10 @@ export const quizQuestions = academySchema.table("quiz_questions", {
     .references(() => lessons.id, { onDelete: "cascade" }),
   text: text("text").notNull(),
   options: jsonb("options").$type<string[]>().notNull(),
+  optionNotations: jsonb("option_notations").$type<(string | null)[]>(),
   correctOptionIndex: integer("correct_option_index").notNull(),
+  questionKind: text("question_kind").notNull().default("text"),
+  promptNotation: text("prompt_notation"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

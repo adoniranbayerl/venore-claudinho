@@ -18,7 +18,10 @@ const existingQuestion = {
   lessonId: "lesson-1",
   text: "2 + 2?",
   options: ["3", "4"],
+  optionNotations: null,
   correctOptionIndex: 1,
+  questionKind: "text" as const,
+  promptNotation: null,
   createdAt: new Date(),
 };
 
@@ -69,7 +72,38 @@ describe("updateQuizQuestionService", () => {
     expect(updateQuizQuestion).toHaveBeenCalledWith("question-1", {
       text: "3 + 3?",
       options: undefined,
+      optionNotations: undefined,
       correctOptionIndex: undefined,
+      questionKind: undefined,
+      promptNotation: undefined,
     });
+  });
+
+  it("recusa virar 'audio' sem nenhuma notação no estado final", async () => {
+    findQuizQuestionById.mockResolvedValue(existingQuestion);
+
+    const { updateQuizQuestionService } = await import("./service");
+    const result = await updateQuizQuestionService({ id: "question-1", questionKind: "audio", actorId: "actor-1" });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "academy.quiz.audio_requires_notation", message: expect.any(String) },
+    });
+    expect(updateQuizQuestion).not.toHaveBeenCalled();
+  });
+
+  it("aceita virar 'audio' quando o patch traz um enunciado tocável", async () => {
+    findQuizQuestionById.mockResolvedValue(existingQuestion);
+    updateQuizQuestion.mockResolvedValue({ ...existingQuestion, questionKind: "audio", promptNotation: "X:1\nK:A\nA c" });
+
+    const { updateQuizQuestionService } = await import("./service");
+    const result = await updateQuizQuestionService({
+      id: "question-1",
+      questionKind: "audio",
+      promptNotation: "X:1\nK:A\nA c",
+      actorId: "actor-1",
+    });
+
+    expect(result.success).toBe(true);
   });
 });
