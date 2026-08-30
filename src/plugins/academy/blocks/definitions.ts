@@ -6,6 +6,7 @@ import { courseProgressBlockDefinition } from "./course-progress";
 import { lessonTrailBlockDefinition } from "./lesson-trail";
 import { courseDashboardChartBlockDefinition } from "./course-dashboard-chart";
 import { notationSheetBlockDefinition } from "./notation-sheet";
+import { progressionBlockDefinition } from "./progression";
 
 export const blockDefinitions: BlockDefinition[] = [
   courseListBlockDefinition,
@@ -15,4 +16,5 @@ export const blockDefinitions: BlockDefinition[] = [
   lessonTrailBlockDefinition,
   courseDashboardChartBlockDefinition,
   notationSheetBlockDefinition,
+  progressionBlockDefinition,
 ];

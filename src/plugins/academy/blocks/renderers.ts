@@ -6,6 +6,7 @@ import { AcademyCourseProgressBlock } from "./course-progress-block";
 import { AcademyLessonTrailBlock } from "./lesson-trail-block";
 import { AcademyCourseDashboardChartBlock } from "./course-dashboard-chart-block";
 import { AcademyNotationSheetBlock } from "./notation-sheet-block";
+import { AcademyProgressionBlock } from "./progression-block";
 
 export const blockRenderers: Record<string, BlockRendererComponent> = {
   "academy.course.list": AcademyCourseListBlock,
@@ -15,4 +16,5 @@ export const blockRenderers: Record<string, BlockRendererComponent> = {
   "academy.course.lesson-trail": AcademyLessonTrailBlock,
   "academy.course.dashboard-chart": AcademyCourseDashboardChartBlock,
   "academy.notation.sheet": AcademyNotationSheetBlock,
+  "academy.progression": AcademyProgressionBlock,
 };
