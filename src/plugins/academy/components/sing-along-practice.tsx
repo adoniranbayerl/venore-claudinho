@@ -140,14 +140,22 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [results, setResults] = useState<NoteResult[] | null>(null);
+  // Erro visível quando a partitura não produz notas pra comparar (antes o "Cantar junto" só
+  // fazia return silencioso — bug reportado "não faz nada, nem erro retorna").
+  const [setupError, setSetupError] = useState<string | null>(null);
 
   const pitchListener = usePitchListener();
 
   useEffect(() => {
-    if (!containerRef.current) return;
-    const tunes = renderAbc(containerRef.current, abc, {});
+    const container = containerRef.current;
+    if (!container) return;
+    const width = Math.max(280, Math.min(container.clientWidth - 8, 1200));
+    const tunes = renderAbc(container, abc, { staffwidth: width });
     const tune = tunes[0] ?? null;
     tuneRef.current = tune;
+    // setUpAudio() é o que popula midiPitches/elements que o TimingCallbacks usa em
+    // extractExpectedNotes — sem isso `notes` vinha vazio e o "Cantar junto" abortava calado.
+    tune?.setUpAudio({});
     if (tune) {
       const qpm = tune.getBpm() || DEFAULT_QPM;
       qpmRef.current = qpm;
@@ -155,6 +163,9 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
       expectedNotesRef.current = notes;
       rawIndexToNoteIndexRef.current = rawIndexToNoteIndex;
       totalMsRef.current = totalMs;
+      setSetupError(notes.length === 0 ? "Não consegui ler as notas desta partitura para comparar com o canto." : null);
+    } else {
+      setSetupError("Não consegui carregar esta partitura.");
     }
   }, [abc, tokens]);
 
@@ -201,7 +212,11 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   async function startSinging() {
     const tune = tuneRef.current;
     const notes = expectedNotesRef.current;
-    if (!tune || notes.length === 0) return;
+    if (!tune || notes.length === 0) {
+      setSetupError("Não consegui ler as notas desta partitura para comparar com o canto.");
+      return;
+    }
+    setSetupError(null);
 
     const result = await pitchListener.start();
     if (!result.ok) return;
@@ -355,7 +370,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
         </p>
       )}
 
-      {micMessage && <p className="text-xs text-destructive">{micMessage}</p>}
+      {(setupError || micMessage) && <p className="text-xs text-destructive">{setupError ?? micMessage}</p>}
 
       {phase === "results" && results && counts && (
         <div className="space-y-2 rounded-md border border-border bg-muted/40 p-2.5">

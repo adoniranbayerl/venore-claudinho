@@ -267,9 +267,12 @@ export function NotationEditor(props: NotationEditorProps) {
       previewRef.current.innerHTML = "";
       return;
     }
-    // Sem "responsive: resize": ver comentário em src/components/interactive-notation.tsx — esse
-    // modo encolhia a partitura pra caber no container, ficando ilegível no mobile.
+    // staffwidth pela largura do container faz o abcjs quebrar os compassos em várias linhas no
+    // mobile (ver comentário em src/components/interactive-notation.tsx) — sem "responsive: resize",
+    // que encolheria o SVG inteiro.
+    const previewWidth = Math.max(280, Math.min(previewRef.current.clientWidth - 8, 1200));
     const tunes = renderAbc(previewRef.current, abc, {
+      staffwidth: previewWidth,
       selectTypes: ["note"],
       clickListener: (abcElem) => {
         if (abcElem.startChar === undefined) return;
