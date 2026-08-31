@@ -59,11 +59,19 @@ describe.each([
     });
   });
 
-  it("toda aula com atividade tem instruções não vazias", () => {
+  it("toda aula tem pelo menos 2 atividades, com instruções não vazias", () => {
     lessons.forEach((lesson) => {
-      if (lesson.activity) {
-        expect(lesson.activity.instructions.trim().length, lesson.title).toBeGreaterThan(0);
-      }
+      expect(lesson.activities?.length ?? 0, `${lesson.title}: menos de 2 atividades`).toBeGreaterThanOrEqual(2);
+      lesson.activities?.forEach((activity, index) => {
+        expect(activity.instructions.trim().length, `${lesson.title} — atividade ${index + 1}`).toBeGreaterThan(0);
+        expect(activity.title.trim().length, `${lesson.title} — atividade ${index + 1}`).toBeGreaterThan(0);
+      });
+    });
+  });
+
+  it("toda aula tem uma avaliação de 10 perguntas", () => {
+    lessons.forEach((lesson) => {
+      expect(lesson.quiz?.length ?? 0, `${lesson.title}: a avaliação não tem 10 perguntas`).toBe(10);
     });
   });
 });

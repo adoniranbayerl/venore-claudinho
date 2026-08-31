@@ -42,7 +42,7 @@ export type SeedLesson = {
   sections: SeedSection[];
   examples?: SeedExample[];
   quiz?: SeedQuiz[];
-  activity?: SeedActivity;
+  activities?: SeedActivity[];
 };
 
 type SeedComposedBlock = {
@@ -152,12 +152,12 @@ export async function seedLesson(courseId: string, actorId: string, lesson: Seed
     if (!result.success) return result;
   }
 
-  if (lesson.activity) {
+  for (const activity of lesson.activities ?? []) {
     const result = await addLessonActivity({
       lessonId,
-      title: lesson.activity.title,
-      instructionsText: lesson.activity.instructions,
-      deliverableFormat: lesson.activity.format,
+      title: activity.title,
+      instructionsText: activity.instructions,
+      deliverableFormat: activity.format,
       actorId,
     });
     if (!result.success) return result;
@@ -171,7 +171,7 @@ export async function seedLesson(courseId: string, actorId: string, lesson: Seed
     quizEnabled: hasQuiz,
     quizPassThresholdPercent: hasQuiz ? 70 : undefined,
     quizMaxAttempts: hasQuiz ? 3 : undefined,
-    activityEnabled: Boolean(lesson.activity),
+    activityEnabled: (lesson.activities?.length ?? 0) > 0,
     actorId,
   });
   if (!requirements.success) return requirements;
