@@ -8,10 +8,14 @@
 ## Aviso sobre a fonte musical
 
 Este corinho tem **muitas variantes** de letra e melodia, transmitidas de ouvido em contextos
-evangélicos brasileiros. **Toda a notação deste documento é um modelo plausível em Lá maior** e
-**deve ser conferida contra a gravação/edição que o dono usa em sala**, que entra como material da
-Aula 1. Onde o documento diz "modelo" ou "ajuste à sua referência", é literal: a estrutura
-pedagógica (o que analisar e como) vale sempre; os `abc` concretos são ponto de partida.
+evangélicos brasileiros. A **melodia da Aula 4** foi transcrita da **partitura oficial** que o dono
+enviou (IM Conviver / Prática de canto, PDF "Voz" com os graus escritos) — as **alturas** são
+fiéis; o **ritmo** ainda é aproximado (a leitura do PDF não recupera as figuras) e deve ser
+conferido contra a partitura. O **resto da notação** deste documento (bateria, harmonia, 2ª voz) é
+um **modelo plausível em Lá maior** e **deve ser conferido contra a gravação/edição que o dono usa
+em sala**, que entra como material da Aula 1. Onde o documento diz "modelo" ou "ajuste à sua
+referência", é literal: a estrutura pedagógica (o que analisar e como) vale sempre; os `abc`
+concretos são ponto de partida.
 
 ## Ficha do curso
 
@@ -192,21 +196,27 @@ do refrão**, num tempo forte, sobre a palavra mais importante do texto ("mudou"
 até o fim do refrão. Esse arco — sobe, atinge o pico cedo, desce devagar — é o desenho melódico
 mais comum de refrão em música popular.
 
-### Exemplo — estrofe com letra e graus (modelo)
+### Exemplo — a melodia real (partitura "Voz")
+
+O seed da Aula 4 traz agora a **transcrição da partitura oficial** (IM Conviver / Prática de canto,
+PDF de melodia com os graus escritos acima de cada nota), 19 compassos + anacruse, em Lá maior,
+♩=80. **As alturas seguem a partitura grau a grau**; o **ritmo é aproximado** (a leitura do PDF não
+recupera as figuras com precisão — conferir contra a partitura/gravação). Repetição e casas 1ª/2ª
+foram simplificadas para a melodia correr uma vez só.
+
 ```abc
 X:1
 M:4/4
 L:1/8
-Q:1/4=96
+Q:1/4=80
 K:A
-z2 "_1"E2 "_1"A2 "_1"A2 | "_2"B2 "_1"A2 "_6,"F,4 |
-w: * Je-sus Cris-to mu-dou meu vi-ver,
-"_1"E2 "_1"A2 "_1"A2 "_2"B2 | "_3"c2 "_2"B2 "_1"A4 |]
-w: mui-to go-zo a mi-nha_al-ma tem.
+A,B, | CCCCC B,A,E | E8 | C4 E4 | FFFF ED A,2 | A,4 A,2 A,B, | CCCC DE A,2 | A,2 B,2 C4 | E2 A,2 C4 | D D C2 A,2 A,2 | F4 E4 | E2 B,2 A,4 | F2 A, A, F2 A, B, | =C2 B, A, A, A, A, B, | C2 C2 D C B, B, | B,2 A, A, F2 A,2 | C B, B, A, B, B, F2 | F A, C B, B, A, C C | F F A, C B, B, A, B, | A,2 F2 E4 |]
 ```
-> `E` aqui é o Mi grave (grau 5 abaixo da tônica), a anacruse; `F,` é o Fá# grave. Isto é um
-> **modelo de contorno** — ajuste ritmo e alturas à sua gravação. O que deve permanecer: anacruse,
-> movimento por graus conjuntos, frase 1 terminando "aberta", frase 2 terminando no grau 1.
+> Detalhes que vieram direto da partitura e devem permanecer: a **anacruse Lá–Si** ("Je-sus"); a
+> nota longa no grau 5 logo no início; o **Dó natural** (grau 3 rebaixado, marcado "3b" na
+> partitura) como nota de passagem na parte B; o fecho **1–6–5** (Lá–Fá#–Mi) — a última nota da
+> partitura é o **grau 5**, funcionando como "gancho" para repetir. O movimento é quase todo por
+> **graus conjuntos**.
 
 ### Atividade
 Cante a **estrofe inteira** junto do modelo (Cantar junto — feedback por nota). Depois cante **só
