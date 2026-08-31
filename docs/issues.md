@@ -314,6 +314,17 @@ de 8). Bloco de partitura mostrar tempos/pausas com mais clareza (a régua de te
 `academy.notation.sheet`). Estrofe e Refrão B têm mais sílabas que o Refrão A → a melodia
 subdivide; hoje só o Refrão A tem `w:` alinhado, o resto é prosa.
 
+**2ª rodada de retorno (2026-08-31) — APLICADO em parte:**
+- "Cantar junto" reformulado (`sing-along-practice.tsx`, commit `4f53c7a`): tolerância de afinação
+  (~75 cents, exige só ~1/3 dos quadros na faixa), gráfico ao vivo em canvas (alvo + faixa + traço
+  da voz), contagem de entrada 1-2-3-4 falada (speechSynthesis) + clique distinto, slider de BPM
+  (40–160, re-deriva as notas esperadas), loop no "Ouvir modelo" e no `NotationPlayButton`.
+- Aula 3 (andamento): frase da anacruse corrigida pra bater com a melodia real (`a0cd077`).
+- **Ainda aberto:** o dono diz que "nas primeiras aulas as frases melódicas estão erradas" — a
+  Aula 5 é transcrição fiel do MusicXML "Voz"; se ainda soa errado, ou o XML é de outro arranjo ou
+  há erro de leitura de oitava/ritmo. Precisa o dono apontar qual frase/nota, ou mandar áudio.
+  (Confirmar também se ele re-semeou depois do commit `1fb7200`.)
+
 --- histórico do pedido (o retorno da primeira leitura) ---
 
 **Aguardando arquivo:** o dono vai enviar um **MusicXML** com a melodia correta ("a melodia está
