@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const store = {
   findCoursesWithLessonCount: vi.fn(),
   countEnrollmentsByCourse: vi.fn(),
-  countDoneLessonPairsByCourse: vi.fn(),
+  completionStatsByCourse: vi.fn(),
   avgQuizScoreByCourse: vi.fn(),
   countPendingReviewsByCourse: vi.fn(),
   countActiveStudents: vi.fn(),
@@ -23,7 +23,9 @@ describe("getAcademyOverview", () => {
       { id: "c2", title: "Rascunho", slug: "rasc", status: "draft", lessonCount: 0 },
     ]);
     store.countEnrollmentsByCourse.mockResolvedValue([{ courseId: "c1", value: 5 }]);
-    store.countDoneLessonPairsByCourse.mockResolvedValue([{ courseId: "c1", value: 10 }]);
+    store.completionStatsByCourse.mockResolvedValue([
+      { courseId: "c1", doneLessonPairs: 10, totalLessonPairs: 20, completedStudents: 2, enrolledStudents: 5 },
+    ]);
     store.avgQuizScoreByCourse.mockResolvedValue([{ courseId: "c1", avg: 82 }]);
     store.countPendingReviewsByCourse.mockResolvedValue([{ courseId: "c1", value: 3 }]);
     store.countActiveStudents.mockResolvedValue(5);
@@ -33,7 +35,7 @@ describe("getAcademyOverview", () => {
     listUsers.mockResolvedValue({ success: true, data: [{ id: "u1", name: "Ana", email: "ana@x.com" }] });
   });
 
-  it("agrega totais e por curso, com engajamento e nota", async () => {
+  it("agrega totais e por curso, com conclusão e nota", async () => {
     const { getAcademyOverview } = await import("./service");
     const result = await getAcademyOverview();
     if (!result.success) throw new Error("esperava sucesso");
@@ -44,15 +46,18 @@ describe("getAcademyOverview", () => {
       lessons: 4,
       enrollments: 5,
       activeStudents: 5,
+      completedStudents: 2,
       pendingReviews: 3,
     });
     const c1 = result.data.courses.find((c) => c.id === "c1")!;
-    expect(c1.engagementPercent).toBe(50); // 10 / (5 * 4)
+    expect(c1.completionPercent).toBe(50); // 10 / 20
+    expect(c1.completedStudents).toBe(2);
     expect(c1.avgQuizGrade).toBe(8.2); // 82 / 10
     expect(c1.pendingReviews).toBe(3);
-    // curso rascunho sem matrícula/aula: engajamento 0, sem divisão por zero
+    // curso rascunho sem matrícula/aula: conclusão 0, sem divisão por zero
     const c2 = result.data.courses.find((c) => c.id === "c2")!;
-    expect(c2.engagementPercent).toBe(0);
+    expect(c2.completionPercent).toBe(0);
+    expect(c2.completedStudents).toBe(0);
     expect(c2.avgQuizGrade).toBeNull();
   });
 

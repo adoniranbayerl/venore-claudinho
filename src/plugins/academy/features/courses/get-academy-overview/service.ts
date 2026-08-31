@@ -1,8 +1,8 @@
 import { listUsers } from "@/contexts/auth";
 import {
   avgQuizScoreByCourse,
+  completionStatsByCourse,
   countActiveStudents,
-  countDoneLessonPairsByCourse,
   countEnrollmentsByCourse,
   countPendingReviewsByCourse,
   findCoursesWithLessonCount,
@@ -17,11 +17,11 @@ function toMap(rows: { courseId: string; value: number }[]): Map<string, number>
 }
 
 export async function getAcademyOverview(): Promise<GetAcademyOverviewResult> {
-  const [courses, enrollmentCounts, doneCounts, avgScores, pendingCounts, activeStudents, recent, usersResult] =
+  const [courses, enrollmentCounts, completion, avgScores, pendingCounts, activeStudents, recent, usersResult] =
     await Promise.all([
       findCoursesWithLessonCount(),
       countEnrollmentsByCourse(),
-      countDoneLessonPairsByCourse(),
+      completionStatsByCourse(),
       avgQuizScoreByCourse(),
       countPendingReviewsByCourse(),
       countActiveStudents(),
@@ -30,14 +30,12 @@ export async function getAcademyOverview(): Promise<GetAcademyOverviewResult> {
     ]);
 
   const enrollmentByCourse = toMap(enrollmentCounts);
-  const doneByCourse = toMap(doneCounts);
   const pendingByCourse = toMap(pendingCounts);
   const avgByCourse = new Map(avgScores.map((row) => [row.courseId, row.avg]));
+  const completionByCourse = new Map(completion.map((row) => [row.courseId, row]));
 
   const courseViews: AcademyOverviewCourse[] = courses.map((course) => {
-    const enrollmentCount = enrollmentByCourse.get(course.id) ?? 0;
-    const done = doneByCourse.get(course.id) ?? 0;
-    const denom = enrollmentCount * course.lessonCount;
+    const stats = completionByCourse.get(course.id);
     const avgScore = avgByCourse.get(course.id) ?? null;
     return {
       id: course.id,
@@ -45,8 +43,10 @@ export async function getAcademyOverview(): Promise<GetAcademyOverviewResult> {
       slug: course.slug,
       status: course.status,
       lessonCount: course.lessonCount,
-      enrollmentCount,
-      engagementPercent: denom > 0 ? Math.round((done / denom) * 100) : 0,
+      enrollmentCount: enrollmentByCourse.get(course.id) ?? 0,
+      completionPercent:
+        stats && stats.totalLessonPairs > 0 ? Math.round((stats.doneLessonPairs / stats.totalLessonPairs) * 100) : 0,
+      completedStudents: stats?.completedStudents ?? 0,
       avgQuizGrade: avgScore === null ? null : Math.round((avgScore / 10) * 10) / 10,
       pendingReviews: pendingByCourse.get(course.id) ?? 0,
     };
@@ -61,6 +61,7 @@ export async function getAcademyOverview(): Promise<GetAcademyOverviewResult> {
       lessons: courses.reduce((sum, course) => sum + course.lessonCount, 0),
       enrollments: courseViews.reduce((sum, course) => sum + course.enrollmentCount, 0),
       activeStudents,
+      completedStudents: courseViews.reduce((sum, course) => sum + course.completedStudents, 0),
       pendingReviews: courseViews.reduce((sum, course) => sum + course.pendingReviews, 0),
     },
     courses: courseViews,

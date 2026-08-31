@@ -8,9 +8,10 @@ export type AcademyOverviewCourse = {
   status: CourseStatus;
   lessonCount: number;
   enrollmentCount: number;
-  // 0–100: aulas "feitas" (leitura, vídeo ou quiz passado) / (matrículas × aulas). Sinal de
-  // engajamento, não a régua de conclusão do lock-chain — bom o bastante pro painel.
-  engagementPercent: number;
+  // 0–100: (aluno, aula) concluídos pela mesma regra do lock-chain / (matrículas × aulas).
+  completionPercent: number;
+  // Alunos que concluíram TODAS as aulas do curso.
+  completedStudents: number;
   avgQuizGrade: number | null; // 0–10
   pendingReviews: number;
 };
@@ -32,6 +33,7 @@ export type AcademyOverview = {
     lessons: number;
     enrollments: number;
     activeStudents: number;
+    completedStudents: number;
     pendingReviews: number;
   };
   courses: AcademyOverviewCourse[];

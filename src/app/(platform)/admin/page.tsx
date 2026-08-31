@@ -42,7 +42,12 @@ function AcademyDashboard({ overview }: { overview: AcademyOverview }) {
           value={totals.courses}
           hint={`${totals.publishedCourses} publicado(s) · ${totals.lessons} aulas`}
         />
-        <StatTile icon={<Users className="size-4" aria-hidden="true" />} label="Matrículas" value={totals.enrollments} hint={`${totals.activeStudents} aluno(s)`} />
+        <StatTile
+          icon={<Users className="size-4" aria-hidden="true" />}
+          label="Matrículas"
+          value={totals.enrollments}
+          hint={`${totals.activeStudents} aluno(s) · ${totals.completedStudents} concluíram`}
+        />
         <StatTile
           icon={<ClipboardCheck className="size-4" aria-hidden="true" />}
           label="Aguardando revisão"
@@ -51,16 +56,16 @@ function AcademyDashboard({ overview }: { overview: AcademyOverview }) {
         />
         <StatTile
           icon={<BookOpen className="size-4" aria-hidden="true" />}
-          label="Engajamento médio"
+          label="Conclusão média"
           value={
             courses.filter((c) => c.enrollmentCount > 0).length > 0
               ? `${Math.round(
-                  courses.filter((c) => c.enrollmentCount > 0).reduce((s, c) => s + c.engagementPercent, 0) /
+                  courses.filter((c) => c.enrollmentCount > 0).reduce((s, c) => s + c.completionPercent, 0) /
                     courses.filter((c) => c.enrollmentCount > 0).length,
                 )}%`
               : "—"
           }
-          hint="aulas feitas / matrículas"
+          hint="requisitos das aulas cumpridos"
         />
       </div>
 
@@ -80,7 +85,7 @@ function AcademyDashboard({ overview }: { overview: AcademyOverview }) {
                 <tr className="border-b border-border text-left text-[11px] font-semibold tracking-caps text-muted-foreground/56 uppercase">
                   <th className="px-4 py-2 font-semibold">Curso</th>
                   <th className="px-3 py-2 font-semibold tabular-nums">Matrículas</th>
-                  <th className="px-3 py-2 font-semibold">Engajamento</th>
+                  <th className="px-3 py-2 font-semibold">Conclusão</th>
                   <th className="px-3 py-2 font-semibold tabular-nums">Nota média</th>
                   <th className="px-3 py-2 font-semibold tabular-nums">Revisar</th>
                 </tr>
@@ -102,8 +107,8 @@ function AcademyDashboard({ overview }: { overview: AcademyOverview }) {
                     <td className="px-3 py-2.5 tabular-nums text-muted-foreground">{course.enrollmentCount}</td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2">
-                        <Progress value={course.engagementPercent} className="w-20" />
-                        <span className="text-xs text-muted-foreground tabular-nums">{course.engagementPercent}%</span>
+                        <Progress value={course.completionPercent} className="w-20" />
+                        <span className="text-xs text-muted-foreground tabular-nums">{course.completionPercent}%</span>
                       </div>
                     </td>
                     <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
