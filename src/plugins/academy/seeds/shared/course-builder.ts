@@ -68,7 +68,7 @@ function sectionWrapper(children: SeedComposedBlock[]): SeedComposedBlock {
     id: randomUUID(),
     key: "core.layout.section",
     slot: "",
-    data: { background: "none", maxWidth: "full", paddingY: "none", paddingX: "none", title: "", icon: "", titleAlign: "start" },
+    data: { background: "none", maxWidth: "full", paddingY: "sm", paddingX: "sm", title: "", icon: "", titleAlign: "start" },
     areas: [{ key: "content", blocks: children }],
   };
 }

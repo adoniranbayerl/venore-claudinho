@@ -267,12 +267,13 @@ export function NotationEditor(props: NotationEditorProps) {
       previewRef.current.innerHTML = "";
       return;
     }
-    // staffwidth pela largura do container faz o abcjs quebrar os compassos em várias linhas no
-    // mobile (ver comentário em src/components/interactive-notation.tsx) — sem "responsive: resize",
-    // que encolheria o SVG inteiro.
-    const previewWidth = Math.max(280, Math.min(previewRef.current.clientWidth - 8, 1200));
+    // staffwidth + wrap fazem o abcjs quebrar os compassos em várias linhas pra caber (ver
+    // src/components/interactive-notation.tsx) — sem "responsive: resize", que encolheria o SVG.
+    const previewWidth = Math.max(240, previewRef.current.clientWidth - 24);
+    const previewPerLine = Math.max(1, Math.floor(previewWidth / 150));
     const tunes = renderAbc(previewRef.current, abc, {
       staffwidth: previewWidth,
+      wrap: { minSpacing: 1.6, maxSpacing: 2.7, preferredMeasuresPerLine: previewPerLine },
       selectTypes: ["note"],
       clickListener: (abcElem) => {
         if (abcElem.startChar === undefined) return;

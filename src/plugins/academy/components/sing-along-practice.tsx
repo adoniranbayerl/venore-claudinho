@@ -149,8 +149,12 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const width = Math.max(280, Math.min(container.clientWidth - 8, 1200));
-    const tunes = renderAbc(container, abc, { staffwidth: width });
+    const width = Math.max(240, container.clientWidth - 24);
+    const perLine = Math.max(1, Math.floor(width / 150));
+    const tunes = renderAbc(container, abc, {
+      staffwidth: width,
+      wrap: { minSpacing: 1.6, maxSpacing: 2.7, preferredMeasuresPerLine: perLine },
+    });
     const tune = tunes[0] ?? null;
     tuneRef.current = tune;
     // setUpAudio() é o que popula midiPitches/elements que o TimingCallbacks usa em
