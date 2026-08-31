@@ -13,38 +13,37 @@ import type { NotationToken } from "./notation-abc";
 // Modo "Cantar junto": o aluno canta no microfone e o app compara com a sequência de notas
 // esperada da partitura (afinação por classe de nota, ignorando oitava — vozes diferentes cantam
 // naturalmente em oitavas diferentes da escrita — mais tempo/ritmo do início de cada nota). Nunca
-// toca áudio e escuta o microfone ao mesmo tempo: o áudio do modelo vazaria pro microfone via
-// AnalyserNode e contaminaria toda leitura de pitch — por isso "Ouvir modelo" e "Cantar" são
-// fases separadas.
+// toca áudio E escuta o microfone ao mesmo tempo pra scoring: só a contagem de entrada e (se o
+// aluno ligar) o metrônomo tocam durante o canto, e o cancelamento de eco do microfone
+// (pitch-listener.ts) tira o que a caixa do PC devolve.
 //
-// Pedidos do dono (2026-08): tolerância de afinação (a voz oscila, nunca é exata), gráfico ao vivo
-// de pitch (com frequência, nome da nota e o alvo subindo/descendo pra mostrar o contorno),
-// contagem de entrada em tempo antes de tocar/cantar, escolha do BPM, e loop no "Ouvir modelo".
+// Feedback = afinador estilo violão: o nome da nota-alvo fica no centro e a AGULHA balança pros
+// lados (♭ grave / ♯ agudo). Tolerância generosa: a voz oscila muito.
 
 const DEFAULT_QPM = 90;
 const MIN_QPM = 40;
 const MAX_QPM = 160;
-const ONSET_TOLERANCE_MS = 320;
+const ONSET_TOLERANCE_MS = 340;
 const METRONOME_CLICK_HZ = 1000;
 const METRONOME_CLICK_SECONDS = 0.05;
 
-// Uma voz cantada oscila muito: aceitar até ~3/4 de semitom de desvio como "na nota", e exigir só
-// que uma fração dos quadros de microfone da nota esteja dentro dessa faixa.
-const PITCH_TOLERANCE_CENTS = 75;
-const PITCH_TOLERANCE_SEMITONES = PITCH_TOLERANCE_CENTS / 100;
-const ON_PITCH_RATIO = 0.34;
+// ~1 semitom de folga, e basta a MEDIANA do canto (ou 1/4 dos quadros) cair nessa faixa.
+const PITCH_TOLERANCE_CENTS = 100;
+const ON_PITCH_RATIO = 0.25;
+// Quadros com desvio absurdo (> um tom) são glitch do detector / clique que vazou — descartados.
+const GLITCH_CENTS = 220;
 
 const COUNT_IN_BEATS = 4;
 
-const GRAPH_WINDOW_MS = 2800;
-// Meia-altura do gráfico em semitons — janela de ~1.5 oitava centrada na mediana da melodia.
-const GRAPH_HALF_RANGE_SEMITONES = 9;
+// Agulha do afinador: ±60 cents mapeiam pra ±38° de rotação.
+const NEEDLE_RANGE_CENTS = 60;
+const NEEDLE_MAX_DEG = 38;
+const RECENT_SAMPLE_MS = 200;
 
 type NoteVerdict = "correct" | "wrong-timing" | "wrong-pitch" | "missed";
 type NoteResult = { note: ExpectedNote; verdict: NoteVerdict; octaveNote: string | null };
 type Phase = "idle" | "playing-model" | "counting-in" | "singing" | "results";
 type SungFrame = { centsOff: number; elapsedMs: number; midi: number };
-type GraphSample = { t: number; freqHz: number };
 
 const VERDICT_CLASS: Record<NoteVerdict, string> = {
   correct: "fill-success",
@@ -75,8 +74,7 @@ function playMetronomeClick(audioContext: AudioContext) {
 }
 
 // Clique da CONTAGEM de entrada — agendado com precisão de amostra no relógio do AudioContext (não
-// setTimeout, que arrastava e saía fora do tempo). Beat 1 acentuado (mais grave e mais forte),
-// beats 2–4 num tom mais alto e curto — dá pra ouvir claramente "1 · 2 3 4" no andamento.
+// setTimeout, que arrastava). Beat 1 acentuado; beats 2–4 mais curtos e agudos.
 function scheduleCountInClick(audioContext: AudioContext, atTime: number, accented: boolean) {
   const oscillator = audioContext.createOscillator();
   const gain = audioContext.createGain();
@@ -104,17 +102,11 @@ function highlightNote(note: ExpectedNote, className: string) {
 }
 
 // Cents (com sinal) entre a frequência cantada e a ocorrência MAIS PRÓXIMA da classe de nota
-// esperada (em qualquer oitava). 0 = afinado; ±100 = um semitom.
+// esperada (em qualquer oitava). 0 = afinado; ±100 = um semitom; + = agudo, − = grave.
 function centsFromPitchClass(frequencyHz: number, pitchClass: number): number {
   const midi = frequencyToMidi(frequencyHz);
   const nearest = pitchClass + 12 * Math.round((midi - pitchClass) / 12);
   return (midi - nearest) * 100;
-}
-
-// MIDI cantado "dobrado" pra oitava mais próxima do alvo — o gráfico mostra o contorno (sobe/desce)
-// sem a linha voar pra fora quando o aluno canta a classe certa numa oitava diferente da escrita.
-function foldToNearestOctave(sungMidi: number, referenceMidi: number): number {
-  return sungMidi + 12 * Math.round((referenceMidi - sungMidi) / 12);
 }
 
 function noteLabel(frequencyHz: number): string {
@@ -122,29 +114,32 @@ function noteLabel(frequencyHz: number): string {
   return `${pitchClassNamePt(((midi % 12) + 12) % 12)}${midiToOctave(midi)}`;
 }
 
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
 function computeVerdict(note: ExpectedNote, frames: SungFrame[]): NoteResult {
-  if (frames.length === 0) return { note, verdict: "missed", octaveNote: null };
+  const clean = frames.filter((frame) => Math.abs(frame.centsOff) <= GLITCH_CENTS);
+  const pool = clean.length >= 3 ? clean : frames;
+  if (pool.length === 0) return { note, verdict: "missed", octaveNote: null };
 
-  const onPitch = frames.filter((frame) => Math.abs(frame.centsOff) <= PITCH_TOLERANCE_CENTS);
-  const ratio = onPitch.length / frames.length;
-  if (ratio < ON_PITCH_RATIO) return { note, verdict: "wrong-pitch", octaveNote: null };
+  const withinRatio = pool.filter((frame) => Math.abs(frame.centsOff) <= PITCH_TOLERANCE_CENTS).length / pool.length;
+  const onPitch = Math.abs(median(pool.map((frame) => frame.centsOff))) <= PITCH_TOLERANCE_CENTS || withinRatio >= ON_PITCH_RATIO;
+  if (!onPitch) return { note, verdict: "wrong-pitch", octaveNote: null };
 
-  const earliestElapsedMs = Math.min(...onPitch.map((frame) => frame.elapsedMs));
+  const good = pool.filter((frame) => Math.abs(frame.centsOff) <= PITCH_TOLERANCE_CENTS);
+  const reference = good.length > 0 ? good : pool;
+  const earliestElapsedMs = Math.min(...reference.map((frame) => frame.elapsedMs));
   const onTime = Math.abs(earliestElapsedMs - note.startMs) <= ONSET_TOLERANCE_MS;
 
-  const sungMidi = Math.round(onPitch.reduce((sum, frame) => sum + frame.midi, 0) / onPitch.length);
+  const sungMidi = Math.round(reference.reduce((sum, frame) => sum + frame.midi, 0) / reference.length);
   const octaveDescription = describeOctaveOffset(sungMidi, note.midiPitch);
   return {
     note,
     verdict: onTime ? "correct" : "wrong-timing",
     octaveNote: octaveDescription === "mesma oitava do escrito" ? null : octaveDescription,
   };
-}
-
-function cssColor(name: string, fallback: string): string {
-  if (typeof window === "undefined") return fallback;
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return value.length > 0 ? value : fallback;
 }
 
 export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: NotationToken[] }) {
@@ -154,9 +149,6 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   const rawIndexToNoteIndexRef = useRef<number[]>([]);
   const totalMsRef = useRef(0);
   const qpmRef = useRef(DEFAULT_QPM);
-  // Geração: cada início de "Ouvir modelo"/"Cantar junto" incrementa; qualquer callback assíncrono
-  // (fim da contagem, timeout do loop) checa se ainda é a geração dele antes de agir. Sem isso,
-  // cancelar e reiniciar rápido dispara playback duplicado.
   const runIdRef = useRef(0);
 
   const metronomeAudioContextRef = useRef<AudioContext | null>(null);
@@ -172,6 +164,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   const modelTimingRef = useRef<TimingCallbacks | null>(null);
   const modelTimeoutRef = useRef<number | null>(null);
   const loopModelRef = useRef(false);
+  const metronomeOnRef = useRef(false);
 
   const singingTimingRef = useRef<TimingCallbacks | null>(null);
   const singingActiveRef = useRef(false);
@@ -181,12 +174,13 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   const resultsAccumulatorRef = useRef<NoteResult[]>([]);
   const countInTimeoutsRef = useRef<number[]>([]);
 
-  const graphBufferRef = useRef<GraphSample[]>([]);
-  const graphCanvasRef = useRef<HTMLCanvasElement>(null);
-  const graphRafRef = useRef<number | null>(null);
-  const readoutRef = useRef<HTMLSpanElement>(null);
-  const anchorMidiRef = useRef(69);
-  const distinctMidisRef = useRef<number[]>([]);
+  // Afinador
+  const lastVoicedRef = useRef<{ t: number; freqHz: number } | null>(null);
+  const needleRef = useRef<HTMLDivElement>(null);
+  const needleDegRef = useRef(0);
+  const tunerNoteRef = useRef<HTMLSpanElement>(null);
+  const tunerHzRef = useRef<HTMLSpanElement>(null);
+  const tunerRafRef = useRef<number | null>(null);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [results, setResults] = useState<NoteResult[] | null>(null);
@@ -194,8 +188,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   const [bpm, setBpm] = useState<number | null>(null);
   const [originalQpm, setOriginalQpm] = useState<number | null>(null);
   const [loopModel, setLoopModel] = useState(false);
-  // A contagem de entrada serve tanto pro "Ouvir modelo" quanto pro "Cantar junto"; o gráfico só
-  // aparece quando é pra cantar.
+  const [metronomeOn, setMetronomeOn] = useState(false);
   const [countInForSinging, setCountInForSinging] = useState(false);
 
   const pitchListener = usePitchListener();
@@ -222,8 +215,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     }
   }, [abc]);
 
-  // Re-deriva as notas esperadas quando o BPM muda — o start/duração de cada nota depende do
-  // andamento. Não precisa re-renderizar a pauta, só recontar o tempo sobre o mesmo tune.
+  // Re-deriva as notas esperadas quando o BPM muda — start/duração dependem do andamento.
   useEffect(() => {
     const tune = tuneRef.current;
     if (!tune || bpm === null) return;
@@ -232,133 +224,71 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     expectedNotesRef.current = notes;
     rawIndexToNoteIndexRef.current = rawIndexToNoteIndex;
     totalMsRef.current = totalMs;
-    // Âncora do gráfico = mediana das alturas escritas; linhas-guia = alturas distintas.
-    const midis = notes.map((note) => note.midiPitch).sort((a, b) => a - b);
-    anchorMidiRef.current = midis.length > 0 ? midis[Math.floor(midis.length / 2)] : 69;
-    distinctMidisRef.current = [...new Set(midis)];
     setSetupError(notes.length === 0 ? "Não consegui ler as notas desta partitura para comparar com o canto." : null);
   }, [bpm, abc, tokens]);
 
-  // ---- Microfone -> balde da nota corrente + buffer do gráfico -----------------------------
+  // ---- Microfone -> balde da nota corrente + última frequência ouvida ---------------------
   useEffect(() => {
     return pitchListener.subscribe((frame) => {
       if (frame.frequencyHz === null) return;
+      lastVoicedRef.current = { t: frame.timestampMs, freqHz: frame.frequencyHz };
 
-      graphBufferRef.current.push({ t: frame.timestampMs, freqHz: frame.frequencyHz });
-      if (graphBufferRef.current.length > 260) {
-        const cutoff = frame.timestampMs - GRAPH_WINDOW_MS - 500;
-        graphBufferRef.current = graphBufferRef.current.filter((sample) => sample.t >= cutoff);
-      }
-
-      const noteIndex = currentNoteIndexRef.current;
-      const note = expectedNotesRef.current[noteIndex];
+      const note = expectedNotesRef.current[currentNoteIndexRef.current];
       if (singingActiveRef.current && note) {
-        const midi = frequencyToMidi(frame.frequencyHz);
-        const centsOff = centsFromPitchClass(frame.frequencyHz, note.pitchClass);
-        const elapsedMs = frame.timestampMs - phaseStartRef.current;
-        framesByNoteRef.current[noteIndex]?.push({ centsOff, elapsedMs, midi });
+        framesByNoteRef.current[currentNoteIndexRef.current]?.push({
+          centsOff: centsFromPitchClass(frame.frequencyHz, note.pitchClass),
+          elapsedMs: frame.timestampMs - phaseStartRef.current,
+          midi: frequencyToMidi(frame.frequencyHz),
+        });
       }
     });
   }, [pitchListener]);
 
-  // ---- Loop de desenho do gráfico (enquanto conta / canta) --------------------------------
-  // Eixo Y = altura em semitons (não "cents fora do alvo"): a linha VERDE do alvo sobe e desce a
-  // cada nota, mostrando o contorno da melodia; a linha da voz segue em altura absoluta (dobrada
-  // pra oitava do alvo). Readout mostra nome da nota + frequência cantada.
+  // ---- Afinador (agulha) — roda na contagem-pra-cantar e no canto -------------------------
   useEffect(() => {
-    if (phase !== "singing" && phase !== "counting-in") return;
-    const canvas = graphCanvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
+    const forSinging = phase === "singing" || (phase === "counting-in" && countInForSinging);
+    if (!forSinging) return;
+    const needle = needleRef.current;
+    if (!needle) return;
 
-    const targetColor = cssColor("--color-success", "green");
-    const voiceColor = cssColor("--color-primary", "royalblue");
-    const offColor = cssColor("--color-destructive", "crimson");
-    const gridColor = cssColor("--color-border", "gray");
+    function frame() {
+      const note = expectedNotesRef.current[currentNoteIndexRef.current] ?? expectedNotesRef.current[0];
+      if (tunerNoteRef.current) tunerNoteRef.current.textContent = note ? pitchClassNamePt(note.pitchClass) : "—";
 
-    function draw() {
-      const width = canvas!.clientWidth || 300;
-      const height = canvas!.clientHeight || 110;
-      if (canvas!.width !== width) canvas!.width = width;
-      if (canvas!.height !== height) canvas!.height = height;
-      ctx!.clearRect(0, 0, width, height);
+      const last = lastVoicedRef.current;
+      const fresh = last !== null && performance.now() - last.t < RECENT_SAMPLE_MS;
+      let targetDeg = 0;
+      let inTune = false;
 
-      const anchor = anchorMidiRef.current;
-      const mid = height / 2;
-      const usable = mid - 8;
-      const midiToY = (midi: number) => {
-        const rel = Math.max(-GRAPH_HALF_RANGE_SEMITONES, Math.min(GRAPH_HALF_RANGE_SEMITONES, midi - anchor));
-        return mid - (rel / GRAPH_HALF_RANGE_SEMITONES) * usable;
-      };
-
-      // linhas-guia nas alturas escritas da melodia
-      ctx!.strokeStyle = gridColor;
-      ctx!.lineWidth = 1;
-      ctx!.globalAlpha = 0.5;
-      for (const midi of distinctMidisRef.current) {
-        const y = midiToY(midi);
-        ctx!.beginPath();
-        ctx!.moveTo(0, y);
-        ctx!.lineTo(width, y);
-        ctx!.stroke();
-      }
-      ctx!.globalAlpha = 1;
-
-      const note = expectedNotesRef.current[currentNoteIndexRef.current];
-      const targetMidi = note ? note.midiPitch : anchor;
-
-      // faixa de tolerância + linha do alvo (na altura da nota corrente — pula a cada nota)
-      const bandTop = midiToY(targetMidi + PITCH_TOLERANCE_SEMITONES);
-      const bandBottom = midiToY(targetMidi - PITCH_TOLERANCE_SEMITONES);
-      ctx!.globalAlpha = 0.16;
-      ctx!.fillStyle = targetColor;
-      ctx!.fillRect(0, bandTop, width, bandBottom - bandTop);
-      ctx!.globalAlpha = 1;
-      ctx!.strokeStyle = targetColor;
-      ctx!.lineWidth = 2;
-      ctx!.beginPath();
-      ctx!.moveTo(0, midiToY(targetMidi));
-      ctx!.lineTo(width, midiToY(targetMidi));
-      ctx!.stroke();
-
-      const now = performance.now();
-      const samples = graphBufferRef.current.filter((sample) => sample.t >= now - GRAPH_WINDOW_MS);
-      ctx!.strokeStyle = voiceColor;
-      ctx!.lineWidth = 2;
-      ctx!.beginPath();
-      samples.forEach((sample, index) => {
-        const x = width - ((now - sample.t) / GRAPH_WINDOW_MS) * width;
-        const folded = foldToNearestOctave(frequencyToMidi(sample.freqHz), targetMidi);
-        const y = midiToY(folded);
-        if (index === 0) ctx!.moveTo(x, y);
-        else ctx!.lineTo(x, y);
-      });
-      ctx!.stroke();
-
-      const last = samples.at(-1);
-      if (last) {
-        const foldedLast = foldToNearestOctave(frequencyToMidi(last.freqHz), targetMidi);
-        const onPitch = Math.abs(foldedLast - targetMidi) <= PITCH_TOLERANCE_SEMITONES;
-        ctx!.fillStyle = onPitch ? targetColor : offColor;
-        ctx!.beginPath();
-        ctx!.arc(width - 5, midiToY(foldedLast), 4.5, 0, Math.PI * 2);
-        ctx!.fill();
+      if (fresh && note && last) {
+        const cents = centsFromPitchClass(last.freqHz, note.pitchClass);
+        inTune = Math.abs(cents) <= PITCH_TOLERANCE_CENTS;
+        const clamped = Math.max(-NEEDLE_RANGE_CENTS, Math.min(NEEDLE_RANGE_CENTS, cents));
+        targetDeg = (clamped / NEEDLE_RANGE_CENTS) * NEEDLE_MAX_DEG;
+        const dir = cents > 12 ? "♯ um pouco agudo" : cents < -12 ? "♭ um pouco grave" : "no ponto";
+        if (tunerHzRef.current) tunerHzRef.current.textContent = `${noteLabel(last.freqHz)} · ${Math.round(last.freqHz)} Hz · ${dir}`;
+      } else if (tunerHzRef.current) {
+        tunerHzRef.current.textContent = "cante uma nota…";
       }
 
-      if (readoutRef.current) {
-        const alvo = note ? pitchClassNamePt(note.pitchClass) : "—";
-        const voz = last ? `${noteLabel(last.freqHz)} · ${Math.round(last.freqHz)} Hz` : "—";
-        readoutRef.current.textContent = `alvo ${alvo}  ·  você ${voz}`;
+      needleDegRef.current += (targetDeg - needleDegRef.current) * 0.18;
+      needle!.style.transform = `rotate(${needleDegRef.current.toFixed(2)}deg)`;
+      if (inTune) {
+        needle!.classList.add("bg-success");
+        needle!.classList.remove("bg-primary");
+      } else {
+        needle!.classList.add("bg-primary");
+        needle!.classList.remove("bg-success");
       }
 
-      graphRafRef.current = window.requestAnimationFrame(draw);
+      tunerRafRef.current = window.requestAnimationFrame(frame);
     }
-    graphRafRef.current = window.requestAnimationFrame(draw);
+    tunerRafRef.current = window.requestAnimationFrame(frame);
     return () => {
-      if (graphRafRef.current !== null) window.cancelAnimationFrame(graphRafRef.current);
-      graphRafRef.current = null;
+      if (tunerRafRef.current !== null) window.cancelAnimationFrame(tunerRafRef.current);
+      tunerRafRef.current = null;
     };
-  }, [phase]);
+  }, [phase, countInForSinging]);
 
   useEffect(() => {
     return () => {
@@ -376,8 +306,6 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   }, []);
 
   // ---- Contagem de entrada — um compasso de cliques no andamento, resolve no "1" seguinte -----
-  // Os cliques são agendados no relógio do AudioContext (precisão de amostra); só o resolve da
-  // promise usa setTimeout, e um erro de poucos ms aí é imperceptível.
   function playCountIn(): Promise<void> {
     countInTimeoutsRef.current.forEach((id) => window.clearTimeout(id));
     countInTimeoutsRef.current = [];
@@ -411,7 +339,6 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     setPhase("results");
   }
 
-  // Cancela qualquer fase ativa (contagem, modelo ou canto) e volta pro estado ocioso.
   function cancelAll() {
     runIdRef.current += 1;
     countInTimeoutsRef.current.forEach((id) => window.clearTimeout(id));
@@ -441,8 +368,9 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     clearHighlights(notes);
     framesByNoteRef.current = notes.map(() => []);
     resultsAccumulatorRef.current = [];
-    graphBufferRef.current = [];
-    currentNoteIndexRef.current = 0; // já mira a 1ª nota durante a contagem (alimenta o gráfico)
+    lastVoicedRef.current = null;
+    needleDegRef.current = 0;
+    currentNoteIndexRef.current = 0; // já mira a 1ª nota durante a contagem (alimenta o afinador)
     singingActiveRef.current = false;
 
     runIdRef.current += 1;
@@ -462,7 +390,9 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     let currentMergedIndex = -1;
     const timing = new TimingCallbacks(tune, {
       qpm: qpmRef.current,
-      beatCallback: () => playMetronomeClick(metronomeAudioContext),
+      beatCallback: () => {
+        if (metronomeOnRef.current) playMetronomeClick(metronomeAudioContext);
+      },
       eventCallback: (event) => {
         if (event === null) {
           if (currentMergedIndex >= 0) finalizeNote(currentMergedIndex);
@@ -520,7 +450,9 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
       const metronomeAudioContext = getMetronomeAudioContext();
       const timing = new TimingCallbacks(tune, {
         qpm: qpmRef.current,
-        beatCallback: () => playMetronomeClick(metronomeAudioContext),
+        beatCallback: () => {
+          if (metronomeOnRef.current) playMetronomeClick(metronomeAudioContext);
+        },
       });
       modelTimingRef.current = timing;
       timing.start();
@@ -545,12 +477,19 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     });
   }
 
+  function toggleMetronome() {
+    setMetronomeOn((prev) => {
+      metronomeOnRef.current = !prev;
+      return !prev;
+    });
+  }
+
   function resetPractice() {
     clearHighlights(expectedNotesRef.current);
     resultsAccumulatorRef.current = [];
     framesByNoteRef.current = [];
     currentNoteIndexRef.current = -1;
-    graphBufferRef.current = [];
+    lastVoicedRef.current = null;
     setResults(null);
     setPhase("idle");
   }
@@ -570,24 +509,31 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   );
   const notableResults = results?.filter((result) => result.verdict !== "correct") ?? [];
   const canAdjust = phase === "idle" || phase === "results";
-  const showGraph = phase === "singing" || (phase === "counting-in" && countInForSinging);
+  const showTuner = phase === "singing" || (phase === "counting-in" && countInForSinging);
 
   return (
     <div className="mt-2 space-y-3 rounded-md border border-border bg-card p-3">
       <div ref={containerRef} className="overflow-x-auto" />
 
-      {showGraph && (
-        <div className="space-y-1">
-          <canvas ref={graphCanvasRef} className="h-28 w-full rounded-md border border-border bg-muted/30" />
-          <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground/56">
-            <span>
-              A linha verde é a nota certa (sobe e desce com a melodia); a faixa é a margem aceita; a
-              linha clara é a sua voz.
-              {phase === "counting-in" ? " Comece a cantar no “1”." : ""}
-            </span>
-            <span ref={readoutRef} className="shrink-0 font-medium tabular-nums text-foreground">
-              —
-            </span>
+      {showTuner && (
+        <div className="rounded-md border border-border bg-muted/30 p-3 text-center">
+          <span ref={tunerNoteRef} className="block text-3xl font-semibold leading-none text-foreground">
+            —
+          </span>
+          <span ref={tunerHzRef} className="mt-1 block text-[11px] text-muted-foreground/56">
+            {phase === "counting-in" ? "prepare — comece no “1”" : "cante uma nota…"}
+          </span>
+          <div className="relative mx-auto mt-3 h-16 w-56">
+            <div className="absolute inset-x-0 bottom-0 flex justify-between px-1 text-[10px] text-muted-foreground/56">
+              <span>♭ grave</span>
+              <span>afinado</span>
+              <span>♯ agudo</span>
+            </div>
+            <div className="absolute bottom-2 left-1/2 h-9 w-24 -translate-x-1/2 rounded-t-full bg-success/10" />
+            <div className="absolute bottom-1.5 left-1/2 size-2.5 -translate-x-1/2 translate-y-1/2 rounded-full bg-border" />
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2">
+              <div ref={needleRef} className="h-12 w-1 origin-bottom rounded-full bg-primary" />
+            </div>
           </div>
         </div>
       )}
@@ -628,34 +574,41 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
         )}
       </div>
 
-      <div className="flex items-center gap-2">
-        <label htmlFor="sing-bpm" className="text-[11px] font-medium tracking-caps text-muted-foreground/56 uppercase">
-          Andamento
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-1 items-center gap-2">
+          <label htmlFor="sing-bpm" className="text-[11px] font-medium tracking-caps text-muted-foreground/56 uppercase">
+            Andamento
+          </label>
+          <input
+            id="sing-bpm"
+            type="range"
+            min={MIN_QPM}
+            max={MAX_QPM}
+            step={1}
+            value={bpm ?? DEFAULT_QPM}
+            disabled={!canAdjust}
+            onChange={(event) => setBpm(Number(event.target.value))}
+            className="h-1.5 flex-1 accent-primary disabled:opacity-40"
+          />
+          <span className="w-16 text-right text-xs tabular-nums text-foreground">{bpm ?? "—"} BPM</span>
+          {canAdjust && bpm !== null && originalQpm !== null && bpm !== originalQpm && (
+            <Button type="button" variant="ghost" size="xs" onClick={() => setBpm(originalQpm)}>
+              partitura ({originalQpm})
+            </Button>
+          )}
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <input type="checkbox" checked={metronomeOn} onChange={toggleMetronome} className="accent-primary" />
+          Metrônomo
         </label>
-        <input
-          id="sing-bpm"
-          type="range"
-          min={MIN_QPM}
-          max={MAX_QPM}
-          step={1}
-          value={bpm ?? DEFAULT_QPM}
-          disabled={!canAdjust}
-          onChange={(event) => setBpm(Number(event.target.value))}
-          className="h-1.5 flex-1 accent-primary disabled:opacity-40"
-        />
-        <span className="w-16 text-right text-xs tabular-nums text-foreground">{bpm ?? "—"} BPM</span>
-        {canAdjust && bpm !== null && originalQpm !== null && bpm !== originalQpm && (
-          <Button type="button" variant="ghost" size="xs" onClick={() => setBpm(originalQpm)}>
-            partitura ({originalQpm})
-          </Button>
-        )}
       </div>
 
       {phase === "idle" && (
         <p className="text-xs text-muted-foreground/56">
-          Ao tocar em “Cantar junto”, o navegador vai pedir acesso ao microfone. Tem uma contagem de
-          entrada (1-2-3-4) antes de começar. O áudio é analisado só no seu aparelho, em tempo real —
-          nada é gravado nem enviado.
+          Ao tocar em “Cantar junto”, o navegador pede acesso ao microfone. Tem uma contagem de
+          entrada (1-2-3-4) antes de começar. Deixe o metrônomo desligado se estiver sem fone (a
+          caixa do PC atrapalha a leitura da voz). O áudio é analisado só no seu aparelho — nada é
+          gravado nem enviado.
         </p>
       )}
 

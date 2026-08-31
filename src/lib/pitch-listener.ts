@@ -6,9 +6,13 @@ import { PitchDetector } from "pitchy";
 // como um controller do que estado de closure de hook — src/hooks/use-pitch-listener.ts é o
 // wrapper React fino em cima disto.
 
-const FFT_SIZE = 2048;
-const CLARITY_THRESHOLD = 0.9;
-const MIN_VOLUME_DECIBELS = -35;
+// Janela maior (4096 ≈ 93 ms) dá mais períodos pra medir notas graves de voz (~110 Hz) sem erro
+// de oitava; a latência extra não incomoda em nota sustentada.
+const FFT_SIZE = 4096;
+// Piso de confiança do McLeod: 0.8 deixa passar nota grave/mais fraca que 0.9 rejeitava (o aluno
+// reclamou de "cantei e deu errado"); ainda filtra ruído.
+const CLARITY_THRESHOLD = 0.8;
+const MIN_VOLUME_DECIBELS = -45;
 
 export type PitchFrame = { frequencyHz: number | null; clarity: number; timestampMs: number };
 
@@ -36,9 +40,11 @@ export class PitchListener {
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        // Desligado de propósito: echoCancellation/noiseSuppression são afinados pra voz de
-        // chamada, não canto sustentado — distorcem a frequência fundamental que queremos medir.
-        audio: { echoCancellation: false, noiseSuppression: false },
+        // echoCancellation LIGADO: quando o aluno pratica no PC sem fone, o metrônomo/modelo sai
+        // pela caixa e volta pelo microfone — o cancelamento de eco remove justamente o áudio que
+        // o próprio aparelho tocou. noiseSuppression/autoGainControl continuam desligados: são
+        // afinados pra voz de chamada e distorcem a fundamental de uma nota sustentada.
+        audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false },
       });
     } catch (error) {
       return { ok: false, reason: classifyGetUserMediaError(error), message: describeGetUserMediaError(error) };
