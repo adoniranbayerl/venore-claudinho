@@ -200,9 +200,10 @@ mais comum de refrão em música popular.
 
 O seed da Aula 4 traz agora a **transcrição da partitura oficial** (IM Conviver / Prática de canto,
 PDF de melodia com os graus escritos acima de cada nota), 19 compassos + anacruse, em Lá maior,
-♩=80. **As alturas seguem a partitura grau a grau**; o **ritmo é aproximado** (a leitura do PDF não
-recupera as figuras com precisão — conferir contra a partitura/gravação). Repetição e casas 1ª/2ª
-foram simplificadas para a melodia correr uma vez só.
+♩=80. **As alturas seguem a partitura grau a grau**. As notas longas usam a figura **semínima
+pontuada + colcheia** (`X2-X`). O **ritmo ainda é aproximado** (a leitura do PDF não recupera todas
+as figuras — conferir, principalmente o agrupamento das colcheias dos 4 últimos compassos).
+Repetição e casas 1ª/2ª foram simplificadas para a melodia correr uma vez só.
 
 ```abc
 X:1
@@ -210,7 +211,7 @@ M:4/4
 L:1/8
 Q:1/4=80
 K:A
-A,B, | CCCCC B,A,E | E8 | C4 E4 | FFFF ED A,2 | A,4 A,2 A,B, | CCCC DE A,2 | A,2 B,2 C4 | E2 A,2 C4 | D D C2 A,2 A,2 | F4 E4 | E2 B,2 A,4 | F2 A, A, F2 A, B, | =C2 B, A, A, A, A, B, | C2 C2 D C B, B, | B,2 A, A, F2 A,2 | C B, B, A, B, B, F2 | F A, C B, B, A, C C | F F A, C B, B, A, B, | A,2 F2 E4 |]
+A,B, | CCCCC B,A,E | E8 | C2-C E E4 | FFFF ED A,2 | A,4 A,2 A,B, | CCCC DE A,2 | A,2 B,2 C4 | E2 A,2 C4 | D D C2 A,2 A,2 | F2-F E E4 | E2 B,2 A,4 | F2 A, A, F2 A, B, | =C2 B, A, A, A, A, B, | C2 C2 D C B, B, | B,2 A, A, F2 A,2 | C B, B, A, B, B, F2 | F A, C B, B, A, C C | F F A, C B, B, A, B, | A,2 F2 E4 |]
 ```
 > Detalhes que vieram direto da partitura e devem permanecer: a **anacruse Lá–Si** ("Je-sus"); a
 > nota longa no grau 5 logo no início; o **Dó natural** (grau 3 rebaixado, marcado "3b" na

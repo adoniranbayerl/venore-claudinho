@@ -238,24 +238,26 @@ export const MUSICA_LESSONS: SeedLesson[] = [
         caption:
           "Transcrição direta dos graus da partitura oficial (IM Conviver / Prática de canto), em Lá " +
           "maior, ♩=80. As ALTURAS seguem a partitura grau a grau (a anacruse Lá–Si; o Dó natural — " +
-          "grau 3 rebaixado — no trecho do refrão; o fecho descendo 1–6–5). O RITMO aqui é aproximado " +
-          "— confira contra a partitura/gravação. Repetição e casas 1ª/2ª da partitura foram " +
-          "simplificadas: aqui a melodia corre uma vez só, direto.",
+          "grau 3 rebaixado — no trecho do refrão; o fecho descendo 1–6–5, terminando no grau 5). As " +
+          "notas longas usam a figura semínima pontuada + colcheia. O RITMO ainda é aproximado — " +
+          "confira contra a partitura, sobretudo o agrupamento das colcheias dos últimos 4 compassos. " +
+          "Repetição e casas 1ª/2ª da partitura foram simplificadas: aqui a melodia corre uma vez só.",
         abc:
           "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\n" +
-          "A,B, | CCCCC B,A,E | E8 | C4 E4 | FFFF ED A,2 | A,4 A,2 A,B, | " +
-          "CCCC DE A,2 | A,2 B,2 C4 | E2 A,2 C4 | D D C2 A,2 A,2 | F4 E4 | E2 B,2 A,4 | " +
+          "A,B, | CCCCC B,A,E | E8 | C2-C E E4 | FFFF ED A,2 | A,4 A,2 A,B, | " +
+          "CCCC DE A,2 | A,2 B,2 C4 | E2 A,2 C4 | D D C2 A,2 A,2 | F2-F E E4 | E2 B,2 A,4 | " +
           "F2 A, A, F2 A, B, | =C2 B, A, A, A, A, B, | C2 C2 D C B, B, | B,2 A, A, F2 A,2 | " +
           "C B, B, A, B, B, F2 | F A, C B, B, A, C C | F F A, C B, B, A, B, | A,2 F2 E4 |]\n",
       },
       {
         title: "A estrofe — primeira frase",
         caption:
-          "As quatro primeiras notas com a letra: anacruse Lá–Si (\"Je-sus\") caindo antes do tempo 1, " +
-          "depois graus conjuntos. Alturas da partitura; ritmo a conferir.",
+          "Anacruse Lá–Si (\"Je-sus\") caindo antes do tempo 1, depois graus conjuntos. As notas " +
+          "longas usam a figura semínima pontuada + colcheia. Alturas da partitura; barras das notas " +
+          "longas ainda a conferir.",
         abc:
           "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\n" +
-          "z4 z2 \"A\"A,B, | CCCCC B,A,E | \"A\"E8 | \"D\"C4 E4 | \"E7\"FFFF ED A,2 |\n",
+          "z4 z2 \"A\"A,B, | CCCCC B,A,E | \"A\"E8 | \"D\"C2-C E E4 | \"E7\"FFFF ED A,2 |\n",
       },
       {
         title: "O trecho do refrão com o Dó natural",
