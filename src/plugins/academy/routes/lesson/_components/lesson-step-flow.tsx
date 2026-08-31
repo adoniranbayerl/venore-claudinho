@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useEffect, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
+import { createContext, useEffect, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { Check, CheckCircle2, ChevronLeft, ChevronRight, Flag, ListChecks, MessageCircle, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
@@ -153,6 +153,18 @@ export function LessonStepFlow({
   const [locallyRead, setLocallyRead] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const { large: largeText, toggle: toggleLargeText } = useLargeText();
+
+  // Ao trocar de etapa, o scroll ficava onde estava (ex: no rodapé, depois de terminar a
+  // avaliação) — o aluno avançava e não via o conteúdo novo. Volta ao topo do fluxo a cada
+  // mudança de `index`, menos no primeiro render (a página já carrega no lugar certo, inclusive
+  // quando vem por deep link de mensagem com initialStepId).
+  const flowRef = useRef<HTMLDivElement>(null);
+  const prevIndexRef = useRef(index);
+  useEffect(() => {
+    if (prevIndexRef.current === index) return; // primeiro render (e re-invocação do StrictMode)
+    prevIndexRef.current = index;
+    flowRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [index]);
 
   const [messageType, setMessageType] = useState<"question" | "correction" | null>(null);
   const [messageLoaded, setMessageLoaded] = useState(false);
@@ -313,7 +325,7 @@ export function LessonStepFlow({
   );
 
   return (
-    <div className="space-y-5">
+    <div ref={flowRef} className="space-y-5 scroll-mt-20">
       {steps.length > 1 && (
         <div role="tablist" aria-label="Etapas da aula" className="flex items-center gap-1.5">
           {steps.map((step, i) => (

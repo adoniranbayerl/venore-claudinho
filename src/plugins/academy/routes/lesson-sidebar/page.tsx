@@ -61,7 +61,7 @@ export default async function LessonTrailSlot({
     }));
 
     return (
-      <div className="sticky top-8 flex flex-col gap-4">
+      <div className="flex flex-col gap-4 lg:sticky lg:top-8">
         <LessonTrail courseSlug={course.slug} items={items} />
         {donationTeaser}
       </div>
@@ -91,7 +91,7 @@ export default async function LessonTrailSlot({
   // sobrepor nada. Não mexe em LessonTrail (componente do plugin academy, reaproveitado em outros
   // lugares) — o ajuste fica só aqui, na composição desta página.
   return (
-    <div className="sticky top-8 flex flex-col gap-4">
+    <div className="flex flex-col gap-4 lg:sticky lg:top-8">
       <LessonTrail courseSlug={course.slug} items={items} />
       {donationTeaser}
     </div>
