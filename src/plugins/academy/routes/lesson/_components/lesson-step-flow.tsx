@@ -1,52 +1,15 @@
 "use client";
 
-import { createContext, useEffect, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
+import { createContext, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
-import { Check, CheckCircle2, ChevronLeft, ChevronRight, Flag, ListChecks, MessageCircle, ZoomIn, ZoomOut } from "lucide-react";
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Flag, ListChecks, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { getLessonMessageThreadAction, sendLessonMessageAction, type LessonMessageItem } from "../actions";
-
-// Preferência de leitura (pedido desta sessão: "opção pra aumentar o texto levemente, pra alunos
-// com dificuldade de visão") — mesmo padrão de color-mode (AGENTS.md, "nav-mode vs color-mode"):
-// vive em localStorage, client-only, não afeta a decisão de servidor sobre o que renderizar.
-// useSyncExternalStore (não useState+useEffect) — ler localStorage é sincronizar com um external
-// store, e setState direto dentro de um effect dispara render em cascata (regra
-// react-hooks/set-state-in-effect do eslint deste projeto). O evento custom existe porque o
-// evento nativo "storage" só dispara em OUTRAS abas, nunca na aba que fez o write.
-const TEXT_SCALE_STORAGE_KEY = "academy-large-text";
-const TEXT_SCALE_EVENT = "academy-large-text-change";
-
-function getTextScaleSnapshot(): boolean {
-  return window.localStorage.getItem(TEXT_SCALE_STORAGE_KEY) === "1";
-}
-
-function getTextScaleServerSnapshot(): boolean {
-  return false;
-}
-
-function subscribeToTextScale(callback: () => void) {
-  window.addEventListener(TEXT_SCALE_EVENT, callback);
-  window.addEventListener("storage", callback);
-  return () => {
-    window.removeEventListener(TEXT_SCALE_EVENT, callback);
-    window.removeEventListener("storage", callback);
-  };
-}
-
-function useLargeText() {
-  const large = useSyncExternalStore(subscribeToTextScale, getTextScaleSnapshot, getTextScaleServerSnapshot);
-
-  function toggle() {
-    window.localStorage.setItem(TEXT_SCALE_STORAGE_KEY, large ? "0" : "1");
-    window.dispatchEvent(new Event(TEXT_SCALE_EVENT));
-  }
-
-  return { large, toggle };
-}
+import { ReadingPreferencesControl, readingPrefsStyle, useReadingPrefs } from "./reading-preferences";
 
 type ActionState = { error: string | null };
 
@@ -152,7 +115,7 @@ export function LessonStepFlow({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [locallyRead, setLocallyRead] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
-  const { large: largeText, toggle: toggleLargeText } = useLargeText();
+  const { prefs: readingPrefs } = useReadingPrefs();
 
   // Ao trocar de etapa, o scroll ficava onde estava (ex: no rodapé, depois de terminar a
   // avaliação) — o aluno avançava e não via o conteúdo novo. Volta ao topo do fluxo a cada
@@ -368,20 +331,11 @@ export function LessonStepFlow({
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-[11px] font-semibold tracking-caps text-primary uppercase">
           {steps.length > 1 ? `Etapa ${index + 1} de ${steps.length} · ${current.kicker}` : current.kicker}
         </span>
-        <button
-          type="button"
-          onClick={toggleLargeText}
-          aria-pressed={largeText}
-          title={largeText ? "Diminuir texto" : "Aumentar texto"}
-          className="inline-flex items-center gap-1 rounded-sm px-1.5 py-1 text-[11px] font-medium text-muted-foreground outline-none ui-motion-base hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {largeText ? <ZoomOut className="size-3.5" aria-hidden="true" /> : <ZoomIn className="size-3.5" aria-hidden="true" />}
-          {largeText ? "Texto normal" : "Aumentar texto"}
-        </button>
+        <ReadingPreferencesControl />
       </div>
 
       {/* Contato com o professor por etapa (pedido desta sessão) — nunca gate de conclusão, só
@@ -408,7 +362,7 @@ export function LessonStepFlow({
           essa preferência. */}
       {current.navBeforeContent && navBar}
 
-      <div key={current.id} className="space-y-4" style={largeText ? { zoom: 1.15 } : undefined}>
+      <div key={current.id} className="space-y-4" style={readingPrefsStyle(readingPrefs)}>
         {current.activityGate ? (
           <ActivityGateContext.Provider
             value={(activityId, complete) =>

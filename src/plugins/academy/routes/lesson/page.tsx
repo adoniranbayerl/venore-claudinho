@@ -46,6 +46,7 @@ import { DoneBadge, LessonMaterialsList, type LessonMaterialStepItem } from "./_
 import { LessonExamplesList, type LessonExampleStepItem } from "./_components/lesson-examples-list";
 import { ActivitiesList, type ActivityStepItem } from "./_components/activity-form";
 import { LessonStepFlow, type LessonFlowStep, type LessonStepReadMark } from "./_components/lesson-step-flow";
+import { SpeakableSection } from "./_components/speakable-section";
 import { markLessonSectionReadAction, markTextReadAction, markVideoWatchedAction } from "./actions";
 
 type SectionItem = { id: string; title: string; composition: Composition; completed: boolean };
@@ -155,12 +156,9 @@ function buildSectionStep(section: SectionItem, readMark?: LessonStepReadMark): 
     kicker: "Leitura",
     readMark,
     content: (
-      <div key={section.id} className="space-y-4">
-        <h2 className="text-sm font-semibold text-foreground">{section.title}</h2>
-        <article className="prose max-w-none text-sm">
-          <BlockRenderer blocks={section.composition} mode="published" />
-        </article>
-      </div>
+      <SpeakableSection key={section.id} title={section.title}>
+        <BlockRenderer blocks={section.composition} mode="published" />
+      </SpeakableSection>
     ),
   };
 }
