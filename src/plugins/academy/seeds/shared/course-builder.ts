@@ -45,8 +45,32 @@ export type SeedLesson = {
   activity?: SeedActivity;
 };
 
-function block(key: string, data: Record<string, unknown>) {
+type SeedComposedBlock = {
+  id: string;
+  key: string;
+  slot: string;
+  data: Record<string, unknown>;
+  areas: { key: string; blocks: SeedComposedBlock[] }[];
+};
+
+function block(key: string, data: Record<string, unknown>): SeedComposedBlock {
   return { id: randomUUID(), key, slot: "", data, areas: [] };
+}
+
+// `core.content.richtext` (e os blocos de leaf em geral) tem `allowedInRoot: false` — a composição
+// de uma entry precisa de um contêiner na raiz. `core.layout.section` é o contêiner padrão do page
+// builder e aceita richtext + blocos de plugin na área "content" (block-registry.ts,
+// sectionNestableKeys). Sem isso o texto até é gravado, mas `getEntryComposition` (contracts/
+// entry-body.ts) só extrai de `data.blocks`, e um re-save no /admin/cms builder seria recusado por
+// validateComposition.
+function sectionWrapper(children: SeedComposedBlock[]): SeedComposedBlock {
+  return {
+    id: randomUUID(),
+    key: "core.layout.section",
+    slot: "",
+    data: { background: "none", maxWidth: "full", paddingY: "none", paddingX: "none", title: "", icon: "", titleAlign: "start" },
+    areas: [{ key: "content", blocks: children }],
+  };
 }
 
 function notationBlockData(abc: string, caption: string | undefined, allowSingAlong: boolean): Record<string, unknown> {
@@ -68,13 +92,14 @@ function notationBlockData(abc: string, caption: string | undefined, allowSingAl
   };
 }
 
-function sectionComposition(section: SeedSection) {
-  const blocks: ReturnType<typeof block>[] = [block("core.content.richtext", { content: section.markdown })];
+// Retorna já no formato que a entry guarda: `{ blocks: Composition }` (contracts/entry-body.ts).
+function sectionComposition(section: SeedSection): { blocks: SeedComposedBlock[] } {
+  const children: SeedComposedBlock[] = [block("core.content.richtext", { content: section.markdown })];
   for (const extra of section.blocks ?? []) {
     if (extra.kind === "notation") {
-      blocks.push(block("academy.notation.sheet", notationBlockData(extra.abc, extra.caption, extra.allowSingAlong ?? true)));
+      children.push(block("academy.notation.sheet", notationBlockData(extra.abc, extra.caption, extra.allowSingAlong ?? true)));
     } else {
-      blocks.push(
+      children.push(
         block("academy.progression", {
           chords: extra.chords,
           key: extra.key,
@@ -85,7 +110,7 @@ function sectionComposition(section: SeedSection) {
       );
     }
   }
-  return blocks;
+  return { blocks: [sectionWrapper(children)] };
 }
 
 export async function seedLesson(courseId: string, actorId: string, lesson: SeedLesson): Promise<OperationResult<void>> {
