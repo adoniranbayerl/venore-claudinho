@@ -4,6 +4,7 @@ import { remapCompositionMediaIds, type ImportReportOutcome } from "@/contexts/i
 import { listCategories as listMediaCategories, listMediaAssets, uploadMediaAsset } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
 import { academyCourseBundleManifestSchema, type ExportedLesson } from "../../../shared/course-bundle-manifest";
+import { validateQuizAudioShape } from "../../../shared/quiz-audio";
 import { addLessonActivity } from "../../lessons/add-lesson-activity/service";
 import { addLessonExample } from "../../lessons/add-lesson-example/service";
 import { addLessonMaterial } from "../../lessons/add-lesson-material/service";
@@ -286,11 +287,27 @@ async function importLesson({ courseId, lesson, actorId, resolveMediaId, record 
   }
 
   for (const question of lesson.quizQuestions) {
+    const questionKind = question.questionKind ?? "text";
+    const promptNotation = question.promptNotation ?? null;
+    const optionNotations = question.optionNotations ?? null;
+
+    // Mesma checagem de forma que o handler de add-quiz-question faz (a rota de import chama o
+    // service direto, então precisa validar aqui) — pega um pacote com quiz de áudio malformado
+    // e reporta por pergunta em vez de gravar algo quebrado.
+    const audioError = validateQuizAudioShape({ questionKind, options: question.options, optionNotations, promptNotation });
+    if (audioError) {
+      notes.push(`Pergunta "${question.text}": ${audioError.message}`);
+      continue;
+    }
+
     const questionResult = await addQuizQuestion({
       lessonId,
       text: question.text,
       options: question.options,
       correctOptionIndex: question.correctOptionIndex,
+      questionKind,
+      promptNotation,
+      optionNotations,
       actorId,
     });
     if (!questionResult.success) notes.push(`Pergunta "${question.text}": ${questionResult.error.message}`);

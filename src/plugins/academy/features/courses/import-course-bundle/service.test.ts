@@ -196,4 +196,67 @@ describe("importCourseBundle", () => {
     expect(result.data.reusedCount).toBe(1);
     expect(result.data.failedCount).toBe(1);
   });
+
+  it("carries audio-quiz fields through to addQuizQuestion and rejects a malformed audio question", async () => {
+    listCourses.mockResolvedValue({ success: true, data: [] });
+    createCourse.mockResolvedValue({ success: true, data: { id: "course-dst-2", slug: "novo-curso" } });
+    publishCourse.mockResolvedValue({ success: true, data: { id: "course-dst-2", slug: "novo-curso", status: "restricted" } });
+    createLesson.mockResolvedValue({ success: true, data: { id: "lesson-q-dst" } });
+    addQuizQuestion.mockResolvedValue({ success: true, data: { id: "q-dst" } });
+
+    const manifest = baseManifest({
+      lessons: [
+        {
+          title: "Aula Quiz",
+          videoUrl: null,
+          coverMediaRef: null,
+          status: "restricted",
+          sections: [],
+          materials: [],
+          examples: [],
+          activities: [],
+          quizQuestions: [
+            {
+              text: "Ouça o intervalo:",
+              options: ["Terça", "Quinta"],
+              correctOptionIndex: 1,
+              questionKind: "audio",
+              promptNotation: "X:1\nK:C\nC E |",
+            },
+            {
+              // audio sem nenhuma notação — deve ser recusada por pergunta, não travar a aula
+              text: "Áudio quebrado",
+              options: ["A", "B"],
+              correctOptionIndex: 0,
+              questionKind: "audio",
+            },
+            { text: "Comum", options: ["A", "B"], correctOptionIndex: 0 },
+          ],
+          requirements: null,
+        },
+      ],
+    });
+
+    const { importCourseBundle } = await import("./service");
+    const result = await importCourseBundle({ manifest, files: new Map(), actorId: "actor-1" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    expect(addQuizQuestion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Ouça o intervalo:",
+        questionKind: "audio",
+        promptNotation: "X:1\nK:C\nC E |",
+        optionNotations: null,
+      }),
+    );
+    expect(addQuizQuestion).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "Comum", questionKind: "text", promptNotation: null, optionNotations: null }),
+    );
+    // a pergunta de áudio malformada nunca chega no service
+    expect(addQuizQuestion).toHaveBeenCalledTimes(2);
+    const lessonLine = result.data.lines.find((line) => line.kind === "lesson");
+    expect(lessonLine?.message).toContain("Áudio quebrado");
+  });
 });

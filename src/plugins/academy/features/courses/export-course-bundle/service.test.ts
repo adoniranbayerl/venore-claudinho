@@ -173,7 +173,20 @@ describe("exportCourseBundle", () => {
     });
     listQuizQuestionsByLesson.mockResolvedValue({
       success: true,
-      data: [{ id: "quiz-1", lessonId: "lesson-1", text: "Pergunta?", options: ["A", "B"], correctOptionIndex: 0, createdAt: new Date() }],
+      data: [
+        { id: "quiz-1", lessonId: "lesson-1", text: "Pergunta?", options: ["A", "B"], correctOptionIndex: 0, questionKind: "text", promptNotation: null, optionNotations: null, createdAt: new Date() },
+        {
+          id: "quiz-2",
+          lessonId: "lesson-1",
+          text: "Ouça e escolha:",
+          options: ["Terça", "Quinta"],
+          correctOptionIndex: 1,
+          questionKind: "audio",
+          promptNotation: "X:1\nK:C\nC E |",
+          optionNotations: null,
+          createdAt: new Date(),
+        },
+      ],
     });
     getLessonRequirements.mockResolvedValue({
       success: true,
@@ -210,7 +223,16 @@ describe("exportCourseBundle", () => {
     expect(lesson.materials).toEqual([{ label: "Slides", mediaRef: "chk-material" }]);
     expect(lesson.examples).toEqual([{ title: "Exemplo", audioMediaRef: "chk-audio", sheetMediaRef: "chk-sheet", notationData: null, captionText: "caption" }]);
     expect(lesson.activities).toEqual([{ title: "Atividade", instructionsText: "faça isso", deliverableFormat: "text" }]);
-    expect(lesson.quizQuestions).toEqual([{ text: "Pergunta?", options: ["A", "B"], correctOptionIndex: 0 }]);
+    expect(lesson.quizQuestions).toEqual([
+      { text: "Pergunta?", options: ["A", "B"], correctOptionIndex: 0 },
+      {
+        text: "Ouça e escolha:",
+        options: ["Terça", "Quinta"],
+        correctOptionIndex: 1,
+        questionKind: "audio",
+        promptNotation: "X:1\nK:C\nC E |",
+      },
+    ]);
     expect(lesson.requirements).toEqual({
       readTextEnabled: true,
       watchVideoEnabled: false,

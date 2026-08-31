@@ -212,6 +212,12 @@ export async function exportCourseBundle(command: ExportCourseBundleCommand): Pr
         text: question.text,
         options: question.options,
         correctOptionIndex: question.correctOptionIndex,
+        // Só emite os campos de áudio quando a pergunta é de fato tipo áudio — assim uma pergunta
+        // de texto comum sai exatamente `{ text, options, correctOptionIndex }` (compatível com
+        // importadores antigos).
+        ...(question.questionKind === "audio" ? { questionKind: "audio" as const } : {}),
+        ...(question.promptNotation ? { promptNotation: question.promptNotation } : {}),
+        ...(question.optionNotations ? { optionNotations: question.optionNotations } : {}),
       })),
       requirements: detail.requirements
         ? {

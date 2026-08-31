@@ -51,7 +51,20 @@ export type ExportedLessonExample = {
 
 export type ExportedLessonActivity = { title: string; instructionsText: string; deliverableFormat: DeliverableFormat };
 
-export type ExportedQuizQuestion = { text: string; options: string[]; correctOptionIndex: number };
+export type ExportedQuizQuestion = {
+  text: string;
+  options: string[];
+  correctOptionIndex: number;
+  // Pergunta tipo áudio (treino de ouvido). Ausente = "text" (pergunta comum). Ver
+  // contracts/types.ts QuizQuestionKind. Campos opcionais de propósito — um pacote de versão
+  // anterior (sem eles) importa como pergunta de texto normal, sem quebrar.
+  questionKind?: "text" | "audio";
+  // ABC do enunciado ("ouça isto") — só faz sentido em questionKind "audio".
+  promptNotation?: string | null;
+  // Array paralelo a `options` (mesmo comprimento) — ABC tocável por opção, null pra opção
+  // só-texto.
+  optionNotations?: (string | null)[] | null;
+};
 
 export type ExportedLessonRequirements = {
   readTextEnabled: boolean;
@@ -139,6 +152,9 @@ const exportedQuizQuestionSchema = z.object({
   text: z.string().min(1),
   options: z.array(z.string()),
   correctOptionIndex: z.number().int().nonnegative(),
+  questionKind: z.enum(["text", "audio"]).optional(),
+  promptNotation: z.string().nullable().optional(),
+  optionNotations: z.array(z.string().nullable()).nullable().optional(),
 });
 
 const exportedLessonRequirementsSchema = z
