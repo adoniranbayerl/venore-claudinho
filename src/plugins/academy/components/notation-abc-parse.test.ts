@@ -28,6 +28,32 @@ describe("parseAbcToComposition — round-trip", () => {
     expect(roundTrip(composition)).toBe(compositionToAbc(composition));
   });
 
+  it("figuras pontuadas (colcheia, semínima e mínima pontuadas)", () => {
+    const composition: NotationComposition = {
+      ...base,
+      tokens: [
+        { type: "note", pitch: "A", octave: 4, accidental: null, duration: "dotted-quarter" },
+        { type: "note", pitch: "B", octave: 4, accidental: null, duration: "eighth" },
+        { type: "bar" },
+        { type: "note", pitch: "C", octave: 5, accidental: null, duration: "dotted-half" },
+        { type: "rest", duration: "quarter" },
+        { type: "bar" },
+        { type: "note", pitch: "E", octave: 5, accidental: null, duration: "dotted-eighth" },
+        { type: "note", pitch: "D", octave: 5, accidental: null, duration: "sixteenth" },
+      ],
+    };
+    expect(roundTrip(composition)).toBe(compositionToAbc(composition));
+    const parsed = parseAbcToComposition(compositionToAbc(composition));
+    if ("error" in parsed) throw new Error(parsed.error);
+    expect(parsed.composition.tokens.filter((token) => token.type === "note").map((token) => token.duration)).toEqual([
+      "dotted-quarter",
+      "eighth",
+      "dotted-half",
+      "dotted-eighth",
+      "sixteenth",
+    ]);
+  });
+
   it("acidentes, semicolcheia e oitavas graves", () => {
     const composition: NotationComposition = {
       ...base,

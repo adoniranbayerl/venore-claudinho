@@ -2,7 +2,15 @@
 // pelo abcjs tanto aqui (preview) quanto no InteractiveNotation do aluno. L:1/8 fixo no header —
 // os sufixos de duração abaixo são todos relativos a colcheia (DURATION_SUFFIX).
 
-export type NoteDuration = "sixteenth" | "eighth" | "quarter" | "half" | "whole";
+export type NoteDuration =
+  | "sixteenth"
+  | "eighth"
+  | "dotted-eighth"
+  | "quarter"
+  | "dotted-quarter"
+  | "half"
+  | "dotted-half"
+  | "whole";
 export type Accidental = "sharp" | "flat" | "natural";
 export type PitchLetter = "C" | "D" | "E" | "F" | "G" | "A" | "B";
 
@@ -95,7 +103,43 @@ function sanitizeAnnotationText(text: string): string {
   return text.replace(/"/g, "").trim();
 }
 
-const DURATION_SUFFIX: Record<NoteDuration, string> = { sixteenth: "/2", eighth: "", quarter: "2", half: "4", whole: "8" };
+// Sufixos relativos a L:1/8. Figura pontuada = 1,5× o valor: colcheia pontuada = 3 colcheias/2
+// (`3/2`), semínima pontuada = 3 colcheias (`3`), mínima pontuada = 6 colcheias (`6`). Só essas
+// três têm variante pontuada no modelo — semicolcheia e semibreve pontuadas não aparecem no
+// material e ficariam fora do catálogo simples de ABC que o editor gera.
+const DURATION_SUFFIX: Record<NoteDuration, string> = {
+  sixteenth: "/2",
+  eighth: "",
+  "dotted-eighth": "3/2",
+  quarter: "2",
+  "dotted-quarter": "3",
+  half: "4",
+  "dotted-half": "6",
+  whole: "8",
+};
+
+const DOTTED_OF: Partial<Record<NoteDuration, NoteDuration>> = {
+  eighth: "dotted-eighth",
+  quarter: "dotted-quarter",
+  half: "dotted-half",
+};
+const UNDOTTED_OF: Partial<Record<NoteDuration, NoteDuration>> = {
+  "dotted-eighth": "eighth",
+  "dotted-quarter": "quarter",
+  "dotted-half": "half",
+};
+
+// A figura aceita ponto de aumento? (colcheia, semínima e mínima — ou suas versões já pontuadas.)
+export function canDot(duration: NoteDuration): boolean {
+  return duration in DOTTED_OF || duration in UNDOTTED_OF;
+}
+export function isDotted(duration: NoteDuration): boolean {
+  return duration in UNDOTTED_OF;
+}
+// Liga/desliga o ponto de aumento de uma figura; no-op se a figura não tem variante pontuada.
+export function withDot(duration: NoteDuration, dotted: boolean): NoteDuration {
+  return (dotted ? DOTTED_OF[duration] : UNDOTTED_OF[duration]) ?? duration;
+}
 const ACCIDENTAL_PREFIX: Record<Accidental, string> = { sharp: "^", flat: "_", natural: "=" };
 
 // ABC: sem modificador = oitava 4 (maiúscula), minúscula = oitava 5 — cada oitava abaixo/acima
@@ -140,7 +184,16 @@ export type NoteTokenRange = { tokenIndex: number; start: number; end: number };
 
 // Duração em unidades de L:1/8 — base pro agrupamento de colcheias/semicolcheias (ver
 // BEAT_LENGTH_IN_EIGHTHS abaixo).
-const DURATION_IN_EIGHTHS: Record<NoteDuration, number> = { sixteenth: 0.5, eighth: 1, quarter: 2, half: 4, whole: 8 };
+const DURATION_IN_EIGHTHS: Record<NoteDuration, number> = {
+  sixteenth: 0.5,
+  eighth: 1,
+  "dotted-eighth": 1.5,
+  quarter: 2,
+  "dotted-quarter": 3,
+  half: 4,
+  "dotted-half": 6,
+  whole: 8,
+};
 
 // Tamanho de um "tempo" (unidade de agrupamento visual) em L:1/8, por fórmula de compasso — tempo
 // simples (2/4, 3/4, 4/4) agrupa em semínimas (2 colcheias); tempo composto (3/8, 6/8, 9/8, 12/8)

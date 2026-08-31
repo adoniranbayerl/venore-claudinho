@@ -10,10 +10,12 @@ import { PianoKeyboard } from "./piano-keyboard";
 import { DURATION_KEYS, PITCH_KEYS, resolveTypedNote } from "./notation-keyboard";
 import { parseAbcToComposition } from "./notation-abc-parse";
 import {
+  canDot,
   compositionToAbcWithRanges,
   midiToNote,
   notePitchNamePt,
   noteToMidi,
+  withDot,
   type Accidental,
   type KeySignature,
   type NotationComposition,
@@ -130,6 +132,9 @@ export function NotationEditor(props: NotationEditorProps) {
   };
 
   const [duration, setDuration] = useState<NoteDuration>("quarter");
+  // Ponto de aumento — modificador "grudento" da figura corrente (como a própria figura, não
+  // zera a cada nota). Aplicado só na hora de criar a nota/pausa, via withDot.
+  const [dotted, setDotted] = useState(false);
   // Único acidente que sobrou como toggle: "Natural", pra cancelar acidente implícito da armadura
   // de clave numa tecla branca. Sustenido agora vem direto da tecla preta do PianoKeyboard.
   const [natural, setNatural] = useState(false);
@@ -305,7 +310,7 @@ export function NotationEditor(props: NotationEditorProps) {
         pitch,
         octave,
         accidental,
-        duration,
+        duration: withDot(duration, dotted),
         staccato,
         accent,
         fermata,
@@ -332,7 +337,7 @@ export function NotationEditor(props: NotationEditorProps) {
   }
 
   function addRest() {
-    commitTokens([...tokens, { type: "rest", duration }]);
+    commitTokens([...tokens, { type: "rest", duration: withDot(duration, dotted) }]);
   }
 
   function addBar() {
@@ -392,6 +397,12 @@ export function NotationEditor(props: NotationEditorProps) {
     if (event.key in DURATION_KEYS) {
       event.preventDefault();
       setDuration(DURATION_KEYS[event.key]);
+      return;
+    }
+
+    if (event.key === ".") {
+      event.preventDefault();
+      setDotted((prev) => !prev);
       return;
     }
 
@@ -591,6 +602,21 @@ export function NotationEditor(props: NotationEditorProps) {
               {item.label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setDotted((prev) => !prev)}
+            disabled={!canDot(duration)}
+            className={cn(
+              "flex size-8 items-center justify-center rounded-md border text-xl leading-none outline-none ui-motion-base focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40",
+              dotted && canDot(duration)
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:border-ring",
+            )}
+            aria-pressed={dotted}
+            title="Ponto de aumento — vale 1,5× a figura (semínima pontuada etc.). Tecla ."
+          >
+            ·
+          </button>
         </div>
 
         <button
@@ -676,6 +702,7 @@ export function NotationEditor(props: NotationEditorProps) {
         <span className="font-medium text-muted-foreground">g</span> nota ·{" "}
         <span className="font-medium text-muted-foreground">1</span>–
         <span className="font-medium text-muted-foreground">5</span> figura ·{" "}
+        <span className="font-medium text-muted-foreground">.</span> ponto ·{" "}
         <span className="font-medium text-muted-foreground">#</span> /{" "}
         <span className="font-medium text-muted-foreground">-</span> /{" "}
         <span className="font-medium text-muted-foreground">=</span> acidente ·{" "}

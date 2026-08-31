@@ -26,26 +26,31 @@ const KEY_SIGNATURES: KeySignature[] = [
   "Am", "Em", "Bm", "F#m", "C#m", "G#m", "D#m", "Bbm", "Fm", "Cm", "Gm", "Dm",
 ];
 
-// Duração em fração de semibreve (com L:1/8, "C" = 0.125, "C2" = 0.25, ...).
+// Duração em fração de semibreve (com L:1/8, "C" = 0.125, "C2" = 0.25, ...). Figura pontuada =
+// 1,5× (mínima pontuada 0.75, semínima pontuada 0.375, colcheia pontuada 0.1875) — o abcjs devolve
+// esse valor exato pra "A3", "A6", "A3/2".
 const DURATION_BY_FRACTION: { fraction: number; duration: NoteDuration }[] = [
   { fraction: 1, duration: "whole" },
+  { fraction: 0.75, duration: "dotted-half" },
   { fraction: 0.5, duration: "half" },
+  { fraction: 0.375, duration: "dotted-quarter" },
   { fraction: 0.25, duration: "quarter" },
+  { fraction: 0.1875, duration: "dotted-eighth" },
   { fraction: 0.125, duration: "eighth" },
   { fraction: 0.0625, duration: "sixteenth" },
 ];
 
 function nearestDuration(fraction: number): NoteDuration {
-  let best = DURATION_BY_FRACTION[2];
+  let best: NoteDuration = "quarter";
   let bestDelta = Number.POSITIVE_INFINITY;
   for (const candidate of DURATION_BY_FRACTION) {
     const delta = Math.abs(candidate.fraction - fraction);
     if (delta < bestDelta) {
       bestDelta = delta;
-      best = candidate;
+      best = candidate.duration;
     }
   }
-  return best.duration;
+  return best;
 }
 
 function mapAccidental(value: string | undefined): Accidental | null {
