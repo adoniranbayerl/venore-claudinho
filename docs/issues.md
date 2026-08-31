@@ -320,10 +320,17 @@ subdivide; hoje só o Refrão A tem `w:` alinhado, o resto é prosa.
   da voz), contagem de entrada 1-2-3-4 falada (speechSynthesis) + clique distinto, slider de BPM
   (40–160, re-deriva as notas esperadas), loop no "Ouvir modelo" e no `NotationPlayButton`.
 - Aula 3 (andamento): frase da anacruse corrigida pra bater com a melodia real (`a0cd077`).
+- Contagem 1-2-3-4 saía fora do tempo (speechSynthesis) → trocada por cliques agendados no relógio
+  do AudioContext (`70aa566`); viewer virou eixo de altura com alvo subindo/descendo.
+- **3ª rodada (`a5d8324`):** viewer virou **afinador de agulha**; **metrônomo off por padrão** no
+  canto + `echoCancellation` on no `pitch-listener` (resolve o bleed do PC sem fone); scoring
+  bem mais tolerante (100 cents, mediana, descarta glitch); `pitch-listener` FFT 4096 / clarity
+  0.8 / vol −45 dB.
 - **Ainda aberto:** o dono diz que "nas primeiras aulas as frases melódicas estão erradas" — a
   Aula 5 é transcrição fiel do MusicXML "Voz"; se ainda soa errado, ou o XML é de outro arranjo ou
   há erro de leitura de oitava/ritmo. Precisa o dono apontar qual frase/nota, ou mandar áudio.
-  (Confirmar também se ele re-semeou depois do commit `1fb7200`.)
+  (Confirmar também se ele re-semeou depois do commit `1fb7200`.) Testar se "oscilando em A2"
+  agora conta como acerto com o scoring novo.
 
 --- histórico do pedido (o retorno da primeira leitura) ---
 
