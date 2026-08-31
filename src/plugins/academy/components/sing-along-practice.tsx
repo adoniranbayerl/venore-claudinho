@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { usePitchListener } from "@/hooks/use-pitch-listener";
 import { extractExpectedNotes, type ExpectedNote } from "./abc-expected-notes";
-import { frequencyToMidi, pitchClassNamePt, describeOctaveOffset } from "@/lib/pitch-class";
+import { frequencyToMidi, midiToOctave, pitchClassNamePt, describeOctaveOffset } from "@/lib/pitch-class";
 import type { NotationToken } from "./notation-abc";
 
 // Modo "Cantar junto": o aluno canta no microfone e o app compara com a sequência de notas
@@ -18,8 +18,8 @@ import type { NotationToken } from "./notation-abc";
 // fases separadas.
 //
 // Pedidos do dono (2026-08): tolerância de afinação (a voz oscila, nunca é exata), gráfico ao vivo
-// de pitch, contagem de entrada falada (1-2-3-4) antes de tocar/cantar, escolha do BPM, e loop no
-// "Ouvir modelo".
+// de pitch (com frequência, nome da nota e o alvo subindo/descendo pra mostrar o contorno),
+// contagem de entrada em tempo antes de tocar/cantar, escolha do BPM, e loop no "Ouvir modelo".
 
 const DEFAULT_QPM = 90;
 const MIN_QPM = 40;
@@ -31,19 +31,20 @@ const METRONOME_CLICK_SECONDS = 0.05;
 // Uma voz cantada oscila muito: aceitar até ~3/4 de semitom de desvio como "na nota", e exigir só
 // que uma fração dos quadros de microfone da nota esteja dentro dessa faixa.
 const PITCH_TOLERANCE_CENTS = 75;
+const PITCH_TOLERANCE_SEMITONES = PITCH_TOLERANCE_CENTS / 100;
 const ON_PITCH_RATIO = 0.34;
 
 const COUNT_IN_BEATS = 4;
-const COUNT_IN_WORDS = ["um", "dois", "três", "quatro"];
 
 const GRAPH_WINDOW_MS = 2800;
-const GRAPH_CENTS_RANGE = 160;
+// Meia-altura do gráfico em semitons — janela de ~1.5 oitava centrada na mediana da melodia.
+const GRAPH_HALF_RANGE_SEMITONES = 9;
 
 type NoteVerdict = "correct" | "wrong-timing" | "wrong-pitch" | "missed";
 type NoteResult = { note: ExpectedNote; verdict: NoteVerdict; octaveNote: string | null };
 type Phase = "idle" | "playing-model" | "counting-in" | "singing" | "results";
 type SungFrame = { centsOff: number; elapsedMs: number; midi: number };
-type GraphSample = { t: number; centsOff: number };
+type GraphSample = { t: number; freqHz: number };
 
 const VERDICT_CLASS: Record<NoteVerdict, string> = {
   correct: "fill-success",
@@ -73,19 +74,22 @@ function playMetronomeClick(audioContext: AudioContext) {
   oscillator.stop(audioContext.currentTime + METRONOME_CLICK_SECONDS);
 }
 
-// Clique da CONTAGEM de entrada — timbre triangular mais agudo, distinto do metrônomo; o último
-// beat ("quatro") ainda mais agudo, avisando que o "1" vem em seguida.
-function playCountInClick(audioContext: AudioContext, isLast: boolean) {
+// Clique da CONTAGEM de entrada — agendado com precisão de amostra no relógio do AudioContext (não
+// setTimeout, que arrastava e saía fora do tempo). Beat 1 acentuado (mais grave e mais forte),
+// beats 2–4 num tom mais alto e curto — dá pra ouvir claramente "1 · 2 3 4" no andamento.
+function scheduleCountInClick(audioContext: AudioContext, atTime: number, accented: boolean) {
   const oscillator = audioContext.createOscillator();
   const gain = audioContext.createGain();
-  oscillator.type = "triangle";
-  oscillator.frequency.value = isLast ? 1760 : 1320;
-  gain.gain.setValueAtTime(0.25, audioContext.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.08);
+  oscillator.type = "square";
+  oscillator.frequency.value = accented ? 1200 : 850;
+  const peak = accented ? 0.32 : 0.2;
+  gain.gain.setValueAtTime(0.0001, atTime);
+  gain.gain.exponentialRampToValueAtTime(peak, atTime + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, atTime + 0.055);
   oscillator.connect(gain);
   gain.connect(audioContext.destination);
-  oscillator.start();
-  oscillator.stop(audioContext.currentTime + 0.09);
+  oscillator.start(atTime);
+  oscillator.stop(atTime + 0.07);
 }
 
 function clearHighlights(notes: ExpectedNote[]) {
@@ -105,6 +109,17 @@ function centsFromPitchClass(frequencyHz: number, pitchClass: number): number {
   const midi = frequencyToMidi(frequencyHz);
   const nearest = pitchClass + 12 * Math.round((midi - pitchClass) / 12);
   return (midi - nearest) * 100;
+}
+
+// MIDI cantado "dobrado" pra oitava mais próxima do alvo — o gráfico mostra o contorno (sobe/desce)
+// sem a linha voar pra fora quando o aluno canta a classe certa numa oitava diferente da escrita.
+function foldToNearestOctave(sungMidi: number, referenceMidi: number): number {
+  return sungMidi + 12 * Math.round((referenceMidi - sungMidi) / 12);
+}
+
+function noteLabel(frequencyHz: number): string {
+  const midi = Math.round(frequencyToMidi(frequencyHz));
+  return `${pitchClassNamePt(((midi % 12) + 12) % 12)}${midiToOctave(midi)}`;
 }
 
 function computeVerdict(note: ExpectedNote, frames: SungFrame[]): NoteResult {
@@ -169,6 +184,9 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   const graphBufferRef = useRef<GraphSample[]>([]);
   const graphCanvasRef = useRef<HTMLCanvasElement>(null);
   const graphRafRef = useRef<number | null>(null);
+  const readoutRef = useRef<HTMLSpanElement>(null);
+  const anchorMidiRef = useRef(69);
+  const distinctMidisRef = useRef<number[]>([]);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [results, setResults] = useState<NoteResult[] | null>(null);
@@ -176,6 +194,9 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   const [bpm, setBpm] = useState<number | null>(null);
   const [originalQpm, setOriginalQpm] = useState<number | null>(null);
   const [loopModel, setLoopModel] = useState(false);
+  // A contagem de entrada serve tanto pro "Ouvir modelo" quanto pro "Cantar junto"; o gráfico só
+  // aparece quando é pra cantar.
+  const [countInForSinging, setCountInForSinging] = useState(false);
 
   const pitchListener = usePitchListener();
 
@@ -211,6 +232,10 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     expectedNotesRef.current = notes;
     rawIndexToNoteIndexRef.current = rawIndexToNoteIndex;
     totalMsRef.current = totalMs;
+    // Âncora do gráfico = mediana das alturas escritas; linhas-guia = alturas distintas.
+    const midis = notes.map((note) => note.midiPitch).sort((a, b) => a - b);
+    anchorMidiRef.current = midis.length > 0 ? midis[Math.floor(midis.length / 2)] : 69;
+    distinctMidisRef.current = [...new Set(midis)];
     setSetupError(notes.length === 0 ? "Não consegui ler as notas desta partitura para comparar com o canto." : null);
   }, [bpm, abc, tokens]);
 
@@ -218,18 +243,18 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   useEffect(() => {
     return pitchListener.subscribe((frame) => {
       if (frame.frequencyHz === null) return;
-      const noteIndex = currentNoteIndexRef.current;
-      const note = expectedNotesRef.current[noteIndex];
-      const centsOff = note ? centsFromPitchClass(frame.frequencyHz, note.pitchClass) : 0;
 
-      graphBufferRef.current.push({ t: frame.timestampMs, centsOff });
+      graphBufferRef.current.push({ t: frame.timestampMs, freqHz: frame.frequencyHz });
       if (graphBufferRef.current.length > 260) {
         const cutoff = frame.timestampMs - GRAPH_WINDOW_MS - 500;
         graphBufferRef.current = graphBufferRef.current.filter((sample) => sample.t >= cutoff);
       }
 
+      const noteIndex = currentNoteIndexRef.current;
+      const note = expectedNotesRef.current[noteIndex];
       if (singingActiveRef.current && note) {
         const midi = frequencyToMidi(frame.frequencyHz);
+        const centsOff = centsFromPitchClass(frame.frequencyHz, note.pitchClass);
         const elapsedMs = frame.timestampMs - phaseStartRef.current;
         framesByNoteRef.current[noteIndex]?.push({ centsOff, elapsedMs, midi });
       }
@@ -237,6 +262,9 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   }, [pitchListener]);
 
   // ---- Loop de desenho do gráfico (enquanto conta / canta) --------------------------------
+  // Eixo Y = altura em semitons (não "cents fora do alvo"): a linha VERDE do alvo sobe e desce a
+  // cada nota, mostrando o contorno da melodia; a linha da voz segue em altura absoluta (dobrada
+  // pra oitava do alvo). Readout mostra nome da nota + frequência cantada.
   useEffect(() => {
     if (phase !== "singing" && phase !== "counting-in") return;
     const canvas = graphCanvasRef.current;
@@ -246,28 +274,51 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     const targetColor = cssColor("--color-success", "green");
     const voiceColor = cssColor("--color-primary", "royalblue");
     const offColor = cssColor("--color-destructive", "crimson");
+    const gridColor = cssColor("--color-border", "gray");
 
     function draw() {
       const width = canvas!.clientWidth || 300;
-      const height = canvas!.clientHeight || 96;
+      const height = canvas!.clientHeight || 110;
       if (canvas!.width !== width) canvas!.width = width;
       if (canvas!.height !== height) canvas!.height = height;
       ctx!.clearRect(0, 0, width, height);
 
+      const anchor = anchorMidiRef.current;
       const mid = height / 2;
-      const centsToY = (cents: number) =>
-        mid - (Math.max(-GRAPH_CENTS_RANGE, Math.min(GRAPH_CENTS_RANGE, cents)) / GRAPH_CENTS_RANGE) * (mid - 6);
+      const usable = mid - 8;
+      const midiToY = (midi: number) => {
+        const rel = Math.max(-GRAPH_HALF_RANGE_SEMITONES, Math.min(GRAPH_HALF_RANGE_SEMITONES, midi - anchor));
+        return mid - (rel / GRAPH_HALF_RANGE_SEMITONES) * usable;
+      };
 
-      // faixa de tolerância + linha do alvo
-      ctx!.globalAlpha = 0.15;
+      // linhas-guia nas alturas escritas da melodia
+      ctx!.strokeStyle = gridColor;
+      ctx!.lineWidth = 1;
+      ctx!.globalAlpha = 0.5;
+      for (const midi of distinctMidisRef.current) {
+        const y = midiToY(midi);
+        ctx!.beginPath();
+        ctx!.moveTo(0, y);
+        ctx!.lineTo(width, y);
+        ctx!.stroke();
+      }
+      ctx!.globalAlpha = 1;
+
+      const note = expectedNotesRef.current[currentNoteIndexRef.current];
+      const targetMidi = note ? note.midiPitch : anchor;
+
+      // faixa de tolerância + linha do alvo (na altura da nota corrente — pula a cada nota)
+      const bandTop = midiToY(targetMidi + PITCH_TOLERANCE_SEMITONES);
+      const bandBottom = midiToY(targetMidi - PITCH_TOLERANCE_SEMITONES);
+      ctx!.globalAlpha = 0.16;
       ctx!.fillStyle = targetColor;
-      ctx!.fillRect(0, centsToY(PITCH_TOLERANCE_CENTS), width, centsToY(-PITCH_TOLERANCE_CENTS) - centsToY(PITCH_TOLERANCE_CENTS));
+      ctx!.fillRect(0, bandTop, width, bandBottom - bandTop);
       ctx!.globalAlpha = 1;
       ctx!.strokeStyle = targetColor;
-      ctx!.lineWidth = 1.5;
+      ctx!.lineWidth = 2;
       ctx!.beginPath();
-      ctx!.moveTo(0, mid);
-      ctx!.lineTo(width, mid);
+      ctx!.moveTo(0, midiToY(targetMidi));
+      ctx!.lineTo(width, midiToY(targetMidi));
       ctx!.stroke();
 
       const now = performance.now();
@@ -277,7 +328,8 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
       ctx!.beginPath();
       samples.forEach((sample, index) => {
         const x = width - ((now - sample.t) / GRAPH_WINDOW_MS) * width;
-        const y = centsToY(sample.centsOff);
+        const folded = foldToNearestOctave(frequencyToMidi(sample.freqHz), targetMidi);
+        const y = midiToY(folded);
         if (index === 0) ctx!.moveTo(x, y);
         else ctx!.lineTo(x, y);
       });
@@ -285,10 +337,18 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
 
       const last = samples.at(-1);
       if (last) {
-        ctx!.fillStyle = Math.abs(last.centsOff) <= PITCH_TOLERANCE_CENTS ? targetColor : offColor;
+        const foldedLast = foldToNearestOctave(frequencyToMidi(last.freqHz), targetMidi);
+        const onPitch = Math.abs(foldedLast - targetMidi) <= PITCH_TOLERANCE_SEMITONES;
+        ctx!.fillStyle = onPitch ? targetColor : offColor;
         ctx!.beginPath();
-        ctx!.arc(width - 4, centsToY(last.centsOff), 4, 0, Math.PI * 2);
+        ctx!.arc(width - 5, midiToY(foldedLast), 4.5, 0, Math.PI * 2);
         ctx!.fill();
+      }
+
+      if (readoutRef.current) {
+        const alvo = note ? pitchClassNamePt(note.pitchClass) : "—";
+        const voz = last ? `${noteLabel(last.freqHz)} · ${Math.round(last.freqHz)} Hz` : "—";
+        readoutRef.current.textContent = `alvo ${alvo}  ·  você ${voz}`;
       }
 
       graphRafRef.current = window.requestAnimationFrame(draw);
@@ -309,39 +369,28 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
       singingTimingRef.current?.stop();
       singingActiveRef.current = false;
       countInTimeoutsRef.current.forEach((id) => window.clearTimeout(id));
-      if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
       if (metronomeAudioContextRef.current && metronomeAudioContextRef.current.state !== "closed") {
         void metronomeAudioContextRef.current.close();
       }
     };
   }, []);
 
-  // ---- Contagem de entrada (1-2-3-4) — resolve no "1" seguinte ----------------------------
+  // ---- Contagem de entrada — um compasso de cliques no andamento, resolve no "1" seguinte -----
+  // Os cliques são agendados no relógio do AudioContext (precisão de amostra); só o resolve da
+  // promise usa setTimeout, e um erro de poucos ms aí é imperceptível.
   function playCountIn(): Promise<void> {
     countInTimeoutsRef.current.forEach((id) => window.clearTimeout(id));
     countInTimeoutsRef.current = [];
     const audioContext = getMetronomeAudioContext();
-    const beatMs = 60000 / qpmRef.current;
-    const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
-    if (canSpeak) window.speechSynthesis.cancel();
-    const myRun = runIdRef.current;
-
+    if (audioContext.state === "suspended") void audioContext.resume();
+    const beatSec = 60 / qpmRef.current;
+    const leadSec = 0.12;
+    const start = audioContext.currentTime + leadSec;
     for (let beat = 0; beat < COUNT_IN_BEATS; beat += 1) {
-      const id = window.setTimeout(() => {
-        if (runIdRef.current !== myRun) return;
-        playCountInClick(audioContext, beat === COUNT_IN_BEATS - 1);
-        if (canSpeak) {
-          const utterance = new SpeechSynthesisUtterance(COUNT_IN_WORDS[beat]);
-          utterance.lang = "pt-BR";
-          utterance.rate = 1.4;
-          window.speechSynthesis.speak(utterance);
-        }
-      }, beat * beatMs);
-      countInTimeoutsRef.current.push(id);
+      scheduleCountInClick(audioContext, start + beat * beatSec, beat === 0);
     }
-
     return new Promise((resolve) => {
-      countInTimeoutsRef.current.push(window.setTimeout(resolve, COUNT_IN_BEATS * beatMs));
+      countInTimeoutsRef.current.push(window.setTimeout(resolve, (leadSec + COUNT_IN_BEATS * beatSec) * 1000));
     });
   }
 
@@ -366,7 +415,6 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   function cancelAll() {
     runIdRef.current += 1;
     countInTimeoutsRef.current.forEach((id) => window.clearTimeout(id));
-    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
     modelSynthRef.current?.stop();
     modelTimingRef.current?.stop();
     modelTimingRef.current = null;
@@ -399,6 +447,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
 
     runIdRef.current += 1;
     const myRun = runIdRef.current;
+    setCountInForSinging(true);
     setPhase("counting-in");
     await playCountIn();
     if (runIdRef.current !== myRun) return;
@@ -441,7 +490,6 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     if (currentNoteIndexRef.current >= 0) finalizeNote(currentNoteIndexRef.current);
     runIdRef.current += 1;
     countInTimeoutsRef.current.forEach((id) => window.clearTimeout(id));
-    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
     endSinging();
   }
 
@@ -450,6 +498,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     if (!tune || !synth.supportsAudio()) return;
     runIdRef.current += 1;
     const myRun = runIdRef.current;
+    setCountInForSinging(false);
     setPhase("counting-in");
     await playCountIn();
     if (runIdRef.current !== myRun) return;
@@ -521,7 +570,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   );
   const notableResults = results?.filter((result) => result.verdict !== "correct") ?? [];
   const canAdjust = phase === "idle" || phase === "results";
-  const showGraph = phase === "singing" || phase === "counting-in";
+  const showGraph = phase === "singing" || (phase === "counting-in" && countInForSinging);
 
   return (
     <div className="mt-2 space-y-3 rounded-md border border-border bg-card p-3">
@@ -529,11 +578,17 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
 
       {showGraph && (
         <div className="space-y-1">
-          <canvas ref={graphCanvasRef} className="h-24 w-full rounded-md border border-border bg-muted/30" />
-          <p className="text-[11px] text-muted-foreground/56">
-            A linha verde é a nota certa e a faixa é a margem aceita; a linha clara é a sua voz.
-            {phase === "counting-in" ? " Comece a cantar no “1”." : " Mantenha-a dentro da faixa."}
-          </p>
+          <canvas ref={graphCanvasRef} className="h-28 w-full rounded-md border border-border bg-muted/30" />
+          <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground/56">
+            <span>
+              A linha verde é a nota certa (sobe e desce com a melodia); a faixa é a margem aceita; a
+              linha clara é a sua voz.
+              {phase === "counting-in" ? " Comece a cantar no “1”." : ""}
+            </span>
+            <span ref={readoutRef} className="shrink-0 font-medium tabular-nums text-foreground">
+              —
+            </span>
+          </div>
         </div>
       )}
 
