@@ -17,21 +17,20 @@ export const dynamic = "force-dynamic";
 // Home é a entry reservada com categoryId null e slug "home".
 const HOME_SLUG = "home";
 
-// Fallback da home (sem entry "home" no CMS): vai direto pros cursos — pedido do dono, "ninguém
-// vai ler, já aponta pros cursos". Só um título curto + botão de entrar e a grade de cursos. Aluno
-// logado nunca chega aqui (é redirecionado pra /academy); serve o visitante anônimo e o admin.
-async function CoursesHome({ canManage }: { canManage: boolean }) {
-  const [coursesResult, brand, currentUser] = await Promise.all([listPublicCourses(), getBrandConfig(), getCurrentUser()]);
-  const isAuthenticated = currentUser.success && Boolean(currentUser.data);
+// Painel de "/" quando NÃO há entry "home" no CMS. Plataforma fechada: visitante sem sessão é
+// redirecionado pro /login e aluno logado pro /academy antes daqui — então isto só é visto pelo
+// admin. Título curto + grade de cursos publicados + atalhos de admin.
+async function CoursesHome() {
+  const [coursesResult, brand] = await Promise.all([listPublicCourses(), getBrandConfig()]);
   const courses = coursesResult.success ? coursesResult.data : [];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{brand.siteName}</h1>
-        <Button asChild size="sm" variant={isAuthenticated ? "outline" : "default"}>
-          <Link href={isAuthenticated ? "/academy" : "/api/auth/signin"}>
-            {isAuthenticated ? "Meus cursos" : "Entrar"} <ArrowRight className="size-4" aria-hidden="true" />
+        <Button asChild size="sm" variant="outline">
+          <Link href="/academy">
+            Ver como aluno <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         </Button>
       </div>
@@ -57,7 +56,7 @@ async function CoursesHome({ canManage }: { canManage: boolean }) {
                   </p>
                   <h2 className="text-base font-semibold text-foreground">{course.title}</h2>
                   <p className="mt-auto flex items-center gap-1 pt-1 text-sm font-medium text-primary">
-                    {isAuthenticated ? "Abrir" : "Começar"} <ArrowRight className="size-3.5" aria-hidden="true" />
+                    Abrir <ArrowRight className="size-3.5" aria-hidden="true" />
                   </p>
                 </div>
               </article>
@@ -66,31 +65,42 @@ async function CoursesHome({ canManage }: { canManage: boolean }) {
         </div>
       )}
 
-      {canManage && (
-        <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/admin" className="text-muted-foreground/56">
-              <Settings2 className="size-4" strokeWidth={1.5} /> Painel
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/admin/cms/entries/new" className="text-muted-foreground/56">
-              Personalizar a home no CMS
-            </Link>
-          </Button>
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/admin" className="text-muted-foreground/56">
+            <Settings2 className="size-4" strokeWidth={1.5} /> Painel
+          </Link>
+        </Button>
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/admin/cms/entries/new" className="text-muted-foreground/56">
+            Personalizar a home no CMS
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }
 
 export default async function HomePage() {
-  const result = await getPublishedEntryBySlug({ categoryId: null, slug: HOME_SLUG });
   const currentUser = await getCurrentUser();
   const isAuthenticated = currentUser.success && Boolean(currentUser.data);
 
-  // Privacidade por conteúdo: "authenticated" sem sessão cai no mesmo fallback de "sem entry home".
-  const entry = result.success && result.data && (result.data.visibility === "public" || isAuthenticated) ? result.data : null;
+  // Plataforma fechada: visitante sem sessão sempre cai no login (pedido do dono, "aluno não
+  // logado deve cair em /login SEMPRE"). Não há landing pública.
+  if (!isAuthenticated) {
+    redirect("/login");
+  }
+
+  const adminGate = await getAdminPageData();
+
+  // Aluno logado (sem acesso ao admin) vai direto pro dashboard dele.
+  if (!adminGate.granted) {
+    redirect("/academy");
+  }
+
+  // Daqui pra baixo só admin: mostra a entry "home" do CMS se existir, senão o painel de cursos.
+  const result = await getPublishedEntryBySlug({ categoryId: null, slug: HOME_SLUG });
+  const entry = result.success && result.data ? result.data : null;
 
   if (entry) {
     recordEntryView(entry.id);
@@ -107,12 +117,5 @@ export default async function HomePage() {
     );
   }
 
-  const adminGate = await getAdminPageData();
-
-  // Aluno logado (sem acesso ao admin) vai direto pro dashboard dele.
-  if (!adminGate.granted && isAuthenticated) {
-    redirect("/academy");
-  }
-
-  return <CoursesHome canManage={adminGate.granted} />;
+  return <CoursesHome />;
 }
