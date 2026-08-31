@@ -1,21 +1,27 @@
 # Curso: "Jesus Cristo mudou meu viver" — anatomia de uma música (Lá maior)
 
-> Conteúdo real para o plugin `academy`. Será instalado como seed
-> (`src/plugins/academy/seeds/jesus-cristo-mudou-meu-viver.ts`) depois dos recursos #3
-> (acorde/progressão + toggle só-melodia), #6 (letra na partitura), #7 (múltiplas vozes) e da
-> grade de percussão — ver `docs/academy-recursos-musicais.md`.
+> **Estado (2026-08-31):** o seed foi **reconstruído para 10 aulas** e a **fonte da verdade** é
+> `src/plugins/academy/seeds/jesus-cristo-mudou-meu-viver.lessons.ts`, não mais este documento.
+> A melodia da aula "A melodia, frase a frase" agora vem do **MusicXML da parte "Voz"** que o dono
+> enviou (Lá maior, 4/4, **♩ = 80**, 9 compassos = o refrão inteiro); o **arranjo de violão**
+> (MusicXML "Arranjo Violão") virou a aula nova de **rearmonização**. Este arquivo abaixo é o
+> **rascunho anterior de 8 aulas** e está desatualizado em numeração, andamento (usava 85) e
+> conteúdo — mantido só como histórico do raciocínio pedagógico até uma reescrita completa.
+>
+> **Aulas atuais (seed):** 1 Origem · 2 A letra (versos/sílabas) · 3 Andamento · 4 Bateria e groove
+> (grooves por parte + viradas) · 5 A melodia, frase a frase (por partes, 80 + 70 BPM, letra na
+> pauta) · 6 Harmonia · 7 Rearmonização (arranjo de violão) · 8 Ritmo harmônico · 9 Vozes ·
+> 10 Arranjo.
 
 ## Aviso sobre a fonte musical
 
-Este corinho tem **muitas variantes** de letra e melodia, transmitidas de ouvido em contextos
-evangélicos brasileiros. A **melodia da Aula 4** foi transcrita da **partitura oficial** que o dono
-enviou (IM Conviver / Prática de canto, PDF "Voz" com os graus escritos) — as **alturas** são
-fiéis; o **ritmo** ainda é aproximado (a leitura do PDF não recupera as figuras) e deve ser
-conferido contra a partitura. O **resto da notação** deste documento (bateria, harmonia, 2ª voz) é
-um **modelo plausível em Lá maior** e **deve ser conferido contra a gravação/edição que o dono usa
-em sala**, que entra como material da Aula 1. Onde o documento diz "modelo" ou "ajuste à sua
-referência", é literal: a estrutura pedagógica (o que analisar e como) vale sempre; os `abc`
-concretos são ponto de partida.
+Este corinho é a versão em português de **"What a Difference You've Made in My Life"** (1977,
+**Archie Jordan** / **Joan Sutton**); o original é secular. No Brasil circula como corinho, com
+**várias versões de letra** (a do seed é a do **Conjunto Som Maior**). A **melodia** do seed é
+transcrição fiel do **MusicXML "Voz"** (alturas E ritmo, incluindo a semínima pontuada do comp. 7 e
+o melisma final). A **harmonia base** (Aula 6) é I–IV–V; a **rearmonização** (Aula 7) sai do
+MusicXML do arranjo de violão. 2ª voz e detalhes de arranjo continuam **modelo** — conferir contra
+a prática da sala.
 
 ## Ficha do curso
 
@@ -38,8 +44,9 @@ compasso, intervalos e campo harmônico maior).
 (limiar 70%, 3 tentativas). Atividade `activityEnabled` em todas; `deliverableFormat` conforme a
 tabela final — a maioria é `audio` (é um curso de execução), a Aula 8 tem a entrega final.
 
-**Parâmetros musicais:** Lá maior · 4/4 · ♩ = 85 BPM (partitura) · caráter celebrativo,
-marcado · forma `Intro – Estrofe – Refrão – Estrofe – Refrão – (parada) – Refrão – Final`.
+**Parâmetros musicais:** Lá maior · 4/4 · ♩ = 80 BPM (MusicXML) · caráter celebrativo,
+marcado · forma `Interlúdio (violão) – Estrofe – Refrão A ×2 – Interlúdio – Refrão B ×2 – (parada)
+– Refrão A final – Final`.
 
 ---
 

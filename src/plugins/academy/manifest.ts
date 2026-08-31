@@ -59,8 +59,9 @@ export const academyManifest: PluginManifest = {
       key: "jesus-cristo-mudou-meu-viver",
       label: "Curso: Jesus Cristo mudou meu viver (Lá maior)",
       description:
-        "Curso público de 8 aulas destrinchando uma música: origem, andamento, groove, melodia, " +
-        "harmonia, vozes e arranjo — ver docs/curso-jesus-cristo-mudou-meu-viver.md.",
+        "Curso público de 10 aulas destrinchando uma música: origem, letra, andamento, groove, " +
+        "melodia (do MusicXML da parte Voz), harmonia, rearmonização (arranjo de violão), ritmo " +
+        "harmônico, vozes e arranjo — ver docs/curso-jesus-cristo-mudou-meu-viver.md.",
     },
   ],
   blocks: [

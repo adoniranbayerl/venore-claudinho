@@ -47,15 +47,37 @@ export const DRUM_PATTERNS: Record<string, DrumPattern> = {
       row("kick", "Bumbo", [0, 3, 8, 10, 11]),
     ],
   },
-  // Levada groovada/funk (gospel) para "Jesus Cristo mudou meu viver" a ~85 BPM: chimbal em
+  // Levada groovada/funk (gospel) para "Jesus Cristo mudou meu viver" a ~80 BPM: chimbal em
   // semicolcheias contínuas, caixa no contratempo (2 e 4) com fantasmas na "a" de cada tempo forte,
-  // e bumbo sincopado (1, "a" de 1, "e" de 2, "e" de 3) empurrando a frente do tempo.
+  // e bumbo sincopado (1, "a" de 1, "e" de 2, "e" de 3) empurrando a frente do tempo. Serve para
+  // o REFRÃO (levada cheia).
   "groove-funk": {
-    label: "Groove funk (gospel)",
+    label: "Groove funk (gospel) — refrão",
     rows: [
       row("hihat", "Chimbal", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
       row("snare", "Caixa", [4, 7, 12, 15]),
       row("kick", "Bumbo", [0, 3, 6, 10]),
+    ],
+  },
+  // Levada contida da ESTROFE: chimbal em colcheias (não semicolcheias), caixa só no tempo 4,
+  // bumbo no 1 e no "e" do 2. Deixa espaço para a letra "que conta".
+  "estrofe-corinho": {
+    label: "Estrofe — levada contida",
+    rows: [
+      row("hihat", "Chimbal", [0, 2, 4, 6, 8, 10, 12, 14]),
+      row("snare", "Caixa", [12]),
+      row("kick", "Bumbo", [0, 6]),
+    ],
+  },
+  // Virada de 1 compasso no fim de frase (estrofe -> refrão): a levada segue nos tempos 1–2 e a
+  // caixa "quebra" em semicolcheias nos tempos 3–4, com o bumbo forte de novo no "1" (passo 0,
+  // que na repetição da grade marca a chegada da parte nova).
+  "virada-fim-de-frase": {
+    label: "Virada de fim de frase",
+    rows: [
+      row("hihat", "Chimbal", [0, 2, 4, 6]),
+      row("snare", "Caixa", [4, 8, 9, 10, 11, 12, 13, 14, 15]),
+      row("kick", "Bumbo", [0, 12]),
     ],
   },
 };

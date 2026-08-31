@@ -296,11 +296,25 @@ Vamos ter o nome interno do sistema, mas podemos criar "aliases" para mostrar no
 - Membro - Consumidor do site logado
 - Fora esses papeis, nosso sistema já permite criar roles personalizadas. Mantenha assim.
 
-### Academy — curso "Jesus Cristo mudou meu viver" (revisão do dono, 2026-08-31)
+### Academy — curso "Jesus Cristo mudou meu viver" (revisão do dono, 2026-08-31) — APLICADO
 
-O dono gostou do curso; a lista abaixo é o retorno da primeira leitura completa. **Decisão de
-sequenciamento: esperar o MusicXML da melodia e fazer TUDO num lote só** — vários itens dependem
-da melodia nova. Nada foi aplicado ainda.
+**Feito no lote (seed reconstruído para 10 aulas):** melodia refeita do MusicXML "Voz" (♩=80,
+9 compassos, semínima pontuada + melisma reais); convenção "por partes + 80/70 BPM + letra na
+pauta" na Aula 5; nova **Aula 2** "A letra" (renumerou 2–8 → 3–10); nova **Aula 7**
+"Rearmonização: o arranjo de violão" (usa o MusicXML "Arranjo Violão"); Aula 1 corrigida
+(Archie Jordan / Joan Sutton, "What a Difference You've Made in My Life", original secular, Som
+Maior) + passada de "excesso de certeza"; Aula 4 (bateria) expandida com grooves por parte +
+viradas (novos presets `estrofe-corinho`, `virada-fim-de-frase`); `seed-content.test` 8→10;
+`manifest.ts` "8 aulas" → "10". Doc `docs/curso-jesus-cristo-mudou-meu-viver.md` marcado como
+rascunho histórico (a fonte da verdade virou o `.lessons.ts`).
+
+**Ainda aberto:** os dois `.musicxml` estão na raiz do repo, fora do versionamento — o dono move
+pra `docs/` ou apaga. Reescrever o `docs/curso-*.md` inteiro para as 10 aulas (hoje é o rascunho
+de 8). Bloco de partitura mostrar tempos/pausas com mais clareza (a régua de tempo do
+`academy.notation.sheet`). Estrofe e Refrão B têm mais sílabas que o Refrão A → a melodia
+subdivide; hoje só o Refrão A tem `w:` alinhado, o resto é prosa.
+
+--- histórico do pedido (o retorno da primeira leitura) ---
 
 **Aguardando arquivo:** o dono vai enviar um **MusicXML** com a melodia correta ("a melodia está
 errada"). A transcrição atual em `jesus-cristo-mudou-meu-viver.lessons.ts` (Aula "A melodia, frase

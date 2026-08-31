@@ -92,5 +92,5 @@ describe.each([
 
 it("os dois cursos juntos têm a contagem de aulas esperada", () => {
   expect(TEORIA_LESSONS).toHaveLength(19);
-  expect(MUSICA_LESSONS).toHaveLength(8);
+  expect(MUSICA_LESSONS).toHaveLength(10);
 });
