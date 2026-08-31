@@ -180,16 +180,16 @@ export const MUSICA_LESSONS: SeedLesson[] = [
     ],
     examples: [
       {
-        title: "A anacruse \"Je-sus\" — 80 BPM (andamento da partitura)",
+        title: "A 1ª frase com a anacruse — 80 BPM (andamento da partitura)",
         caption:
-          "Duas semínimas (Lá–Si) antes do tempo 1; o tempo 1 chega com \"Cris\". Ouça como \"Je-sus\" " +
-          "\"puxa\" para dentro do compasso.",
-        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nz4 A,2 B,2 | C2 C2 C2 z2 |\nw: Je-sus Cris-to mu-dou\n",
+          "Duas semínimas (Lá–Si) antes do tempo 1; o tempo 1 chega com \"Cris\". Depois a corrida de " +
+          "colcheias e a nota longa em \"vi-VER\".",
+        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nz4 A,2 B,2 | CCC C2 B,A,E- | E4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver\n",
       },
       {
-        title: "A mesma anacruse — 70 BPM (treino)",
+        title: "A mesma frase — 70 BPM (treino)",
         caption: "A mesma entrada, mais devagar, para praticar sem correr a anacruse.",
-        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=70\nK:A\nz4 A,2 B,2 | C2 C2 C2 z2 |\nw: Je-sus Cris-to mu-dou\n",
+        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=70\nK:A\nz4 A,2 B,2 | CCC C2 B,A,E- | E4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver\n",
       },
     ],
     quiz: [
@@ -202,7 +202,7 @@ export const MUSICA_LESSONS: SeedLesson[] = [
       { text: "A 96 BPM, o problema é:", options: ["Fica reflexiva demais", "A palavra não \"respira\"", "Ninguém consegue bater palma"], correctIndex: 1 },
       { text: "Escolher o andamento é:", options: ["Um detalhe sem importância", "Uma decisão de interpretação que muda a mensagem", "Fixado pela partitura, imutável"], correctIndex: 1 },
       { text: "Ouça: este andamento está mais perto de", options: ["70 BPM", "80 BPM", "110 BPM"], correctIndex: 1, promptAbc: "X:1\nM:4/4\nL:1/4\nQ:1/4=80\nK:C\nc c c c | c c c c |" },
-      { text: "Ouça a frase com anacruse: as duas primeiras notas caem antes ou depois do primeiro tempo forte?", options: ["Antes", "Depois"], correctIndex: 0, promptAbc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nz4 A,2 B,2 | C2 C2 C2 z2 |" },
+      { text: "Ouça a frase com anacruse: as duas primeiras notas caem antes ou depois do primeiro tempo forte?", options: ["Antes", "Depois"], correctIndex: 0, promptAbc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nz4 A,2 B,2 | CCC C2 B,A,E- | E4 z4 |]" },
     ],
     activities: [
       {
