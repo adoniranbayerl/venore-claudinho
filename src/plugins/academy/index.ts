@@ -139,6 +139,14 @@ export {
   listActivitySubmissionMediaForCourseHandler as listActivitySubmissionMediaForCourse,
 } from "./features/courses/list-activity-submission-media-for-course/handler";
 export { listPublicCoursesHandler as listPublicCourses } from "./features/courses/list-public-courses/handler";
+export { getAcademyOverviewHandler as getAcademyOverview } from "./features/courses/get-academy-overview/handler";
+export type { PublicCourseView, ListPublicCoursesResult } from "./features/courses/list-public-courses/types";
+export type {
+  AcademyOverview,
+  AcademyOverviewCourse,
+  AcademyOverviewSubmission,
+  GetAcademyOverviewResult,
+} from "./features/courses/get-academy-overview/types";
 
 export { enrollSelfHandler as enrollSelf } from "./features/enrollments/enroll-self/handler";
 export { enrollStudentHandler as enrollStudent } from "./features/enrollments/enroll-student/handler";

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Settings2 } from "lucide-react";
+import { ArrowRight, BookOpen, GraduationCap, Settings2 } from "lucide-react";
 import { getEntryBody, getEntryComposition, getPublishedEntryBySlug, recordEntryView } from "@/contexts/cms";
 import { getCurrentUser } from "@/contexts/auth";
 import { getAdminPageData } from "@/platform/admin-shell/get-admin-page-data";
+import { getBrandConfig } from "@/platform/brand/get-brand-config";
+import { CourseCover, listPublicCourses } from "@/plugins/academy";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { BlockRenderer } from "@/components/page-builder/block-renderer";
@@ -12,18 +14,103 @@ import { BlockRenderer } from "@/components/page-builder/block-renderer";
 // (docs/venore-docks.md — "Sobre temas").
 export const dynamic = "force-dynamic";
 
-// Home é a entry reservada com categoryId null e slug "home" — convenção documentada no plano
-// desta sessão, não string vazia (evita abrir exceção na validação de slug não-vazio do form).
+// Home é a entry reservada com categoryId null e slug "home".
 const HOME_SLUG = "home";
+
+// Fallback da home (sem entry "home" no CMS): um painel direto com os cursos — pedido do dono,
+// "home mais clean, já com os cursos, cara de dashboard, sem ficar clicando". Aluno logado nunca
+// chega aqui (é redirecionado pra /academy, que já é o dashboard dele); então este layout serve o
+// visitante anônimo e o admin.
+async function CoursesHome({ canManage }: { canManage: boolean }) {
+  const [coursesResult, brand, currentUser] = await Promise.all([listPublicCourses(), getBrandConfig(), getCurrentUser()]);
+  const isAuthenticated = currentUser.success && Boolean(currentUser.data);
+  const courses = coursesResult.success ? coursesResult.data : [];
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{brand.siteName}</h1>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">{brand.footerDescription}</p>
+        </div>
+        {!isAuthenticated && (
+          <Button asChild>
+            <Link href="/api/auth/signin">
+              Entrar <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          </Button>
+        )}
+        {isAuthenticated && (
+          <Button asChild variant="outline">
+            <Link href="/academy">Meus cursos</Link>
+          </Button>
+        )}
+      </div>
+
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <GraduationCap className="size-5 text-primary" aria-hidden="true" />
+          <h2 className="text-lg font-semibold text-foreground">Cursos</h2>
+        </div>
+
+        {courses.length === 0 ? (
+          <EmptyState
+            icon={<BookOpen className="size-8" strokeWidth={1.5} />}
+            title="Nenhum curso disponível ainda"
+            description="Os cursos aparecem aqui assim que forem publicados."
+          />
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-4 sm:gap-5">
+            {courses.map((course) => (
+              <Link key={course.id} href={`/academy/${course.slug}`} className="group block">
+                <article className="flex h-full flex-col overflow-hidden rounded-panel border border-border bg-card ui-motion-base group-hover:shadow-float">
+                  <CourseCover
+                    coverMediaId={course.coverMediaId}
+                    className="w-full rounded-none object-cover ui-motion-emphasis group-hover:scale-105"
+                  />
+                  <div className="flex flex-1 flex-col gap-2 p-4">
+                    <p className="text-[11px] font-medium tracking-caps text-muted-foreground/56 uppercase">
+                      {course.lessonCount} {course.lessonCount === 1 ? "aula" : "aulas"}
+                    </p>
+                    <h3 className="text-base font-semibold text-foreground">{course.title}</h3>
+                    {course.description && (
+                      <p className="line-clamp-3 text-sm text-muted-foreground">{course.description}</p>
+                    )}
+                    <p className="mt-auto flex items-center gap-1 pt-1 text-sm font-medium text-primary">
+                      {isAuthenticated ? "Abrir curso" : "Ver curso"} <ArrowRight className="size-3.5" aria-hidden="true" />
+                    </p>
+                  </div>
+                </article>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {canManage && (
+        <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/admin" className="text-muted-foreground/56">
+              <Settings2 className="size-4" strokeWidth={1.5} /> Painel
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/admin/cms/entries/new" className="text-muted-foreground/56">
+              Personalizar a home no CMS
+            </Link>
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default async function HomePage() {
   const result = await getPublishedEntryBySlug({ categoryId: null, slug: HOME_SLUG });
   const currentUser = await getCurrentUser();
   const isAuthenticated = currentUser.success && Boolean(currentUser.data);
 
-  // Privacidade por conteúdo (Fase 2/C7): "authenticated" sem sessão cai no mesmo empty state de
-  // "nenhuma entry home ainda" — a home nunca 404 (é a raiz do site), então blindar o conteúdo
-  // fechado significa tratá-lo como se a entry não existisse pra esse visitante.
+  // Privacidade por conteúdo: "authenticated" sem sessão cai no mesmo fallback de "sem entry home".
   const entry = result.success && result.data && (result.data.visibility === "public" || isAuthenticated) ? result.data : null;
 
   if (entry) {
@@ -31,11 +118,6 @@ export default async function HomePage() {
     const compositionResult = await getEntryComposition({ id: entry.id });
     const composition = compositionResult.success ? compositionResult.data : null;
 
-    // Home é composta por seções inteiras (hero própria com seu h1, cards, CTAs) — diferente de
-    // uma entry "artigo" (blogroll/[...slug]/page.tsx), que precisa do título como cabeçalho fixo
-    // porque o corpo é só texto corrido. Um <h1>{entry.title}</h1> genérico aqui duplicava o h1
-    // de verdade da composição (bug reportado nesta sessão: "Inicio" cru, sem estilo, acima do
-    // hero) — a composição é sempre a fonte do h1 da home, nunca o título bruto da entry.
     return composition ? (
       <BlockRenderer blocks={composition} mode="published" />
     ) : (
@@ -48,38 +130,10 @@ export default async function HomePage() {
 
   const adminGate = await getAdminPageData();
 
+  // Aluno logado (sem acesso ao admin) vai direto pro dashboard dele.
   if (!adminGate.granted && isAuthenticated) {
     redirect("/academy");
   }
 
-  return (
-    <div className="flex min-h-[70vh] flex-col items-center justify-center px-4">
-      <EmptyState
-        title="Venore Docks"
-        description="Painel administrativo e área do aluno da Venore Docks."
-        action={
-          <div className="flex flex-col items-center gap-3">
-            {!adminGate.granted && (
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <Button asChild variant="outline">
-                  <Link href="/cursos">Ver cursos</Link>
-                </Button>
-                <Button asChild>
-                  <Link href="/api/auth/signin">Entrar</Link>
-                </Button>
-              </div>
-            )}
-            {adminGate.granted && (
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/admin/cms/entries/new" className="inline-flex items-center gap-2 text-muted-foreground/56">
-                  <Settings2 className="size-4" strokeWidth={1.5} />
-                  Criar entry &quot;home&quot; no CMS
-                </Link>
-              </Button>
-            )}
-          </div>
-        }
-      />
-    </div>
-  );
+  return <CoursesHome canManage={adminGate.granted} />;
 }
