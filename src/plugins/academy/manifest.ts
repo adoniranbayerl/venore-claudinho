@@ -72,5 +72,7 @@ export const academyManifest: PluginManifest = {
     { key: "academy.course.dashboard-chart", label: "Academy — Gráfico de progresso do curso" },
     { key: "academy.notation.sheet", label: "Academy — Partitura interativa" },
     { key: "academy.progression", label: "Academy — Progressão de acordes" },
+    { key: "academy.ear-trainer", label: "Academy — Treino de ouvido (intervalos/acordes)" },
+    { key: "academy.drum-grid", label: "Academy — Grade de bateria" },
   ],
 };

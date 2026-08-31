@@ -93,13 +93,16 @@ notação ABC tocável, não só texto.
 - **Edição de pergunta existente** no admin (nunca existiu; `updateQuizQuestion` handler já pronto).
 - **Verificação visual** (nenhuma tela foi aberta em browser).
 
-### Treinador de intervalos (bloco reutilizável) — não iniciado
-- Bloco de page builder `academy.ear-trainer` (novo em `blocks/`), config: `mode` (`interval` | `chord-quality`),
-  `roots` (lista de tônicas), `set` (quais intervalos/qualidades), `direction` (`asc` | `desc` | `harmonic`),
-  `rounds` (nº de questões).
-- Client-only: gera a questão, toca via abcjs synth, corrige na hora, mostra placar. **Não persiste**
-  (é prática) — a avaliação "de verdade" continua sendo o quiz da aula.
-- Usado nas Aulas 8–9 do curso de teoria.
+### Treinador de intervalos (bloco reutilizável) — **feito**
+- Bloco de page builder `academy.ear-trainer` (`blocks/ear-trainer{,.-abc,-block,-client}.ts[x]`),
+  config: `mode` (`interval` | `chord`), `roots` (lista de tônicas), `set` (quais intervalos/qualidades,
+  vírgula), `direction` (`asc` | `desc` | `harmonic`), `rounds` (nº de questões), `caption`.
+- `ear-trainer-abc.ts` é puro e testado (`INTERVAL_SEMITONES`/`INTERVAL_LABEL`/`CHORD_INTERVALS` +
+  `earQuestionToAbc(...)` que devolve o ABC tocável e **nunca** o rótulo da resposta).
+- Client-only: gera a questão, toca via `synth.CreateSynth`, corrige na hora, mostra placar.
+  **Não persiste** (é prática) — a avaliação "de verdade" continua sendo o quiz da aula.
+- Registrado em `blocks/{definitions,renderers}.ts` + `manifest.ts`. Falta: adicionar o bloco no seed
+  das Aulas 8–9 do curso de teoria + verificação visual em browser.
 
 ---
 
@@ -159,9 +162,14 @@ Pedido: ouvir acorde e progressão; **e** poder ouvir **só a melodia**.
 
 ## 7. Percussão, slash e marcas de ensaio (para o curso da música)
 
-- **Grade de bateria**: bloco `academy.drum-grid` — linhas (bumbo/caixa/chimbal/…), 8–16 células por
-  compasso, N compassos; toca com samples sintetizados (osc + ruído, como o clique de metrônomo já
-  faz). Config e render próprios, **fora** do modelo ABC.
+- **Grade de bateria** — **feito**: bloco `academy.drum-grid`
+  (`blocks/drum-grid{,-patterns,-block,-client}.ts[x]`). `drum-grid-patterns.ts` = presets em 4/4,
+  16 passos (`backbeat`, `marcha`, `meio-tempo`, `levada-cheia`), linhas chimbal/caixa/bumbo. O
+  client mostra a grade e toca N compassos (`bars`) no andamento (`bpm`) via Web Audio sintetizado
+  (bumbo = seno com queda de freq.; caixa/chimbal = ruído com filtro passa-alta + envelope curto),
+  **fora** do modelo ABC. Config: `style` / `bpm` / `bars` / `caption`. Registrado em
+  `blocks/{definitions,renderers}.ts` + `manifest.ts`. Falta: editor de célula (autoria só por
+  preset hoje), adicionar no seed das Aulas 3/6/8 da música, verificação visual.
 - **Notação rítmica / slash**: `NotationToken` `{ type: "slash"; duration }` → cabeça sem altura;
   pra padrões de levada com cifra em cima.
 - **Marcas de ensaio / rótulos de seção**: `{ type: "mark"; label: string }` → `"^Intro"` /
@@ -191,22 +199,25 @@ curso restrito · anotações/grifos do aluno · lembrete de progresso por e-mai
 
 ```
 #1 Fluidez ✔   #2 Áudio ✔   #6 Letra ✔   #7 Vozes ✔   #3 Progressão/só-melodia ✔   #8 Acess. (parcial)
-                                              └─→ Percussão/slash/marcas ─→ Seeds dos 2 cursos
+   ear-trainer ✔   drum-grid ✔   └─→ slash/marcas de ensaio ─→ Seeds dos 2 cursos
 ```
 
 | Nº | Item | Estado | Destrava no conteúdo |
 | --- | --- | --- | --- |
 | 1 | Fluidez da partitura | **feito** (teclado do PC + painel/colar ABC); falta MIDI, barra automática, seleção de trecho, modelos | exemplos dos dois cursos |
-| 2 | Questão tipo áudio | **feito** (migration 0018 + camadas + UI); falta áudio por opção na UI, edição, ear-trainer | Módulo 2 de teoria |
+| 2 | Questão tipo áudio | **feito** (migration 0018 + camadas + UI); falta áudio por opção na UI, edição | Módulo 2 de teoria |
+| 2b | Treinador de ouvido (bloco `academy.ear-trainer`) | **feito** (bloco + `earQuestionToAbc` puro/testado); falta pôr no seed das Aulas 8–9 | Aulas 8–9 de teoria |
 | 6 | Letra na partitura (`w:`) | **feito** | Aula 4 da música |
 | 7 | Múltiplas vozes (`V:`) | **feito** (modelo + serialize/parse + abas no editor + playback por voz); falta "cantar contra a voz N" | Aula 7 da música |
 | 3 | Acorde/progressão tocável + só-melodia | **feito o essencial** (bloco `academy.progression` + playback por voz no sheet); token de acorde empilhado deferido | Módulo 3 de teoria; Aula 5 da música |
-| — | Percussão + slash + marcas de ensaio | não iniciado | Aulas 3, 6, 8 da música |
+| — | Grade de bateria (bloco `academy.drum-grid`) | **feito** (presets + Web Audio); falta editor de célula e pôr no seed | Aulas 3, 6, 8 da música |
+| — | Slash + marcas de ensaio na notação | não iniciado | Aulas 3, 6, 8 da música |
 | 8 | Acessibilidade | **parcial** (teclas do piano, aviso de microfone); falta TTS, prefs de conta, auditoria de teclado | qualidade geral |
 | — | Seeds dos dois cursos (`seeds/`) | **feito** (rodam na instalação/reinstalação via `manifest.seeds`) | conteúdo real via `/admin/plugins` |
 
-**Próximo:** percussão/slash/marcas de ensaio (Aulas 3/6/8 da música); revisar as telas num browser
-e ajustar os ABC "modelo" do curso da música contra a gravação de referência do dono.
+**Próximo:** slash/marcas de ensaio na notação (Aulas 3/6/8 da música); adicionar os blocos
+`academy.ear-trainer` e `academy.drum-grid` aos seeds dos dois cursos; revisar as telas num browser
+e ajustar os ABC "modelo" do curso da música contra a gravação/partitura de referência do dono.
 
 ## 11. Seeds de curso (`seeds/`)
 
