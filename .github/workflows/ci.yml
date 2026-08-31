@@ -13,7 +13,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
@@ -55,3 +55,56 @@ jobs:
         run: npm run test:integration
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+
+  smoke:
+    # "Sobe o app e bate em algumas rotas" — pega o que passa no build e quebra em runtime
+    # (ex: ERR_REQUIRE_ESM do jsdom). Roda no Node 22, igual à produção.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      AUTH_SECRET: smoke-test-secret-not-real
+      NEXTAUTH_SECRET: smoke-test-secret-not-real
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Migrate (core + plugins com schema)
+        run: |
+          npm run db:migrate
+          npm run db:migrate:academy
+          npm run db:migrate:birthdays
+          npm run db:migrate:broadcast
+          npm run db:migrate:company-metrics
+
+      - name: Build
+        run: npm run build
+
+      - name: Start + smoke
+        run: |
+          npm start &
+          APP_PID=$!
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://localhost:3000/setup && break
+            sleep 1
+          done
+          npm run smoke
+          kill $APP_PID || true

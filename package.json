@@ -2,11 +2,15 @@
   "name": "venore-docks-1.0.0",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "vercel-build": "npm run db:migrate && next build",
     "start": "next start",
+    "smoke": "node scripts/smoke.mjs",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
