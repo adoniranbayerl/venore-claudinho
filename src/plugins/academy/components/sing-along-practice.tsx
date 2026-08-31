@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { usePitchListener } from "@/hooks/use-pitch-listener";
 import { extractExpectedNotes, type ExpectedNote } from "./abc-expected-notes";
-import { frequencyToMidi, midiToOctave, pitchClassNamePt, describeOctaveOffset } from "@/lib/pitch-class";
+import { frequencyToMidi, midiToOctave, pitchClassNamePt } from "@/lib/pitch-class";
 import type { NotationToken } from "./notation-abc";
 
 // Modo "Cantar junto": o aluno canta no microfone e o app compara com a sequência de notas
@@ -23,7 +23,9 @@ import type { NotationToken } from "./notation-abc";
 const DEFAULT_QPM = 90;
 const MIN_QPM = 40;
 const MAX_QPM = 160;
-const ONSET_TOLERANCE_MS = 340;
+// Margem de ataque generosa: fora disso a nota conta como "certa, mas adiantada/atrasada" (não
+// como erro de nota). ~um tempo inteiro a 90 BPM.
+const ONSET_TOLERANCE_MS = 550;
 const METRONOME_CLICK_HZ = 1000;
 const METRONOME_CLICK_SECONDS = 0.05;
 
@@ -41,7 +43,8 @@ const NEEDLE_MAX_DEG = 38;
 const RECENT_SAMPLE_MS = 200;
 
 type NoteVerdict = "correct" | "wrong-timing" | "wrong-pitch" | "missed";
-type NoteResult = { note: ExpectedNote; verdict: NoteVerdict; octaveNote: string | null };
+type TimingOffset = "adiantada" | "atrasada" | null;
+type NoteResult = { note: ExpectedNote; verdict: NoteVerdict; timing: TimingOffset };
 type Phase = "idle" | "playing-model" | "counting-in" | "singing" | "results";
 type SungFrame = { centsOff: number; elapsedMs: number; midi: number };
 
@@ -54,7 +57,7 @@ const VERDICT_CLASS: Record<NoteVerdict, string> = {
 
 const VERDICT_LABEL: Record<NoteVerdict, string> = {
   correct: "certa",
-  "wrong-timing": "certa, mas fora do tempo",
+  "wrong-timing": "afinação certa, fora do tempo",
   "wrong-pitch": "nota errada",
   missed: "não cantada",
 };
@@ -122,28 +125,24 @@ function median(values: number[]): number {
 function computeVerdict(note: ExpectedNote, frames: SungFrame[]): NoteResult {
   const clean = frames.filter((frame) => Math.abs(frame.centsOff) <= GLITCH_CENTS);
   const pool = clean.length >= 3 ? clean : frames;
-  if (pool.length === 0) return { note, verdict: "missed", octaveNote: null };
+  if (pool.length === 0) return { note, verdict: "missed", timing: null };
 
+  // Afinação por CLASSE de nota — oitava diferente conta como certa (vozes cantam em oitavas
+  // diferentes da escrita).
   const withinRatio = pool.filter((frame) => Math.abs(frame.centsOff) <= PITCH_TOLERANCE_CENTS).length / pool.length;
   const onPitch = Math.abs(median(pool.map((frame) => frame.centsOff))) <= PITCH_TOLERANCE_CENTS || withinRatio >= ON_PITCH_RATIO;
-  if (!onPitch) return { note, verdict: "wrong-pitch", octaveNote: null };
+  if (!onPitch) return { note, verdict: "wrong-pitch", timing: null };
 
   const good = pool.filter((frame) => Math.abs(frame.centsOff) <= PITCH_TOLERANCE_CENTS);
   const reference = good.length > 0 ? good : pool;
-  const earliestElapsedMs = Math.min(...reference.map((frame) => frame.elapsedMs));
-  const onTime = Math.abs(earliestElapsedMs - note.startMs) <= ONSET_TOLERANCE_MS;
-
-  const sungMidi = Math.round(reference.reduce((sum, frame) => sum + frame.midi, 0) / reference.length);
-  const octaveDescription = describeOctaveOffset(sungMidi, note.midiPitch);
-  return {
-    note,
-    verdict: onTime ? "correct" : "wrong-timing",
-    octaveNote: octaveDescription === "mesma oitava do escrito" ? null : octaveDescription,
-  };
+  const delta = Math.min(...reference.map((frame) => frame.elapsedMs)) - note.startMs;
+  if (Math.abs(delta) <= ONSET_TOLERANCE_MS) return { note, verdict: "correct", timing: null };
+  return { note, verdict: "wrong-timing", timing: delta < 0 ? "adiantada" : "atrasada" };
 }
 
 export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: NotationToken[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const playheadRef = useRef<HTMLDivElement>(null);
   const tuneRef = useRef<TuneObject | null>(null);
   const expectedNotesRef = useRef<ExpectedNote[]>([]);
   const rawIndexToNoteIndexRef = useRef<number[]>([]);
@@ -330,11 +329,26 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     highlightNote(note, VERDICT_CLASS[result.verdict]);
   }
 
+  // Cursor de posição correndo sobre a partitura (abcjs dá left/top/height do trecho atual).
+  function movePlayhead(event: { left?: number; top?: number; height?: number }) {
+    const el = playheadRef.current;
+    if (!el || typeof event.left !== "number") return;
+    el.style.opacity = "1";
+    el.style.transition = "left 90ms linear, top 90ms linear, height 90ms linear";
+    el.style.left = `${event.left - 1}px`;
+    if (typeof event.top === "number") el.style.top = `${event.top}px`;
+    if (typeof event.height === "number") el.style.height = `${event.height}px`;
+  }
+  function hidePlayhead() {
+    if (playheadRef.current) playheadRef.current.style.opacity = "0";
+  }
+
   function endSinging() {
     singingActiveRef.current = false;
     singingTimingRef.current?.stop();
     singingTimingRef.current = null;
     pitchListener.stop();
+    hidePlayhead();
     setResults(resultsAccumulatorRef.current.slice());
     setPhase("results");
   }
@@ -350,6 +364,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     singingTimingRef.current = null;
     singingActiveRef.current = false;
     pitchListener.stop();
+    hidePlayhead();
     setPhase("idle");
   }
 
@@ -366,6 +381,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     if (!permission.ok) return;
 
     clearHighlights(notes);
+    hidePlayhead();
     framesByNoteRef.current = notes.map(() => []);
     resultsAccumulatorRef.current = [];
     lastVoicedRef.current = null;
@@ -399,6 +415,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
           endSinging();
           return undefined;
         }
+        movePlayhead(event);
         if (!event.midiPitches || event.midiPitches.length === 0) return undefined;
         rawEventIndex += 1;
         const mergedIndex = rawIndexToNoteIndexRef.current[rawEventIndex] ?? rawEventIndex;
@@ -428,6 +445,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     if (!tune || !synth.supportsAudio()) return;
     runIdRef.current += 1;
     const myRun = runIdRef.current;
+    hidePlayhead();
     setCountInForSinging(false);
     setPhase("counting-in");
     await playCountIn();
@@ -450,8 +468,13 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
       const metronomeAudioContext = getMetronomeAudioContext();
       const timing = new TimingCallbacks(tune, {
         qpm: qpmRef.current,
-        beatCallback: () => {
-          if (metronomeOnRef.current) playMetronomeClick(metronomeAudioContext);
+        // No "Ouvir modelo" o metrônomo toca SEMPRE (é pra ouvir junto com o tempo); o checkbox só
+        // vale pro "Cantar junto", onde a caixa vaza pro microfone.
+        beatCallback: () => playMetronomeClick(metronomeAudioContext),
+        eventCallback: (event) => {
+          if (event === null) hidePlayhead();
+          else movePlayhead(event);
+          return undefined;
         },
       });
       modelTimingRef.current = timing;
@@ -463,7 +486,10 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
         modelSynthRef.current?.stop();
         if (runIdRef.current !== myRun) return;
         if (loopModelRef.current) void runModelOnce(myRun);
-        else setPhase("idle");
+        else {
+          hidePlayhead();
+          setPhase("idle");
+        }
       }, totalMsRef.current + 300);
     } catch {
       setPhase("idle");
@@ -508,12 +534,28 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     { correct: 0, wrongTiming: 0, wrongPitch: 0, missed: 0 },
   );
   const notableResults = results?.filter((result) => result.verdict !== "correct") ?? [];
+  const timingResults = results?.filter((result) => result.verdict === "wrong-timing") ?? [];
+  const aheadCount = timingResults.filter((result) => result.timing === "adiantada").length;
+  const timingTip =
+    timingResults.length >= 2
+      ? aheadCount >= timingResults.length - aheadCount
+        ? "Você tende a entrar adiantado — espere o tempo cair antes de cantar."
+        : "Você tende a entrar atrasado — antecipe um pouquinho a nota."
+      : null;
   const canAdjust = phase === "idle" || phase === "results";
   const showTuner = phase === "singing" || (phase === "counting-in" && countInForSinging);
 
   return (
     <div className="mt-2 space-y-3 rounded-md border border-border bg-card p-3">
-      <div ref={containerRef} className="overflow-x-auto" />
+      <div className="relative overflow-x-auto">
+        <div ref={containerRef} />
+        <div
+          ref={playheadRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 w-0.5 rounded-full bg-primary opacity-0"
+          style={{ height: 0 }}
+        />
+      </div>
 
       {showTuner && (
         <div className="rounded-md border border-border bg-muted/30 p-3 text-center">
@@ -597,18 +639,18 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
             </Button>
           )}
         </div>
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground" title="Só afeta o “Cantar junto” — no “Ouvir modelo” o metrônomo toca sempre">
           <input type="checkbox" checked={metronomeOn} onChange={toggleMetronome} className="accent-primary" />
-          Metrônomo
+          Metrônomo ao cantar
         </label>
       </div>
 
       {phase === "idle" && (
         <p className="text-xs text-muted-foreground/56">
           Ao tocar em “Cantar junto”, o navegador pede acesso ao microfone. Tem uma contagem de
-          entrada (1-2-3-4) antes de começar. Deixe o metrônomo desligado se estiver sem fone (a
-          caixa do PC atrapalha a leitura da voz). O áudio é analisado só no seu aparelho — nada é
-          gravado nem enviado.
+          entrada (1-2-3-4) antes de começar. Se estiver sem fone, deixe o metrônomo do canto
+          desligado — a caixa do PC atrapalha a leitura da voz (no “Ouvir modelo” ele toca sempre).
+          O áudio é analisado só no seu aparelho — nada é gravado nem enviado.
         </p>
       )}
 
@@ -618,20 +660,21 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
         <div className="space-y-2 rounded-md border border-border bg-muted/40 p-2.5">
           <p className="text-xs font-medium text-foreground">Resultado</p>
           <div className="flex flex-wrap gap-1.5">
-            <Badge className="border-success-border bg-success-soft text-success">Certas: {counts.correct}</Badge>
+            <Badge className="border-success-border bg-success-soft text-success">Afinação certa: {counts.correct + counts.wrongTiming}</Badge>
             <Badge className="border-warning-border bg-warning-soft text-warning">Fora do tempo: {counts.wrongTiming}</Badge>
             <Badge variant="destructive">Nota errada: {counts.wrongPitch}</Badge>
             <Badge variant="outline" className="text-muted-foreground">
               Não cantadas: {counts.missed}
             </Badge>
           </div>
+          {timingTip && <p className="text-xs font-medium text-warning">{timingTip}</p>}
           {notableResults.length > 0 && (
             <ul className="space-y-0.5 text-xs text-muted-foreground">
               {notableResults.map((result) => (
                 <li key={result.note.index}>
                   Nota {result.note.index + 1} ({pitchClassNamePt(result.note.pitchClass)}):{" "}
                   {VERDICT_LABEL[result.verdict]}
-                  {result.octaveNote ? ` — ${result.octaveNote}` : ""}
+                  {result.timing ? ` — entrou ${result.timing}` : ""}
                 </li>
               ))}
             </ul>
