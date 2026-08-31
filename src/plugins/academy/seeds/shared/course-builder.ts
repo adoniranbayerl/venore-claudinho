@@ -21,10 +21,12 @@ import { createLessonTextSection } from "../../features/lessons/sections/create-
 
 // Um bloco extra dentro de uma seção, além do texto. "notation": vira um bloco
 // `academy.notation.sheet` (o ABC é parseado pra tokens/tom/andamento/letra/vozes). "progression":
-// vira um bloco `academy.progression`.
+// vira um bloco `academy.progression`. "drum-grid": vira um bloco `academy.drum-grid` (preset de
+// levada, ver blocks/drum-grid-patterns.ts).
 export type SeedBlock =
   | { kind: "notation"; abc: string; caption?: string; allowSingAlong?: boolean }
-  | { kind: "progression"; chords: string; key: string; bpm: number; beatsPerChord?: number; caption?: string };
+  | { kind: "progression"; chords: string; key: string; bpm: number; beatsPerChord?: number; caption?: string }
+  | { kind: "drum-grid"; style: string; bpm: number; bars?: number; caption?: string };
 
 export type SeedSection = { title: string; markdown: string; blocks?: SeedBlock[] };
 export type SeedQuiz = {
@@ -98,13 +100,22 @@ function sectionComposition(section: SeedSection): { blocks: SeedComposedBlock[]
   for (const extra of section.blocks ?? []) {
     if (extra.kind === "notation") {
       children.push(block("academy.notation.sheet", notationBlockData(extra.abc, extra.caption, extra.allowSingAlong ?? true)));
-    } else {
+    } else if (extra.kind === "progression") {
       children.push(
         block("academy.progression", {
           chords: extra.chords,
           key: extra.key,
           bpm: extra.bpm,
           beatsPerChord: extra.beatsPerChord ?? 4,
+          caption: extra.caption ?? "",
+        }),
+      );
+    } else {
+      children.push(
+        block("academy.drum-grid", {
+          style: extra.style,
+          bpm: extra.bpm,
+          bars: extra.bars ?? 2,
           caption: extra.caption ?? "",
         }),
       );

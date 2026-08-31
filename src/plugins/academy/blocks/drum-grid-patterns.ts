@@ -47,6 +47,17 @@ export const DRUM_PATTERNS: Record<string, DrumPattern> = {
       row("kick", "Bumbo", [0, 3, 8, 10, 11]),
     ],
   },
+  // Levada groovada/funk (gospel) para "Jesus Cristo mudou meu viver" a ~85 BPM: chimbal em
+  // semicolcheias contínuas, caixa no contratempo (2 e 4) com fantasmas na "a" de cada tempo forte,
+  // e bumbo sincopado (1, "a" de 1, "e" de 2, "e" de 3) empurrando a frente do tempo.
+  "groove-funk": {
+    label: "Groove funk (gospel)",
+    rows: [
+      row("hihat", "Chimbal", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+      row("snare", "Caixa", [4, 7, 12, 15]),
+      row("kick", "Bumbo", [0, 3, 6, 10]),
+    ],
+  },
 };
 
 export const DRUM_STEPS_PER_BAR = STEPS;

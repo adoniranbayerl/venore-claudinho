@@ -74,10 +74,10 @@ export const MUSICA_LESSONS: SeedLesson[] = [
       {
         title: "Definir o BPM",
         markdown:
-          "Nas versões mais comuns, a música anda por volta de **92 a 100 BPM** — um andamento " +
-          "**moderado, marcado**, que dá para bater palma confortavelmente em todos os tempos. Não é " +
-          "balada (ficaria arrastada) nem corrido (perderia a solenidade). Vamos usar **96 BPM** como " +
-          "referência de trabalho.",
+          "A partitura de referência traz **♩ = 85 BPM** — um andamento **moderado, marcado**, que dá " +
+          "para bater palma confortavelmente em todos os tempos. Não é balada (ficaria arrastada) nem " +
+          "corrido (perderia a solenidade). Na prática as versões variam entre uns **80 e 90 BPM**; " +
+          "vamos usar **85** como referência de trabalho.",
       },
       {
         title: "Contagem de entrada e anacruse",
@@ -90,45 +90,45 @@ export const MUSICA_LESSONS: SeedLesson[] = [
       {
         title: "Como o andamento muda a mensagem",
         markdown:
-          "Cante a primeira frase a **80 BPM**, depois a **96**, depois a **112**. A 80 ela soa " +
-          "reflexiva; a 96, firme e celebrativa; a 112 começa a soar apressada, \"sem deixar a " +
-          "palavra respirar\". A escolha do andamento **é uma decisão de interpretação** — e muda o " +
-          "que a letra comunica.",
+          "Cante a primeira frase a **72 BPM**, depois a **85** (o da partitura), depois a **100**. A " +
+          "72 ela soa reflexiva; a 85, firme e celebrativa; a 100 começa a soar apressada, \"sem " +
+          "deixar a palavra respirar\". A escolha do andamento **é uma decisão de interpretação** — e " +
+          "muda o que a letra comunica.",
       },
     ],
     examples: [
       {
-        title: "A primeira frase a 96 BPM",
+        title: "A primeira frase a 85 BPM (andamento da partitura)",
         caption: "Anacruse de duas colcheias — \"Je-sus\" (Lá–Si) entrando antes do tempo 1. Alturas da partitura oficial; ritmo a conferir.",
-        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=96\nK:A\nz4 z2 A,B, | CCCCC B,A,E |\nw: Je-sus Cris-to mu-dou meu vi-ver *\n",
+        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=85\nK:A\nz4 z2 A,B, | CCCCC B,A,E |\nw: Je-sus Cris-to mu-dou meu vi-ver *\n",
       },
       {
-        title: "A primeira frase a 80 BPM",
-        caption: "A mesma frase da estrofe, agora no andamento da partitura (80 BPM) — compare com o exemplo a 96 e sinta se a palavra \"respira\".",
-        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nz4 z2 A,B, | CCCCC B,A,E |",
+        title: "A mesma frase a 72 BPM (comparação lenta)",
+        caption: "A mesma frase da estrofe, bem mais devagar — compare com o exemplo a 85 e sinta se a palavra \"respira\" ou se arrasta.",
+        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=72\nK:A\nz4 z2 A,B, | CCCCC B,A,E |",
       },
     ],
     quiz: [
-      { text: "O andamento de trabalho desta música é:", options: ["~60 BPM", "~96 BPM", "~140 BPM"], correctIndex: 1 },
-      { text: "A 96 BPM, a sensação é:", options: ["Arrastada", "Firme e celebrativa", "Apressada demais"], correctIndex: 1 },
+      { text: "O andamento da partitura desta música é:", options: ["~60 BPM", "~85 BPM", "~140 BPM"], correctIndex: 1 },
+      { text: "A 85 BPM, a sensação é:", options: ["Arrastada", "Firme e celebrativa", "Apressada demais"], correctIndex: 1 },
       { text: "\"Compasso de contagem\" antes de começar serve para:", options: ["Todos entrarem juntos no andamento certo", "Afinar os instrumentos", "Marcar o fim"], correctIndex: 0 },
       { text: "A anacruse desta música é:", options: ["O acorde final", "As sílabas \"Je-sus\" caindo antes do primeiro tempo forte", "Uma pausa longa no meio"], correctIndex: 1 },
       { text: "Se a música tem anacruse, a contagem de entrada precisa:", options: ["Ser mais rápida", "Deixar espaço para a voz entrar antes do tempo 1", "Ter oito tempos"], correctIndex: 1 },
       { text: "A 112 BPM, o problema é:", options: ["Fica reflexiva demais", "A palavra não \"respira\"", "Ninguém consegue bater palma"], correctIndex: 1 },
       { text: "Escolher o andamento é:", options: ["Um detalhe sem importância", "Uma decisão de interpretação que muda a mensagem", "Fixado pela partitura, imutável"], correctIndex: 1 },
-      { text: "Ouça: este andamento está mais perto de", options: ["70 BPM", "96 BPM", "130 BPM"], correctIndex: 1, promptAbc: "X:1\nM:4/4\nL:1/4\nQ:1/4=96\nK:C\nc c c c | c c c c |" },
-      { text: "Ouça a frase: o andamento está mais perto de", options: ["76 BPM (reflexivo)", "96 BPM (celebrativo)", "120 BPM (apressado)"], correctIndex: 0, promptAbc: "X:1\nM:4/4\nL:1/8\nQ:1/4=76\nK:A\nE2 A2 A2 B2 | A6 z2 |" },
-      { text: "Ouça a frase com anacruse: as duas primeiras notas caem antes ou depois do primeiro tempo forte?", options: ["Antes", "Depois"], correctIndex: 0, promptAbc: "X:1\nM:4/4\nL:1/8\nQ:1/4=96\nK:A\nz4 z2 E2 A2 A2 | B2 A2 A4 |" },
+      { text: "Ouça: este andamento está mais perto de", options: ["72 BPM", "85 BPM", "110 BPM"], correctIndex: 1, promptAbc: "X:1\nM:4/4\nL:1/4\nQ:1/4=85\nK:C\nc c c c | c c c c |" },
+      { text: "Ouça a frase: o andamento está mais perto de", options: ["72 BPM (reflexivo)", "85 BPM (celebrativo)", "110 BPM (apressado)"], correctIndex: 0, promptAbc: "X:1\nM:4/4\nL:1/8\nQ:1/4=72\nK:A\nE2 A2 A2 B2 | A6 z2 |" },
+      { text: "Ouça a frase com anacruse: as duas primeiras notas caem antes ou depois do primeiro tempo forte?", options: ["Antes", "Depois"], correctIndex: 0, promptAbc: "X:1\nM:4/4\nL:1/8\nQ:1/4=85\nK:A\nz4 z2 E2 A2 A2 | B2 A2 A4 |" },
     ],
     activities: [
       {
         title: "Cantar a primeira frase no tempo",
-        instructions: "Cante a primeira frase da música junto do metrônomo a 96 BPM, entrando na anacruse depois da contagem. Grave.",
+        instructions: "Cante a primeira frase da música junto do metrônomo a 85 BPM, entrando na anacruse depois da contagem. Grave.",
         format: "audio",
       },
       {
         title: "Testar três andamentos",
-        instructions: "Grave a primeira frase três vezes: ~80, ~96 e ~112 BPM. Em texto (na descrição da entrega), diga qual andamento você escolheria para a sua igreja e por quê.",
+        instructions: "Grave a primeira frase três vezes: ~72, ~85 e ~100 BPM. Em texto (na descrição da entrega), diga qual andamento você escolheria para a sua igreja e por quê.",
         format: "audio",
       },
     ],
@@ -137,14 +137,28 @@ export const MUSICA_LESSONS: SeedLesson[] = [
     title: "Aula 3 — A bateria e o groove",
     sections: [
       {
-        title: "A levada base",
+        title: "A levada base — groove funk (gospel)",
         markdown:
-          "Numa levada moderada de louvor como esta:\n\n" +
-          "- **Chimbal:** colcheias contínuas — é o \"relógio\" da banda.\n" +
-          "- **Caixa:** *backbeat*, nos tempos **2 e 4**. É o acento que faz a música \"andar\" e é o " +
-          "que a congregação imita batendo palma.\n" +
-          "- **Bumbo:** o tempo **1** sempre, mais um reforço perto do tempo **3** (muitas vezes uma " +
-          "antecipação sincopada, o bumbo caindo no \"e\" antes do 3).",
+          "O andamento (85 BPM) e o caráter celebrativo pedem uma **levada groovada, de pegada " +
+          "gospel/funk** — não um rock reto. Três elementos:\n\n" +
+          "- **Chimbal:** **semicolcheias** contínuas (mais miúdo que colcheia) — é o \"motor\" que " +
+          "dá o balanço.\n" +
+          "- **Caixa:** *backbeat* nos tempos **2 e 4** (o acento que a congregação imita batendo " +
+          "palma), com **notas fantasma** fracas na semicolcheia logo antes de cada backbeat.\n" +
+          "- **Bumbo:** **sincopado** — cai no tempo **1**, na \"a\" do 1, no \"e\" do 2 e no \"e\" " +
+          "do 3. É ele que \"empurra\" a frente do tempo e cria o groove.\n\n" +
+          "Ouça e veja a grade abaixo (85 BPM, 2 compassos repetindo):",
+        blocks: [
+          {
+            kind: "drum-grid",
+            style: "groove-funk",
+            bpm: 85,
+            bars: 2,
+            caption:
+              "Groove funk (gospel) desta música. Chimbal em semicolcheias, caixa em 2 e 4 com " +
+              "fantasmas, bumbo sincopado empurrando o tempo.",
+          },
+        ],
       },
       {
         title: "Como a bateria conduz a forma",
@@ -164,13 +178,6 @@ export const MUSICA_LESSONS: SeedLesson[] = [
           "falham) somada a pequenas **respirações** — a virada na quebra de frase, uma síncope de " +
           "bumbo, o prato que abre no refrão. Constante demais fica robótico; instável demais, " +
           "ninguém consegue cantar junto.",
-      },
-    ],
-    examples: [
-      {
-        title: "Esqueleto da levada da estrofe (com notas)",
-        caption: "Cima = chimbal (colcheias); meio = caixa (2 e 4); baixo = bumbo (1 e antecipando o 3).",
-        abc: "X:1\nM:4/4\nL:1/8\nV:1\nV:2\nV:3\nK:C\n[V:1] G G G G G G G G |\n[V:2] z2 c2 z2 c2 |\n[V:3] C2 z2 z C z2 |",
       },
     ],
     quiz: [
@@ -237,15 +244,15 @@ export const MUSICA_LESSONS: SeedLesson[] = [
         title: "A melodia completa (da partitura \"Voz\")",
         caption:
           "Transcrição direta dos graus da partitura oficial (IM Conviver / Prática de canto), em Lá " +
-          "maior, ♩=80. As ALTURAS seguem a partitura grau a grau (a anacruse Lá–Si; o Dó natural — " +
+          "maior, ♩=85. As ALTURAS seguem a partitura grau a grau (a anacruse Lá–Si; o Dó natural — " +
           "grau 3 rebaixado — no trecho do refrão; o fecho descendo 1–6–5, terminando no grau 5). As " +
-          "notas longas usam a figura semínima pontuada + colcheia. O RITMO ainda é aproximado — " +
+          "notas longas usam **semínima pontuada** (`C3`) + colcheia. O RITMO ainda é aproximado — " +
           "confira contra a partitura, sobretudo o agrupamento das colcheias dos últimos 4 compassos. " +
           "Repetição e casas 1ª/2ª da partitura foram simplificadas: aqui a melodia corre uma vez só.",
         abc:
-          "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\n" +
-          "A,B, | CCCCC B,A,E | E8 | C2-C E E4 | FFFF ED A,2 | A,4 A,2 A,B, | " +
-          "CCCC DE A,2 | A,2 B,2 C4 | E2 A,2 C4 | D D C2 A,2 A,2 | F2-F E E4 | E2 B,2 A,4 | " +
+          "X:1\nM:4/4\nL:1/8\nQ:1/4=85\nK:A\n" +
+          "A,B, | CCCCC B,A,E | E8 | C3 E E4 | FFFF ED A,2 | A,6 A,B, | " +
+          "CCCC DE A,2 | A,2 B,2 C4 | E2 A,2 C4 | D D C2 A,2 A,2 | F3 E E4 | E2 B,2 A,4 | " +
           "F2 A, A, F2 A, B, | =C2 B, A, A, A, A, B, | C2 C2 D C B, B, | B,2 A, A, F2 A,2 | " +
           "C B, B, A, B, B, F2 | F A, C B, B, A, C C | F F A, C B, B, A, B, | A,2 F2 E4 |]\n",
       },
@@ -256,8 +263,8 @@ export const MUSICA_LESSONS: SeedLesson[] = [
           "longas usam a figura semínima pontuada + colcheia. Alturas da partitura; barras das notas " +
           "longas ainda a conferir.",
         abc:
-          "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\n" +
-          "z4 z2 \"A\"A,B, | CCCCC B,A,E | \"A\"E8 | \"D\"C2-C E E4 | \"E7\"FFFF ED A,2 |\n",
+          "X:1\nM:4/4\nL:1/8\nQ:1/4=85\nK:A\n" +
+          "z4 z2 \"A\"A,B, | CCCCC B,A,E | \"A\"E8 | \"D\"C3 E E4 | \"E7\"FFFF ED A,2 |\n",
       },
       {
         title: "O trecho do refrão com o Dó natural",
@@ -265,7 +272,7 @@ export const MUSICA_LESSONS: SeedLesson[] = [
           "Grau 3 rebaixado (Dó natural, marcado \"3b\" na partitura) como nota de passagem, e a frase " +
           "descendo por graus conjuntos de volta ao Lá. Alturas da partitura; ritmo a conferir.",
         abc:
-          "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\n" +
+          "X:1\nM:4/4\nL:1/8\nQ:1/4=85\nK:A\n" +
           "\"A\"F2 A, A, F2 A, B, | \"A\"=C2 B, A, A, A, A, B, | \"D\"C2 C2 D C B, B, | \"E7\"B,2 A, A, F2 A,2 |",
       },
     ],
@@ -278,8 +285,8 @@ export const MUSICA_LESSONS: SeedLesson[] = [
       { text: "A frase 2 da estrofe termina:", options: ["Aberta, no grau 2", "Fechada, descendo até o grau 1", "No pico da melodia"], correctIndex: 1 },
       { text: "O pico (nota mais aguda) da música costuma cair:", options: ["No fim da estrofe", "No começo do refrão", "Na introdução"], correctIndex: 1 },
       { text: "Depois do pico, a melodia do refrão:", options: ["Continua subindo", "Desce gradualmente até a tônica", "Fica parada na nota aguda"], correctIndex: 1 },
-      { text: "Ouça a frase da estrofe: ela termina resolvida ou \"aberta\", pedindo continuação?", options: ["Resolvida", "Aberta"], correctIndex: 1, promptAbc: "X:1\nM:4/4\nL:1/8\nQ:1/4=96\nK:A\nE2 A2 A2 B2 | c2 B2 A2 B2 |" },
-      { text: "Ouça o trecho do refrão (da partitura): ele se move mais por notas vizinhas (graus conjuntos) ou por saltos grandes?", options: ["Notas vizinhas (graus conjuntos)", "Saltos grandes"], correctIndex: 0, promptAbc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nF2 A, A, F2 A, B, | =C2 B, A, A, A, A, B, |" },
+      { text: "Ouça a frase da estrofe: ela termina resolvida ou \"aberta\", pedindo continuação?", options: ["Resolvida", "Aberta"], correctIndex: 1, promptAbc: "X:1\nM:4/4\nL:1/8\nQ:1/4=85\nK:A\nE2 A2 A2 B2 | c2 B2 A2 B2 |" },
+      { text: "Ouça o trecho do refrão (da partitura): ele se move mais por notas vizinhas (graus conjuntos) ou por saltos grandes?", options: ["Notas vizinhas (graus conjuntos)", "Saltos grandes"], correctIndex: 0, promptAbc: "X:1\nM:4/4\nL:1/8\nQ:1/4=85\nK:A\nF2 A, A, F2 A, B, | =C2 B, A, A, A, A, B, |" },
     ],
     activities: [
       {
@@ -333,12 +340,12 @@ export const MUSICA_LESSONS: SeedLesson[] = [
       {
         title: "Progressão da estrofe (tocável)",
         caption: "8 compassos: I – I – IV – V (abre) / I – IV – V7 – I (resolve). Ouça o D \"abrir\", o E \"apertar\", o A \"resolver\".",
-        abc: "X:1\nM:4/4\nL:1/1\nQ:1/4=96\nK:A\n\"A\"[A,CE] | \"A\"[A,CE] | \"D\"[D,FA] | \"E\"[E,GB] | \"A\"[A,CE] | \"D\"[D,FA] | \"E7\"[E,GBd] | \"A\"[A,CE] |",
+        abc: "X:1\nM:4/4\nL:1/1\nQ:1/4=85\nK:A\n\"A\"[A,CE] | \"A\"[A,CE] | \"D\"[D,FA] | \"E\"[E,GB] | \"A\"[A,CE] | \"D\"[D,FA] | \"E7\"[E,GBd] | \"A\"[A,CE] |",
       },
       {
         title: "Progressão do refrão (tocável)",
         caption: "I – vi – IV – V, com o F#m dando o contraste depois do pico.",
-        abc: "X:1\nM:4/4\nL:1/1\nQ:1/4=96\nK:A\n\"A\"[A,CE] | \"F#m\"[F,Ac] | \"D\"[D,FA] | \"E\"[E,GB] | \"A\"[A,CE] | \"F#m\"[F,Ac] | \"E7\"[E,GBd] | \"A\"[A,CE] |",
+        abc: "X:1\nM:4/4\nL:1/1\nQ:1/4=85\nK:A\n\"A\"[A,CE] | \"F#m\"[F,Ac] | \"D\"[D,FA] | \"E\"[E,GB] | \"A\"[A,CE] | \"F#m\"[F,Ac] | \"E7\"[E,GBd] | \"A\"[A,CE] |",
       },
     ],
     quiz: [
@@ -384,7 +391,7 @@ export const MUSICA_LESSONS: SeedLesson[] = [
       {
         title: "A levada de acompanhamento",
         markdown:
-          "Um padrão idiomático para 96 BPM, por compasso:\n\n" +
+          "Um padrão idiomático para 85 BPM, por compasso:\n\n" +
           "- **Baixo** (ou polegar do violão): a **fundamental do acorde no tempo 1**, às vezes a " +
           "**quinta no tempo 3** (\"baixo alternado\").\n" +
           "- **Harmonia:** acordes nas **colcheias dos tempos 2, 3 e 4**, deixando o tempo 1 " +
@@ -478,7 +485,7 @@ export const MUSICA_LESSONS: SeedLesson[] = [
           "2ª voz correndo uma 3ª/6ª abaixo. No compasso da cadência as duas descem, mas a 2ª voz " +
           "para no Ré. Ajuste letra e alturas à sua referência.",
         abc:
-          "X:1\nM:4/4\nL:1/8\nQ:1/4=96\nK:A\nV:1 name=\"Melodia\"\nV:2 name=\"2a voz\"\n" +
+          "X:1\nM:4/4\nL:1/8\nQ:1/4=85\nK:A\nV:1 name=\"Melodia\"\nV:2 name=\"2a voz\"\n" +
           "[V:1] \"A\"e2 e2 c2 A2 | \"F#m\"B2 A2 F4 |\n" +
           "[V:2] \"A\"c2 c2 A2 F2 | \"F#m\"A2 F2 D4 |\n",
       },
@@ -560,7 +567,7 @@ export const MUSICA_LESSONS: SeedLesson[] = [
         title: "Refrão com seções, letra e 2 vozes (modelo)",
         caption: "Modelo do refrão com as duas vozes e a letra — confira letra e alturas contra a sua referência.",
         abc:
-          "X:1\nM:4/4\nL:1/8\nQ:1/4=96\nK:A\nV:1 name=\"Melodia\"\nV:2 name=\"2a voz\"\n" +
+          "X:1\nM:4/4\nL:1/8\nQ:1/4=85\nK:A\nV:1 name=\"Melodia\"\nV:2 name=\"2a voz\"\n" +
           "[V:1] \"A\"e2 e2 c2 A2 | \"F#m\"B2 A2 F4 | \"D\"A2 B2 c2 A2 | \"E7\"B2 c2 B4 |\n" +
           "w: Je-sus mu-dou, trans-for-mou o meu ser,\n" +
           "[V:2] \"A\"c2 c2 A2 F2 | \"F#m\"A2 F2 D4 | \"D\"F2 G2 A2 F2 | \"E7\"G2 A2 G4 |\n",
@@ -568,7 +575,7 @@ export const MUSICA_LESSONS: SeedLesson[] = [
       {
         title: "Vamp de introdução (tocável)",
         caption: "A | E | A | E — chama a música antes de a voz entrar.",
-        abc: "X:1\nM:4/4\nL:1/1\nQ:1/4=96\nK:A\n\"A\"[A,CE] | \"E\"[E,GB] | \"A\"[A,CE] | \"E\"[E,GB] |",
+        abc: "X:1\nM:4/4\nL:1/1\nQ:1/4=85\nK:A\n\"A\"[A,CE] | \"E\"[E,GB] | \"A\"[A,CE] | \"E\"[E,GB] |",
       },
     ],
     quiz: [
@@ -581,7 +588,7 @@ export const MUSICA_LESSONS: SeedLesson[] = [
       { text: "O mapa de arranjo serve para:", options: ["Impressionar a plateia", "A banda inteira ler de relance quem faz o quê em cada parte", "Cronometrar a música"], correctIndex: 1 },
       { text: "No arranjo de trabalho, o clímax da música é:", options: ["A introdução", "O refrão final (depois da parada)", "A Estrofe 1"], correctIndex: 1 },
       { text: "Ouça o vamp de introdução: os acordes alternam entre:", options: ["Tônica e dominante (A e E)", "Tônica e subdominante (A e D)", "Dois acordes menores"], correctIndex: 0, promptAbc: "X:1\nM:4/4\nL:1/1\nQ:1/4=100\nK:A\n[A,CE] | [E,GB] | [A,CE] | [E,GB] |" },
-      { text: "Ouça o refrão com as duas vozes: elas se movem mais em paralelo ou em uníssono?", options: ["Em paralelo (harmonizadas)", "Em uníssono (mesma nota)"], correctIndex: 0, promptAbc: "X:1\nM:4/4\nL:1/8\nQ:1/4=96\nK:A\nV:1\nV:2\n[V:1] e2 e2 c2 A2 |\n[V:2] c2 c2 A2 F2 |" },
+      { text: "Ouça o refrão com as duas vozes: elas se movem mais em paralelo ou em uníssono?", options: ["Em paralelo (harmonizadas)", "Em uníssono (mesma nota)"], correctIndex: 0, promptAbc: "X:1\nM:4/4\nL:1/8\nQ:1/4=85\nK:A\nV:1\nV:2\n[V:1] e2 e2 c2 A2 |\n[V:2] c2 c2 A2 F2 |" },
     ],
     activities: [
       {

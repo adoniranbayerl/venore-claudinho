@@ -38,7 +38,7 @@ compasso, intervalos e campo harmônico maior).
 (limiar 70%, 3 tentativas). Atividade `activityEnabled` em todas; `deliverableFormat` conforme a
 tabela final — a maioria é `audio` (é um curso de execução), a Aula 8 tem a entrega final.
 
-**Parâmetros musicais assumidos (modelo):** Lá maior · 4/4 · ≈ 96 BPM · caráter celebrativo,
+**Parâmetros musicais:** Lá maior · 4/4 · ♩ = 85 BPM (partitura) · caráter celebrativo,
 marcado · forma `Intro – Estrofe – Refrão – Estrofe – Refrão – (parada) – Refrão – Final`.
 
 ---
@@ -84,10 +84,10 @@ Anote **três diferenças** que você percebeu (andamento, tom, levada, letra, n
 **Objetivo:** definir e sentir o andamento da música.
 
 ### Seção 2.1 — O BPM da música
-Nas versões mais comuns, "Jesus Cristo mudou meu viver" anda por volta de **92 a 100 BPM** — um
-andamento **moderado, marcado**, que dá para bater palma confortavelmente em todos os tempos. Não
-é balada (ficaria arrastada) nem corrido (perderia a solenidade). Vamos usar **96 BPM** como
-referência de trabalho. Ligue o metrônomo a 96 e apenas ande pela sala no pulso, sem cantar.
+A partitura de referência traz **♩ = 85 BPM** — um andamento **moderado, marcado**, que dá para
+bater palma confortavelmente em todos os tempos. Não é balada (ficaria arrastada) nem corrido
+(perderia a solenidade). Na prática as versões variam entre uns **80 e 90 BPM**; usamos **85**
+como referência de trabalho. Ligue o metrônomo a 85 e apenas ande pela sala no pulso, sem cantar.
 
 ### Seção 2.2 — Contagem de entrada
 Antes de começar, quem conduz dá **um compasso de contagem** ("1, 2, 3, 4") no andamento exato.
@@ -96,24 +96,25 @@ comum em corinho, o "Je-" de "Jesus" caindo antes do 1), a contagem precisa deix
 essa entrada.
 
 ### Seção 2.3 — Como o andamento muda a sensação
-Cante a primeira frase a **80 BPM**, depois a **96**, depois a **112**. A 80 ela soa reflexiva; a
-96, firme e celebrativa; a 112 começa a soar apressada, "sem deixar a palavra respirar". A
-escolha do andamento **é uma decisão de interpretação** — e muda o que a letra comunica.
+Cante a primeira frase a **72 BPM**, depois a **85** (o da partitura), depois a **100**. A 72 ela
+soa reflexiva; a 85, firme e celebrativa; a 100 começa a soar apressada, "sem deixar a palavra
+respirar". A escolha do andamento **é uma decisão de interpretação** — e muda o que a letra
+comunica.
 
 ### Exemplo sonoro
 ```abc
 X:1
 M:4/4
 L:1/8
-Q:1/4=96
+Q:1/4=85
 K:A
-z2 E2 A2 A2 | B2 A2 A4 |
-w: * * Je-sus Cris-to mu-dou
+z4 z2 A,B, | CCCCC B,A,E |
+w: Je-sus Cris-to mu-dou meu vi-ver *
 ```
-(Modelo: anacruse de duas colcheias — "Je-sus" entrando antes do tempo 1. Ajuste à sua referência.)
+(Anacruse de duas colcheias Lá–Si — "Je-sus" entrando antes do tempo 1. Alturas da partitura.)
 
 ### Atividade
-Cante a **primeira frase** da música junto do metrônomo a **96 BPM**, entrando na anacruse depois
+Cante a **primeira frase** da música junto do metrônomo a **85 BPM**, entrando na anacruse depois
 da contagem. Grave. `(áudio)`
 
 ---
@@ -122,13 +123,18 @@ da contagem. Grave. `(áudio)`
 
 **Objetivo:** entender e reproduzir como a bateria segura o andamento e conduz a música.
 
-### Seção 3.1 — A levada base
-Numa levada moderada de louvor como esta, a distribuição típica é:
-- **Chimbal:** colcheias contínuas (as oito subdivisões do compasso) — é o "relógio" da banda.
-- **Caixa:** **backbeat**, nos tempos **2 e 4**. É o acento que faz a música "andar" e é o que a
-  congregação imita batendo palma.
-- **Bumbo:** o tempo **1** sempre, mais um reforço perto do tempo **3** (muitas vezes uma
-  antecipação sincopada, o bumbo caindo no "e" antes do 3).
+### Seção 3.1 — A levada base (groove funk / gospel)
+O andamento (85 BPM) e o caráter celebrativo pedem uma **levada groovada, de pegada gospel/funk**
+— não um rock reto:
+- **Chimbal:** **semicolcheias** contínuas (16 por compasso) — o "motor" que dá o balanço.
+- **Caixa:** **backbeat**, nos tempos **2 e 4**, com **notas fantasma** fracas na semicolcheia
+  logo antes de cada backbeat. É o acento que a congregação imita batendo palma.
+- **Bumbo:** **sincopado** — no tempo **1**, na "a" do 1, no "e" do 2 e no "e" do 3. É ele que
+  "empurra" a frente do tempo e cria o groove.
+
+No seed, a Seção 3.1 traz o bloco **`academy.drum-grid`** com o preset `groove-funk` (85 BPM) — o
+aluno vê a grade e ouve a levada tocando. Os presets ficam em
+`src/plugins/academy/blocks/drum-grid-patterns.ts`.
 
 ### Seção 3.2 — Como a bateria conduz a forma
 A bateria **não toca igual o tempo todo** — ela é o principal sinalizador das partes:
@@ -143,20 +149,15 @@ O que faz um groove "gostoso" é a **constância** (o chimbal e o backbeat que n
 pequenas **respirações** — a virada na quebra de frase, uma síncope de bumbo, o prato que abre no
 refrão. Constante demais fica robótico; instável demais, ninguém consegue cantar junto.
 
-### Exemplo — grade de bateria (estrofe)
+### Exemplo — grade de bateria (`academy.drum-grid`, preset `groove-funk`, 16 semicolcheias)
 ```
-tempo:     1  e  2  e  3  e  4  e
-chimbal:   x  x  x  x  x  x  x  x
-caixa:     .  .  o  .  .  .  o  .
-bumbo:     o  .  .  .  .  x  .  .     (bumbo no 1 e antecipando o 3)
+passo:     1 e a . 2 e a . 3 e a . 4 e a .
+chimbal:   x x x x x x x x x x x x x x x x
+caixa:     . . . . o . . o . . . . o . . o   (backbeat 2 e 4 + fantasma na "a")
+bumbo:     o . . o . . o . . . o . . . . .   (1, "a" do 1, "e" do 2, "e" do 3)
 ```
-Refrão (mais denso):
-```
-tempo:     1  e  2  e  3  e  4  e
-chimbal:   O  x  x  x  x  x  x  x     (O = chimbal aberto no 1)
-caixa:     .  .  o  .  .  .  o  .
-bumbo:     o  .  .  o  o  x  .  .
-```
+Na estrofe a banda toca mais contido (preset `meio-tempo` ou só chimbal + bumbo); o `groove-funk`
+entra cheio no refrão.
 
 ### Atividade
 Com a gravação tocando: (a) marque os tempos com o pé; (b) bata palma no **backbeat (2 e 4)** por
@@ -289,7 +290,7 @@ compasso** só nas cadências (o `D E7` antes do A final). Ritmo harmônico lent
 "assentada", fácil de acompanhar; trocas rápidas dariam agitação que não combina com o texto.
 
 ### Seção 6.2 — A levada de acompanhamento (violão / teclado)
-Um padrão idiomático para 96 BPM, por compasso:
+Um padrão idiomático para 85 BPM, por compasso:
 - **Baixo** (ou polegar do violão): a **fundamental do acorde no tempo 1**, às vezes a **quinta no
   tempo 3** ("baixo alternado").
 - **Harmonia:** acordes nas **colcheias dos tempos 2, 3 e 4**, ou o padrão "campo" (tempo 1 baixo,
