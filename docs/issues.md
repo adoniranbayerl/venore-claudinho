@@ -296,6 +296,50 @@ Vamos ter o nome interno do sistema, mas podemos criar "aliases" para mostrar no
 - Membro - Consumidor do site logado
 - Fora esses papeis, nosso sistema já permite criar roles personalizadas. Mantenha assim.
 
+### Academy — curso "Jesus Cristo mudou meu viver" (revisão do dono, 2026-08-31)
+
+O dono gostou do curso; a lista abaixo é o retorno da primeira leitura completa. **Decisão de
+sequenciamento: esperar o MusicXML da melodia e fazer TUDO num lote só** — vários itens dependem
+da melodia nova. Nada foi aplicado ainda.
+
+**Aguardando arquivo:** o dono vai enviar um **MusicXML** com a melodia correta ("a melodia está
+errada"). A transcrição atual em `jesus-cristo-mudou-meu-viver.lessons.ts` (Aula "A melodia, frase
+a frase") deve ser **refeita a partir do XML**.
+
+**Convenções novas para toda apresentação de melodia (aplicar ao refazer):**
+1. **Sempre por partes** — nunca a melodia inteira de uma vez; um exemplo por frase/trecho.
+2. **Sempre duas versões de cada trecho:** uma a **85 BPM** (andamento real) e uma a **70 BPM**
+   (treino do aluno). Provavelmente vira um helper no `course-builder.ts` (`melodyExample()` que
+   emite os dois blocos + letra).
+3. **Sempre com a letra na pauta** (`w:`) alinhada ao trecho.
+4. **Evidenciar o ritmo:** destacar a diferença entre **colcheias e mínimas**, deixar visíveis os
+   **tempos** e as **pausas**. (Depende de `academy.notation.sheet` conseguir mostrar isso com
+   clareza — checar se precisa de melhoria no bloco/na régua de tempo.)
+5. **Etapas de texto também levam partitura tocável** — não só o array `examples`; embutir
+   `academy.notation.sheet` (ou `academy.progression`/`academy.drum-grid`) dentro das seções de
+   texto como exemplo do trecho que o parágrafo descreve. (`SeedBlock` já suporta `notation` /
+   `progression` / `drum-grid` dentro de `section.blocks`.)
+
+**Itens independentes da melodia (fazer no mesmo lote):**
+- **Nova aula sobre a letra** — entra como **Aula 2** ("A letra: versos, sílabas e sentido"),
+  renumerando as atuais 2–8 para 3–9. Conteúdo: análise estrutural (nº de versos, contagem
+  silábica, tônicas/acentuação, rima, prosódia — como a sílaba forte cai no tempo forte), a forma
+  do texto (afirma → desdobra → retorna). Atualizar `seed-content.test.ts`
+  (`MUSICA_LESSONS` de 8 → 9) e a descrição do seed no `manifest.ts` ("8 aulas" → "9").
+- **Aula da origem (atual Aula 1):** falta dizer que a música é a versão em português de **"What
+  a Difference You've Made in My Life"** (1977), do compositor norte-americano **Archie Jordan**
+  — gravada por Ronnie Milsap e depois por Amy Grant. A letra em português é **adaptação**, não
+  tradução literal. Conferir os créditos antes de publicar como fato.
+- **Excesso de certeza:** várias afirmações no curso estão como fato quando são **interpretação**
+  (ex.: "o pico cai sobre a palavra mais importante", "a forma musical VAI espelhar o texto").
+  Passar tudo para linguagem hedge ("costuma", "uma leitura possível", "na maioria das versões").
+  Prioridade na Aula 1; revisar as demais.
+- **Textos confusos** em alguns pontos — revisão geral de clareza dos `markdown` das seções.
+- **Aula da bateria (atual Aula 3) — expandir.** O dono amou, quer mais: **sugestões de groove
+  por parte** (intro / estrofe / refrão / refrão final) e **viradas (fills)**. Implica novos
+  presets em `drum-grid-patterns.ts` (ex.: `estrofe-simples`, `refrao-cheio`, `virada-fim-de-
+  frase`) e seções novas na aula com um `academy.drum-grid` por parte + uma seção de viradas.
+
 ### Registro de usuários
 - O subsistema de registro que deveria ser aprovado pelo Admin não está funcionando, os usuários estão sendo registrados direto.
 
