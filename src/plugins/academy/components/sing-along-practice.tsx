@@ -286,40 +286,33 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     rawIndexToNoteIndexRef.current = rawIndexToNoteIndex;
     totalMsRef.current = totalMs;
 
-    // Linha do tempo do CURSOR: ms + caixa (esq/dir/topo/altura) REAL de cada nota, medida no SVG
-    // renderizado (mais confiável que o left do abcjs — funciona igual no celular). A caixa usa
-    // TODOS os elementos da nota (inclui a segunda cabeça de uma ligadura), pra o cursor percorrer
-    // o espaço inteiro de nota longa/ligada.
-    const wrapper = containerRef.current?.parentElement ?? null;
-    if (wrapper) {
-      const wrapRect = wrapper.getBoundingClientRect();
-      const offX = wrapper.scrollLeft - wrapRect.left;
-      const offY = wrapper.scrollTop - wrapRect.top;
-      const toStep = (els: Element[], ms: number): PlayheadStep | null => {
-        let l = Infinity;
-        let r = -Infinity;
-        let t = Infinity;
-        let b = -Infinity;
-        for (const el of els) {
-          const rc = el.getBoundingClientRect();
-          if (rc.width === 0 && rc.height === 0) continue;
-          l = Math.min(l, rc.left);
-          r = Math.max(r, rc.right);
-          t = Math.min(t, rc.top);
-          b = Math.max(b, rc.bottom);
-        }
-        if (!Number.isFinite(l)) return null;
-        return { ms, left: l + offX, right: r + offX, top: t + offY, height: b - t || 24 };
-      };
-      const steps: PlayheadStep[] = [];
-      for (const note of notes) {
-        const step = toStep(note.elements, note.startMs);
-        if (step) steps.push(step);
-      }
-      const last = steps.at(-1);
-      if (last) steps.push({ ...last, ms: totalMs, left: last.right });
-      playheadTimelineRef.current = steps;
+    // Linha do tempo do CURSOR: ms + posição (esq/dir/topo/altura) de cada evento, direto do abcjs
+    // (noteTimings já traz left/top/height/width em pixels da partitura renderizada). Interpolada
+    // por rAF pra o cursor andar continuamente; na virada de linha ele salta (não volta atrás).
+    type RawEvent = { type?: string; milliseconds: number; left?: number; top?: number; height?: number; width?: number };
+    const raw = (new TimingCallbacks(tune, { qpm: bpm }).noteTimings as unknown as RawEvent[]) ?? [];
+    const steps: PlayheadStep[] = raw
+      .filter((e) => e.type === "event" && typeof e.left === "number")
+      .map((e) => ({
+        ms: e.milliseconds,
+        left: e.left as number,
+        right: (e.left as number) + (typeof e.width === "number" && e.width > 0 ? e.width : 6),
+        top: typeof e.top === "number" ? e.top : 0,
+        height: typeof e.height === "number" && e.height > 0 ? e.height : 24,
+      }))
+      .sort((a, b) => a.ms - b.ms);
+    const last = steps.at(-1);
+    if (last) steps.push({ ...last, ms: totalMs, left: last.right });
+
+    // Fallback: se o abcjs não deu posições, ao menos um cursor que varre a largura no tempo total.
+    if (steps.length === 0 && totalMs > 0) {
+      const svg = containerRef.current?.querySelector("svg");
+      const w = (svg?.getBoundingClientRect().width || 300) - 8;
+      const h = svg?.getBoundingClientRect().height || 80;
+      steps.push({ ms: 0, left: 6, right: 6, top: 0, height: h }, { ms: totalMs, left: w, right: w, top: 0, height: h });
     }
+
+    playheadTimelineRef.current = steps;
 
     setSetupError(notes.length === 0 ? "Não consegui ler as notas desta partitura para comparar com o canto." : null);
   }, [bpm, abc, tokens]);
