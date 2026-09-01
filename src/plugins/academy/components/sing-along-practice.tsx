@@ -53,10 +53,24 @@ const RECENT_SAMPLE_MS = 200;
 type NoteVerdict = "correct" | "wrong-timing" | "wrong-pitch" | "missed";
 type OnsetKind = "no-tempo" | "adiantada" | "atrasada";
 type SustainKind = "ok" | "curta" | "longa";
-type NoteResult = { note: ExpectedNote; verdict: NoteVerdict; onset: OnsetKind; sustain: SustainKind };
+// `pitchDetail` só é preenchido em "wrong-pitch": o que o aluno cantou e a distância pro alvo.
+type NoteResult = {
+  note: ExpectedNote;
+  verdict: NoteVerdict;
+  onset: OnsetKind;
+  sustain: SustainKind;
+  pitchDetail: string | null;
+};
 type Phase = "idle" | "playing-model" | "counting-in" | "singing" | "results";
 type SungFrame = { centsOff: number; elapsedMs: number; midi: number };
 type PlayheadStep = { ms: number; left: number; top: number; height: number };
+
+// Distância assinada em semitons -> texto ("meio tom abaixo", "um tom acima", "3 semitons abaixo").
+function describeInterval(semitones: number): string {
+  const abs = Math.abs(semitones);
+  const size = abs === 1 ? "meio tom" : abs === 2 ? "um tom" : abs === 3 ? "um tom e meio" : `${abs} semitons`;
+  return `${size} ${semitones < 0 ? "abaixo" : "acima"}`;
+}
 
 const ONSET_LABEL: Record<OnsetKind, string> = {
   "no-tempo": "",
@@ -150,13 +164,19 @@ const nowMs = (): number => performance.now();
 function computeVerdict(note: ExpectedNote, frames: SungFrame[], qpm: number): NoteResult {
   const clean = frames.filter((frame) => Math.abs(frame.centsOff) <= GLITCH_CENTS);
   const pool = clean.length >= 3 ? clean : frames;
-  if (pool.length === 0) return { note, verdict: "missed", onset: "no-tempo", sustain: "ok" };
+  if (pool.length === 0) return { note, verdict: "missed", onset: "no-tempo", sustain: "ok", pitchDetail: null };
 
   // Afinação por CLASSE de nota — oitava diferente conta como certa (vozes cantam em oitavas
   // diferentes da escrita).
+  const medianCents = median(pool.map((frame) => frame.centsOff));
   const withinRatio = pool.filter((frame) => Math.abs(frame.centsOff) <= PITCH_TOLERANCE_CENTS).length / pool.length;
-  const onPitch = Math.abs(median(pool.map((frame) => frame.centsOff))) <= PITCH_TOLERANCE_CENTS || withinRatio >= ON_PITCH_RATIO;
-  if (!onPitch) return { note, verdict: "wrong-pitch", onset: "no-tempo", sustain: "ok" };
+  const onPitch = Math.abs(medianCents) <= PITCH_TOLERANCE_CENTS || withinRatio >= ON_PITCH_RATIO;
+  if (!onPitch) {
+    const sungMidi = Math.round(median(pool.map((frame) => frame.midi)));
+    const sungName = pitchClassNamePt(((sungMidi % 12) + 12) % 12);
+    const pitchDetail = `cantou ${sungName}, ${describeInterval(Math.round(medianCents / 100))}`;
+    return { note, verdict: "wrong-pitch", onset: "no-tempo", sustain: "ok", pitchDetail };
+  }
 
   const good = pool.filter((frame) => Math.abs(frame.centsOff) <= PITCH_TOLERANCE_CENTS);
   const reference = good.length > 0 ? good : pool;
@@ -176,7 +196,7 @@ function computeVerdict(note: ExpectedNote, frames: SungFrame[], qpm: number): N
   }
 
   const verdict: NoteVerdict = onset === "no-tempo" && sustain === "ok" ? "correct" : "wrong-timing";
-  return { note, verdict, onset, sustain };
+  return { note, verdict, onset, sustain, pitchDetail: null };
 }
 
 export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: NotationToken[] }) {
@@ -771,7 +791,9 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
           {notableResults.length > 0 && (
             <ul className="space-y-0.5 text-xs text-muted-foreground">
               {notableResults.map((result) => {
-                const extra = [ONSET_LABEL[result.onset], SUSTAIN_LABEL[result.sustain]].filter(Boolean).join("; ");
+                const extra = [result.pitchDetail, ONSET_LABEL[result.onset], SUSTAIN_LABEL[result.sustain]]
+                  .filter(Boolean)
+                  .join("; ");
                 return (
                   <li key={result.note.index}>
                     Nota {result.note.index + 1} ({pitchClassNamePt(result.note.pitchClass)}):{" "}
