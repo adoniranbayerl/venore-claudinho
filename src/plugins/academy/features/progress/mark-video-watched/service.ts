@@ -1,6 +1,7 @@
 import { beginOperation, endOperation } from "@/observability";
 import { isEnrolled } from "../../../shared/enrollment";
 import { findLessonRequirements, isLessonAccessible } from "../../../shared/lesson-progress";
+import { onProgressAdvanced } from "../../../shared/progress-hooks";
 import { findLessonById, insertVideoCompletionIfMissing } from "./store";
 import type { MarkVideoWatchedCommand, MarkVideoWatchedResult } from "./types";
 
@@ -46,6 +47,7 @@ export async function markVideoWatched(command: MarkVideoWatchedCommand): Promis
   }
 
   await insertVideoCompletionIfMissing(command.lessonId, command.actorId);
+  await onProgressAdvanced(command.actorId, lesson.courseId);
 
   endOperation(handle, { success: true });
   return { success: true, data: { lessonId: command.lessonId, completed: true } };

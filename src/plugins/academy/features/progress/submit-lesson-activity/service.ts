@@ -2,6 +2,7 @@ import { getMediaAsset, MEDIA_ALLOWED_TYPES } from "@/contexts/media";
 import { beginOperation, endOperation } from "@/observability";
 import { isEnrolled } from "../../../shared/enrollment";
 import { findLessonRequirements, isLessonAccessible } from "../../../shared/lesson-progress";
+import { onProgressAdvanced } from "../../../shared/progress-hooks";
 import { findLessonActivityById, findLessonById, upsertLessonActivitySubmission } from "./store";
 import type { SubmitLessonActivityCommand, SubmitLessonActivityResult } from "./types";
 
@@ -103,6 +104,7 @@ export async function submitLessonActivity(command: SubmitLessonActivityCommand)
     // sessão). Os demais nascem "pending" e aguardam revisão real.
     initialReviewStatus: activity.deliverableFormat === "none" ? "approved" : "pending",
   });
+  await onProgressAdvanced(command.actorId, lesson.courseId);
 
   endOperation(handle, { success: true });
   return { success: true, data: submission };

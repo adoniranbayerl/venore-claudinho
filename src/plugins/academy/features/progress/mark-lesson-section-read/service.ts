@@ -6,6 +6,7 @@ import {
   insertSectionCompletionIfMissing,
   isLessonAccessible,
 } from "../../../shared/lesson-progress";
+import { onProgressAdvanced } from "../../../shared/progress-hooks";
 import { markTextRead } from "../mark-text-read/service";
 import { findLessonById, findSectionById, findSectionIdsByLesson } from "./store";
 import type { MarkLessonSectionReadCommand, MarkLessonSectionReadResult } from "./types";
@@ -51,6 +52,7 @@ export async function markLessonSectionRead(command: MarkLessonSectionReadComman
   }
 
   await insertSectionCompletionIfMissing(section.id, command.actorId);
+  await onProgressAdvanced(command.actorId, lesson.courseId);
 
   // Cascata: só regrava lessonTextCompletions quando o requirement está ligado e todas as seções
   // da aula já foram marcadas por este ator — markTextRead recusa sozinho se readTextEnabled

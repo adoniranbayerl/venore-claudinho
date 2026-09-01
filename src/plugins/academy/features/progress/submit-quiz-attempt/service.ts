@@ -1,6 +1,7 @@
 import { beginOperation, endOperation } from "@/observability";
 import { isEnrolled } from "../../../shared/enrollment";
 import { findLessonRequirements, isLessonAccessible } from "../../../shared/lesson-progress";
+import { onProgressAdvanced } from "../../../shared/progress-hooks";
 import { countActiveAttempts } from "../../../shared/quiz-attempts";
 import { deriveQuizGrade } from "../../../shared/quiz-grade";
 import { findLessonById, findQuestionsByLesson, insertAttempt } from "./store";
@@ -85,6 +86,7 @@ export async function submitQuizAttempt(command: SubmitQuizAttemptCommand): Prom
     passed,
     answers: command.answers,
   });
+  await onProgressAdvanced(command.actorId, lesson.courseId);
 
   endOperation(handle, { success: true });
   return {

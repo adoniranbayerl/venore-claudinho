@@ -1,5 +1,6 @@
 import { computeLessonChain, type LessonChainFacts, type LessonChainState } from "./lesson-chain";
 import { loadLessonChainRawData, type LessonChainRawData } from "./lesson-chain-store";
+import { findCourseCompletion } from "./course-completion-store";
 import type { LessonRecord } from "../contracts/types";
 
 export {
@@ -10,13 +11,24 @@ export {
   insertMaterialCompletionIfMissing,
 } from "./lesson-progress-store";
 
-export type LessonChain = LessonChainRawData & { chain: LessonChainState[] };
+// `trailFreed`: o aluno já concluiu a trilha inteira uma vez (marco sticky em course_completions),
+// então TODAS as aulas ficam destravadas — "material livre" (pedido do dono: trilha primeiro,
+// livre depois). Continua completo/destravado mesmo que uma aula volte a ficar incompleta depois.
+export type LessonChain = LessonChainRawData & { chain: LessonChainState[]; trailFreed: boolean };
 
 // Carrega os fatos da cadeia inteira do curso em lote e aplica a regra pura (lesson-chain.ts).
 // Usado tanto por isLessonAccessible (fronteira de autorização) quanto por get-course-progress
 // (tela) — mesma função, mesmos dados, sem chance de divergir.
 export async function loadLessonChain(courseId: string, actorId: string): Promise<LessonChain> {
   const raw = await loadLessonChainRawData(courseId, actorId);
+
+  if (raw.lessons.length > 0 && (await findCourseCompletion(courseId, actorId))) {
+    return {
+      ...raw,
+      trailFreed: true,
+      chain: raw.lessons.map((lesson) => ({ lessonId: lesson.id, completed: true, locked: false })),
+    };
+  }
 
   const facts: LessonChainFacts[] = raw.lessons.map((lesson) => {
     const requirements = raw.requirementsByLessonId.get(lesson.id) ?? null;
@@ -36,7 +48,7 @@ export async function loadLessonChain(courseId: string, actorId: string): Promis
     };
   });
 
-  return { ...raw, chain: computeLessonChain(facts) };
+  return { ...raw, trailFreed: false, chain: computeLessonChain(facts) };
 }
 
 // FRONTEIRA DE SEGURANÇA — autoriza mark-text-read, mark-video-watched, submit-quiz-attempt e

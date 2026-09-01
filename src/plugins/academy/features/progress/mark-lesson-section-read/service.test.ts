@@ -10,6 +10,8 @@ vi.mock("../../../shared/enrollment", () => ({
   isEnrolled: (...args: unknown[]) => isEnrolled(...args),
 }));
 
+vi.mock("../../../shared/progress-hooks", () => ({ onProgressAdvanced: vi.fn() }));
+
 const findCompletedSectionIds = vi.fn();
 const findLessonRequirements = vi.fn();
 const insertSectionCompletionIfMissing = vi.fn();

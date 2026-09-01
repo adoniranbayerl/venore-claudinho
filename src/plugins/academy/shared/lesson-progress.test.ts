@@ -6,6 +6,12 @@ vi.mock("./lesson-chain-store", () => ({
   loadLessonChainRawData: (...args: unknown[]) => loadLessonChainRawData(...args),
 }));
 
+const findCourseCompletion = vi.fn().mockResolvedValue(null);
+
+vi.mock("./course-completion-store", () => ({
+  findCourseCompletion: (...args: unknown[]) => findCourseCompletion(...args),
+}));
+
 const lesson1 = {
   id: "lesson-1",
   courseId: "course-1",
@@ -34,6 +40,33 @@ const lesson2 = {
 describe("loadLessonChain", () => {
   beforeEach(() => {
     loadLessonChainRawData.mockReset();
+    findCourseCompletion.mockReset().mockResolvedValue(null);
+  });
+
+  it("destrava todas as aulas e marca trailFreed quando existe o marco de trilha concluída", async () => {
+    findCourseCompletion.mockResolvedValue({ completedAt: new Date() });
+    loadLessonChainRawData.mockResolvedValue({
+      lessons: [lesson1, lesson2],
+      // aula 1 incompleta (readText exigido, não lido) — mesmo assim deve ficar destravada
+      requirementsByLessonId: new Map([
+        ["lesson-1", { lessonId: "lesson-1", readTextEnabled: true, watchVideoEnabled: false, quizEnabled: false, quizPassThresholdPercent: null, quizMaxAttempts: null, updatedAt: new Date() }],
+        ["lesson-2", null],
+      ]),
+      textCompletedLessonIds: new Set(),
+      videoCompletedLessonIds: new Set(),
+      attemptsByLessonId: new Map(),
+      activityIdsByLessonId: new Map(),
+      submittedActivityIds: new Set(),
+    });
+
+    const { loadLessonChain } = await import("./lesson-progress");
+    const result = await loadLessonChain("course-1", "actor-1");
+
+    expect(result.trailFreed).toBe(true);
+    expect(result.chain).toEqual([
+      { lessonId: "lesson-1", completed: true, locked: false },
+      { lessonId: "lesson-2", completed: true, locked: false },
+    ]);
   });
 
   it("maps requirements, completions and passing attempts into the chain facts", async () => {
@@ -84,6 +117,7 @@ describe("loadLessonChain", () => {
 describe("isLessonAccessible", () => {
   beforeEach(() => {
     loadLessonChainRawData.mockReset();
+    findCourseCompletion.mockReset().mockResolvedValue(null);
   });
 
   it("is accessible when the chain reports the lesson as not locked", async () => {

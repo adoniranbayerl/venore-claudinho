@@ -12,6 +12,12 @@ vi.mock("./lesson-chain-store", () => ({
   loadLessonChainRawData: (...args: unknown[]) => loadLessonChainRawData(...args),
 }));
 
+const findCourseCompletion = vi.fn().mockResolvedValue(null);
+
+vi.mock("./course-completion-store", () => ({
+  findCourseCompletion: (...args: unknown[]) => findCourseCompletion(...args),
+}));
+
 const isEnrolled = vi.fn();
 
 vi.mock("./enrollment", () => ({

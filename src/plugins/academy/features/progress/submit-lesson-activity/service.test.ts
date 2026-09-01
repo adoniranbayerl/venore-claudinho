@@ -20,6 +20,8 @@ vi.mock("../../../shared/enrollment", () => ({
   isEnrolled: (...args: unknown[]) => isEnrolled(...args),
 }));
 
+vi.mock("../../../shared/progress-hooks", () => ({ onProgressAdvanced: vi.fn() }));
+
 const findLessonRequirements = vi.fn();
 const isLessonAccessible = vi.fn();
 vi.mock("../../../shared/lesson-progress", () => ({

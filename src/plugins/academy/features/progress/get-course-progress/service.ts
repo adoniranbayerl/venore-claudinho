@@ -33,6 +33,7 @@ export async function getCourseProgress(query: GetCourseProgressQuery): Promise<
     activityIdsByLessonId,
     submittedActivityIds,
     chain,
+    trailFreed,
   } = await loadLessonChain(query.courseId, query.actorId);
 
   const chainByLessonId = new Map(chain.map((state) => [state.lessonId, state]));
@@ -63,6 +64,7 @@ export async function getCourseProgress(query: GetCourseProgressQuery): Promise<
       completedLessons,
       totalLessons: lessonViews.length,
       courseCompleted: lessonViews.length > 0 && completedLessons === lessonViews.length,
+      trailFreed,
     },
   };
 }

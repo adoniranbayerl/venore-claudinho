@@ -134,6 +134,13 @@
       "when": 1788040093634,
       "tag": "0018_warm_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788262795572,
+      "tag": "0019_perfect_ronan",
+      "breakpoints": true
     }
   ]
 }

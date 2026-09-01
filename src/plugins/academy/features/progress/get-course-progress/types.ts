@@ -36,6 +36,10 @@ export type CourseProgressView = {
   completedLessons: number;
   totalLessons: number;
   courseCompleted: boolean;
+  // Marco sticky "trilha concluída": o aluno já passou pela trilha inteira uma vez, então todas
+  // as aulas ficam destravadas de forma permanente ("material livre"). Diferente de
+  // `courseCompleted`, que é o estado ao vivo e pode voltar a ser false (ex.: atividade devolvida).
+  trailFreed: boolean;
 };
 
 export type GetCourseProgressResult = OperationResult<CourseProgressView>;

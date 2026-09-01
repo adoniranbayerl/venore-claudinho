@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, integer, jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, check, date, integer, jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const academySchema = pgSchema("academy");
 
@@ -449,3 +449,40 @@ export const lessonMessages = academySchema.table("lesson_messages", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   readAt: timestamp("read_at", { withTimezone: true }),
 });
+
+// Marco "trilha concluída" — pedido do dono: o curso fica com a cadeia de bloqueio até o aluno
+// passar por TODAS as aulas uma vez; a partir daí vira "material livre" (qualquer aula, qualquer
+// hora). É STICKY: uma vez gravada esta linha, loadLessonChain destrava tudo mesmo que uma aula
+// volte a ficar incompleta depois (ex.: professor pede reenvio de atividade). Gravada por
+// shared/progress-hooks.ts quando a cadeia inteira fica completa.
+export const courseCompletions = academySchema.table(
+  "course_completions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    actorId: text("actor_id").notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("course_completions_course_actor_idx").on(table.courseId, table.actorId)],
+);
+
+// Ofensiva de prática (gamificação leve). Uma linha por aluno por DIA de calendário em que ele
+// fez algo relevante na Academy (marcou leitura, tentou quiz, entregou atividade). `day` é a
+// data local do aluno (YYYY-MM-DD), calculada no cliente e enviada — a ofensiva conta dias, não
+// timestamps. shared/practice-streak-store.ts lê/escreve; get-practice-streak calcula o número.
+export const practiceDays = academySchema.table(
+  "practice_days",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    actorId: text("actor_id").notNull(),
+    day: date("day").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("practice_days_actor_day_idx").on(table.actorId, table.day)],
+);

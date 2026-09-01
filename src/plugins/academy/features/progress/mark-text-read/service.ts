@@ -1,6 +1,7 @@
 import { beginOperation, endOperation } from "@/observability";
 import { isEnrolled } from "../../../shared/enrollment";
 import { findLessonRequirements, isLessonAccessible } from "../../../shared/lesson-progress";
+import { onProgressAdvanced } from "../../../shared/progress-hooks";
 import { findLessonById, insertTextCompletionIfMissing } from "./store";
 import type { MarkTextReadCommand, MarkTextReadResult } from "./types";
 
@@ -49,6 +50,7 @@ export async function markTextRead(command: MarkTextReadCommand): Promise<MarkTe
   }
 
   await insertTextCompletionIfMissing(command.lessonId, command.actorId);
+  await onProgressAdvanced(command.actorId, lesson.courseId);
 
   endOperation(handle, { success: true });
   return { success: true, data: { lessonId: command.lessonId, completed: true } };
