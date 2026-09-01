@@ -1,8 +1,12 @@
 import { AlertTriangle, MapPin, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { BoardFeedTicket, TicketPriority } from "@/plugins/helpdesk";
-import { TICKET_PRIORITY_LABELS } from "@/plugins/helpdesk";
-import { SLA_STATE_SHORT_LABEL, SLA_STATE_TEXT_CLASS, isSlaHighlighted } from "@/plugins/helpdesk/shared/sla-display";
+import type { BoardFeedTicket, TicketPriority } from "@/plugins/helpdesk/contracts/types";
+import {
+  SLA_STATE_SHORT_LABEL,
+  SLA_STATE_TEXT_CLASS,
+  TICKET_PRIORITY_LABELS,
+  isSlaHighlighted,
+} from "@/plugins/helpdesk/shared/sla-display";
 
 // Card do painel de TV (§2.6). Só token shadcn de cor; realce de SLA é o único uso de
 // `text-warning`/`text-destructive` (via sla-display). Tamanhos generosos — legível a ~3 m.
