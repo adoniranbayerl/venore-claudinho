@@ -110,6 +110,7 @@ export {
 } from "./features/progress/mark-lesson-material-read/handler";
 export { submitQuizAttemptHandler as submitQuizAttempt } from "./features/progress/submit-quiz-attempt/handler";
 export { getCourseProgressHandler as getCourseProgress } from "./features/progress/get-course-progress/handler";
+export { getPracticeStreakHandler as getPracticeStreak } from "./features/progress/get-practice-streak/handler";
 export { resetQuizAttemptsHandler as resetQuizAttempts } from "./features/progress/reset-quiz-attempts/handler";
 export {
   listQuizProgressForCourseHandler as listQuizProgressForCourse,
@@ -403,6 +404,11 @@ export type {
   CourseProgressView,
   LessonProgressView,
 } from "./features/progress/get-course-progress/types";
+export type {
+  GetPracticeStreakInput,
+  GetPracticeStreakResult,
+  PracticeStreakView,
+} from "./features/progress/get-practice-streak/types";
 export type {
   ResetQuizAttemptsInput,
   ResetQuizAttemptsResult,

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowRight, BookOpen, GraduationCap, MessageCircle, Sparkles, Target, TrendingUp } from "lucide-react";
+import { ArrowRight, BookOpen, Flame, GraduationCap, MessageCircle, Sparkles, Target, TrendingUp } from "lucide-react";
 import {
   StudentCourseCard,
   calculateProgressPercent,
   getCourseProgress,
+  getPracticeStreak,
   listCoursesForStudent,
   listLessonsByCourse,
   listMessageThreads,
@@ -61,14 +62,17 @@ export default async function AcademyCoursesPage() {
 async function Dashboard({ courses }: { courses: CourseForStudentView[] }) {
   const enrolledCourses = courses.filter((course) => course.enrolled);
 
-  const [lessonCounts, progresses, donationSettings, unreadMessageCount] = await Promise.all([
+  const [lessonCounts, progresses, donationSettings, unreadMessageCount, streakResult] = await Promise.all([
     Promise.all(courses.map((course) => listLessonsByCourse({ courseId: course.id }))),
     Promise.all(
       courses.map((course) => (course.enrolled ? getCourseProgress({ courseId: course.id }) : Promise.resolve(null))),
     ),
     resolveDonationSettings(),
     resolveUnreadMessageCount(),
+    getPracticeStreak(),
   ]);
+
+  const streakDays = streakResult.success ? streakResult.data.current : 0;
 
   return (
     <div className="space-y-8">
@@ -83,6 +87,16 @@ async function Dashboard({ courses }: { courses: CourseForStudentView[] }) {
           Você tem {unreadMessageCount} {unreadMessageCount === 1 ? "mensagem nova" : "mensagens novas"} do professor.
           <ArrowRight className="ml-auto size-4 shrink-0" aria-hidden="true" />
         </Link>
+      )}
+
+      {/* Ofensiva de prática (pedido desta sessão: "gamificação cria engajamento, ofensiva/streak
+          também"). Só aparece com sequência viva (>= 1 dia) — nada de nagar aluno novo. Regra
+          perdoadora: faltar um dia não zera (ver shared/practice-streak.ts). */}
+      {streakDays >= 1 && (
+        <span className="inline-flex items-center gap-2 rounded-full bg-primary/14 px-3 py-1.5 text-sm font-medium text-primary">
+          <Flame className="size-4" aria-hidden="true" />
+          {streakDays} {streakDays === 1 ? "dia de prática" : "dias seguidos de prática"}
+        </span>
       )}
 
       {enrolledCourses.length > 0 && <PerformanceSummary courses={courses} progresses={progresses} />}
