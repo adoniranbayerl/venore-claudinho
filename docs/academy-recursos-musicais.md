@@ -8,8 +8,9 @@ Contexto: o dono já autora cursos e apontou que a **dor está nos recursos musi
 a escrita de partitura, hoje "truncada, pouco fluida". Este backlog nasce disso, mais dois cursos
 reais que dependem de parte dele:
 
-- `docs/curso-teoria-musical.md` — "Teoria Musical na Prática".
-- `docs/curso-jesus-cristo-mudou-meu-viver.md` — análise de uma música em Lá maior.
+- `docs/curso-teoria-musical.md` — "Teoria Musical na Prática" (ainda via seed).
+- `docs/cursos/jesus-cristo-mudou-meu-viver.md` — análise de uma música em Lá maior (entra por
+  pacote de importação: `scripts/build-course-bundle.ts` → `/admin/academy` "Importar curso").
 
 Toda feature aqui segue o *Definition of Done* do `AGENTS.md` §6 (fluxo de camadas, `OperationResult<T>`,
 lint de cor + boundary, typecheck, teste unitário de `service`, migration rastreada quando toca

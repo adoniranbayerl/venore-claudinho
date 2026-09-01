@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { DRUM_PATTERNS } from "../blocks/drum-grid-patterns";
 import { parseAbcToComposition } from "../components/notation-abc-parse";
 import { validateQuizAudioShape } from "../shared/quiz-audio";
-import { MUSICA_LESSONS } from "./jesus-cristo-mudou-meu-viver.lessons";
 import type { SeedLesson } from "./shared/course-builder";
 import { TEORIA_LESSONS } from "./teoria-musical.lessons";
 
@@ -31,7 +30,6 @@ function collectAbc(lessons: SeedLesson[]): { label: string; abc: string }[] {
 
 describe.each([
   ["Teoria Musical", TEORIA_LESSONS],
-  ["Jesus Cristo mudou meu viver", MUSICA_LESSONS],
 ])("seed %s", (_name, lessons) => {
   it("toda notação ABC dos exemplos, blocos e quizzes é válida", () => {
     for (const { label, abc } of collectAbc(lessons)) {
@@ -90,7 +88,6 @@ describe.each([
   });
 });
 
-it("os dois cursos juntos têm a contagem de aulas esperada", () => {
+it("o curso de seed tem a contagem de aulas esperada", () => {
   expect(TEORIA_LESSONS).toHaveLength(19);
-  expect(MUSICA_LESSONS).toHaveLength(10);
 });

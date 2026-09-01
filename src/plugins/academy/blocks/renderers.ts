@@ -9,6 +9,7 @@ import { AcademyNotationSheetBlock } from "./notation-sheet-block";
 import { AcademyProgressionBlock } from "./progression-block";
 import { AcademyEarTrainerBlock } from "./ear-trainer-block";
 import { AcademyDrumGridBlock } from "./drum-grid-block";
+import { AcademyVideoBlock } from "./video-block";
 
 export const blockRenderers: Record<string, BlockRendererComponent> = {
   "academy.course.list": AcademyCourseListBlock,
@@ -21,4 +22,5 @@ export const blockRenderers: Record<string, BlockRendererComponent> = {
   "academy.progression": AcademyProgressionBlock,
   "academy.ear-trainer": AcademyEarTrainerBlock,
   "academy.drum-grid": AcademyDrumGridBlock,
+  "academy.video": AcademyVideoBlock,
 };

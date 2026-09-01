@@ -9,6 +9,7 @@ import { notationSheetBlockDefinition } from "./notation-sheet";
 import { progressionBlockDefinition } from "./progression";
 import { earTrainerBlockDefinition } from "./ear-trainer";
 import { drumGridBlockDefinition } from "./drum-grid";
+import { videoBlockDefinition } from "./video";
 
 export const blockDefinitions: BlockDefinition[] = [
   courseListBlockDefinition,
@@ -21,4 +22,5 @@ export const blockDefinitions: BlockDefinition[] = [
   progressionBlockDefinition,
   earTrainerBlockDefinition,
   drumGridBlockDefinition,
+  videoBlockDefinition,
 ];

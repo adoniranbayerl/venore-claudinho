@@ -108,9 +108,12 @@ Curso sem mídia = um único `manifest.json` zipado.
   - `academy.progression` → `data: { chords: "A D E7:2 A:2", key: "A", bpm: 80, beatsPerChord: 4, caption: "" }`
   - `academy.drum-grid` → `data: { style: "backbeat"|"marcha"|"meio-tempo"|"levada-cheia"|"groove-funk"|"estrofe-corinho"|"virada-fim-de-frase", bpm: 80, bars: 2, caption: "" }`
   - `academy.ear-trainer` → `data: { mode: "interval"|"chord", set: "2M,3m,3M,4J,5J,6M", roots: "A,D,E", direction: "asc"|"desc"|"harmonic", rounds: 10, caption: "" }`
+  - `academy.video` → `data: { url: "https://www.youtube.com/watch?v=...", caption: "" }` — YouTube ou
+    Vimeo, tocado embutido na página (URL não reconhecida vira link simples). Vários por seção.
 - `academy.notation.sheet` **não** é prático à mão (o `data` guarda os tokens já parseados da ABC,
   não a string). Para partitura tocável dentro de uma seção, prefira um **exemplo** (abaixo).
-- Seção só de vídeo: `{ "title": "...", "textData": null, "videoUrl": "https://..." }`.
+- Seção só de vídeo (um único, no topo da seção): `{ "title": "...", "textData": null, "videoUrl": "https://..." }`.
+  Para **vários** vídeos no meio do texto, use blocos `academy.video`.
 
 ### Exemplo de aula (`examples[]`) — partitura tocável
 

@@ -13,8 +13,8 @@ import { configureLessonRequirements } from "../../features/lessons/configure-le
 import { createLesson } from "../../features/lessons/create-lesson/service";
 import { createLessonTextSection } from "../../features/lessons/sections/create-lesson-text-section/service";
 
-// Helper compartilhado pelos seeds de curso (docs/curso-teoria-musical.md,
-// docs/curso-jesus-cristo-mudou-meu-viver.md). Chama os SERVICES da Academy direto (sem sessão —
+// Helper compartilhado pelos seeds de curso (hoje só docs/curso-teoria-musical.md — os demais
+// cursos entram por pacote de importação). Chama os SERVICES da Academy direto (sem sessão —
 // actorId é rótulo de auditoria, mesmo racional de seeds/example.ts) e o handler `updateEntry` do
 // CMS pra escrever o conteúdo de cada seção (o ator autenticado que dispara o seed via
 // /admin/plugins precisa de `cms.entries.manage` — admin/superadmin têm).

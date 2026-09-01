@@ -55,14 +55,6 @@ export const academyManifest: PluginManifest = {
         "Curso público de 19 aulas (ritmo, intervalos, harmonia funcional) com seções de texto, " +
         "exemplos de partitura, perguntas de treino de ouvido e atividades — ver docs/curso-teoria-musical.md.",
     },
-    {
-      key: "jesus-cristo-mudou-meu-viver",
-      label: "Curso: Jesus Cristo mudou meu viver (Lá maior)",
-      description:
-        "Curso público de 10 aulas destrinchando uma música: origem, letra, andamento, groove, " +
-        "melodia (do MusicXML da parte Voz), harmonia, rearmonização (arranjo de violão), ritmo " +
-        "harmônico, vozes e arranjo — ver docs/curso-jesus-cristo-mudou-meu-viver.md.",
-    },
   ],
   blocks: [
     { key: "academy.course.list", label: "Academy — Lista de cursos" },
@@ -75,5 +67,6 @@ export const academyManifest: PluginManifest = {
     { key: "academy.progression", label: "Academy — Progressão de acordes" },
     { key: "academy.ear-trainer", label: "Academy — Treino de ouvido (intervalos/acordes)" },
     { key: "academy.drum-grid", label: "Academy — Grade de bateria" },
+    { key: "academy.video", label: "Academy — Vídeo (YouTube/Vimeo)" },
   ],
 };
