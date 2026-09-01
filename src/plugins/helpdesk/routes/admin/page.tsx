@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/empty-state";
 import { getHelpdeskPageData } from "@/platform/admin-shell/get-helpdesk-page-data";
 import {
   getMyHelpdeskAccess,
+  getQueueReport,
   getTicket,
   listBoards,
   listCategories,
@@ -24,6 +25,7 @@ import { BoardsView } from "./boards-view";
 import { CategoriesView } from "./categories-view";
 import { KiosksView } from "./kiosks-view";
 import { QueuesView } from "./queues-view";
+import { QueueReportPanel } from "../../components/admin/queue-report-panel";
 import { TicketTable } from "../../components/admin/ticket-table";
 import { TicketDrawer } from "../../components/admin/ticket-drawer";
 import { NotificationPanel } from "../../components/admin/notification-panel";
@@ -73,6 +75,7 @@ export default async function HelpdeskAdminPage({
   if (canConfigureCategories) tabs.push({ key: "categorias", label: "Categorias" });
   if (canManage) tabs.push({ key: "quiosques", label: "Quiosques" });
   if (canManage) tabs.push({ key: "paineis", label: "Painéis" });
+  tabs.push({ key: "relatorio", label: "Relatório" });
 
   const activeTab = tabs.some((tab) => tab.key === first(params.tab)) ? first(params.tab)! : tabs[0].key;
   const openTicketId = first(params.ticket) ?? null;
@@ -102,8 +105,19 @@ export default async function HelpdeskAdminPage({
       )}
       {activeTab === "quiosques" && <QuiosquesTab />}
       {activeTab === "paineis" && <PaineisTab />}
+      {activeTab === "relatorio" && <RelatorioTab />}
     </div>
   );
+}
+
+// Aba `Relatório` (Fase 7, §7) — visível a manage/work/read; o recorte por fila (helpdesk.work vê
+// só as suas) já é feito no handler via resolveVisibleQueues.
+async function RelatorioTab() {
+  const result = await getQueueReport();
+  if (!result.success) {
+    return <p className="text-sm text-destructive">{result.error.message}</p>;
+  }
+  return <QueueReportPanel report={result.data} />;
 }
 
 async function QuiosquesTab() {

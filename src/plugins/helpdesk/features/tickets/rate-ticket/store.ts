@@ -7,40 +7,57 @@ export type TicketForRating = {
   id: string;
   queueId: string;
   status: TicketStatus;
+  requesterUserId: string | null;
   requesterName: string | null;
 };
 
-export async function findTicketForRatingByToken(trackingToken: string): Promise<TicketForRating | null> {
-  const [row] = await db
-    .select({
-      id: tickets.id,
-      queueId: tickets.queueId,
-      status: tickets.status,
-      requesterName: tickets.requesterName,
-    })
-    .from(tickets)
-    .where(eq(tickets.trackingToken, trackingToken))
-    .limit(1);
-  if (!row) return null;
-  return { ...row, status: row.status as TicketStatus };
+const RATING_COLUMNS = {
+  id: tickets.id,
+  queueId: tickets.queueId,
+  status: tickets.status,
+  requesterUserId: tickets.requesterUserId,
+  requesterName: tickets.requesterName,
+} as const;
+
+function normalize(row: Record<string, unknown>): TicketForRating {
+  return { ...(row as TicketForRating), status: row.status as TicketStatus };
 }
 
-// Grava o evento `rating` (§2.5). A Fase 7 denormaliza o score em `tickets.rating_score` e monta o
-// relatório; aqui é só a linha na timeline. `meta.score` guarda a nota; `body` a observação
-// opcional.
-export async function insertRatingEvent(input: {
+export async function findTicketForRating(ticketId: string): Promise<TicketForRating | null> {
+  const [row] = await db.select(RATING_COLUMNS).from(tickets).where(eq(tickets.id, ticketId)).limit(1);
+  return row ? normalize(row) : null;
+}
+
+export async function findTicketForRatingByToken(trackingToken: string): Promise<TicketForRating | null> {
+  const [row] = await db.select(RATING_COLUMNS).from(tickets).where(eq(tickets.trackingToken, trackingToken)).limit(1);
+  return row ? normalize(row) : null;
+}
+
+// Fase 7 — grava o evento `rating` na timeline E denormaliza a nota em `tickets.rating_score`, na
+// mesma transação (§2.2). Reavaliar substitui: um novo evento `rating` é adicionado e
+// `rating_score` passa a valer a nota nova (a leitura pública já pega o último evento; o relatório
+// lê a coluna). `authorUserId` preenchido = avaliação pelo portal logado; null + `authorLabel` =
+// avaliação pelo link anônimo.
+export async function applyRating(input: {
   ticketId: string;
   score: number;
   comment: string | null;
-  authorLabel: string;
+  authorUserId: string | null;
+  authorLabel: string | null;
 }): Promise<void> {
-  await db.insert(ticketEvents).values({
-    ticketId: input.ticketId,
-    kind: "rating",
-    authorUserId: null,
-    authorLabel: input.authorLabel,
-    visibility: "public",
-    body: input.comment,
-    meta: { score: input.score },
+  await db.transaction(async (tx) => {
+    await tx.insert(ticketEvents).values({
+      ticketId: input.ticketId,
+      kind: "rating",
+      authorUserId: input.authorUserId,
+      authorLabel: input.authorLabel,
+      visibility: "public",
+      body: input.comment,
+      meta: { score: input.score },
+    });
+    await tx
+      .update(tickets)
+      .set({ ratingScore: input.score, updatedAt: new Date() })
+      .where(eq(tickets.id, input.ticketId));
   });
 }

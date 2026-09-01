@@ -4,7 +4,7 @@ import { submitKioskTicketHandler } from "./submit-kiosk-ticket/handler";
 import { getTicketByTrackingToken } from "./get-ticket-by-tracking-token/service";
 import { findTrackedTicketByToken } from "./get-ticket-by-tracking-token/store";
 import { addTrackingComment } from "./add-tracking-comment/service";
-import { rateTicket } from "./rate-ticket/service";
+import { rateTicketHandler } from "./rate-ticket/handler";
 import { assignTicket } from "./assign-ticket/service";
 import { changeStatus } from "./change-status/service";
 import { listNotificationsForUser } from "../../shared/notification-store";
@@ -75,7 +75,7 @@ describe("helpdesk — fluxo do quiosque anônimo (integração)", () => {
     expect((await listNotificationsForUser(agent.id)).map((n) => n.kind)).toEqual(["comment_added", "new_ticket"]);
 
     // 4 — avaliar antes de resolver é bloqueado
-    const earlyRate = await rateTicket({ trackingToken, score: 5, comment: null });
+    const earlyRate = await rateTicketHandler({ trackingToken, score: 5, comment: null });
     expect(earlyRate.success).toBe(false);
     if (!earlyRate.success) expect(earlyRate.error.code).toBe("helpdesk.rate-ticket.not_resolved");
 
@@ -96,7 +96,7 @@ describe("helpdesk — fluxo do quiosque anônimo (integração)", () => {
     expect(resolved.success).toBe(true);
 
     // 6 — avaliar pelo link
-    const rated = await rateTicket({ trackingToken, score: 5, comment: "Rápido, obrigada!" });
+    const rated = await rateTicketHandler({ trackingToken, score: 5, comment: "Rápido, obrigada!" });
     expect(rated.success).toBe(true);
 
     const track3 = await getTicketByTrackingToken(trackingToken);

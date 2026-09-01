@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
-import { listMyNotifications, markNotificationsRead, sweepSlaAtRisk } from "@/plugins/helpdesk";
+import { listMyNotifications, markNotificationsRead, sweepAutoClose, sweepSlaAtRisk } from "@/plugins/helpdesk";
 
 // Entrega in-app das notificações (§2.3) — despachado por src/app/api/[plugin]/[[...slug]]/route.ts
 // (que já declara `export const dynamic = "force-dynamic"`). Autenticação é por SESSÃO: os
@@ -16,11 +16,17 @@ const DISABLED = NextResponse.json({ error: "O plugin Chamados está desabilitad
 export async function GET(): Promise<NextResponse> {
   if (!(await isPluginActive("helpdesk"))) return DISABLED;
 
-  // Sem scheduler no v1 (§2.4/§8): a varredura de SLA aproveita o batimento deste polling (~30 s)
-  // para gravar `sla_at_risk` dos chamados que cruzaram 80 % do prazo. Best-effort — nunca
-  // derruba a entrega das notificações.
+  // Sem scheduler no v1 (§2.4/§5/§8): o batimento deste polling (~30 s) carrega as varreduras sem
+  // job dedicado — `sla_at_risk` para chamados que cruzaram 80 % do prazo (Fase 4) e o auto-close
+  // de chamados `resolved` cuja janela de reabertura de N dias venceu (Fase 7). Best-effort —
+  // nenhuma delas derruba a entrega das notificações.
   try {
     await sweepSlaAtRisk();
+  } catch {
+    // silencioso: a próxima chamada tenta de novo
+  }
+  try {
+    await sweepAutoClose();
   } catch {
     // silencioso: a próxima chamada tenta de novo
   }

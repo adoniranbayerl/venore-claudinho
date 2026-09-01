@@ -32,6 +32,8 @@ export type {
   BoardFeedColumn,
   BoardFeedView,
   BoardPublicView,
+  QueueReportRow,
+  QueueReport,
 } from "./contracts/types";
 export {
   QUEUE_MEMBER_ROLES,
@@ -175,6 +177,21 @@ export type { DeleteBoardInput, DeleteBoardResult } from "./features/boards/dele
 export type { ListBoardsResult, BoardListItem } from "./features/boards/list-boards/types";
 export type { GetBoardResult } from "./features/boards/get-board/types";
 export type { GetBoardFeedResult } from "./features/boards/get-board-feed/types";
+
+// Fase 7 — avaliação, reabertura e relatório (docs/chamados-plugin.md §7)
+export { rateOwnTicketHandler as rateOwnTicket } from "./features/tickets/rate-ticket/handler-portal";
+export { reopenTicketHandler as reopenTicket } from "./features/tickets/reopen-ticket/handler";
+export { reopenTrackedTicketHandler as reopenTrackedTicket } from "./features/tickets/reopen-ticket/handler-track";
+export { sweepAutoCloseHandler as sweepAutoClose } from "./features/tickets/sweep-auto-close/handler";
+export { getQueueReportHandler as getQueueReport } from "./features/reporting/get-queue-report/handler";
+
+export type { RateOwnTicketInput } from "./features/tickets/rate-ticket/types";
+export type {
+  ReopenTicketInput,
+  ReopenTrackedTicketInput,
+  ReopenTicketResult,
+} from "./features/tickets/reopen-ticket/types";
+export type { GetQueueReportResult } from "./features/reporting/get-queue-report/types";
 
 // Ponto de extensão "seeds" do plugin engine (platform/plugin-engine/plugin-seed-registry.ts).
 export { helpdeskSeeds } from "./seeds";

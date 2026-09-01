@@ -134,6 +134,12 @@ export const tickets = helpdeskSchema.table(
     firstResponseAt: timestamp("first_response_at", { withTimezone: true }),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     closedAt: timestamp("closed_at", { withTimezone: true }),
+    // Fase 7 (§2.2, §5) — `reopened_count` conta quantas vezes o solicitante reabriu o chamado
+    // dentro da janela de N dias (reopen-ticket incrementa em transação). `rating_score` é a nota
+    // (1..5) denormalizada do último evento `rating` — rate-ticket grava as duas coisas juntas; a
+    // aba Relatório lê daqui.
+    reopenedCount: integer("reopened_count").notNull().default(0),
+    ratingScore: integer("rating_score"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -148,6 +154,10 @@ export const tickets = helpdeskSchema.table(
       sql`${table.status} in ('open','in_progress','waiting','resolved','closed','cancelled')`,
     ),
     check("helpdesk_tickets_priority_check", sql`${table.priority} in ('low','normal','high','urgent')`),
+    check(
+      "helpdesk_tickets_rating_score_check",
+      sql`${table.ratingScore} is null or ${table.ratingScore} between 1 and 5`,
+    ),
   ],
 );
 

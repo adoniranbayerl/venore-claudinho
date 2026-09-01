@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
-import { addTrackingComment, rateTicket } from "@/plugins/helpdesk";
+import { addTrackingComment, rateTicket, reopenTrackedTicket } from "@/plugins/helpdesk";
 
 export type TrackActionState = { error: string | null; ok?: boolean };
 
@@ -35,6 +35,20 @@ export async function rateTicketAction(_prev: TrackActionState, formData: FormDa
     score: Number.isFinite(score) ? score : 0,
     comment: String(formData.get("comment") ?? "").trim() || null,
   });
+  if (!result.success) return { error: result.error.message };
+
+  revalidatePath(`/chamados/acompanhar/${trackingToken}`);
+  return { error: null, ok: true };
+}
+
+// Reabrir pelo link (§5) — dentro da janela de N dias, o `tracking_token` autoriza (throttle no
+// use case). Volta o chamado para `in_progress` e incrementa `reopened_count`.
+export async function reopenTrackedTicketAction(_prev: TrackActionState, formData: FormData): Promise<TrackActionState> {
+  if (!(await isPluginActive("helpdesk"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const trackingToken = String(formData.get("trackingToken") ?? "");
+  const note = String(formData.get("note") ?? "").trim() || null;
+  const result = await reopenTrackedTicket({ trackingToken, note });
   if (!result.success) return { error: result.error.message };
 
   revalidatePath(`/chamados/acompanhar/${trackingToken}`);

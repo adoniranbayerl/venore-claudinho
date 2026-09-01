@@ -96,3 +96,35 @@ export function timestampsForTransition(to: TicketStatus, now: Date): {
   if (to === "in_progress") return { resolvedAt: null, closedAt: null };
   return {};
 }
+
+// ── Fase 7 — reabertura pelo solicitante + auto-close (docs/chamados-plugin.md §5) ─────────────
+//
+// "reabertura pelo solicitante em até N dias" e "auto-close após N dias sem reabertura" usam a
+// MESMA janela de N dias contada a partir de `resolved_at`. Puro e sem I/O — coberto por teste
+// unitário. `reopen-ticket/service.ts` usa `canRequesterReopen`; `sweep-auto-close/service.ts`
+// usa `autoCloseCutoff`.
+export const TICKET_REOPEN_WINDOW_DAYS = 7;
+export const TICKET_AUTO_CLOSE_DAYS = TICKET_REOPEN_WINDOW_DAYS;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Fim da janela em que o solicitante ainda pode reabrir (e antes do qual o auto-close não age).
+export function reopenDeadline(resolvedAt: Date): Date {
+  return new Date(resolvedAt.getTime() + TICKET_REOPEN_WINDOW_DAYS * DAY_MS);
+}
+
+// O solicitante só reabre um chamado `resolved` (nunca `closed`/`cancelled` — esses são terminais,
+// §5) e só dentro da janela de N dias após a resolução.
+export function canRequesterReopen(
+  status: TicketStatus,
+  resolvedAt: Date | null,
+  now: Date = new Date(),
+): boolean {
+  if (status !== "resolved" || !resolvedAt) return false;
+  return now.getTime() <= reopenDeadline(resolvedAt).getTime();
+}
+
+// Chamados `resolved` cujo `resolved_at` é anterior a este instante já podem fechar sozinhos.
+export function autoCloseCutoff(now: Date = new Date()): Date {
+  return new Date(now.getTime() - TICKET_AUTO_CLOSE_DAYS * DAY_MS);
+}

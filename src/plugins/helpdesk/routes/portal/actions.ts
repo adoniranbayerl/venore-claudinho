@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { uploadTicketAttachmentMediaAsset } from "@/contexts/media";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
-import { addComment, addTicketAttachment, openTicket, MAX_TICKET_ATTACHMENTS_PER_SCOPE } from "@/plugins/helpdesk";
+import {
+  addComment,
+  addTicketAttachment,
+  openTicket,
+  rateOwnTicket,
+  reopenTicket,
+  MAX_TICKET_ATTACHMENTS_PER_SCOPE,
+} from "@/plugins/helpdesk";
 
 export type PortalActionState = { error: string | null; reference?: string | null };
 
@@ -80,6 +87,39 @@ export async function addTicketCommentAction(_prev: PortalActionState, formData:
     const attached = await addTicketAttachment({ ticketId, eventId: result.data.event.id, mediaIds });
     if (!attached.success) return { error: attached.error.message };
   }
+
+  if (reference) revalidatePath(`/chamados/${reference}`);
+  return { error: null };
+}
+
+// Fase 7 — avaliar o próprio chamado resolvido pelo portal (§2.2, §5). O handler confere que o
+// ator da sessão é o `requester_user_id`.
+export async function rateOwnTicketAction(_prev: PortalActionState, formData: FormData): Promise<PortalActionState> {
+  if (!(await isPluginActive("helpdesk"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const reference = String(formData.get("reference") ?? "");
+  const score = Number(formData.get("score"));
+  const result = await rateOwnTicket({
+    ticketId: String(formData.get("ticketId") ?? ""),
+    score: Number.isFinite(score) ? score : 0,
+    comment: optional(formData, "comment") ?? null,
+  });
+  if (!result.success) return { error: result.error.message };
+
+  if (reference) revalidatePath(`/chamados/${reference}`);
+  return { error: null };
+}
+
+// Fase 7 — reabrir o próprio chamado resolvido dentro da janela de N dias (§5, `reopened_count++`).
+export async function reopenOwnTicketAction(_prev: PortalActionState, formData: FormData): Promise<PortalActionState> {
+  if (!(await isPluginActive("helpdesk"))) return { error: PLUGIN_DISABLED_ERROR };
+
+  const reference = String(formData.get("reference") ?? "");
+  const result = await reopenTicket({
+    ticketId: String(formData.get("ticketId") ?? ""),
+    note: optional(formData, "note") ?? null,
+  });
+  if (!result.success) return { error: result.error.message };
 
   if (reference) revalidatePath(`/chamados/${reference}`);
   return { error: null };

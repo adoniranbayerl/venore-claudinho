@@ -121,6 +121,10 @@ export type TicketRecord = {
   firstResponseAt: Date | null;
   resolvedAt: Date | null;
   closedAt: Date | null;
+  // Fase 7 (§2.2, §5) — `reopenedCount` incrementa a cada reabertura pelo solicitante dentro da
+  // janela de N dias; `ratingScore` (1..5) é a nota denormalizada do último evento `rating`.
+  reopenedCount: number;
+  ratingScore: number | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -383,4 +387,33 @@ export type PublicTicketView = {
   canRate: boolean;
   // score já registrado (último evento `rating`), null se ainda não avaliado.
   ratingScore: number | null;
+  // Fase 7 (§5) — true quando o chamado está `resolved` e ainda está dentro da janela de N dias
+  // para o solicitante reabrir pelo link de acompanhamento.
+  canReopen: boolean;
+};
+
+// ── Fase 7 — avaliação, reabertura e relatório (docs/chamados-plugin.md §7) ─────────────────────
+
+// Uma linha da aba `Relatório` do /admin/helpdesk: os quatro números por fila. Sem período
+// configurável no v1 — considera todo o histórico da fila.
+export type QueueReportRow = {
+  queueId: string;
+  queueName: string;
+  // Chamados num estado não-terminal (open/in_progress/waiting) — a carga atual da fila.
+  openCount: number;
+  // Chamados que já têm `resolved_at` (resolvidos ou fechados).
+  resolvedCount: number;
+  // % dos resolvidos que tinham prazo de SLA E resolveram dentro dele. null quando nenhum
+  // resolvido tinha `sla_due_at`.
+  slaMetPct: number | null;
+  // Média, em minutos, de (resolved_at − created_at) dos resolvidos. null se não há resolvidos.
+  avgResolutionMinutes: number | null;
+  // Média das notas (1..5) dos chamados avaliados. null se nenhum foi avaliado.
+  avgRating: number | null;
+  ratedCount: number;
+};
+
+export type QueueReport = {
+  rows: QueueReportRow[];
+  generatedAt: Date;
 };

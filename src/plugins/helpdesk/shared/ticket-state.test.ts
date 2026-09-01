@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  autoCloseCutoff,
+  canRequesterReopen,
   canTransition,
   checkStatusTransition,
+  reopenDeadline,
+  TICKET_REOPEN_WINDOW_DAYS,
   timestampsForTransition,
   type TicketActorCapabilities,
 } from "./ticket-state";
@@ -94,5 +98,33 @@ describe("timestampsForTransition", () => {
     expect(timestampsForTransition("closed", now)).toEqual({ closedAt: now });
     expect(timestampsForTransition("in_progress", now)).toEqual({ resolvedAt: null, closedAt: null });
     expect(timestampsForTransition("waiting", now)).toEqual({});
+  });
+});
+
+describe("canRequesterReopen — Fase 7 janela de reabertura", () => {
+  const resolvedAt = new Date("2026-09-01T12:00:00Z");
+  const dayAfter = (days: number) => new Date(resolvedAt.getTime() + days * 24 * 60 * 60 * 1000);
+
+  it("only a resolved ticket with a resolvedAt is reopenable", () => {
+    expect(canRequesterReopen("resolved", resolvedAt, dayAfter(1))).toBe(true);
+    expect(canRequesterReopen("resolved", null, dayAfter(1))).toBe(false);
+    expect(canRequesterReopen("closed", resolvedAt, dayAfter(1))).toBe(false);
+    expect(canRequesterReopen("in_progress", resolvedAt, dayAfter(1))).toBe(false);
+    expect(canRequesterReopen("cancelled", resolvedAt, dayAfter(1))).toBe(false);
+  });
+
+  it("is allowed inside the N-day window and denied after it", () => {
+    expect(canRequesterReopen("resolved", resolvedAt, dayAfter(TICKET_REOPEN_WINDOW_DAYS - 1))).toBe(true);
+    expect(canRequesterReopen("resolved", resolvedAt, reopenDeadline(resolvedAt))).toBe(true);
+    expect(canRequesterReopen("resolved", resolvedAt, dayAfter(TICKET_REOPEN_WINDOW_DAYS + 1))).toBe(false);
+  });
+});
+
+describe("autoCloseCutoff — Fase 7", () => {
+  it("is N days before now", () => {
+    const now = new Date("2026-09-20T00:00:00Z");
+    expect(autoCloseCutoff(now).toISOString()).toBe(
+      new Date(now.getTime() - TICKET_REOPEN_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+    );
   });
 });

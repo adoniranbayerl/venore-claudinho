@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 import { getTicket, parseTicketReference } from "@/plugins/helpdesk";
 import { TICKET_STATUS_BADGE_VARIANT, TICKET_STATUS_LABELS } from "@/plugins/helpdesk/shared/ticket-status-display";
+import { canRequesterReopen } from "@/plugins/helpdesk/shared/ticket-state";
 import { TicketTimeline } from "../../components/portal/ticket-timeline";
 import { AddCommentForm } from "../../components/portal/add-comment-form";
+import { RatingPrompt } from "../../components/portal/rating-prompt";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +77,15 @@ export default async function HelpdeskPortalTicketPage({ params }: { params: Pro
         <h2 className="text-sm font-semibold text-foreground">Andamento</h2>
         <TicketTimeline entries={detail.timeline} authorNames={{}} currentUserId={currentUser.data.id} />
       </section>
+
+      {ticket.status === "resolved" && (
+        <RatingPrompt
+          ticketId={ticket.id}
+          reference={detail.reference}
+          currentScore={ticket.ratingScore}
+          canReopen={canRequesterReopen(ticket.status, ticket.resolvedAt)}
+        />
+      )}
 
       {ticket.status !== "closed" && ticket.status !== "cancelled" && (
         <section className="space-y-2 rounded-xl border border-border bg-card p-4">

@@ -7,6 +7,7 @@ import { TICKET_STATUS_BADGE_VARIANT, TICKET_STATUS_LABELS } from "@/plugins/hel
 import { TicketTimeline } from "../../components/portal/ticket-timeline";
 import { TrackCommentForm } from "../../components/portal/track-comment-form";
 import { TrackRatingForm } from "../../components/portal/track-rating-form";
+import { TrackReopenForm } from "../../components/portal/track-reopen-form";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +69,16 @@ export default async function HelpdeskTrackPage({ params }: { params: Promise<{ 
         <section className="space-y-2 rounded-xl border border-border bg-card p-4">
           <h2 className="text-sm font-semibold text-foreground">Como foi o atendimento?</h2>
           <TrackRatingForm trackingToken={trackingToken} currentScore={view.ratingScore} />
+        </section>
+      )}
+
+      {view.canReopen && (
+        <section className="space-y-2 rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold text-foreground">Ainda com problema?</h2>
+          <p className="text-xs text-muted-foreground">
+            Se o problema voltou ou não foi resolvido, reabra este chamado. Passado o prazo, é só abrir um novo.
+          </p>
+          <TrackReopenForm trackingToken={trackingToken} />
         </section>
       )}
 

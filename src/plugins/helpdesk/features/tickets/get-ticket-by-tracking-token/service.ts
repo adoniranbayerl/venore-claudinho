@@ -1,5 +1,6 @@
 import { isWellFormedToken } from "../../../shared/kiosk-token";
 import { formatTicketReference } from "../../../shared/ticket-reference";
+import { canRequesterReopen } from "../../../shared/ticket-state";
 import { TICKET_FINAL_STATUSES, type TicketTimelineEntry } from "../../../contracts/types";
 import { findPublicEventsByTicket, findTrackedTicketByToken } from "./store";
 import type { GetTicketByTrackingTokenResult } from "./types";
@@ -59,6 +60,9 @@ export async function getTicketByTrackingToken(trackingToken: string): Promise<G
       timeline,
       canRate: isFinalOrResolved && ticket.status !== "cancelled",
       ratingScore: lastRating?.meta?.score ?? null,
+      // Fase 7 — o solicitante anônimo reabre pelo link enquanto o chamado está `resolved` e a
+      // janela de N dias não venceu.
+      canReopen: canRequesterReopen(ticket.status, ticket.resolvedAt),
     },
   };
 }
