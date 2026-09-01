@@ -332,6 +332,34 @@ subdivide; hoje só o Refrão A tem `w:` alinhado, o resto é prosa.
   (Confirmar também se ele re-semeou depois do commit `1fb7200`.) Testar se "oscilando em A2"
   agora conta como acerto com o scoring novo.
 
+### Academy — gamificação: trilha primeiro + ofensiva de prática (2026-09-01) — APLICADO (local)
+
+Aprovado pelo dono ("Ok, segue") como o próximo passo de engajamento.
+
+- **Stage A — "trilha primeiro, livre depois" (sticky)** (commit `0a44525`): tabelas
+  `academy.course_completions` + `academy.practice_days` (migration `0019_perfect_ronan.sql`).
+  `shared/progress-hooks.ts::onProgressAdvanced` roda no fim das 5 mutações de progresso do aluno
+  (best-effort, nunca falha a operação): grava o dia de prática e, quando a cadeia inteira fica
+  `completed && !locked`, grava o marco `course_completions`. A partir daí `loadLessonChain`
+  devolve `trailFreed: true` e destrava todas as aulas **de forma permanente** (não re-tranca se
+  uma atividade for devolvida). `CourseProgressView.trailFreed` exposto.
+- **Stage B — ofensiva de prática** (commit `f9348eb`): `shared/practice-streak.ts` puro
+  `computePracticeStreak(days, today)`. Perdoador: 1 dia de folga (gap de calendário ≤ 2) não
+  quebra; 2+ quebra; `current` esfria pra 0 se o último dia de prática passou de 2 dias atrás.
+  `features/progress/get-practice-streak/` (qualquer aluno autenticado, dado próprio; lê 60
+  dias). Chip `🔥 N dias seguidos de prática` no topo do dashboard `/academy`, só com sequência
+  viva (`current >= 1`).
+
+**Ainda aberto:**
+- **Push pendente** — `0a44525` + `f9348eb` estão no `main` local mas não foram para o
+  `origin/main` (falha de DNS em github.com, 3 tentativas). Refazer `git push origin main`.
+- **Dono roda a migration `0019`** — migration de plugin roda no *install* do plugin, não no
+  `vercel-build`. Nos bancos de produção: `DATABASE_URL='…' npm run db:migrate:academy`.
+- **Dono re-semeia o curso** "jesus-cristo-mudou-meu-viver" (reset + "Popular dados de exemplo")
+  pra valer as mudanças de seed (10 aulas, Aula 9 duas vozes, `_` nas ligaduras, Aula 3).
+- Deferidos ("não agora"): editor de partitura/letra por aula pro professor (#5);
+  conquistas/medalhas (#3); mais músicas.
+
 --- histórico do pedido (o retorno da primeira leitura) ---
 
 **Aguardando arquivo:** o dono vai enviar um **MusicXML** com a melodia correta ("a melodia está
