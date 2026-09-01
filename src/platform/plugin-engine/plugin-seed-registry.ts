@@ -2,6 +2,7 @@ import type { OperationResult } from "@/shared/types";
 import { academySeeds } from "@/plugins/academy";
 import { birthdaysSeeds } from "@/plugins/birthdays";
 import { companyMetricsSeeds } from "@/plugins/company-metrics";
+import { helpdeskSeeds } from "@/plugins/helpdesk";
 
 // Uma função de seed é idempotente por contrato (list-then-skip pelo próprio seed) e devolve o
 // OperationResult<void> padrão — nunca lança para erro esperado.
@@ -17,6 +18,7 @@ const PLUGIN_SEED_REGISTRY: Record<string, Record<string, PluginSeedFn>> = {
   academy: academySeeds,
   birthdays: birthdaysSeeds,
   "company-metrics": companyMetricsSeeds,
+  helpdesk: helpdeskSeeds,
 };
 
 export function resolvePluginSeed(pluginKey: string, seedKey: string): PluginSeedFn | null {

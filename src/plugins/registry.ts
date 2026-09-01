@@ -4,6 +4,7 @@ import { birthdaysManifest } from "./birthdays/manifest";
 import { donationsManifest } from "./donations/manifest";
 import { broadcastManifest } from "./broadcast/manifest";
 import { companyMetricsManifest } from "./company-metrics/manifest";
+import { helpdeskManifest } from "./helpdesk/manifest";
 
 // Registro dos plugins instalados em código (docs/venore-docks.md — "Sistema de plugins"),
 // mesmo padrão de src/themes/registry.ts: Next.js exige import estático para bundling, então
@@ -14,4 +15,5 @@ export const PLUGIN_REGISTRY: PluginManifest[] = [
   donationsManifest,
   broadcastManifest,
   companyMetricsManifest,
+  helpdeskManifest,
 ];

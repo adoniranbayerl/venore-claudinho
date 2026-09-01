@@ -4,6 +4,7 @@ import { birthdaysRouteTable } from "./birthdays/routes/route-table";
 import { donationsRouteTable } from "./donations/routes/route-table";
 import { broadcastRouteTable } from "./broadcast/routes/route-table";
 import { companyMetricsRouteTable } from "./company-metrics/routes/route-table";
+import { helpdeskRouteTable } from "./helpdesk/routes/route-table";
 
 // Registro das route-tables dos plugins instalados, chaveado pela mesma `key` do manifesto (ver
 // src/plugins/registry.ts) — mesmo padrão de import estático (Next.js exige pra bundling), agora
@@ -15,4 +16,5 @@ export const PLUGIN_ROUTE_TABLES: Record<string, PluginRouteTable> = {
   donations: donationsRouteTable,
   broadcast: broadcastRouteTable,
   "company-metrics": companyMetricsRouteTable,
+  helpdesk: helpdeskRouteTable,
 };
