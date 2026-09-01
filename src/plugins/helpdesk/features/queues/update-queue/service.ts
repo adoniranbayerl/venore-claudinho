@@ -18,6 +18,7 @@ export async function updateQueue(command: UpdateQueueCommand): Promise<UpdateQu
     name: command.name.trim(),
     description: command.description?.trim() || null,
     icon: command.icon?.trim() || null,
+    defaultPriority: command.defaultPriority,
   });
 
   endOperation(handle, { success: true });

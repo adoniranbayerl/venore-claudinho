@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
-import { categories, queueMembers, queues } from "../../database/schema";
-import type { QueueMemberRole, QueueRecord } from "../../contracts/types";
+import { categories, queueMembers, queues, tickets } from "../../database/schema";
+import type { QueueMemberRole, QueueRecord, TicketPriority, TicketStatus } from "../../contracts/types";
 
 // Acesso a banco fora de um store.ts por feature — exceção deliberada, mesmo racional de
 // company-metrics/shared/scoped-authorization/store.ts: esta checagem de "é membro desta fila e
@@ -43,4 +43,34 @@ export async function findQueueById(id: string): Promise<QueueRecord | null> {
 export async function findQueueIdByCategoryId(categoryId: string): Promise<string | null> {
   const [row] = await db.select({ queueId: categories.queueId }).from(categories).where(eq(categories.id, categoryId)).limit(1);
   return row?.queueId ?? null;
+}
+
+// Fase 2 — as ações de chamado (change-status, assign-ticket, add-comment, attachments) recebem só
+// o ticketId; a autorização por fila precisa resolver a fila pai e o responsável a partir dele
+// (mesmo padrão de broadcast authorizeAgendaEventActor).
+export type TicketAuthzInfo = {
+  id: string;
+  queueId: string;
+  assigneeUserId: string | null;
+  requesterUserId: string | null;
+  status: TicketStatus;
+  // Fase 4 — change-priority precisa do valor corrente para o guard de no-op e o meta {from,to}.
+  priority: TicketPriority;
+};
+
+export async function findTicketAuthzInfo(ticketId: string): Promise<TicketAuthzInfo | null> {
+  const [row] = await db
+    .select({
+      id: tickets.id,
+      queueId: tickets.queueId,
+      assigneeUserId: tickets.assigneeUserId,
+      requesterUserId: tickets.requesterUserId,
+      status: tickets.status,
+      priority: tickets.priority,
+    })
+    .from(tickets)
+    .where(eq(tickets.id, ticketId))
+    .limit(1);
+  if (!row) return null;
+  return { ...row, status: row.status as TicketStatus, priority: row.priority as TicketPriority };
 }

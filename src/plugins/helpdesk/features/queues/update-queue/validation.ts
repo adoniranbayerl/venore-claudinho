@@ -1,3 +1,4 @@
+import { TICKET_PRIORITIES } from "../../../contracts/types";
 import type { HelpdeskValidationError } from "../../../shared/validation-error";
 import type { UpdateQueueInput } from "./types";
 
@@ -10,6 +11,9 @@ export function validateUpdateQueueInput(input: UpdateQueueInput): HelpdeskValid
   }
   if (input.name.trim().length > 80) {
     return { code: "helpdesk.update-queue.name_too_long", message: "O nome da fila deve ter no máximo 80 caracteres." };
+  }
+  if (input.defaultPriority !== undefined && !(TICKET_PRIORITIES as readonly string[]).includes(input.defaultPriority)) {
+    return { code: "helpdesk.update-queue.invalid_priority", message: "Prioridade padrão inválida." };
   }
   return null;
 }

@@ -71,6 +71,7 @@ export function EditQueueDialog({ queue }: { queue: QueueListItem }) {
             defaultName={queue.name}
             defaultDescription={queue.description ?? ""}
             defaultIcon={queue.icon ?? ""}
+            defaultPriority={queue.defaultPriority}
           />
           <Button type="submit" disabled={pending} className="w-full">
             Salvar

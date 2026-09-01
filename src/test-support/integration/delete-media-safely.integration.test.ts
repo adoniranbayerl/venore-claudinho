@@ -1,9 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { db } from "@/infrastructure/database/client";
-import { seedUser } from "@/test-support/integration/academy-seed";
+import { seedUserWithSystemRole } from "@/test-support/integration/rbac-seed";
 import { assets } from "@/contexts/media/database/schema";
-import { getMediaAsset } from "@/contexts/media";
 import { createContentType } from "@/contexts/cms/features/content-types/create-content-type/service";
 import { createEntry } from "@/contexts/cms/features/entries/create-entry/service";
 import type { OperationResult } from "@/shared/types";
@@ -27,26 +26,35 @@ async function seedMediaFile(uploadedBy: string) {
       checksum: `checksum-${randomUUID()}`,
       url: "https://example.test/file.png",
       uploadedBy,
-      visibility: "private",
+      visibility: "public",
     })
     .returning();
   return row;
 }
 
-describe("deleteMediaSafely — asset em uso", () => {
-  it("avisa quantos locais usam o arquivo e não apaga sem confirmação", async () => {
-    const actor = await seedUser();
-    const media = await seedMediaFile(actor.id);
+// deleteMediaSafely é o ponto de composição (platform/media-lifecycle): ele checa uso em
+// cms/brand/academy via collectMediaUsage e, sem `confirmed`, RECUSA apagar mídia em uso. A
+// exclusão em si delega pro handler de media (authorizeActor("media.manage")) — sem sessão nos
+// testes de integração —, então essa parte é coberta pelo unitário
+// delete-media-asset/service.test.ts, não aqui. Este arquivo cobre só o portão de
+// aviso+confirmação, exercitando a cadeia real cms -> media-usage.
+// createEntry passa por assertCmsCategoryScope (RBAC Fase C): o ator precisa do papel "admin".
+describe("deleteMediaSafely — portão de aviso + confirmação", () => {
+  it("recusa apagar (confirmation_required) e diz em quantos locais o arquivo está em uso", async () => {
+    const actor = await seedUserWithSystemRole("admin");
+    const media = await seedMediaFile(actor.userId);
     const contentType = unwrap(
-      await createContentType({ key: `delete-safely-${randomUUID()}`, name: "Delete Safely Test", actorId: actor.id }),
+      await createContentType({ key: `delete-safely-${randomUUID()}`, name: "Delete Safely Test", actorId: actor.userId }),
     );
-    await createEntry({
-      contentTypeIds: [contentType.id],
-      title: "Usa a mídia",
-      slug: `usa-a-midia-${randomUUID()}`,
-      mediaId: media.id,
-      actorId: actor.id,
-    });
+    unwrap(
+      await createEntry({
+        contentTypeIds: [contentType.id],
+        title: "Usa a mídia",
+        slug: `usa-a-midia-${randomUUID()}`,
+        mediaId: media.id,
+        actorId: actor.userId,
+      }),
+    );
 
     const result = await deleteMediaSafely({ id: media.id });
 
@@ -54,34 +62,17 @@ describe("deleteMediaSafely — asset em uso", () => {
       success: false,
       error: { code: "media.delete.confirmation_required", message: expect.stringContaining("1 local") },
     });
-
-    const stillThere = await getMediaAsset({ id: media.id });
-    expect(stillThere.success && stillThere.data !== null).toBe(true);
   });
 
-  it("apaga o arquivo em uso quando o chamador confirma", async () => {
-    const actor = await seedUser();
-    const media = await seedMediaFile(actor.id);
-    const contentType = unwrap(
-      await createContentType({ key: `delete-safely-${randomUUID()}`, name: "Delete Safely Test", actorId: actor.id }),
-    );
-    await createEntry({
-      contentTypeIds: [contentType.id],
-      title: "Usa a mídia",
-      slug: `usa-a-midia-${randomUUID()}`,
-      mediaId: media.id,
-      actorId: actor.id,
-    });
-
-    const result = await deleteMediaSafely({ id: media.id, confirmed: true });
-    expect(result.success).toBe(true);
-  });
-
-  it("apaga direto quando o arquivo não está em uso, mesmo sem confirmação", async () => {
-    const actor = await seedUser();
-    const media = await seedMediaFile(actor.id);
+  it("uma mídia sem uso não dispara o portão de confirmação", async () => {
+    const actor = await seedUserWithSystemRole("admin");
+    const media = await seedMediaFile(actor.userId);
 
     const result = await deleteMediaSafely({ id: media.id });
-    expect(result.success).toBe(true);
+
+    // Não é `confirmation_required` — segue direto pro handler de media (que, sem sessão de
+    // teste, responde `unauthenticated`; o soft-delete real é coberto no unitário do service).
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.code).not.toBe("media.delete.confirmation_required");
   });
 });

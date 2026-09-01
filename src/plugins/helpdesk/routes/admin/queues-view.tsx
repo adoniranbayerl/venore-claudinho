@@ -1,7 +1,9 @@
 import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
 import type { QueueMemberRecord } from "@/plugins/helpdesk/contracts/types";
-import type { QueueListItem } from "@/plugins/helpdesk";
+import type { QueueListItem, SlaPolicyRow } from "@/plugins/helpdesk";
+import { TICKET_PRIORITY_LABELS } from "@/plugins/helpdesk/shared/sla-display";
+import { SlaEditor } from "../../components/admin/sla-editor";
 import { ArchiveQueueButton } from "./archive-queue-button";
 import { CreateQueueDialog, EditQueueDialog } from "./queue-dialogs";
 import { QueueIcon } from "./queue-icon";
@@ -12,11 +14,13 @@ type UserOption = { id: string; name: string | null; email: string };
 export function QueuesView({
   queues,
   membersByQueue,
+  slaByQueue,
   users,
   canManage,
 }: {
   queues: QueueListItem[];
   membersByQueue: Map<string, QueueMemberRecord[]>;
+  slaByQueue: Map<string, SlaPolicyRow[]>;
   users: UserOption[];
   canManage: boolean;
 }) {
@@ -77,6 +81,10 @@ export function QueuesView({
                   <dt>Categorias:</dt>
                   <dd className="text-foreground">{queue.categoryCount}</dd>
                 </div>
+                <div className="flex gap-1">
+                  <dt>Prioridade padrão:</dt>
+                  <dd className="text-foreground">{TICKET_PRIORITY_LABELS[queue.defaultPriority]}</dd>
+                </div>
               </dl>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -87,6 +95,7 @@ export function QueuesView({
                   members={members.map((member) => ({ userId: member.userId, role: member.role }))}
                   canManageManagers={canManage}
                 />
+                <SlaEditor queueId={queue.id} queueName={queue.name} rows={slaByQueue.get(queue.id) ?? []} />
                 {canManage && <EditQueueDialog queue={queue} />}
                 {canManage && <ArchiveQueueButton queueId={queue.id} archived={archived} />}
               </div>

@@ -12,7 +12,12 @@ import {
   updateQueue,
   type QueueMemberAssignment,
 } from "@/plugins/helpdesk";
-import { QUEUE_MEMBER_ROLES, type QueueMemberRole } from "@/plugins/helpdesk/contracts/types";
+import {
+  QUEUE_MEMBER_ROLES,
+  TICKET_PRIORITIES,
+  type QueueMemberRole,
+  type TicketPriority,
+} from "@/plugins/helpdesk/contracts/types";
 
 export type HelpdeskActionState = { error: string | null };
 
@@ -22,6 +27,11 @@ const PLUGIN_DISABLED_ERROR = "O plugin Chamados está desabilitado.";
 function optional(formData: FormData, name: string): string | undefined {
   const value = String(formData.get(name) ?? "").trim();
   return value.length > 0 ? value : undefined;
+}
+
+function priority(formData: FormData, name: string): TicketPriority | undefined {
+  const value = String(formData.get(name) ?? "").trim();
+  return (TICKET_PRIORITIES as readonly string[]).includes(value) ? (value as TicketPriority) : undefined;
 }
 
 // members chega como JSON [{ userId, role }] num input hidden — o cliente monta a lista com
@@ -51,6 +61,7 @@ export async function createQueueAction(_prev: HelpdeskActionState, formData: Fo
     name: String(formData.get("name") ?? ""),
     description: optional(formData, "description") ?? null,
     icon: optional(formData, "icon") ?? null,
+    defaultPriority: priority(formData, "defaultPriority"),
   });
   if (!result.success) return { error: result.error.message };
 
@@ -66,6 +77,7 @@ export async function updateQueueAction(_prev: HelpdeskActionState, formData: Fo
     name: String(formData.get("name") ?? ""),
     description: optional(formData, "description") ?? null,
     icon: optional(formData, "icon") ?? null,
+    defaultPriority: priority(formData, "defaultPriority"),
   });
   if (!result.success) return { error: result.error.message };
 

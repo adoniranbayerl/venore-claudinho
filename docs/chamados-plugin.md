@@ -261,8 +261,19 @@ sistema/confiável de `contexts/media` ancorado no token do quiosque (mesma fam�
 sem risco, o upload anônimo de foto **desce para a Fase 8** e o quiosque v1 fica texto — o resto
 da Fase 5 não bloqueia.
 
+> **Fase 5 implementada (2026-09-01) — quiosque texto-only.** `contexts/media` não expõe hoje um
+> caminho de ingestão de bytes sem sessão; abrir um num endpoint 100% anônimo, sem rate limiting
+> real da plataforma (§8 / AGENTS.md §7), é vetor de abuso de storage. O formulário do quiosque
+> ficou descrição/local/contato/nome; **foto anônima desce para a Fase 8** (§8). O envio tem
+> throttle ingênuo por token (`shared/kiosk-throttle.ts`, janela de 30 s, estado em `globalThis`).
+
 Acompanhamento: `/chamados/acompanhar/[trackingToken]` — `get-ticket-by-tracking-token` (sem
 `authorizeActor`), timeline só com eventos `public`, permite `comment` público e `rating`.
+
+> Na Fase 5 o `rating` é **só evento** (`ticket_events.kind = "rating"`, nota em `meta.score`,
+> `add-tracking-comment` + `rate-ticket` sem `authorizeActor`, throttle por token com chave
+> própria). A denormalização em `tickets.rating_score`, o `rating-prompt` do portal logado e o
+> relatório continuam na Fase 7.
 
 ### 2.6 Painel de TV — Fase 6
 
@@ -480,7 +491,7 @@ cruzam mais de um domínio de dado (2, 3, 5, 6) ganham teste de integração.
 | **2 — Chamado + anexos** | `tickets` + `ticket_events` + `ticket_counters` + `ticket_attachments`; `uploadTicketAttachmentMediaAsset` em `contexts/media` (cat. `ticket-attachments`, **máx. 3**); `open-ticket`, `list-my-tickets`, `list-tickets`, `get-ticket`, `add-comment` (public/internal), `change-status`, `assign-ticket`, `add/list-ticket-attachment`; `ticket-reference.ts` + `ticket-state.ts` (+ testes). Portal `/chamados` + `new-ticket-form` (título/descrição/categoria/local/3 fotos) + `/chamados/:ref` + timeline; drawer de triagem+atribuição no admin. `priority` fixo `normal`. Integração: abrir→foto→comentar→atribuir→resolver→fechar. | `0002` |
 | **3 — Notificações + app do técnico** | `helpdesk_notifications`; `shared/notify.ts` (+ testes de destinatário); `list-my-notifications`/`mark-notifications-read`/`get-unread-count`; `GET/POST /api/helpdesk/notifications`; `notify` disparado por `open-ticket`/`assign-ticket`/`add-comment`/`change-status`/`reopen`. Aba `Notificações` no admin + `notification-bell`. Rota `/chamados/tecnico` (mobile-first, "Minhas"/"Fila"/notificações, ações no detalhe) + `public/helpdesk/manifest.webmanifest`. `Notification` do browser com a aba aberta. | `0003` |
 | **4 — Prioridade + SLA** | `tickets.priority` + `queues.default_priority` + `sla_policies`; `shared/sla.ts` (dueAt/breach/atRisk); `change-priority` + recálculo de `sla_due_at`; `first_response_at`; `sla_at_risk` → notificação; `sla-editor`; realce de estourado/risco nas listas, no drawer, no app do técnico e no painel. | `0004` |
-| **5 — Quiosque anônimo (QR)** | `kiosks` + colunas de solicitante anônimo + `tracking_token`; `/chamados/quiosque/[token]` (shim fora da shell) + `POST /api/helpdesk/kiosk/[token]` (sem auth, throttle por token, form curto + até 3 fotos por caminho de mídia confiável — texto-only se não der, ver §2.5); `/chamados/acompanhar/[trackingToken]` (timeline pública + comentar + avaliar); aba `Quiosques` com QR pronto pra impressão. Integração do fluxo anônimo. | `0005` |
+| **5 — Quiosque anônimo (QR)** | `kiosks` + colunas de solicitante anônimo + `tracking_token`; `/chamados/quiosque/[token]` (shim fora da shell) + `POST /api/helpdesk/kiosk/[token]` (sem auth, throttle por token, form curto — **texto-only, foto → Fase 8**, ver §2.5); `/chamados/acompanhar/[trackingToken]` (timeline pública + comentar + avaliar; `rating` só evento nesta fase); aba `Quiosques` com QR pronto pra impressão. Integração do fluxo anônimo. **Feito 2026-09-01** — migration file `0004` (drizzle 0-indexa; doc "0005" = arquivo `0004`). | `0005` |
 | **6 — Painel de TV / kanban** | `boards`; `/chamados/painel/[token]` (shim fora da shell) + `GET /api/helpdesk/board/[token]`; `kanban`/`open_list`; polling por `refresh_seconds`; aba `Painéis` (várias telas, um token cada). Mobile-first e legível a 3 m. | `0006` |
 | **7 — Avaliação + reabertura + relatório** | evento `rating` + `tickets.rating_score` + `reopened_count`; `rate-ticket` (portal e tracking token) + `rating-prompt` em `resolved`; `reopen-ticket` (só `requester`, dentro de N dias); auto-close após N dias sem reabertura; aba `Relatório` (abertos por fila, % SLA cumprido, tempo médio de resolução, nota média). | `0007` |
 | **8 — Refino (opcional)** | e-mail + Web Push com a aba fechada (service worker em `public/helpdesk/`, VAPID); SSE no painel e no dashboard no lugar de polling; pausa de SLA em `waiting` + horário comercial por fila; `recordAuditEvent` em transfer/force-reopen/cancel; upload de foto anônima no quiosque se ficou de fora da Fase 5. | conforme item |
@@ -493,9 +504,9 @@ cruzam mais de um domínio de dado (2, 3, 5, 6) ganham teste de integração.
   + `Notification` do browser enquanto a aba está aberta). Não existe `contexts/notifications`;
   push real precisa de service worker (`public/helpdesk/`) + VAPID, ou de um `contexts/notifications`
   próprio.
-- **Foto no quiosque anônimo** — depende de `contexts/media` expor um caminho de ingestão sem
-  sessão, ancorado no token do quiosque. Se não rolar na Fase 5, quiosque v1 é texto e a foto
-  entra na Fase 8.
+- **Foto no quiosque anônimo** — **confirmado para a Fase 8** (a Fase 5 saiu texto-only, 2026-09-01):
+  depende de `contexts/media` expor um caminho de ingestão sem sessão, ancorado no token do
+  quiosque, e/ou de rate limiting real da plataforma. Enquanto isso, o quiosque aceita só texto.
 - **Rate limiting do endpoint anônimo** (`/api/helpdesk/kiosk/[token]`) — só throttle ingênuo por
   token/IP no v1; rate limiting real é gap da plataforma (`AGENTS.md` §7).
 - **SLA em horas corridas** (24/7), sem pausa em `waiting` nem horário comercial — Fase 8.

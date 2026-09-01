@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
-import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { db } from "@/infrastructure/database/client";
 import { invalidateCache } from "@/infrastructure/cache/memory-cache";
 import { seedUser } from "@/test-support/integration/academy-seed";
@@ -58,10 +58,10 @@ describe("performPluginUninstall (integração) — modo B: limpar banco", () =>
     }
     invalidateCache("extensions:list:plugin");
     invalidateCache(`extensions:plugin:${PLUGIN_KEY}`);
-  });
 
-  afterAll(async () => {
-    // O teste dropa o schema do plugin — recompõe pros arquivos de teste seguintes.
+    // O primeiro teste dropa o schema do plugin (modo B). Recompõe já no afterEach — não só no
+    // afterAll — porque o teste seguinte ("bloqueia... não instalado") verifica que o schema
+    // segue de pé, e roda ANTES do afterAll. runPluginMigrations é idempotente.
     await runPluginMigrations(PLUGIN_KEY);
   });
 

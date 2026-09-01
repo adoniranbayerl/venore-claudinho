@@ -80,3 +80,14 @@ export const AVATAR_RESERVED_CATEGORY_NAME = "Avatares";
 // passa pela visibilidade padrão (não tem media.manage), ver getMediaAssetForTrustedReview.
 export const ACTIVITY_SUBMISSION_RESERVED_CATEGORY_KEY = "activity-submissions";
 export const ACTIVITY_SUBMISSION_RESERVED_CATEGORY_NAME = "Entregas de atividade";
+
+// Categoria reservada pros anexos de chamado do plugin helpdesk (foto do problema, PDF de
+// orçamento) — mesmo padrão de ACTIVITY_SUBMISSION_RESERVED_CATEGORY_KEY acima. Sempre "private"
+// no upload; a equipe da fila lê via getMediaAssetForTrustedReview (o service do plugin já checou
+// o acesso ao chamado). Nunca escolhida pelo chamador.
+export const TICKET_ATTACHMENT_RESERVED_CATEGORY_KEY = "ticket-attachments";
+export const TICKET_ATTACHMENT_RESERVED_CATEGORY_NAME = "Anexos de chamado";
+
+// Teto próprio do anexo de chamado — abaixo do teto geral de imagem (8 MiB) e de PDF (20 MiB) em
+// MEDIA_ALLOWED_TYPES: anexo de chamado é foto de celular ou PDF curto, não arquivo de biblioteca.
+export const TICKET_ATTACHMENT_MAX_SIZE_BYTES = 15 * 1024 * 1024;

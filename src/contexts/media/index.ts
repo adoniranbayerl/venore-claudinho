@@ -12,6 +12,13 @@ export { uploadAvatarMediaAssetHandler as uploadAvatarMediaAsset } from "./featu
 export {
   uploadActivitySubmissionMediaAssetHandler as uploadActivitySubmissionMediaAsset,
 } from "./features/assets/upload-activity-submission-media-asset/handler";
+// Aberto a qualquer ator autenticado (sem media.manage) — só pros anexos de chamado do plugin
+// helpdesk (foto do problema / PDF), sempre privado, sempre na categoria reservada
+// "ticket-attachments". Não usar pra biblioteca geral (mesma regra do upload de avatar/atividade
+// acima). A equipe da fila lê o asset via getMediaAssetForTrustedReview.
+export {
+  uploadTicketAttachmentMediaAssetHandler as uploadTicketAttachmentMediaAsset,
+} from "./features/assets/upload-ticket-attachment-media-asset/handler";
 export { listMediaAssetsHandler as listMediaAssets } from "./features/assets/list-media-assets/handler";
 export { getMediaAssetHandler as getMediaAsset } from "./features/assets/get-media-asset/handler";
 // BYPASS deliberado de visibilidade — só pra service que já verificou a própria autorização pro
@@ -72,7 +79,7 @@ export { mediaAdminNavigationItems } from "./admin-navigation";
 export { mediaBreadcrumbSegments, getCachedMedia } from "./breadcrumbs";
 
 export type { MediaAsset, MediaAssetCategory, MediaAllowedTypeRule, MediaCategory, MediaVisibility } from "./contracts/types";
-export { MEDIA_ALLOWED_TYPES, AVATAR_MAX_SIZE_BYTES } from "./contracts/types";
+export { MEDIA_ALLOWED_TYPES, AVATAR_MAX_SIZE_BYTES, TICKET_ATTACHMENT_MAX_SIZE_BYTES } from "./contracts/types";
 
 export type { UploadMediaAssetInput, UploadMediaAssetResult } from "./features/assets/upload-media-asset/types";
 export type { UploadAvatarMediaAssetInput, UploadAvatarMediaAssetResult } from "./features/assets/upload-avatar-media-asset/types";
@@ -80,6 +87,10 @@ export type {
   UploadActivitySubmissionMediaAssetInput,
   UploadActivitySubmissionMediaAssetResult,
 } from "./features/assets/upload-activity-submission-media-asset/types";
+export type {
+  UploadTicketAttachmentMediaAssetInput,
+  UploadTicketAttachmentMediaAssetResult,
+} from "./features/assets/upload-ticket-attachment-media-asset/types";
 export type { ListMediaAssetsQuery, ListMediaAssetsResult } from "./features/assets/list-media-assets/types";
 export type { GetMediaAssetQuery, GetMediaAssetResult } from "./features/assets/get-media-asset/types";
 export type { DeleteMediaAssetInput, DeleteMediaAssetResult } from "./features/assets/delete-media-asset/types";

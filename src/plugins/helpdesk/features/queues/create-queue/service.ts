@@ -32,6 +32,7 @@ export async function createQueue(command: CreateQueueCommand): Promise<CreateQu
     description: command.description?.trim() || null,
     icon: command.icon?.trim() || null,
     position,
+    defaultPriority: command.defaultPriority,
   });
 
   endOperation(handle, { success: true });

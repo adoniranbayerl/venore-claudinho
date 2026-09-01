@@ -94,6 +94,7 @@ jobs:
           npm run db:migrate:birthdays
           npm run db:migrate:broadcast
           npm run db:migrate:company-metrics
+          npm run db:migrate:helpdesk
 
       - name: Build
         run: npm run build
