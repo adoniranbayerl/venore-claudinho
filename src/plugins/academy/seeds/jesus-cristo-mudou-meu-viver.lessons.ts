@@ -184,12 +184,12 @@ export const MUSICA_LESSONS: SeedLesson[] = [
         caption:
           "Duas semínimas (Lá–Si) antes do tempo 1; o tempo 1 chega com \"Cris\". Depois a corrida de " +
           "colcheias e a nota longa em \"vi-VER\".",
-        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nz4 A,2 B,2 | CCC C2 B,A,E- | E4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver\n",
+        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nz4 A,2 B,2 | CCC C2 B,A,E- | E4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver _\n",
       },
       {
         title: "A mesma frase — 70 BPM (treino)",
         caption: "A mesma entrada, mais devagar, para praticar sem correr a anacruse.",
-        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=70\nK:A\nz4 A,2 B,2 | CCC C2 B,A,E- | E4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver\n",
+        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=70\nK:A\nz4 A,2 B,2 | CCC C2 B,A,E- | E4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver _\n",
       },
     ],
     quiz: [
@@ -364,36 +364,36 @@ export const MUSICA_LESSONS: SeedLesson[] = [
         caption:
           "Anacruse Lá–Si (\"Je-sus\"), corrida de colcheias em \"Cris-to-mu-\", e a nota longa em " +
           "\"vi-VER\" atravessando para o compasso seguinte, com pausa (respiração) depois.",
-        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nz4 A,2 B,2 | CCC C2 B,A,E- | E4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver\n",
+        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nz4 A,2 B,2 | CCC C2 B,A,E- | E4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver _\n",
       },
       {
         title: "Frase 1 — 70 BPM (treino)",
         caption: "A mesma frase, mais devagar — sinta a diferença entre as colcheias rápidas e a nota longa em \"ver\".",
-        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=70\nK:A\nz4 A,2 B,2 | CCC C2 B,A,E- | E4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver\n",
+        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=70\nK:A\nz4 A,2 B,2 | CCC C2 B,A,E- | E4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver _\n",
       },
       {
         title: "Frase 2 — repete e fecha no Lá — 80 BPM",
         caption:
           "Mesmo texto, contorno parecido, mas agora a frase DESCE e pousa no Lá (grau 1). Compare o " +
           "fim desta com o fim da frase 1.",
-        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nz4 z2 C E | FFF F2 E D A- | A4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver\n",
+        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nz4 z2 C E | FFF F2 E D A- | A4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver _\n",
       },
       {
         title: "Frase 2 — 70 BPM (treino)",
         caption: "A mesma, devagar.",
-        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=70\nK:A\nz4 z2 C E | FFF F2 E D A- | A4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver\n",
+        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=70\nK:A\nz4 z2 C E | FFF F2 E D A- | A4 z4 |]\nw: Je-sus Cris-to mu-dou meu vi-ver _\n",
       },
       {
         title: "Frase 3 — o pico, \"É a Luz que ilumina meu ser\" — 80 BPM",
         caption:
           "Sobe ao Mi AGUDO logo no começo (\"É a LUZ\") — o ponto mais alto da música — e começa a " +
           "descer. Note a semínima pontuada e as colcheias de \"i-lu-mi-na\".",
-        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nz4 z2 A B | c2 ccc d e A- | A4 z4 |]\nw: É a Luz que~i-lu-mi-na meu ser\n",
+        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nz4 z2 A B | c2 ccc d e A- | A4 z4 |]\nw: É a Luz que~i-lu-mi-na meu ser _\n",
       },
       {
         title: "Frase 3 — 70 BPM (treino)",
         caption: "A subida ao pico, devagar, para acertar a afinação do Mi agudo sem forçar.",
-        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=70\nK:A\nz4 z2 A B | c2 ccc d e A- | A4 z4 |]\nw: É a Luz que~i-lu-mi-na meu ser\n",
+        abc: "X:1\nM:4/4\nL:1/8\nQ:1/4=70\nK:A\nz4 z2 A B | c2 ccc d e A- | A4 z4 |]\nw: É a Luz que~i-lu-mi-na meu ser _\n",
       },
       {
         title: "Frase 4 — o fecho, \"Sim, Jesus Cristo mudou meu viver\" — 80 BPM",
@@ -415,7 +415,7 @@ export const MUSICA_LESSONS: SeedLesson[] = [
         abc:
           "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\n" +
           "z4 A,2 B,2 | CCC C2 B,A,E- | E4 z2 C E | FFF F2 E D A- | A4 z2 A B | c2 ccc d e A- | A B c3 E A c | d d c A3 F2 | E8 |]\n" +
-          "w: Je-sus Cris-to mu-dou meu vi-ver Je-sus Cris-to mu-dou meu vi-ver É a Luz que~i-lu-mi-na meu ser Sim, Je-sus Cris-to mu-dou meu vi-ver _\n",
+          "w: Je-sus Cris-to mu-dou meu vi-ver _ Je-sus Cris-to mu-dou meu vi-ver _ É a Luz que~i-lu-mi-na meu ser _ Sim, Je-sus Cris-to mu-dou meu vi-ver _\n",
       },
     ],
     quiz: [
@@ -559,7 +559,7 @@ export const MUSICA_LESSONS: SeedLesson[] = [
         abc:
           "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\n" +
           "z4 \"E\"A,2 B,2 | \"A\"CCC C2 B,A,E- | \"C#m7\"E4 z2 C E | \"Dmaj7\"FFF F2 E D A- | \"D#o7\"A4 z2 A B | \"A\"c2 c c \"F#m\"c d e A- | \"F#m\"A B c3 E A c | \"Dmaj7\"d d c A3 \"Amaj7\"F2 | \"Amaj7\"E8 |]\n" +
-          "w: Je-sus Cris-to mu-dou meu vi-ver Je-sus Cris-to mu-dou meu vi-ver É a Luz que~i-lu-mi-na meu ser Sim, Je-sus Cris-to mu-dou meu vi-ver _\n",
+          "w: Je-sus Cris-to mu-dou meu vi-ver _ Je-sus Cris-to mu-dou meu vi-ver _ É a Luz que~i-lu-mi-na meu ser _ Sim, Je-sus Cris-to mu-dou meu vi-ver _\n",
       },
       {
         title: "Só os acordes do arranjo (tocável) — 80 BPM",
@@ -676,7 +676,39 @@ export const MUSICA_LESSONS: SeedLesson[] = [
           "**só notas da escala de Lá maior** (por isso a terça às vezes é maior, às vezes menor — o " +
           "ouvido aceita, porque tudo pertence ao tom). Onde a terça abaixo soa \"apertada\" ou sai " +
           "do âmbito confortável, troca-se por uma **sexta abaixo**. A 2ª voz assim **acompanha o " +
-          "contorno** da melodia.",
+          "contorno** da melodia.\n\n" +
+          "Abaixo, a frase \"É a Luz que ilumina meu ser\": primeiro as **duas vozes juntas** (só pra " +
+          "ouvir), depois **cada voz separada** pra você cantar junto.",
+        blocks: [
+          {
+            kind: "notation",
+            abc:
+              "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nV:1 name=\"Melodia\"\nV:2 name=\"2a voz\"\n" +
+              "[V:1] z4 z2 A B | c2 c c c d e A2 |\n" +
+              "[V:2] z4 z2 F ^G | A2 A A A B c F2 |\n" +
+              "w: É a Luz que~i-lu-mi-na meu ser\n",
+            caption: "As duas vozes juntas — alterne \"Tudo\" / \"Melodia\" / \"2a voz\" no botão Ouvir.",
+            allowSingAlong: false,
+          },
+          {
+            kind: "notation",
+            abc:
+              "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\n" +
+              "z4 z2 A B | c2 c c c d e A2 |\n" +
+              "w: É a Luz que~i-lu-mi-na meu ser\n",
+            caption: "Cante a MELODIA (voz de cima).",
+            allowSingAlong: true,
+          },
+          {
+            kind: "notation",
+            abc:
+              "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\n" +
+              "z4 z2 F ^G | A2 A A A B c F2 |\n" +
+              "w: É a Luz que~i-lu-mi-na meu ser\n",
+            caption: "Cante a 2ª VOZ (uma terça abaixo da melodia).",
+            allowSingAlong: true,
+          },
+        ],
       },
       {
         title: "Quando NÃO andar em paralelo",
@@ -687,6 +719,16 @@ export const MUSICA_LESSONS: SeedLesson[] = [
           "Isso faz o acorde final \"fechar\" de verdade.\n" +
           "- **Evite as duas vozes na mesma nota** (uníssono) por muito tempo — perde-se o efeito de " +
           "harmonia.",
+        blocks: [
+          {
+            kind: "notation",
+            abc:
+              "X:1\nM:4/4\nL:1/4\nQ:1/4=80\nK:A\nV:1 name=\"Melodia\"\nV:2 name=\"2a voz\"\n" +
+              "[V:1] \"E7\"c B \"A\"A2 |\n[V:2] \"E7\"G, A, \"A\"C2 |\n",
+            caption: "Movimento contrário na cadência: a melodia desce até o Lá, a 2ª voz sobe — o acorde \"fecha\".",
+            allowSingAlong: false,
+          },
+        ],
       },
       {
         title: "A terceira voz e o âmbito",
@@ -697,26 +739,6 @@ export const MUSICA_LESSONS: SeedLesson[] = [
           "Para grupos com **vozes mais velhas**: se o pico (o Mi agudo do \"É a Luz\") aperta, a " +
           "primeira solução é **baixar o tom da música inteira** (de Lá para Sol ou Fá), não " +
           "empurrar ninguém para o agudo.",
-      },
-    ],
-    examples: [
-      {
-        title: "Melodia + 2ª voz — trecho do refrão — 80 BPM",
-        caption:
-          "2ª voz uma 3ª/6ª abaixo, acompanhando o contorno. Na cadência as duas descem, mas a 2ª " +
-          "voz para no Ré. Ajuste alturas à sua referência.",
-        abc:
-          "X:1\nM:4/4\nL:1/8\nQ:1/4=80\nK:A\nV:1 name=\"Melodia\"\nV:2 name=\"2a voz\"\n" +
-          "[V:1] \"A\"c2 c c c d e A- | \"F#m\"A B c3 E A c |\n" +
-          "[V:2] \"A\"A2 A A A B c F- | \"F#m\"F G A3 C E A, |\n" +
-          "w: É a Luz que~i-lu-mi-na meu ser Sim, Je-sus\n",
-      },
-      {
-        title: "Movimento contrário na cadência (modelo) — 80 BPM",
-        caption: "A melodia desce até o fecho; a 2ª voz sobe — o acorde \"fecha\".",
-        abc:
-          "X:1\nM:4/4\nL:1/4\nQ:1/4=80\nK:A\nV:1\nV:2\n" +
-          "[V:1] \"E7\"c B \"A\"A2 |\n[V:2] \"E7\"G, A, \"A\"C2 |\n",
       },
     ],
     quiz: [
