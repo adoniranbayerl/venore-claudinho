@@ -23,11 +23,19 @@ import type { NotationToken } from "./notation-abc";
 const DEFAULT_QPM = 90;
 const MIN_QPM = 40;
 const MAX_QPM = 160;
-// Margem de ataque generosa: fora disso a nota conta como "certa, mas adiantada/atrasada" (não
-// como erro de nota). ~um tempo inteiro a 90 BPM.
-const ONSET_TOLERANCE_MS = 550;
 const METRONOME_CLICK_HZ = 1000;
 const METRONOME_CLICK_SECONDS = 0.05;
+
+// Margem de ataque = ~1/3 de tempo (escala com o andamento), presa entre 170 e 320 ms. Fora dela
+// a nota conta como "afinação certa, fora do tempo", não como erro de nota.
+function onsetToleranceMs(qpm: number): number {
+  return Math.max(170, Math.min(320, (60000 / qpm) * 0.34));
+}
+// Sustentação: razão entre o tempo que a voz ficou na nota e a duração escrita; só analisada em
+// notas longas o bastante (senão vira ruído).
+const SUSTAIN_MIN_NOTE_MS = 380;
+const SUSTAIN_SHORT_RATIO = 0.55;
+const SUSTAIN_LONG_RATIO = 1.4;
 
 // ~1 semitom de folga, e basta a MEDIANA do canto (ou 1/4 dos quadros) cair nessa faixa.
 const PITCH_TOLERANCE_CENTS = 100;
@@ -43,10 +51,23 @@ const NEEDLE_MAX_DEG = 38;
 const RECENT_SAMPLE_MS = 200;
 
 type NoteVerdict = "correct" | "wrong-timing" | "wrong-pitch" | "missed";
-type TimingOffset = "adiantada" | "atrasada" | null;
-type NoteResult = { note: ExpectedNote; verdict: NoteVerdict; timing: TimingOffset };
+type OnsetKind = "no-tempo" | "adiantada" | "atrasada";
+type SustainKind = "ok" | "curta" | "longa";
+type NoteResult = { note: ExpectedNote; verdict: NoteVerdict; onset: OnsetKind; sustain: SustainKind };
 type Phase = "idle" | "playing-model" | "counting-in" | "singing" | "results";
 type SungFrame = { centsOff: number; elapsedMs: number; midi: number };
+type PlayheadStep = { ms: number; left: number; top: number; height: number };
+
+const ONSET_LABEL: Record<OnsetKind, string> = {
+  "no-tempo": "",
+  adiantada: "atacou adiantada",
+  atrasada: "atacou atrasada",
+};
+const SUSTAIN_LABEL: Record<SustainKind, string> = {
+  ok: "",
+  curta: "soltou cedo (sustentou pouco)",
+  longa: "segurou demais (sustentou muito)",
+};
 
 const VERDICT_CLASS: Record<NoteVerdict, string> = {
   correct: "fill-success",
@@ -122,27 +143,47 @@ function median(values: number[]): number {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
-function computeVerdict(note: ExpectedNote, frames: SungFrame[]): NoteResult {
+// Relógio monotônico — em helper de módulo pra não tropeçar na regra "sem função impura no corpo
+// de componente" (o uso real é sempre em callback assíncrono, nunca em render).
+const nowMs = (): number => performance.now();
+
+function computeVerdict(note: ExpectedNote, frames: SungFrame[], qpm: number): NoteResult {
   const clean = frames.filter((frame) => Math.abs(frame.centsOff) <= GLITCH_CENTS);
   const pool = clean.length >= 3 ? clean : frames;
-  if (pool.length === 0) return { note, verdict: "missed", timing: null };
+  if (pool.length === 0) return { note, verdict: "missed", onset: "no-tempo", sustain: "ok" };
 
   // Afinação por CLASSE de nota — oitava diferente conta como certa (vozes cantam em oitavas
   // diferentes da escrita).
   const withinRatio = pool.filter((frame) => Math.abs(frame.centsOff) <= PITCH_TOLERANCE_CENTS).length / pool.length;
   const onPitch = Math.abs(median(pool.map((frame) => frame.centsOff))) <= PITCH_TOLERANCE_CENTS || withinRatio >= ON_PITCH_RATIO;
-  if (!onPitch) return { note, verdict: "wrong-pitch", timing: null };
+  if (!onPitch) return { note, verdict: "wrong-pitch", onset: "no-tempo", sustain: "ok" };
 
   const good = pool.filter((frame) => Math.abs(frame.centsOff) <= PITCH_TOLERANCE_CENTS);
   const reference = good.length > 0 ? good : pool;
-  const delta = Math.min(...reference.map((frame) => frame.elapsedMs)) - note.startMs;
-  if (Math.abs(delta) <= ONSET_TOLERANCE_MS) return { note, verdict: "correct", timing: null };
-  return { note, verdict: "wrong-timing", timing: delta < 0 ? "adiantada" : "atrasada" };
+  const elapsed = reference.map((frame) => frame.elapsedMs);
+  const firstMs = Math.min(...elapsed);
+  const lastMs = Math.max(...elapsed);
+
+  const tol = onsetToleranceMs(qpm);
+  const delta = firstMs - note.startMs;
+  const onset: OnsetKind = Math.abs(delta) <= tol ? "no-tempo" : delta < 0 ? "adiantada" : "atrasada";
+
+  let sustain: SustainKind = "ok";
+  if (note.durationMs >= SUSTAIN_MIN_NOTE_MS) {
+    const ratio = (lastMs - firstMs) / note.durationMs;
+    if (ratio < SUSTAIN_SHORT_RATIO) sustain = "curta";
+    else if (ratio > SUSTAIN_LONG_RATIO) sustain = "longa";
+  }
+
+  const verdict: NoteVerdict = onset === "no-tempo" && sustain === "ok" ? "correct" : "wrong-timing";
+  return { note, verdict, onset, sustain };
 }
 
 export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: NotationToken[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
+  const playheadTimelineRef = useRef<PlayheadStep[]>([]);
+  const playheadRafRef = useRef<number | null>(null);
   const tuneRef = useRef<TuneObject | null>(null);
   const expectedNotesRef = useRef<ExpectedNote[]>([]);
   const rawIndexToNoteIndexRef = useRef<number[]>([]);
@@ -168,6 +209,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   const singingTimingRef = useRef<TimingCallbacks | null>(null);
   const singingActiveRef = useRef(false);
   const phaseStartRef = useRef(0);
+  const modelStartRef = useRef(0);
   const currentNoteIndexRef = useRef(-1);
   const framesByNoteRef = useRef<SungFrame[][]>([]);
   const resultsAccumulatorRef = useRef<NoteResult[]>([]);
@@ -223,6 +265,32 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     expectedNotesRef.current = notes;
     rawIndexToNoteIndexRef.current = rawIndexToNoteIndex;
     totalMsRef.current = totalMs;
+
+    // Linha do tempo do CURSOR: ms + posição REAL (medida no DOM) de cada nota, pra interpolar a
+    // posição continuamente por rAF (o cursor anda o tempo todo, não só no ataque da nota). Medir
+    // do próprio SVG renderizado é mais confiável que o left do abcjs — funciona igual no celular.
+    const wrapper = containerRef.current?.parentElement ?? null;
+    if (wrapper) {
+      const wrapRect = wrapper.getBoundingClientRect();
+      const toStep = (el: Element, ms: number, atRight: boolean): PlayheadStep => {
+        const r = el.getBoundingClientRect();
+        return {
+          ms,
+          left: (atRight ? r.right : r.left) - wrapRect.left + wrapper.scrollLeft,
+          top: r.top - wrapRect.top + wrapper.scrollTop,
+          height: r.height || 24,
+        };
+      };
+      const steps: PlayheadStep[] = [];
+      for (const note of notes) {
+        const el = note.elements[0];
+        if (el) steps.push(toStep(el, note.startMs, false));
+      }
+      const lastEl = notes.at(-1)?.elements[0];
+      if (lastEl) steps.push(toStep(lastEl, totalMs, true));
+      playheadTimelineRef.current = steps;
+    }
+
     setSetupError(notes.length === 0 ? "Não consegui ler as notas desta partitura para comparar com o canto." : null);
   }, [bpm, abc, tokens]);
 
@@ -298,6 +366,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
       singingTimingRef.current?.stop();
       singingActiveRef.current = false;
       countInTimeoutsRef.current.forEach((id) => window.clearTimeout(id));
+      if (playheadRafRef.current !== null) window.cancelAnimationFrame(playheadRafRef.current);
       if (metronomeAudioContextRef.current && metronomeAudioContextRef.current.state !== "closed") {
         void metronomeAudioContextRef.current.close();
       }
@@ -324,23 +393,50 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   function finalizeNote(index: number) {
     const note = expectedNotesRef.current[index];
     if (!note) return;
-    const result = computeVerdict(note, framesByNoteRef.current[index] ?? []);
+    const result = computeVerdict(note, framesByNoteRef.current[index] ?? [], qpmRef.current);
     resultsAccumulatorRef.current[index] = result;
     highlightNote(note, VERDICT_CLASS[result.verdict]);
   }
 
-  // Cursor de posição correndo sobre a partitura (abcjs dá left/top/height do trecho atual).
-  function movePlayhead(event: { left?: number; top?: number; height?: number }) {
-    const el = playheadRef.current;
-    if (!el || typeof event.left !== "number") return;
-    el.style.opacity = "1";
-    el.style.transition = "left 90ms linear, top 90ms linear, height 90ms linear";
-    el.style.left = `${event.left - 1}px`;
-    if (typeof event.top === "number") el.style.top = `${event.top}px`;
-    if (typeof event.height === "number") el.style.height = `${event.height}px`;
-  }
   function hidePlayhead() {
+    if (playheadRafRef.current !== null) {
+      window.cancelAnimationFrame(playheadRafRef.current);
+      playheadRafRef.current = null;
+    }
     if (playheadRef.current) playheadRef.current.style.opacity = "0";
+  }
+
+  // Cursor CONTÍNUO: interpola a posição pelo tempo decorrido sobre a linha do tempo do abcjs
+  // (rAF a 60fps = movimento suave o tempo todo, não pulos no ataque de cada nota).
+  function startPlayhead(startedAt: number) {
+    const el = playheadRef.current;
+    const steps = playheadTimelineRef.current;
+    if (!el || steps.length === 0) return;
+
+    function frame() {
+      const elapsed = performance.now() - startedAt;
+      let i = 0;
+      while (i < steps.length - 1 && steps[i + 1].ms <= elapsed) i += 1;
+      const cur = steps[i];
+      const next = steps[i + 1];
+      let left = cur.left;
+      if (next && next.ms > cur.ms) {
+        const t = Math.max(0, Math.min(1, (elapsed - cur.ms) / (next.ms - cur.ms)));
+        left = cur.left + (next.left - cur.left) * t;
+        // troca de linha da pauta: pula em vez de "voar" na diagonal
+        if (next.top !== cur.top && t > 0.5) {
+          left = next.left;
+        }
+      }
+      const onLine = next && next.top !== cur.top && elapsed - cur.ms > (next.ms - cur.ms) * 0.5 ? next : cur;
+      el!.style.opacity = "1";
+      el!.style.left = `${left - 1}px`;
+      el!.style.top = `${onLine.top}px`;
+      el!.style.height = `${onLine.height}px`;
+      playheadRafRef.current = window.requestAnimationFrame(frame);
+    }
+    if (playheadRafRef.current !== null) window.cancelAnimationFrame(playheadRafRef.current);
+    playheadRafRef.current = window.requestAnimationFrame(frame);
   }
 
   function endSinging() {
@@ -398,7 +494,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
 
     currentNoteIndexRef.current = -1;
     singingActiveRef.current = true;
-    phaseStartRef.current = performance.now();
+    phaseStartRef.current = nowMs();
     setPhase("singing");
 
     const metronomeAudioContext = getMetronomeAudioContext();
@@ -415,7 +511,6 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
           endSinging();
           return undefined;
         }
-        movePlayhead(event);
         if (!event.midiPitches || event.midiPitches.length === 0) return undefined;
         rawEventIndex += 1;
         const mergedIndex = rawIndexToNoteIndexRef.current[rawEventIndex] ?? rawEventIndex;
@@ -431,6 +526,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     });
     singingTimingRef.current = timing;
     timing.start();
+    startPlayhead(phaseStartRef.current);
   }
 
   function stopSinging() {
@@ -473,12 +569,13 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
         beatCallback: () => playMetronomeClick(metronomeAudioContext),
         eventCallback: (event) => {
           if (event === null) hidePlayhead();
-          else movePlayhead(event);
           return undefined;
         },
       });
       modelTimingRef.current = timing;
+      modelStartRef.current = nowMs();
       timing.start();
+      startPlayhead(modelStartRef.current);
 
       modelTimeoutRef.current = window.setTimeout(() => {
         modelTimingRef.current?.stop();
@@ -534,14 +631,15 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     { correct: 0, wrongTiming: 0, wrongPitch: 0, missed: 0 },
   );
   const notableResults = results?.filter((result) => result.verdict !== "correct") ?? [];
-  const timingResults = results?.filter((result) => result.verdict === "wrong-timing") ?? [];
-  const aheadCount = timingResults.filter((result) => result.timing === "adiantada").length;
-  const timingTip =
-    timingResults.length >= 2
-      ? aheadCount >= timingResults.length - aheadCount
-        ? "Você tende a entrar adiantado — espere o tempo cair antes de cantar."
-        : "Você tende a entrar atrasado — antecipe um pouquinho a nota."
-      : null;
+  const aheadCount = (results ?? []).filter((result) => result.onset === "adiantada").length;
+  const lateCount = (results ?? []).filter((result) => result.onset === "atrasada").length;
+  const shortCount = (results ?? []).filter((result) => result.sustain === "curta").length;
+  const longCount = (results ?? []).filter((result) => result.sustain === "longa").length;
+  const tips: string[] = [];
+  if (aheadCount >= 2 && aheadCount > lateCount) tips.push("você tende a entrar adiantado — espere o tempo cair.");
+  else if (lateCount >= 2 && lateCount > aheadCount) tips.push("você tende a entrar atrasado — antecipe um pouquinho.");
+  if (shortCount >= 2 && shortCount > longCount) tips.push("você solta as notas longas cedo demais — segure até o próximo tempo.");
+  else if (longCount >= 2 && longCount > shortCount) tips.push("você segura as notas além da conta — solte antes da próxima.");
   const canAdjust = phase === "idle" || phase === "results";
   const showTuner = phase === "singing" || (phase === "counting-in" && countInForSinging);
 
@@ -552,7 +650,7 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
         <div
           ref={playheadRef}
           aria-hidden="true"
-          className="pointer-events-none absolute top-0 w-0.5 rounded-full bg-primary opacity-0"
+          className="pointer-events-none absolute top-0 w-1 rounded-full bg-primary opacity-0"
           style={{ height: 0 }}
         />
       </div>
@@ -667,16 +765,21 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
               Não cantadas: {counts.missed}
             </Badge>
           </div>
-          {timingTip && <p className="text-xs font-medium text-warning">{timingTip}</p>}
+          {tips.length > 0 && (
+            <p className="text-xs font-medium text-warning">Dica: {tips.join(" E ")}</p>
+          )}
           {notableResults.length > 0 && (
             <ul className="space-y-0.5 text-xs text-muted-foreground">
-              {notableResults.map((result) => (
-                <li key={result.note.index}>
-                  Nota {result.note.index + 1} ({pitchClassNamePt(result.note.pitchClass)}):{" "}
-                  {VERDICT_LABEL[result.verdict]}
-                  {result.timing ? ` — entrou ${result.timing}` : ""}
-                </li>
-              ))}
+              {notableResults.map((result) => {
+                const extra = [ONSET_LABEL[result.onset], SUSTAIN_LABEL[result.sustain]].filter(Boolean).join("; ");
+                return (
+                  <li key={result.note.index}>
+                    Nota {result.note.index + 1} ({pitchClassNamePt(result.note.pitchClass)}):{" "}
+                    {VERDICT_LABEL[result.verdict]}
+                    {extra ? ` — ${extra}` : ""}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
