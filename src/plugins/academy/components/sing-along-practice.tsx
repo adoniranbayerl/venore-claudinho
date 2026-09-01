@@ -63,7 +63,7 @@ type NoteResult = {
 };
 type Phase = "idle" | "playing-model" | "counting-in" | "singing" | "results";
 type SungFrame = { centsOff: number; elapsedMs: number; midi: number };
-type PlayheadStep = { ms: number; left: number; top: number; height: number };
+type PlayheadStep = { ms: number; left: number; right: number; top: number; height: number };
 
 // Distância assinada em semitons -> texto ("meio tom abaixo", "um tom acima", "3 semitons abaixo").
 function describeInterval(semitones: number): string {
@@ -286,28 +286,38 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     rawIndexToNoteIndexRef.current = rawIndexToNoteIndex;
     totalMsRef.current = totalMs;
 
-    // Linha do tempo do CURSOR: ms + posição REAL (medida no DOM) de cada nota, pra interpolar a
-    // posição continuamente por rAF (o cursor anda o tempo todo, não só no ataque da nota). Medir
-    // do próprio SVG renderizado é mais confiável que o left do abcjs — funciona igual no celular.
+    // Linha do tempo do CURSOR: ms + caixa (esq/dir/topo/altura) REAL de cada nota, medida no SVG
+    // renderizado (mais confiável que o left do abcjs — funciona igual no celular). A caixa usa
+    // TODOS os elementos da nota (inclui a segunda cabeça de uma ligadura), pra o cursor percorrer
+    // o espaço inteiro de nota longa/ligada.
     const wrapper = containerRef.current?.parentElement ?? null;
     if (wrapper) {
       const wrapRect = wrapper.getBoundingClientRect();
-      const toStep = (el: Element, ms: number, atRight: boolean): PlayheadStep => {
-        const r = el.getBoundingClientRect();
-        return {
-          ms,
-          left: (atRight ? r.right : r.left) - wrapRect.left + wrapper.scrollLeft,
-          top: r.top - wrapRect.top + wrapper.scrollTop,
-          height: r.height || 24,
-        };
+      const offX = wrapper.scrollLeft - wrapRect.left;
+      const offY = wrapper.scrollTop - wrapRect.top;
+      const toStep = (els: Element[], ms: number): PlayheadStep | null => {
+        let l = Infinity;
+        let r = -Infinity;
+        let t = Infinity;
+        let b = -Infinity;
+        for (const el of els) {
+          const rc = el.getBoundingClientRect();
+          if (rc.width === 0 && rc.height === 0) continue;
+          l = Math.min(l, rc.left);
+          r = Math.max(r, rc.right);
+          t = Math.min(t, rc.top);
+          b = Math.max(b, rc.bottom);
+        }
+        if (!Number.isFinite(l)) return null;
+        return { ms, left: l + offX, right: r + offX, top: t + offY, height: b - t || 24 };
       };
       const steps: PlayheadStep[] = [];
       for (const note of notes) {
-        const el = note.elements[0];
-        if (el) steps.push(toStep(el, note.startMs, false));
+        const step = toStep(note.elements, note.startMs);
+        if (step) steps.push(step);
       }
-      const lastEl = notes.at(-1)?.elements[0];
-      if (lastEl) steps.push(toStep(lastEl, totalMs, true));
+      const last = steps.at(-1);
+      if (last) steps.push({ ...last, ms: totalMs, left: last.right });
       playheadTimelineRef.current = steps;
     }
 
@@ -426,33 +436,36 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     if (playheadRef.current) playheadRef.current.style.opacity = "0";
   }
 
-  // Cursor CONTÍNUO: interpola a posição pelo tempo decorrido sobre a linha do tempo do abcjs
-  // (rAF a 60fps = movimento suave o tempo todo, não pulos no ataque de cada nota).
+  // Cursor CONTÍNUO: interpola a posição pelo tempo decorrido sobre a linha do tempo (rAF a 60fps).
+  // Dentro de uma linha, varre da nota atual até a próxima ao longo da duração — cobre nota longa /
+  // ligada. Na virada de linha, varre só até o fim da nota atual e "salta" pra linha de baixo
+  // quando o tempo dela acaba (nunca volta pra trás na diagonal).
   function startPlayhead(startedAt: number) {
     const el = playheadRef.current;
     const steps = playheadTimelineRef.current;
     if (!el || steps.length === 0) return;
 
     function frame() {
-      const elapsed = performance.now() - startedAt;
+      const elapsed = nowMs() - startedAt;
       let i = 0;
       while (i < steps.length - 1 && steps[i + 1].ms <= elapsed) i += 1;
       const cur = steps[i];
       const next = steps[i + 1];
+
       let left = cur.left;
       if (next && next.ms > cur.ms) {
         const t = Math.max(0, Math.min(1, (elapsed - cur.ms) / (next.ms - cur.ms)));
-        left = cur.left + (next.left - cur.left) * t;
-        // troca de linha da pauta: pula em vez de "voar" na diagonal
-        if (next.top !== cur.top && t > 0.5) {
-          left = next.left;
-        }
+        const lineBreak = Math.abs(next.top - cur.top) > 4;
+        const to = lineBreak ? cur.right : next.left;
+        left = cur.left + (to - cur.left) * t;
+      } else if (!next) {
+        left = cur.right;
       }
-      const onLine = next && next.top !== cur.top && elapsed - cur.ms > (next.ms - cur.ms) * 0.5 ? next : cur;
+
       el!.style.opacity = "1";
       el!.style.left = `${left - 1}px`;
-      el!.style.top = `${onLine.top}px`;
-      el!.style.height = `${onLine.height}px`;
+      el!.style.top = `${cur.top}px`;
+      el!.style.height = `${cur.height}px`;
       playheadRafRef.current = window.requestAnimationFrame(frame);
     }
     if (playheadRafRef.current !== null) window.cancelAnimationFrame(playheadRafRef.current);
