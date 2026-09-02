@@ -10,6 +10,7 @@ import { CourseHero } from "@/plugins/academy/components/course-hero";
 import { DonationTeaser, getDonationSettings } from "@/plugins/donations";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 import { EmptyState } from "@/components/empty-state";
+import { OfflineCourseToggle } from "@/components/pwa/offline-course-toggle";
 import { EnrollSelfButton } from "./_components/enroll-self-button";
 
 export const dynamic = "force-dynamic";
@@ -228,6 +229,14 @@ export default async function AcademyCoursePage({
             <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
           </div>
         </div>
+      )}
+
+      {/* PWA: baixar o curso pra ler offline. Só renderiza algo com o SW ativo (produção). */}
+      {progress.lessons.length > 0 && (
+        <OfflineCourseToggle
+          courseId={course.id}
+          paths={[`/academy/${course.slug}`, ...progress.lessons.map((lesson) => `/academy/${course.slug}/${lesson.lessonId}`)]}
+        />
       )}
 
       {progress.lessons.length > 0 && (
