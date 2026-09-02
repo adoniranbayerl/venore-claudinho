@@ -8,6 +8,8 @@ import {
   type TimeSignature,
 } from "../components/notation-abc";
 import { NotationSheetBlockClient } from "../components/notation-sheet-block-client";
+import { getExercisePracticeStatsHandler } from "../features/progress/get-exercise-practice-stats/handler";
+import { singAlongExerciseKey } from "../shared/exercise-key";
 
 function readTokens(data: Record<string, unknown>): NotationToken[] {
   const value = data.tokens;
@@ -64,7 +66,7 @@ function hasNotationTokens(data: Record<string, unknown>): boolean {
   return readTokens(data).length > 0;
 }
 
-export function AcademyNotationSheetBlock({ block }: BlockRendererProps) {
+export async function AcademyNotationSheetBlock({ block }: BlockRendererProps) {
   if (!hasNotationTokens(block.data)) return null;
 
   const tokens = readTokens(block.data);
@@ -81,6 +83,14 @@ export function AcademyNotationSheetBlock({ block }: BlockRendererProps) {
 
   const abc = compositionToAbc(composition);
   const melodyAbc = compositionToAbc({ ...composition, voices: undefined });
+
+  // Contador de repetições (gamificação): só quando o "Cantar junto" está ligado. A chave é o
+  // hash da melodia (estável por conteúdo — ver shared/exercise-key.ts). As stats iniciais vêm do
+  // servidor; o SingAlongPractice atualiza a cada tentativa pelo retorno da action.
+  const allowSingAlong = readAllowSingAlong(block.data);
+  const exerciseKey = allowSingAlong ? singAlongExerciseKey(melodyAbc) : null;
+  const statsResult = exerciseKey ? await getExercisePracticeStatsHandler({ exerciseKey }) : null;
+  const practiceStats = statsResult && statsResult.success ? statsResult.data : null;
 
   // Uma opção de reprodução por voz + "Tudo" — é isto que dá o "ouvir só a melodia" (pedido do
   // dono). Sem vozes extras, só um botão "Ouvir".
@@ -101,8 +111,10 @@ export function AcademyNotationSheetBlock({ block }: BlockRendererProps) {
       singAlongAbc={melodyAbc}
       playback={playback}
       caption={readCaption(block.data)}
-      allowSingAlong={readAllowSingAlong(block.data)}
+      allowSingAlong={allowSingAlong}
       tokens={tokens}
+      exerciseKey={exerciseKey}
+      practiceStats={practiceStats}
     />
   );
 }

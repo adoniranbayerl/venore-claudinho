@@ -16,6 +16,8 @@ export function NotationSheetBlockClient({
   caption,
   allowSingAlong,
   tokens,
+  exerciseKey = null,
+  practiceStats = null,
 }: {
   abc: string;
   // ABC só da voz 1 (melodia) — o "Cantar junto" compara com uma linha só; passar o ABC multi-voz
@@ -26,6 +28,10 @@ export function NotationSheetBlockClient({
   caption: string;
   allowSingAlong: boolean;
   tokens: NotationToken[];
+  // Gamificação: chave estável do exercício + contagem/recorde iniciais (do servidor). null quando
+  // o "Cantar junto" está desligado.
+  exerciseKey?: string | null;
+  practiceStats?: { count: number; bestScore: number | null } | null;
 }) {
   const [isPracticing, setIsPracticing] = useState(false);
 
@@ -47,7 +53,9 @@ export function NotationSheetBlockClient({
           <Button type="button" variant="outline" size="sm" onClick={() => setIsPracticing((prev) => !prev)}>
             {isPracticing ? "Fechar" : "Cantar junto"}
           </Button>
-          {isPracticing && <SingAlongPractice abc={singAlongAbc} tokens={tokens} />}
+          {isPracticing && (
+            <SingAlongPractice abc={singAlongAbc} tokens={tokens} exerciseKey={exerciseKey} practiceStats={practiceStats} />
+          )}
         </>
       )}
     </div>

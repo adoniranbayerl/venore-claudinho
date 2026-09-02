@@ -111,6 +111,8 @@ export {
 export { submitQuizAttemptHandler as submitQuizAttempt } from "./features/progress/submit-quiz-attempt/handler";
 export { getCourseProgressHandler as getCourseProgress } from "./features/progress/get-course-progress/handler";
 export { getPracticeStreakHandler as getPracticeStreak } from "./features/progress/get-practice-streak/handler";
+export { recordExercisePracticeHandler as recordExercisePractice } from "./features/progress/record-exercise-practice/handler";
+export { getExercisePracticeStatsHandler as getExercisePracticeStats } from "./features/progress/get-exercise-practice-stats/handler";
 export { resetQuizAttemptsHandler as resetQuizAttempts } from "./features/progress/reset-quiz-attempts/handler";
 export {
   listQuizProgressForCourseHandler as listQuizProgressForCourse,
@@ -409,6 +411,14 @@ export type {
   GetPracticeStreakResult,
   PracticeStreakView,
 } from "./features/progress/get-practice-streak/types";
+export type {
+  RecordExercisePracticeInput,
+  RecordExercisePracticeResult,
+} from "./features/progress/record-exercise-practice/types";
+export type {
+  GetExercisePracticeStatsInput,
+  GetExercisePracticeStatsResult,
+} from "./features/progress/get-exercise-practice-stats/types";
 export type {
   ResetQuizAttemptsInput,
   ResetQuizAttemptsResult,

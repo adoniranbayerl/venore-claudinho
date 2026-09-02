@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, date, integer, jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, check, date, index, integer, jsonb, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const academySchema = pgSchema("academy");
 
@@ -485,4 +485,25 @@ export const practiceDays = academySchema.table(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("practice_days_actor_day_idx").on(table.actorId, table.day)],
+);
+
+// Contador de repetições por exercício (gamificação — "exercitar todo dia"). Uma linha por
+// tentativa concluída de um exercício repetível (hoje: "Cantar junto"). `exerciseKey` é estável
+// POR CONTEÚDO (hash da melodia, sem o andamento) — sobrevive à reimportação do curso, que gera
+// ids de bloco novos, e faz o mesmo trecho a 70 e a 80 BPM contar como o MESMO exercício.
+// `score` é 0..100 (afinação certa %) ou null pra exercício sem nota. shared/exercise-practice-
+// store.ts lê/escreve; a contagem e o recorde aparecem no próprio exercício e vão alimentar os
+// rankings por exercício (fase seguinte).
+export const exercisePractice = academySchema.table(
+  "exercise_practice",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    actorId: text("actor_id").notNull(),
+    exerciseKey: text("exercise_key").notNull(),
+    score: integer("score"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("exercise_practice_actor_key_idx").on(table.actorId, table.exerciseKey)],
 );

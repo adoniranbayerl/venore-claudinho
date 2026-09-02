@@ -9,6 +9,7 @@ import { usePitchListener } from "@/hooks/use-pitch-listener";
 import { extractExpectedNotes, type ExpectedNote } from "./abc-expected-notes";
 import { frequencyToMidi, midiToOctave, pitchClassNamePt } from "@/lib/pitch-class";
 import type { NotationToken } from "./notation-abc";
+import { recordExercisePracticeAction } from "../blocks/actions";
 
 // Modo "Cantar junto": o aluno canta no microfone e o app compara com a sequência de notas
 // esperada da partitura (afinação por classe de nota, ignorando oitava — vozes diferentes cantam
@@ -199,7 +200,19 @@ function computeVerdict(note: ExpectedNote, frames: SungFrame[], qpm: number): N
   return { note, verdict, onset, sustain, pitchDetail: null };
 }
 
-export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: NotationToken[] }) {
+export function SingAlongPractice({
+  abc,
+  tokens,
+  exerciseKey = null,
+  practiceStats = null,
+}: {
+  abc: string;
+  tokens?: NotationToken[];
+  // Gamificação: chave estável do exercício + contagem/recorde iniciais. Sem exerciseKey (fora de
+  // uma aula, ou "Cantar junto" desligado), o contador não aparece e nada é gravado.
+  exerciseKey?: string | null;
+  practiceStats?: { count: number; bestScore: number | null } | null;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
   const playheadTimelineRef = useRef<PlayheadStep[]>([]);
@@ -251,6 +264,9 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
   const [loopModel, setLoopModel] = useState(false);
   const [metronomeOn, setMetronomeOn] = useState(false);
   const [countInForSinging, setCountInForSinging] = useState(false);
+  // Contador de repetições / recorde deste exercício (gamificação). Começa com o valor do servidor
+  // e é atualizado a cada tentativa pelo retorno da action.
+  const [stats, setStats] = useState<{ count: number; bestScore: number | null } | null>(practiceStats);
 
   const pitchListener = usePitchListener();
 
@@ -471,8 +487,26 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
     singingTimingRef.current = null;
     pitchListener.stop();
     hidePlayhead();
-    setResults(resultsAccumulatorRef.current.slice());
+    const finalResults = resultsAccumulatorRef.current.slice();
+    setResults(finalResults);
     setPhase("results");
+    recordAttempt(finalResults);
+  }
+
+  // Registra a tentativa no contador de repetições e atualiza a contagem/recorde exibidos. A nota
+  // é a % de notas com afinação certa (inclui "fora do tempo", que ainda é a nota certa). Silencioso
+  // — nunca atrapalha o resultado se a gravação falhar.
+  function recordAttempt(finalResults: NoteResult[]) {
+    if (!exerciseKey || finalResults.length === 0) return;
+    const onPitch = finalResults.filter((r) => r.verdict === "correct" || r.verdict === "wrong-timing").length;
+    const score = Math.round((onPitch / finalResults.length) * 100);
+    recordExercisePracticeAction({ exerciseKey, score })
+      .then((result) => {
+        if (result.success) setStats(result.data);
+      })
+      .catch(() => {
+        // segue
+      });
   }
 
   function cancelAll() {
@@ -680,6 +714,13 @@ export function SingAlongPractice({ abc, tokens }: { abc: string; tokens?: Notat
           style={{ height: 0 }}
         />
       </div>
+
+      {exerciseKey && stats && stats.count > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Praticado {stats.count === 1 ? "1 vez" : `${stats.count} vezes`}
+          {stats.bestScore !== null && ` · seu recorde: ${stats.bestScore}% de afinação`}
+        </p>
+      )}
 
       {showTuner && (
         <div className="rounded-md border border-border bg-muted/30 p-3 text-center">
