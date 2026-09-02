@@ -259,4 +259,52 @@ describe("importCourseBundle", () => {
     const lessonLine = result.data.lines.find((line) => line.kind === "lesson");
     expect(lessonLine?.message).toContain("Áudio quebrado");
   });
+
+  it("configura os requisitos DEPOIS de criar atividades e quiz (activityEnabled exige atividade existente)", async () => {
+    listCourses.mockResolvedValue({ success: true, data: [] });
+    createCourse.mockResolvedValue({ success: true, data: { id: "course-dst-1", slug: "novo-curso" } });
+    createLesson.mockResolvedValue({ success: true, data: { id: "lesson-dst-1" } });
+    addLessonActivity.mockResolvedValue({ success: true, data: { id: "activity-1" } });
+    addQuizQuestion.mockResolvedValue({ success: true, data: { id: "question-1" } });
+    configureLessonRequirements.mockResolvedValue({ success: true, data: {} });
+
+    const manifest = baseManifest({
+      status: "draft",
+      lessons: [
+        {
+          title: "Aula A",
+          videoUrl: null,
+          coverMediaRef: null,
+          status: "restricted",
+          sections: [],
+          materials: [],
+          examples: [],
+          activities: [{ title: "Praticar", instructionsText: "Grave.", deliverableFormat: "audio" }],
+          quizQuestions: [{ text: "1+1?", options: ["1", "2"], correctOptionIndex: 1 }],
+          requirements: {
+            readTextEnabled: false,
+            watchVideoEnabled: false,
+            quizEnabled: true,
+            quizPassThresholdPercent: 70,
+            quizMaxAttempts: 3,
+            activityEnabled: true,
+          },
+        },
+      ],
+    });
+
+    const { importCourseBundle } = await import("./service");
+    const result = await importCourseBundle({ manifest, files: new Map(), actorId: "actor-1" });
+
+    expect(result.success).toBe(true);
+    expect(configureLessonRequirements).toHaveBeenCalledWith(expect.objectContaining({ activityEnabled: true, quizEnabled: true }));
+
+    const requirementsOrder = configureLessonRequirements.mock.invocationCallOrder[0];
+    expect(requirementsOrder).toBeGreaterThan(addLessonActivity.mock.invocationCallOrder[0]);
+    expect(requirementsOrder).toBeGreaterThan(addQuizQuestion.mock.invocationCallOrder[0]);
+
+    if (!result.success) return;
+    const line = result.data.lines.find((l) => l.kind === "lesson");
+    expect(line?.message).toBeUndefined(); // nenhuma nota de falha
+  });
 });

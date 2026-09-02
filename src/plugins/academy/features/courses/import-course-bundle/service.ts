@@ -208,20 +208,6 @@ async function importLesson({ courseId, lesson, actorId, resolveMediaId, record 
     if (!statusResult.success) notes.push(`Falha ao aplicar status "${lesson.status}": ${statusResult.error.message}`);
   }
 
-  if (lesson.requirements) {
-    const requirementsResult = await configureLessonRequirements({
-      lessonId,
-      readTextEnabled: lesson.requirements.readTextEnabled,
-      watchVideoEnabled: lesson.requirements.watchVideoEnabled,
-      quizEnabled: lesson.requirements.quizEnabled,
-      quizPassThresholdPercent: lesson.requirements.quizPassThresholdPercent ?? undefined,
-      quizMaxAttempts: lesson.requirements.quizMaxAttempts ?? undefined,
-      activityEnabled: lesson.requirements.activityEnabled,
-      actorId,
-    });
-    if (!requirementsResult.success) notes.push(`Falha ao configurar requisitos: ${requirementsResult.error.message}`);
-  }
-
   for (const section of lesson.sections) {
     if (section.textData !== null) {
       const composition = extractEntryComposition(section.textData);
@@ -311,6 +297,22 @@ async function importLesson({ courseId, lesson, actorId, resolveMediaId, record 
       actorId,
     });
     if (!questionResult.success) notes.push(`Pergunta "${question.text}": ${questionResult.error.message}`);
+  }
+
+  // Requisitos por último: activityEnabled/quizEnabled exigem que já existam atividades/perguntas
+  // na lesson, então isto só pode rodar depois dos loops de seções, exemplos, atividades e quiz.
+  if (lesson.requirements) {
+    const requirementsResult = await configureLessonRequirements({
+      lessonId,
+      readTextEnabled: lesson.requirements.readTextEnabled,
+      watchVideoEnabled: lesson.requirements.watchVideoEnabled,
+      quizEnabled: lesson.requirements.quizEnabled,
+      quizPassThresholdPercent: lesson.requirements.quizPassThresholdPercent ?? undefined,
+      quizMaxAttempts: lesson.requirements.quizMaxAttempts ?? undefined,
+      activityEnabled: lesson.requirements.activityEnabled,
+      actorId,
+    });
+    if (!requirementsResult.success) notes.push(`Falha ao configurar requisitos: ${requirementsResult.error.message}`);
   }
 
   record("lesson", lesson.title, "created", notes.length > 0 ? notes.join(" ") : undefined);
