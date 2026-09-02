@@ -521,13 +521,16 @@ pronto. Resumo:
 - **Fase 12** — evento de agenda com datas espaçadas (não consecutivas): tabela
   `broadcast_agenda_event_dates`, "um card com todas as datas", horário próprio por data extra,
   escondida quando "toda semana". Sai do rodízio só quando a última data passa.
-- **Fase 13** — diagnóstico do PC da TV no dashboard de Telas: Parte A = a página reporta saúde do
-  vídeo (travou/recuperou/pulou, dropped frames, SSE) + perf via o token da saída; Parte B =
-  agente PowerShell puro (`scripts/broadcast-diag-agent.ps1` + `config.json`, Tarefa Agendada,
-  chave `broadcast.diagnosticsAgentKey`) reporta CPU/RAM/GPU-Intel/uptime/rede. Tabelas
-  `broadcast_output_diagnostics` (snapshot por source) + `broadcast_output_diag_events` (incidentes,
-  prune 14d). "Estado agora + log", sem série temporal. Motivado por: vídeo travou numa TV e
-  alguém teve que ir presencialmente.
+- **Fase 13** — diagnóstico do Broadcast numa **sub-rota própria** `/admin/broadcast/diagnostico`
+  (não painel na aba Telas). Três fontes: `browser` (a página da TV — saúde do vídeo:
+  travou/recuperou/pulou, dropped frames, SSE + perf, via o token da saída), `agent` (PowerShell
+  puro `scripts/broadcast-diag-agent.ps1` + `config.json` + chave `broadcast.diagnosticsAgentKey`
+  — CPU/RAM/GPU-Intel/uptime/rede do PC), e **`server`** (o processo Next.js se auto-amostra:
+  event-loop lag, GC, RSS + saúde da rota de stream: streams simultâneos, throughput, TTFB,
+  aborts, leitura lenta — pra responder "o engasgo é do servidor?"). Tabelas
+  `broadcast_output_diagnostics` + `broadcast_output_diag_events` (prune 14d) + snapshot 'server'
+  (linha sentinela ou tabela irmã single-row). "Estado agora + log", sem série temporal.
+  Motivado por: vídeo travou numa TV, ida presencial, e dúvida se o engasgo é da TV ou do servidor.
 
 Issues fechados na triagem: token previsível (intencional), stream sem PIN (conteúdo não precisa de
 proteção), bus em memória (ok com servidor local).

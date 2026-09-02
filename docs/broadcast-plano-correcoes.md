@@ -165,7 +165,7 @@ construído sobre o palco escalado das Fases 1–2.
 | 11 | Tela de standby / offline | 1, 2, 4 |
 | 9 | Hardening do PIN + reset via admin | — |
 | 12 | Evento de agenda com datas espaçadas | — |
-| 13 | Diagnóstico do PC da TV (telemetria + agente PowerShell) | — |
+| 13 | Diagnóstico do Broadcast (sub-rota /diagnostico: TV + servidor) | — |
 | 7 | Fechar verificação de migrations | 9, 11, 12, 13 (roda por último) |
 
 ---
@@ -500,39 +500,50 @@ Definition of Done:
 
 ---
 
-### Fase 13 — Diagnóstico do PC da TV (telemetria + agente PowerShell)
+### Fase 13 — Diagnóstico do Broadcast (sub-rota própria: TV + servidor)
 
-Motivação real: um vídeo travou na tela e alguém teve que ir presencialmente ao PC verificar. O
-dashboard de Telas (`/admin/broadcast`, aba Telas) precisa mostrar, por saída, o estado do PC onde
-a view está aberta e a saúde do vídeo — em tempo quase real, à distância.
+Motivação real: um vídeo travou na tela e alguém teve que ir presencialmente ao PC verificar. E
+não se sabe se o "engasgo" é da TV ou do **servidor local** ao servir o stream. Precisa de um
+lugar no admin que mostre, à distância e em tempo quase real, a saúde do vídeo por saída, o
+estado do PC de cada TV, **e o estado do próprio servidor**.
 
-Decisões já tomadas com o usuário: **GPU Intel integrada** (uso % via contadores do Windows; sem
-temp/VRAM garantidos); **agente PowerShell puro** (um `.ps1` + `config.json`, POST de JSON, Tarefa
-Agendada no logon — sem instalar Node em cada PC); **histórico = estado agora + log de incidentes**
-(sem série temporal pra sparklines no MVP).
+Decisões já tomadas com o usuário:
+- **Sub-rota dedicada** `/admin/broadcast/diagnostico` (não um painel dentro da aba "Telas").
+- **Três fontes:** `browser` (a página da TV), `agent` (PowerShell no PC da TV) e **`server`** (o
+  processo Next.js do servidor local, auto-amostrado em processo — sem agente externo).
+- **GPU Intel integrada** no PC da TV (uso % via contadores do Windows; sem temp/VRAM garantidos).
+- **Agente PowerShell puro** (um `.ps1` + `config.json`, POST de JSON, Tarefa Agendada no logon —
+  sem instalar Node em cada PC).
+- **Histórico = estado agora + log de incidentes** (sem série temporal pra sparklines no MVP).
 
-- **Parte A — Telemetria do navegador (a própria página da TV).** Entrega sozinha o valor central:
-  saber que a TV travou sem sair da mesa. Não precisa do agente.
-- **Parte B — Agente local PowerShell.** Adiciona CPU/RAM/GPU/uptime/rede do PC (o *porquê*).
+- **Parte A — Telemetria do navegador (a própria página da TV).** Saúde do vídeo + perf da página.
+- **Parte B — Agente local PowerShell.** CPU/RAM/GPU/uptime/rede do PC da TV (o *porquê* do lado TV).
+- **Parte C — Telemetria do servidor.** O processo Next.js se auto-amostra: event-loop lag, GC,
+  RSS, e **saúde da rota de stream** (streams simultâneos, throughput, leitura lenta de disco,
+  TTFB, aborts) — pra responder "o engasgo é do servidor?".
 
 ```
 Contexto: plugin broadcast, já em produção, servidor SEMPRE local (processo único), PCs de TV são
-Windows com GPU Intel integrada. Um vídeo travou numa TV e alguém teve que ir ao PC. Quero, no
-dashboard de Telas do broadcast (/admin/broadcast, aba Telas), ver por saída: saúde do vídeo (se
-travou / recuperou / pulou, dropped frames, estado do SSE) e, quando houver agente, CPU / RAM /
-GPU / uptime / rede do PC — em quase tempo real, + um log de incidentes. Sem série temporal pra
-gráficos no MVP: só "estado agora" + linha do tempo de eventos.
+Windows com GPU Intel integrada. Um vídeo travou numa TV e alguém teve que ir ao PC — e não se
+sabe se o engasgo é da TV ou do servidor ao servir o stream. Quero uma SUB-ROTA
+/admin/broadcast/diagnostico (não um painel na aba Telas) que mostre: por saída, saúde do vídeo
+(travou / recuperou / pulou, dropped frames, estado do SSE) + CPU/RAM/GPU/uptime/rede do PC da TV
+(quando há agente); e um bloco do SERVIDOR (event-loop lag, GC, RSS, saúde da rota de stream). Em
+quase tempo real, + log de incidentes. Sem série temporal no MVP: "estado agora" + linha do tempo.
 
 == Schema (src/plugins/broadcast/database/schema/index.ts) ==
 Migration incremental (sobre o baseline). Aplicar no banco (db:generate:broadcast + db:migrate:broadcast).
 
 - broadcast_output_diagnostics — último snapshot por (outputId, source). PK composta.
   outputId text not null references broadcastOutputs.id onDelete cascade
-  source text not null check in ('browser','agent')
-  reportedAt timestamptz not null   (setado no SERVIDOR na ingestão, nunca confiar no cliente)
+  source text not null check in ('browser','agent','server')
+  reportedAt timestamptz not null   (setado no SERVIDOR na ingestão / na auto-amostragem)
   payload jsonb not null default {}  (blob livre — cada fonte modela o seu; o dashboard lê chaves
-                                      conhecidas com fallback, sem migration a cada campo novo do .ps1)
+                                      conhecidas com fallback, sem migration a cada campo novo)
   primaryKey(outputId, source)
+  Obs: a fonte 'server' é GLOBAL (não por saída). Guardar sob uma linha sentinela — ou uma tabela
+  irmã broadcast_server_diagnostics (single-row). Escolher na implementação; o mais simples é a
+  tabela irmã (sem outputId).
 
 - broadcast_output_diag_events — log append-only de incidentes.
   id text pk ($defaultFn randomUUID)
@@ -540,7 +551,8 @@ Migration incremental (sobre o baseline). Aplicar no banco (db:generate:broadcas
   source text not null check in ('browser','agent','server')
   kind text not null   (video_stalled | video_recovered | video_skipped | video_error | sse_lost |
                          sse_restored | offline_on | offline_off | pc_unreachable | pc_back |
-                         cpu_spike | ram_spike | gpu_spike | agent_started)
+                         cpu_spike | ram_spike | gpu_spike | agent_started |
+                         server_lag_spike | server_gc_spike | server_streams_high | server_disk_low)
   detail jsonb         (nullable — itemId, valores medidos, duração, etc.)
   at timestamptz not null default now()
   index (outputId, at desc)
@@ -551,7 +563,8 @@ e BroadcastOutputDiagEvent { id; source; kind; detail: Record<string,unknown> | 
 
 == Endpoint de ingestão (route-table.ts + routes/api/) ==
 POST /api/broadcast/diagnostics/:token?source=browser|agent  (sem sessão — mesmo modelo das rotas
-/state e /events). export const dynamic = "force-dynamic".
+/state e /events). export const dynamic = "force-dynamic". A fonte 'server' NÃO usa endpoint —
+é amostrada em processo (ver Parte C).
 - source=browser: auth = o próprio token da saída (+ checagem de PIN idêntica a routes/api/output-
   state, pra paridade). Body = telemetria do navegador (ver Parte A).
 - source=agent: auth = chave compartilhada. Nova setting broadcast.diagnosticsAgentKey (gerada,
@@ -567,14 +580,15 @@ POST /api/broadcast/diagnostics/:token?source=browser|agent  (sem sessão — me
 - Thresholds como constantes tunáveis em shared/diagnostics-thresholds.ts.
 
 == Leitura pro dashboard ==
-features/diagnostics/list-output-diagnostics/ (handler com authorizeActor "broadcast.manage" OU
-authorizeOutputActor por saída — mesmo padrão de list-connected-output-ips): devolve, por saída
-visível ao ator, { browser?: snapshot, agent?: snapshot, events: últimos ~20 }. Uma action
-"use server" getOutputDiagnosticsAction() chamada por um useEffect com polling ~8s no client
-(mesmo padrão de getConnectedOutputIpsAction em components/admin/actions.ts).
-"PC sem reportar": o client compara reportedAt com agora; > ~90s => estado vermelho no card. O
-loader insere UMA vez um evento pc_unreachable quando vê a saída ficar stale (e pc_back quando
-volta) — sem sweep dedicado no MVP.
+features/diagnostics/list-broadcast-diagnostics/ (handler com authorizeActor "broadcast.manage" OU
+authorizeOutputActor por saída — mesmo padrão de list-connected-output-ips): devolve
+{ server: snapshot | null, outputs: [ { outputId, name, browser?, agent?, events: últimos ~20 } ]
+filtrado pelo que o ator pode ver }. Uma action "use server" getBroadcastDiagnosticsAction()
+chamada por um useEffect com polling ~5-8s na página da sub-rota (mesmo padrão de
+getConnectedOutputIpsAction).
+"PC sem reportar": o client compara reportedAt com agora; > ~90s => estado vermelho. O loader
+insere UMA vez um evento pc_unreachable quando vê a saída ficar stale (e pc_back quando volta) —
+sem sweep dedicado no MVP.
 
 == Parte A — Telemetria do navegador ==
 Novo hook client useOutputDiagnosticsReporter(token) montado em components/output/output-canvas.tsx.
@@ -614,29 +628,68 @@ Loop (ou -Once pra Tarefa Agendada por execução):
 - Flag -Install: Register-ScheduledTask rodando no logon (sobrevive reboot). Flag -Uninstall.
 Doc curta (README no topo do .ps1 + item em docs/): copiar pro PC da TV, preencher o config, rodar -Install.
 
-== Dashboard (components/admin/outputs-section.tsx) ==
-Painel colapsável "Diagnóstico" no card de cada Tela (ou um chip de status que expande):
-- Cabeçalho verde / amarelo / vermelho: reportou < 90s? vídeo saudável? CPU/RAM/GPU sob threshold?
-  Estado vermelho GRANDE e óbvio pra "PC não reporta há Xmin" e "vídeo travou e não recuperou".
-- Agora: CPU %, RAM %/GB, GPU %, uptime (d h m), rede (Mbps in/out, ping ms), FPS, dropped-frame
-  ratio, estado do SSE, "última sincronização há Xs". Campos do agente aparecem só quando há
-  snapshot 'agent'; sem ele, só a parte do navegador.
-- Incidentes: últimos ~20 eventos com hora + tipo + detalhe legível ("Vídeo travou 14:03 no item
-  'Institucional.mp4' — recuperou em 6s" / "pulou pro próximo" / "PC sem reportar 14:20–14:31").
-- SettingsSection: mostrar / rotacionar broadcast.diagnosticsAgentKey + um bloco copiável com o
-  config.json pronto daquela saída (serverUrl inferido do request, token, key).
+== Parte C — Telemetria do servidor (auto-amostrada em processo) ==
+O processo Next.js do servidor local se mede sozinho — sem agente, sem endpoint. Um sampler
+singleton (runtime/, no espírito do output-bus, guardado em globalThis pra sobreviver às camadas
+de bundle) roda a cada ~10s e faz upsert do snapshot 'server' (via um service interno, não uma
+rota). Coleta:
+- Processo: process.cpuUsage() (delta % entre amostras), process.memoryUsage() (rss, heapUsed,
+  external), process.uptime(), versão do node.
+- Event-loop lag: perf_hooks.monitorEventLoopDelay() (mean / p50 / p99 / max desde a última
+  amostra) — é o sinal nº 1 de "o servidor está engasgando" (uma leitura de disco síncrona, GC,
+  um handler pesado bloqueiam o loop e a rota de stream para de empurrar bytes).
+- GC: PerformanceObserver('gc') — contagem + soma de ms de pausa desde a última amostra.
+- Saúde da rota de stream (o ponto-chave pra "o engasgo é do servidor?"): a rota
+  /api/broadcast/stream/[itemId] passa a registrar num contador em memória (runtime/, mesmo
+  globalThis): nº de streams simultâneos (inc no start, dec no close/abort), bytes/s agregados,
+  TTFB por request (createReadStream até o 1º chunk), duração, e nº de aborts (request.signal) e
+  de leituras lentas (gap > ~500ms entre chunks). O snapshot 'server' expõe o resumo da janela.
+- Disco: espaço livre da partição de public/broadcast/videos (statfs), e um teste de leitura
+  rápido opcional (ler N KB de um arquivo conhecido e medir).
+Onde montar o sampler: um módulo importado por um ponto que roda no boot do server — o
+route-registry do plugin, ou instrumentation.ts do Next se preferir manter fora do plugin (é
+core; decidir na implementação). Sem timers em ambiente de teste (guard por NODE_ENV / flag).
 
-Restrições: fluxo handler->service->store + OperationResult; plugin não toca core; cor em token
-shadcn no admin, style inline na view; sem dev jargon no admin.
+== Sub-rota /admin/broadcast/diagnostico ==
+route-table.ts do plugin: admin += { pattern: "diagnostico", Component: asPluginPage(DiagnosticoPage) }.
+Nav: entrada nova no manifest.navigation (label "Diagnóstico", mesma required permission do
+"Broadcast Studio", groupKey "plugins") — OU um link/aba dentro da página que aponta pra
+/admin/broadcast/diagnostico. Gate pelo mesmo get-broadcast-page-data.
+routes/admin-diagnostico/page.tsx (server component): gate + primeira leitura via
+list-broadcast-diagnostics; renderiza um client component que faz o polling.
+
+Layout da página:
+- Bloco SERVIDOR no topo: cabeçalho verde/amarelo/vermelho (event-loop p99 sob threshold? RSS?
+  streams simultâneos sob teto? disco livre?), + números: CPU % do processo, RSS, uptime,
+  event-loop lag (p50/p99/max), GC ms/min, streams ativos, throughput MB/s, TTFB médio, aborts,
+  leituras lentas, disco livre GB. Um alerta grande e explícito quando o event-loop lag ou os
+  streams simultâneos estouram — é a resposta a "o engasgo é do servidor".
+- Uma linha/card por SAÍDA: cabeçalho de saúde (reportou < 90s? vídeo saudável? CPU/RAM/GPU da TV
+  sob threshold?) + números do navegador (FPS, dropped-frame ratio, readyState, estado do SSE,
+  "última sync há Xs") + números do agente quando houver (CPU/RAM/GPU/uptime/rede/ping). "PC não
+  reporta há Xmin" e "vídeo travou e não recuperou" em vermelho grande.
+- Incidentes: timeline global (todas as fontes) dos últimos ~20-50 eventos, hora + tipo + detalhe
+  legível ("Vídeo travou 14:03 no item 'Institucional.mp4' — recuperou em 6s"; "event-loop lag
+  p99 480ms 14:05"; "PC 'TV Recepção' sem reportar 14:20–14:31").
+- SettingsSection (aba Configurações, não aqui): mostrar/rotacionar broadcast.diagnosticsAgentKey
+  + bloco copiável do config.json por saída (serverUrl inferido do request, token, key).
+
+Restrições: fluxo handler->service->store + OperationResult; app/ não conhece nome de plugin (a
+sub-rota vai na route-table, não em app/); cor em token shadcn no admin; sem dev jargon.
 
 Definition of Done:
 - lint / typecheck / test passam; migration nova gerada E aplicada.
-- Parte A: abrir a view numa TV -> em <15s o card da Tela no admin mostra "reportando", FPS,
-  dropped frames, estado do SSE. Forçar um travamento (throttle de rede / DevTools) -> aparece um
-  incidente "vídeo travou" no dashboard em segundos, e "recuperou" / "pulou" quando o watchdog agir.
-- Parte B: rodar o .ps1 num PC com a config -> em <15s o card mostra CPU/RAM/GPU/uptime/rede desse
-  PC; parar o script -> em ~90s o card fica vermelho "PC sem reportar" + evento no log.
+- /admin/broadcast/diagnostico existe, gateada, com bloco SERVIDOR + uma linha por saída +
+  timeline de incidentes; polling ~5-8s.
+- Parte A: abrir a view numa TV -> em <15s a sub-rota mostra a saída "reportando", FPS, dropped
+  frames, estado do SSE. Forçar um travamento (throttle / DevTools) -> incidente "vídeo travou"
+  em segundos, e "recuperou" / "pulou" quando o watchdog agir.
+- Parte B: rodar o .ps1 num PC com a config -> em <15s a saída mostra CPU/RAM/GPU/uptime/rede;
+  parar o script -> em ~90s vermelho "PC sem reportar" + evento.
+- Parte C: o bloco SERVIDOR mostra event-loop lag, RSS, streams ativos, throughput e disco em
+  <15s do boot. Rodar 3-4 streams pesados simultâneos -> streams ativos sobe, e se o event-loop
+  lag estourar aparece o alerta "possível engasgo do servidor" + incidente.
 - Chave de agente errada -> 401; token de saída inválido -> 404.
-- Teste unitário: derivação de incidentes (snapshot anterior saudável -> novo com stall = evento
-  video_stalled; CPU 95% em duas amostras = cpu_spike; etc.).
+- Teste unitário: derivação de incidentes (anterior saudável -> novo com stall = video_stalled;
+  CPU 95% em duas amostras = cpu_spike; event-loop p99 acima do threshold = server_lag_spike).
 ```
