@@ -48,5 +48,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# academy — pacotes de curso gerados por scripts/build-course-bundle.ts (a fonte é o .md)
-/docs/cursos/dist/
+# academy — artefatos gerados por scripts/build-course-bundle.ts (a fonte é o .md).
+# O .zip é versionado (dá pra importar direto num clone/outra máquina); o manifest.json não.
+/docs/cursos/dist/*
+!/docs/cursos/dist/*.zip
