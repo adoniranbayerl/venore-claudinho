@@ -384,6 +384,13 @@ function WebpageSlide({ url, withAudio, onFailure }: { url: string; withAudio: b
 // progresso = vídeo morto) pula pro próximo item pra o canal nunca ficar congelado.
 const VIDEO_STALL_CHECK_MS = 4000;
 
+// Fundo borrado do letterbox (drawer aberto): amostra o frame atual do <video> da frente num
+// <canvas> pequeno a cada BLUR_SAMPLE_MS (~10fps, movimento real, um decoder só). Alvo estreito
+// (o blur de 24px + o scale já escondem qualquer perda de resolução) — mantém o custo desprezível
+// mesmo numa TV fraca.
+const BLUR_SAMPLE_MS = 100;
+const BLUR_CANVAS_WIDTH = 480;
+
 // Encapsula o <video> da frente + a captura do frame borrado de fundo (blurredFill) + o watchdog.
 // Vira um componente pra poder ter hooks próprios (o watchdog precisa de useEffect/useRef). O
 // <video> continua com key={itemId} no chamador, então troca de item = remonta este componente
@@ -411,27 +418,49 @@ function VideoSlide({
     onStuckRef.current = onStuck;
   });
 
-  // Frame de fundo borrado: um único drawImage no primeiro frame (NÃO um loop — o loop de
-  // canvas+drawImage é frágil em engine de TV antiga, era o motivo do 2º <video> antes; um
-  // snapshot único é barato e robusto, e num blur de 24px o congelamento não se percebe). Some
-  // pra cor de marca do VideoZoneLayer se o drawImage falhar. Remove o 2º decode do MESMO arquivo,
-  // a causa mais provável do travamento do vídeo da frente.
-  const captureBlurFrame = () => {
+  // Fundo borrado do letterbox: em vez de um 2º <video> tocando o MESMO arquivo (dois decodes de
+  // hardware — numa TV com poucos decoders travava o vídeo da frente), amostra o frame ATUAL do
+  // vídeo da frente num <canvas> pequeno (BLUR_CANVAS_WIDTH), ~BLUR_SAMPLE_MS. É movimento real
+  // (é o próprio vídeo), com um decoder só. NÃO é um loop de rAF disputando com o playback (era
+  // essa a preocupação do comentário antigo) — é um setInterval leve desenhando num alvo 480px.
+  // Combinado com a deriva CSS lenta (broadcast-blur-drift) pra nunca parecer congelado num
+  // soluço de amostragem ou enquanto o vídeo está pausado (ex: autoplay com som bloqueado).
+  // drawImage em try/catch: se falhar, mantém o último frame bom; se nunca desenhar, o letterbox
+  // fica na cor de marca do VideoZoneLayer (comportamento pré-blur).
+  const drawBlurFrame = () => {
     if (!showBlurFill) return;
     const v = videoRef.current;
     const c = canvasRef.current;
     if (!v || !c || v.readyState < 2) return;
     try {
-      c.width = v.videoWidth || 640;
-      c.height = v.videoHeight || 360;
+      const ratio = v.videoWidth > 0 ? v.videoHeight / v.videoWidth : 9 / 16;
+      const w = BLUR_CANVAS_WIDTH;
+      const h = Math.max(1, Math.round(w * ratio));
+      if (c.width !== w || c.height !== h) {
+        c.width = w;
+        c.height = h;
+      }
       const ctx = c.getContext("2d");
       if (!ctx) return;
-      ctx.drawImage(v, 0, 0, c.width, c.height);
-      c.hidden = false;
+      ctx.drawImage(v, 0, 0, w, h);
+      if (c.hidden) c.hidden = false;
     } catch {
-      // deixa o letterbox na cor de marca (comportamento pré-blur)
+      // mantém o último frame desenhado (ou o letterbox na cor de marca)
     }
   };
+
+  // Ref pro timer não reassinar a cada render (mesmo padrão de onStuckRef acima) — drawBlurFrame
+  // só lê refs, então a identidade nova a cada render não muda o comportamento.
+  const drawBlurFrameRef = useRef(drawBlurFrame);
+  useEffect(() => {
+    drawBlurFrameRef.current = drawBlurFrame;
+  });
+
+  useEffect(() => {
+    if (!showBlurFill) return;
+    const id = setInterval(() => drawBlurFrameRef.current(), BLUR_SAMPLE_MS);
+    return () => clearInterval(id);
+  }, [showBlurFill]);
 
   useEffect(() => {
     let lastTime = -1;
@@ -470,12 +499,15 @@ function VideoSlide({
   return (
     <>
       {showBlurFill && (
+        // A deriva CSS (broadcast-blur-drift, no <style> de output-canvas.tsx) mantém movimento
+        // mesmo entre amostras / enquanto o vídeo está pausado — a animação já inclui o scale
+        // base (>1) que o blur precisa pra não mostrar borda transparente.
         <canvas
           ref={canvasRef}
           hidden
           aria-hidden
           className="pointer-events-none absolute inset-0 h-full w-full"
-          style={{ filter: "blur(24px) brightness(0.6)", transform: "scale(1.1)" }}
+          style={{ filter: "blur(24px) brightness(0.6)", animation: "broadcast-blur-drift 24s ease-in-out infinite alternate" }}
         />
       )}
       <video
@@ -489,7 +521,7 @@ function VideoSlide({
         muted={!withAudio}
         playsInline
         onLoadedData={(event) => {
-          captureBlurFrame();
+          drawBlurFrame();
           if (withAudio) {
             const el = event.currentTarget;
             el.play().catch(() => {
