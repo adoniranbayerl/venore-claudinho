@@ -375,6 +375,136 @@ function WebpageSlide({ url, withAudio, onFailure }: { url: string; withAudio: b
   );
 }
 
+// Intervalo do watchdog de travamento do <video> da playlist. Um <video> pode congelar sem nunca
+// disparar onEnded (contenção de decoder de hardware na TV — o canal roda DOIS decodes do mesmo
+// arquivo quando a coluna de agenda está aberta, ver blurredFill; blip na rede do stream Range;
+// erro de GPU). Quando isso acontecia, a playlist ficava presa pra sempre — só voltava alternando
+// a saída offline/online (achado real relatado numa TV). O watchdog abaixo mede se o currentTime
+// avança; parado por ~1 tick tenta play(), por ~2 tenta load()+play(), por ~3 (12s sem nenhum
+// progresso = vídeo morto) pula pro próximo item pra o canal nunca ficar congelado.
+const VIDEO_STALL_CHECK_MS = 4000;
+
+// Encapsula o <video> da frente + a captura do frame borrado de fundo (blurredFill) + o watchdog.
+// Vira um componente pra poder ter hooks próprios (o watchdog precisa de useEffect/useRef). O
+// <video> continua com key={itemId} no chamador, então troca de item = remonta este componente
+// inteiro (estado do watchdog zera junto, sem lógica de reset manual).
+function VideoSlide({
+  itemId,
+  withAudio,
+  objectFitClassName,
+  showBlurFill,
+  videoRef,
+  onEnded,
+  onStuck,
+}: {
+  itemId: string;
+  withAudio: boolean;
+  objectFitClassName: string;
+  showBlurFill: boolean;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  onEnded: () => void;
+  onStuck: () => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const onStuckRef = useRef(onStuck);
+  useEffect(() => {
+    onStuckRef.current = onStuck;
+  });
+
+  // Frame de fundo borrado: um único drawImage no primeiro frame (NÃO um loop — o loop de
+  // canvas+drawImage é frágil em engine de TV antiga, era o motivo do 2º <video> antes; um
+  // snapshot único é barato e robusto, e num blur de 24px o congelamento não se percebe). Some
+  // pra cor de marca do VideoZoneLayer se o drawImage falhar. Remove o 2º decode do MESMO arquivo,
+  // a causa mais provável do travamento do vídeo da frente.
+  const captureBlurFrame = () => {
+    if (!showBlurFill) return;
+    const v = videoRef.current;
+    const c = canvasRef.current;
+    if (!v || !c || v.readyState < 2) return;
+    try {
+      c.width = v.videoWidth || 640;
+      c.height = v.videoHeight || 360;
+      const ctx = c.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(v, 0, 0, c.width, c.height);
+      c.hidden = false;
+    } catch {
+      // deixa o letterbox na cor de marca (comportamento pré-blur)
+    }
+  };
+
+  useEffect(() => {
+    let lastTime = -1;
+    let strikes = 0;
+    const id = setInterval(() => {
+      const v = videoRef.current;
+      if (!v || v.ended) {
+        strikes = 0;
+        lastTime = v?.currentTime ?? -1;
+        return;
+      }
+      const progressed = v.currentTime > lastTime + 0.05;
+      lastTime = v.currentTime;
+      if (progressed) {
+        strikes = 0;
+        return;
+      }
+      strikes += 1;
+      if (strikes === 1) {
+        void v.play().catch(() => {});
+      } else if (strikes === 2) {
+        try {
+          v.load();
+          void v.play().catch(() => {});
+        } catch {
+          // ignora — o próximo strike pula o item
+        }
+      } else {
+        strikes = 0;
+        onStuckRef.current();
+      }
+    }, VIDEO_STALL_CHECK_MS);
+    return () => clearInterval(id);
+  }, [videoRef, itemId]);
+
+  return (
+    <>
+      {showBlurFill && (
+        <canvas
+          ref={canvasRef}
+          hidden
+          aria-hidden
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          style={{ filter: "blur(24px) brightness(0.6)", transform: "scale(1.1)" }}
+        />
+      )}
+      <video
+        ref={videoRef}
+        className={`relative h-full w-full ${objectFitClassName}`}
+        src={`/api/broadcast/stream/${itemId}`}
+        autoPlay
+        // Item marcado "Tocar áudio na TV" (with_audio) sai sem mute; senão, muted (exigência de
+        // autoplay do navegador). Se o navegador recusar o autoplay com som, volta pra reprodução
+        // muda — nunca deixa a playlist travada num vídeo que não começou.
+        muted={!withAudio}
+        playsInline
+        onLoadedData={(event) => {
+          captureBlurFrame();
+          if (withAudio) {
+            const el = event.currentTarget;
+            el.play().catch(() => {
+              el.muted = true;
+              void el.play();
+            });
+          }
+        }}
+        onError={() => onStuckRef.current()}
+        onEnded={onEnded}
+      />
+    </>
+  );
+}
+
 function PlaylistLayer({
   items,
   newsArticles,
@@ -447,30 +577,18 @@ function PlaylistLayer({
   const objectFitClassName = fillMode === "cover" ? "object-cover" : "object-contain";
   const content =
     current.kind === "video" ? (
-      <video
+      <VideoSlide
         key={current.key}
-        ref={videoRef}
-        className={`relative h-full w-full ${objectFitClassName}`}
-        src={`/api/broadcast/stream/${current.itemId}`}
-        autoPlay
-        // Item marcado "Tocar áudio na TV" (with_audio) sai sem mute; senão, muted (exigência de
-        // autoplay do navegador). onLoadedData tenta o play com som e, se o navegador recusar
-        // (política de autoplay), volta pra reprodução muda — nunca deixa a playlist travada num
-        // vídeo que não começou.
-        muted={!current.withAudio}
-        playsInline
-        onLoadedData={
-          current.withAudio
-            ? (event) => {
-                const el = event.currentTarget;
-                el.play().catch(() => {
-                  el.muted = true;
-                  void el.play();
-                });
-              }
-            : undefined
-        }
+        itemId={current.itemId}
+        withAudio={current.withAudio}
+        objectFitClassName={objectFitClassName}
+        showBlurFill={fillMode === "contain"}
+        videoRef={videoRef}
         onEnded={advance}
+        onStuck={() => {
+          advance();
+          setManualTick((tick) => tick + 1);
+        }}
       />
     ) : current.kind === "image" ? (
       // fonte é a rota de stream do plugin (arquivo local ou Blob), não um asset estático do bundle.
@@ -499,35 +617,14 @@ function PlaylistLayer({
 
   // Fim da faixa preta com o drawer aberto. Quando fillMode é "contain" a caixa do vídeo deixa de
   // ser 16:9 (a coluna de agenda empurrou), então o object-contain do slide da frente letterboxa
-  // um vídeo/imagem 16:9 e sobra faixa. Em vez de deixar essa sobra preta (ou da cor de marca do
-  // VideoZoneLayer), um segundo <video>/<img> ATRÁS preenche a caixa inteira com object-cover +
-  // blur, virando uma extensão borrada do próprio conteúdo — o slide da frente segue intacto e
-  // 16:9. Só "video"/"image" têm letterbox; "webpage"/"news"/"agenda-event" já são full-bleed.
-  // Com o drawer fechado (fillMode "cover") nada disso monta — comportamento atual inalterado.
-  //
-  // Dois elementos <video> (um decode a mais do MESMO stream local) em vez de amostrar o vídeo da
-  // frente num <canvas>: canvas + drawImage em loop é frágil em engine de TV antiga (mesmo cuidado
-  // que o resto deste arquivo já toma com EventSource/@keyframes). Custo aceitável no cenário
-  // LAN/self-hosted do plugin; blur/brightness/scale são filtro/transform (sem cor), style inline
-  // pela mesma convenção do arquivo. scale(1.1) esconde a borda transparente que o blur cria.
-  const blurredFillStyle: React.CSSProperties = {
-    filter: "blur(24px) brightness(0.6)",
-    transform: "scale(1.1)",
-  };
+  // um vídeo/imagem 16:9 e sobra faixa. Em vez de deixar essa sobra preta, um fundo borrado
+  // preenche a caixa inteira. Vídeo: o fundo é um SNAPSHOT do primeiro frame num <canvas> (dentro
+  // do VideoSlide) — antes era um 2º <video> tocando o mesmo arquivo, mas dois decodes do mesmo
+  // stream numa TV com poucos decoders de hardware travava o vídeo da frente (o de fundo seguia
+  // tocando). Imagem: continua um <img> (não compete por decoder de vídeo). "webpage"/"news"/
+  // "agenda-event" já são full-bleed. Drawer fechado (fillMode "cover"): nada disso monta.
   const blurredFill =
-    fillMode === "contain" && current.kind === "video" ? (
-      <video
-        key={`${current.key}-fill`}
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-        style={blurredFillStyle}
-        src={`/api/broadcast/stream/${current.itemId}`}
-        autoPlay
-        muted
-        playsInline
-        loop
-        aria-hidden
-      />
-    ) : fillMode === "contain" && current.kind === "image" ? (
+    fillMode === "contain" && current.kind === "image" ? (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         key={`${current.key}-fill`}
@@ -535,7 +632,7 @@ function PlaylistLayer({
         alt=""
         aria-hidden
         className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-        style={blurredFillStyle}
+        style={{ filter: "blur(24px) brightness(0.6)", transform: "scale(1.1)" }}
       />
     ) : null;
 
