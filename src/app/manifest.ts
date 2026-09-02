@@ -29,10 +29,16 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     orientation: "portrait",
     background_color: CHROME_DARK,
     theme_color: CHROME_DARK,
+    categories: ["education", "music"],
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
       { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
+    // Atalhos no long-press do ícone (Android). iOS ignora.
+    shortcuts: [
+      { name: "Meus cursos", url: "/academy", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+      { name: "Mensagens", url: "/academy/messages", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
     ],
   };
 }
