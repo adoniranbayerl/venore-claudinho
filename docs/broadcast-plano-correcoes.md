@@ -165,7 +165,8 @@ construído sobre o palco escalado das Fases 1–2.
 | 11 | Tela de standby / offline | 1, 2, 4 |
 | 9 | Hardening do PIN + reset via admin | — |
 | 12 | Evento de agenda com datas espaçadas | — |
-| 7 | Fechar verificação de migrations | 9, 11, 12 (roda por último) |
+| 13 | Diagnóstico do PC da TV (telemetria + agente PowerShell) | — |
+| 7 | Fechar verificação de migrations | 9, 11, 12, 13 (roda por último) |
 
 ---
 
@@ -495,4 +496,147 @@ Definition of Done:
   datas com seus horários; continua aparecendo entre 10 e 15; some depois do dia 15.
 - Marcar "toda semana" esconde a seção de datas extras.
 - QA visual do card (720p/1080p/4K) com 2 e 3 datas — a lista cabe e fica legível.
+```
+
+---
+
+### Fase 13 — Diagnóstico do PC da TV (telemetria + agente PowerShell)
+
+Motivação real: um vídeo travou na tela e alguém teve que ir presencialmente ao PC verificar. O
+dashboard de Telas (`/admin/broadcast`, aba Telas) precisa mostrar, por saída, o estado do PC onde
+a view está aberta e a saúde do vídeo — em tempo quase real, à distância.
+
+Decisões já tomadas com o usuário: **GPU Intel integrada** (uso % via contadores do Windows; sem
+temp/VRAM garantidos); **agente PowerShell puro** (um `.ps1` + `config.json`, POST de JSON, Tarefa
+Agendada no logon — sem instalar Node em cada PC); **histórico = estado agora + log de incidentes**
+(sem série temporal pra sparklines no MVP).
+
+- **Parte A — Telemetria do navegador (a própria página da TV).** Entrega sozinha o valor central:
+  saber que a TV travou sem sair da mesa. Não precisa do agente.
+- **Parte B — Agente local PowerShell.** Adiciona CPU/RAM/GPU/uptime/rede do PC (o *porquê*).
+
+```
+Contexto: plugin broadcast, já em produção, servidor SEMPRE local (processo único), PCs de TV são
+Windows com GPU Intel integrada. Um vídeo travou numa TV e alguém teve que ir ao PC. Quero, no
+dashboard de Telas do broadcast (/admin/broadcast, aba Telas), ver por saída: saúde do vídeo (se
+travou / recuperou / pulou, dropped frames, estado do SSE) e, quando houver agente, CPU / RAM /
+GPU / uptime / rede do PC — em quase tempo real, + um log de incidentes. Sem série temporal pra
+gráficos no MVP: só "estado agora" + linha do tempo de eventos.
+
+== Schema (src/plugins/broadcast/database/schema/index.ts) ==
+Migration incremental (sobre o baseline). Aplicar no banco (db:generate:broadcast + db:migrate:broadcast).
+
+- broadcast_output_diagnostics — último snapshot por (outputId, source). PK composta.
+  outputId text not null references broadcastOutputs.id onDelete cascade
+  source text not null check in ('browser','agent')
+  reportedAt timestamptz not null   (setado no SERVIDOR na ingestão, nunca confiar no cliente)
+  payload jsonb not null default {}  (blob livre — cada fonte modela o seu; o dashboard lê chaves
+                                      conhecidas com fallback, sem migration a cada campo novo do .ps1)
+  primaryKey(outputId, source)
+
+- broadcast_output_diag_events — log append-only de incidentes.
+  id text pk ($defaultFn randomUUID)
+  outputId text not null references broadcastOutputs.id onDelete cascade
+  source text not null check in ('browser','agent','server')
+  kind text not null   (video_stalled | video_recovered | video_skipped | video_error | sse_lost |
+                         sse_restored | offline_on | offline_off | pc_unreachable | pc_back |
+                         cpu_spike | ram_spike | gpu_spike | agent_started)
+  detail jsonb         (nullable — itemId, valores medidos, duração, etc.)
+  at timestamptz not null default now()
+  index (outputId, at desc)
+  Prune: no handler de ingestão, apagar eventos desta saída com at < now() - interval '14 days'.
+
+contracts/types.ts: BroadcastOutputDiagnostics { source; reportedAt: string; payload: Record<string,unknown> }
+e BroadcastOutputDiagEvent { id; source; kind; detail: Record<string,unknown> | null; at: string }.
+
+== Endpoint de ingestão (route-table.ts + routes/api/) ==
+POST /api/broadcast/diagnostics/:token?source=browser|agent  (sem sessão — mesmo modelo das rotas
+/state e /events). export const dynamic = "force-dynamic".
+- source=browser: auth = o próprio token da saída (+ checagem de PIN idêntica a routes/api/output-
+  state, pra paridade). Body = telemetria do navegador (ver Parte A).
+- source=agent: auth = chave compartilhada. Nova setting broadcast.diagnosticsAgentKey (gerada,
+  mostrada / rotacionável no admin — shared/settings.ts + SettingsSection). O .ps1 manda no header
+  x-broadcast-agent-key + o token na URL. Chave errada -> 401.
+- Handler (feature features/diagnostics/ingest-output-diagnostics/ — handler->service->store):
+  resolve outputId pelo token; valida a forma de leve; lê o snapshot anterior daquela source;
+  DERIVA incidentes comparando anterior vs novo (video ficou stalled; skipsForced incrementou;
+  sseState open->closed; offline mudou; CPU/RAM > 90% em duas amostras seguidas; GPU > 95%);
+  upsert do snapshot (reportedAt = now no servidor); insere os eventos derivados; prune 14d;
+  publishOutputEvent(token, { type: "diagnostics-changed" }) (contracts BroadcastOutputEvent +=
+  essa variante — a TV ignora, é só simetria/futuro). OperationResult.
+- Thresholds como constantes tunáveis em shared/diagnostics-thresholds.ts.
+
+== Leitura pro dashboard ==
+features/diagnostics/list-output-diagnostics/ (handler com authorizeActor "broadcast.manage" OU
+authorizeOutputActor por saída — mesmo padrão de list-connected-output-ips): devolve, por saída
+visível ao ator, { browser?: snapshot, agent?: snapshot, events: últimos ~20 }. Uma action
+"use server" getOutputDiagnosticsAction() chamada por um useEffect com polling ~8s no client
+(mesmo padrão de getConnectedOutputIpsAction em components/admin/actions.ts).
+"PC sem reportar": o client compara reportedAt com agora; > ~90s => estado vermelho no card. O
+loader insere UMA vez um evento pc_unreachable quando vê a saída ficar stale (e pc_back quando
+volta) — sem sweep dedicado no MVP.
+
+== Parte A — Telemetria do navegador ==
+Novo hook client useOutputDiagnosticsReporter(token) montado em components/output/output-canvas.tsx.
+A cada ~10s faz POST /api/broadcast/diagnostics/:token?source=browser com:
+- page: performance.memory (usedJSHeapSize / jsHeapSizeLimit — só Chrome, null se ausente),
+  navigator.deviceMemory, navigator.hardwareConcurrency, uptime da página (now - mountTs),
+  document.visibilityState.
+- fps: média amostrada por rAF na janela + pior frame (fps mínimo).
+- longTasks: contagem + soma de ms de um PerformanceObserver('longtask') desde o último report (jank / picos).
+- network: navigator.connection (effectiveType, downlink, rtt) se existir.
+- connection: idade da última sincronização de estado OK (expor lastSyncAtRef do OutputCanvas),
+  estado do EventSource (open / closed), state.offline.
+- video: do VideoSlide (layer-renderer.tsx) — itemId atual, readyState, networkState, paused,
+  currentTime, getVideoPlaybackQuality() -> droppedVideoFrames / totalVideoFrames, e contadores
+  desde o último report: stalls detectados, play()-nudges, load()-resets, skipsForced, errors.
+- Em CADA evento discreto do watchdog (stall / recover / skip / error) faz um POST IMEDIATO (não
+  espera o tick de 10s) — é o que faz o incidente aparecer rápido no dashboard.
+Fio dos eventos do VideoSlide até o reporter: um mini event-emitter client (módulo em
+components/output/ ou shared/, no espírito do runtime/output-bus mas client-only) — VideoSlide
+publica, o hook assina. Evita prop-drilling por 5 componentes.
+
+== Parte B — Agente local (scripts/broadcast-diag-agent.ps1) ==
+Auto-contido. Lê broadcast-diag-agent.config.json ao lado:
+  { "serverUrl": "http://IP-DO-SERVIDOR:PORTA", "outputToken": "tv-da-recepcao",
+    "agentKey": "...", "intervalSeconds": 10 }
+Loop (ou -Once pra Tarefa Agendada por execução):
+- CPU: Get-Counter '\Processor(_Total)\% Processor Time' (ou Win32_Processor.LoadPercentage, mais rápido).
+- RAM: Get-CimInstance Win32_OperatingSystem -> FreePhysicalMemory / TotalVisibleMemorySize -> usado % e MB.
+- GPU (Intel): Get-Counter '\GPU Engine(*)\Utilization Percentage' -> soma, cap 100; VRAM-ish via
+  '\GPU Adapter Memory(*)\Dedicated Usage' + 'Shared Usage'. Tudo em try/catch -> null se indisponível.
+- Uptime: (Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime.
+- Rede: Get-Counter '\Network Interface(*)\Bytes Total/sec' (soma, exclui loopback) + ping RTT ao host do serverUrl.
+- Browser: Get-Process chrome,msedge,firefox -ErrorAction SilentlyContinue -> soma de CPU / WorkingSet
+  (quanto o browser da TV consome). Nice-to-have.
+- POST JSON pro <serverUrl>/api/broadcast/diagnostics/<outputToken>?source=agent com header
+  x-broadcast-agent-key: <agentKey>. Timeout curto, 1 retry, log num .log local.
+- Flag -Install: Register-ScheduledTask rodando no logon (sobrevive reboot). Flag -Uninstall.
+Doc curta (README no topo do .ps1 + item em docs/): copiar pro PC da TV, preencher o config, rodar -Install.
+
+== Dashboard (components/admin/outputs-section.tsx) ==
+Painel colapsável "Diagnóstico" no card de cada Tela (ou um chip de status que expande):
+- Cabeçalho verde / amarelo / vermelho: reportou < 90s? vídeo saudável? CPU/RAM/GPU sob threshold?
+  Estado vermelho GRANDE e óbvio pra "PC não reporta há Xmin" e "vídeo travou e não recuperou".
+- Agora: CPU %, RAM %/GB, GPU %, uptime (d h m), rede (Mbps in/out, ping ms), FPS, dropped-frame
+  ratio, estado do SSE, "última sincronização há Xs". Campos do agente aparecem só quando há
+  snapshot 'agent'; sem ele, só a parte do navegador.
+- Incidentes: últimos ~20 eventos com hora + tipo + detalhe legível ("Vídeo travou 14:03 no item
+  'Institucional.mp4' — recuperou em 6s" / "pulou pro próximo" / "PC sem reportar 14:20–14:31").
+- SettingsSection: mostrar / rotacionar broadcast.diagnosticsAgentKey + um bloco copiável com o
+  config.json pronto daquela saída (serverUrl inferido do request, token, key).
+
+Restrições: fluxo handler->service->store + OperationResult; plugin não toca core; cor em token
+shadcn no admin, style inline na view; sem dev jargon no admin.
+
+Definition of Done:
+- lint / typecheck / test passam; migration nova gerada E aplicada.
+- Parte A: abrir a view numa TV -> em <15s o card da Tela no admin mostra "reportando", FPS,
+  dropped frames, estado do SSE. Forçar um travamento (throttle de rede / DevTools) -> aparece um
+  incidente "vídeo travou" no dashboard em segundos, e "recuperou" / "pulou" quando o watchdog agir.
+- Parte B: rodar o .ps1 num PC com a config -> em <15s o card mostra CPU/RAM/GPU/uptime/rede desse
+  PC; parar o script -> em ~90s o card fica vermelho "PC sem reportar" + evento no log.
+- Chave de agente errada -> 401; token de saída inválido -> 404.
+- Teste unitário: derivação de incidentes (snapshot anterior saudável -> novo com stall = evento
+  video_stalled; CPU 95% em duas amostras = cpu_spike; etc.).
 ```

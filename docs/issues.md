@@ -495,7 +495,7 @@ O que eu quero
 ### Broadcast — plano de correções, responsividade e fallback (2026-08-28)
 
 Sessão de revisão do plugin `broadcast` (já em produção, servidor sempre local/processo único).
-Plano completo em **`docs/broadcast-plano-correcoes.md`**: 12 fases, cada uma com prompt de sessão
+Plano completo em **`docs/broadcast-plano-correcoes.md`**: 13 fases, cada uma com prompt de sessão
 pronto. Resumo:
 
 - **Fases 1–2** — responsividade da view (720p/1080p/4K quebram; feita com root font-size fluida
@@ -521,6 +521,13 @@ pronto. Resumo:
 - **Fase 12** — evento de agenda com datas espaçadas (não consecutivas): tabela
   `broadcast_agenda_event_dates`, "um card com todas as datas", horário próprio por data extra,
   escondida quando "toda semana". Sai do rodízio só quando a última data passa.
+- **Fase 13** — diagnóstico do PC da TV no dashboard de Telas: Parte A = a página reporta saúde do
+  vídeo (travou/recuperou/pulou, dropped frames, SSE) + perf via o token da saída; Parte B =
+  agente PowerShell puro (`scripts/broadcast-diag-agent.ps1` + `config.json`, Tarefa Agendada,
+  chave `broadcast.diagnosticsAgentKey`) reporta CPU/RAM/GPU-Intel/uptime/rede. Tabelas
+  `broadcast_output_diagnostics` (snapshot por source) + `broadcast_output_diag_events` (incidentes,
+  prune 14d). "Estado agora + log", sem série temporal. Motivado por: vídeo travou numa TV e
+  alguém teve que ir presencialmente.
 
 Issues fechados na triagem: token previsível (intencional), stream sem PIN (conteúdo não precisa de
 proteção), bus em memória (ok com servidor local).
