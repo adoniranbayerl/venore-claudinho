@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
+import { ServiceWorkerRegistrar } from "@/components/pwa/service-worker-registrar";
+import { IosInstallHint } from "@/components/pwa/ios-install-hint";
 import { getBrandConfig } from "@/platform/brand/get-brand-config";
 import { resolveActiveTheme } from "@/platform/theme-rendering/resolve-active-theme";
 import { resolveActiveColorPalette, buildColorPaletteOverrideCss } from "@/platform/theme-rendering/resolve-active-color-palette";
@@ -18,20 +20,24 @@ const geistMono = Geist_Mono({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { faviconUrl } = await getBrandConfig();
+  const { siteName, faviconUrl } = await getBrandConfig();
 
   return {
     title: "Venore Docks",
     description: "Painel administrativo e área do aluno da Venore Docks.",
+    manifest: "/manifest.webmanifest",
+    appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: siteName },
     icons: {
       icon: faviconUrl,
       shortcut: faviconUrl,
-      apple: faviconUrl,
+      apple: "/icons/apple-touch-icon.png",
     },
   };
 }
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1 };
+// themeColor no viewport (não no metadata) — mudou de lugar no App Router. Escuro, combinando com
+// o wordmark branco da marca; mesmo valor de app/manifest.ts (CHROME_DARK).
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#171717" };
 
 export default async function RootLayout({
   children,
@@ -61,6 +67,8 @@ export default async function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
           <Toaster />
+          <ServiceWorkerRegistrar />
+          <IosInstallHint />
         </ThemeProvider>
       </body>
     </html>
