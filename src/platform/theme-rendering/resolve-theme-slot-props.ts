@@ -5,6 +5,7 @@ import { getMediaAsset } from "@/contexts/media";
 import { getBrandConfig } from "@/platform/brand/get-brand-config";
 import { getHeaderBehavior } from "@/platform/header-behavior/get-header-behavior";
 import { collectNotificationAlert } from "@/platform/notifications/notification-registry";
+import { collectUserNavItems } from "@/platform/user-nav/registry";
 import { resolveBrandAesthetics } from "./resolve-brand-aesthetics";
 import { toSitemapItems } from "./to-sitemap-items";
 import { venoreSlimeMockProps } from "@/themes/venore-slime/mock-data";
@@ -86,12 +87,13 @@ export async function resolveThemeSlotProps(sidebarNav: {
   const aesthetics = await resolveBrandAesthetics();
   // messageAlert só é consultado pra quem está logado — visitante anônimo nunca tem thread nenhuma
   // (getMessageAlert já devolveria null de qualquer forma, mas evita a query à toa).
-  const [mainMenu, sitemapMenu, brandConfig, headerBehavior, messageAlert] = await Promise.all([
+  const [mainMenu, sitemapMenu, brandConfig, headerBehavior, messageAlert, userNavItems] = await Promise.all([
     getMenuByLocation({ location: "main" }),
     getMenuByLocation({ location: "sitemap" }),
     getBrandConfig(aesthetics.mode),
     getHeaderBehavior(),
     user ? collectNotificationAlert() : Promise.resolve(null),
+    user ? collectUserNavItems() : Promise.resolve([]),
   ]);
   const mainNavItems: MainNavItem[] = mainMenu.success ? toMainNavItems(mainMenu.data) : venoreSlimeMockProps.sidebarLeft.navItems;
   const sitemapItems = sitemapMenu.success ? toSitemapItems(sitemapMenu.data) : [];
@@ -115,6 +117,7 @@ export async function resolveThemeSlotProps(sidebarNav: {
       canAccessAdmin: sidebarNav.canAccessAdmin,
       onSignOut: sidebarNav.onSignOut,
       messageAlert,
+      userNavItems,
     },
     footer: {
       ...venoreSlimeMockProps.footer,

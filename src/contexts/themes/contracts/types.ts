@@ -126,6 +126,11 @@ export type HeaderSlotProps = {
   // alerta (o tema não decide o texto, só renderiza — mesmo alerta pode ser sobre mensagem ou nota).
   // null/undefined = nada pra mostrar.
   messageAlert?: { count: number; href: string; label: string } | null;
+  // Itens que plugins ativos contribuem pro MENU DO USUÁRIO (não pro admin-nav) — ex.: "Mensagens"
+  // do Academy. Resolvido em resolveThemeSlotProps a partir de platform/user-nav/registry.ts.
+  // Extensão aditiva do contrato, mesmo critério de `messageAlert` acima: tema que não renderiza
+  // user-nav simplesmente ignora. Lista vazia / undefined = nada a acrescentar.
+  userNavItems?: NavItem[];
 };
 
 // Mesma forma de HeaderBrand (permite renderizar a marca no footer com o PlatformBrand real, não

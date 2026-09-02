@@ -39,6 +39,10 @@ yarn-error.log*
 # media (driver local de contexts/media, dev)
 /public/uploads/
 
+# MEDIA_STORAGE_DRIVER=filesystem — mídia gravada no disco do servidor self-hosted, específica
+# de cada instância. Default de MEDIA_FILESYSTEM_ROOT.
+/media-storage/
+
 # broadcast plugin — vídeos são específicos de cada deploy/servidor, nunca devem ir pro Git
 # (arquivos grandes). .gitkeep preserva a pasta vazia num clone novo.
 /public/broadcast/videos/*

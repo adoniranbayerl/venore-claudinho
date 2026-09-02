@@ -32,6 +32,7 @@ export function HeaderSlot({
   canAccessAdmin,
   onSignOut,
   messageAlert,
+  userNavItems,
 }: HeaderSlotProps) {
   return (
     <>
@@ -95,7 +96,7 @@ export function HeaderSlot({
                   <span className="hidden sm:inline">{messageAlert.label}</span>
                 </Link>
               )}
-              <UserMenu user={user} canAccessAdmin={canAccessAdmin} onSignOut={onSignOut} />
+              <UserMenu user={user} canAccessAdmin={canAccessAdmin} onSignOut={onSignOut} userNavItems={userNavItems} />
             </div>
           ) : (
             <Link

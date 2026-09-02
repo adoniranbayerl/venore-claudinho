@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import type { HeaderUserInfo } from "@/contexts/themes";
+import type { HeaderUserInfo, NavItem } from "@/contexts/themes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ColorModeToggle } from "@/components/color-mode-toggle";
 
@@ -17,6 +17,10 @@ type UserMenuProps = {
   user: HeaderUserInfo;
   canAccessAdmin: boolean;
   onSignOut: () => Promise<void>;
+  // Links que plugins ativos contribuem pro menu do usuário (ex.: "Mensagens" do Academy) —
+  // resolvido na composição (resolveThemeSlotProps), o tema só renderiza. `icon` é ignorado aqui:
+  // os itens fixos do menu ("Minha conta", "Administração") também são só texto.
+  userNavItems?: NavItem[];
 };
 
 // Dropdown com <details>/<summary> (mesmo padrão já usado em src/app/(auth)/login/page.tsx) — só
@@ -28,7 +32,7 @@ type UserMenuProps = {
 // o estado de scroll do header vem de `group-data-[scrolled=true]/header:`, o group nomeado
 // `header` declarado em HeaderSlot.tsx — os dois "group" coexistem porque têm nomes/escopos
 // diferentes.
-export function UserMenu({ user, canAccessAdmin, onSignOut }: UserMenuProps) {
+export function UserMenu({ user, canAccessAdmin, onSignOut, userNavItems = [] }: UserMenuProps) {
   const firstName = user.displayName.split(/\s+/)[0];
   const detailsRef = useRef<HTMLDetailsElement>(null);
 
@@ -78,6 +82,16 @@ export function UserMenu({ user, canAccessAdmin, onSignOut }: UserMenuProps) {
           >
             Minha conta
           </Link>
+
+          {userNavItems.map((item) => (
+            <Link
+              key={item.key}
+              href={item.href}
+              className="rounded-xl px-2 py-1.5 text-sm text-muted-foreground ui-motion-base outline-none hover:bg-accent/14 hover:text-foreground active:bg-accent/14 active:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {item.label}
+            </Link>
+          ))}
         </div>
 
         <form action={onSignOut} className="border-t border-border pt-2">

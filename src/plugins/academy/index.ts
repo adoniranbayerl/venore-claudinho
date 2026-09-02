@@ -174,6 +174,7 @@ export {
   listAllMessageThreadsHandler as listAllMessageThreads,
 } from "./features/messages/list-all-message-threads/handler";
 export { getMessageAlertHandler as getMessageAlert } from "./features/messages/get-message-alert/handler";
+export { getMessageNavLinkHandler as getMessageNavLink } from "./features/messages/get-message-nav-link/handler";
 export { markThreadReadHandler as markThreadRead } from "./features/messages/mark-thread-read/handler";
 export {
   markThreadReadForStudentHandler as markThreadReadForStudent,
@@ -490,6 +491,7 @@ export type {
 } from "./features/messages/list-message-threads-for-course/types";
 export type { ListAllMessageThreadsResult } from "./features/messages/list-all-message-threads/types";
 export type { GetMessageAlertInput, GetMessageAlertResult, MessageAlert } from "./features/messages/get-message-alert/types";
+export type { GetMessageNavLinkInput, GetMessageNavLinkResult, MessageNavLink } from "./features/messages/get-message-nav-link/types";
 export type { MarkThreadReadInput, MarkThreadReadResult } from "./features/messages/mark-thread-read/types";
 export type {
   MarkThreadReadForStudentInput,

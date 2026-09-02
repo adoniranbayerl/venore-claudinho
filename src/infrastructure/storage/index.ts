@@ -1,18 +1,24 @@
+import { FilesystemStorageAdapter } from "./filesystem-storage-adapter";
 import { InMemoryStorageAdapter } from "./in-memory-storage-adapter";
 import type { StoragePort } from "./storage-port";
 import { VercelBlobAdapter } from "./vercel-blob-adapter";
 
-// Único storage do projeto (docs/implementation-roadmap.md, Fase 4/M1-M3) — o adapter legado de
-// disco local (`StorageAdapter`/`LocalStorageAdapter`, usado por `media.files`) foi descontinuado:
-// só funcionava em dev, produção sempre precisou de um storage real. "vercel-blob" usa o Blob
-// Store de verdade; qualquer outro valor (default "local") cai no adapter em memória — sem
-// persistência entre processos, mas suficiente pra dev/teste sem token configurado.
+// Storage de contexts/media. Drivers:
+// - "vercel-blob": Blob Store de verdade (produção Vercel). Exige BLOB_READ_WRITE_TOKEN.
+// - "filesystem": disco do servidor, servido pela rota /api/media/file/[...key]. Pra instância
+//   self-hosted (ex: servidor da rede local onde o Broadcast roda) que não deve mandar mídia pra
+//   internet. Só suporta upload server-buffered — ver docs/media/filesystem-storage.md.
+// - "local" (default): adapter em memória, sem persistência entre processos — dev/teste sem token.
+// O adapter legado de disco (`LocalStorageAdapter`) foi descontinuado; "filesystem" é a
+// reintrodução, agora com rota de servir sandboxed e sidecar de metadata.
 function createStoragePort(): StoragePort {
   const driver = process.env.MEDIA_STORAGE_DRIVER ?? "local";
 
   switch (driver) {
     case "vercel-blob":
       return new VercelBlobAdapter();
+    case "filesystem":
+      return new FilesystemStorageAdapter();
     case "local":
       return new InMemoryStorageAdapter();
     default:

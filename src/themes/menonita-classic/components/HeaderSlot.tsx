@@ -16,7 +16,7 @@ import { HeaderScrollSentinel } from "./HeaderScrollSentinel";
 // admin/settings/brand/_components/brand-settings-form.tsx, dois painéis lado a lado sem
 // scroll real nenhum) — o valor passado aqui é só o baseline SSR; dentro do header de verdade ele
 // é sempre sobrescrito pelas classes group-data (ver comentário em PlatformBrand.tsx).
-export function HeaderSlot({ brand, userbarEnabled, headerNavItems, user, canAccessAdmin, onSignOut }: HeaderSlotProps) {
+export function HeaderSlot({ brand, userbarEnabled, headerNavItems, user, canAccessAdmin, onSignOut, userNavItems }: HeaderSlotProps) {
   return (
     <>
       <HeaderScrollSentinel />
@@ -59,7 +59,7 @@ export function HeaderSlot({ brand, userbarEnabled, headerNavItems, user, canAcc
 
         {userbarEnabled ? (
           user ? (
-            <UserMenu user={user} canAccessAdmin={canAccessAdmin} onSignOut={onSignOut} />
+            <UserMenu user={user} canAccessAdmin={canAccessAdmin} onSignOut={onSignOut} userNavItems={userNavItems} />
           ) : (
             <Link
               href="/login"

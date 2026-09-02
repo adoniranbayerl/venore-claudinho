@@ -32,19 +32,9 @@ export const academyManifest: PluginManifest = {
       order: 10,
       requiredPermission: "academy.courses.manage",
     },
-    // Página dedicada de mensagens (pedido desta sessão: "talvez seja bom ter uma página
-    // específica com todas as mensagens") — mesma permissão do item acima, só uma rota diferente.
-    {
-      key: "academy.messages",
-      label: "Mensagens",
-      href: "/admin/academy/messages",
-      icon: "message-circle",
-      groupKey: "plugins",
-      groupLabel: "Plugins",
-      groupOrder: 30,
-      order: 11,
-      requiredPermission: "academy.courses.manage",
-    },
+    // "Mensagens" NÃO fica no admin-nav (grupo Plugins) — é um destino pessoal, não uma função
+    // administrativa. Vai pro user-nav (menu do usuário) via platform/user-nav/registry.ts, com o
+    // href resolvido por papel (professor → /admin/academy/messages, aluno → /academy/messages).
   ],
   seeds: [
     { key: "example", label: "Dados de exemplo", description: "Um curso de exemplo com três aulas." },
