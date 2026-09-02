@@ -288,10 +288,8 @@ function VideoProgressFill({
 }) {
   const [percent, setPercent] = useState(0);
 
-  // Poll (não um listener de "timeupdate" preso ao elemento no mount) — o <video> agora só monta
-  // DEPOIS que o Blob termina de baixar (ver VideoSlide), então um listener registrado no mount
-  // pegava videoRef.current === null e nunca reassinava. O poll lê o ref fresco a cada tick, igual
-  // TimedProgressFill.
+  // Poll do ref (não um listener de "timeupdate" preso ao elemento) — robusto a engine de TV que
+  // estrangula/atrasa "timeupdate", e lê o ref fresco a cada tick. Mesmo padrão de TimedProgressFill.
   useEffect(() => {
     const interval = setInterval(() => {
       const el = videoRef.current;
@@ -424,39 +422,14 @@ function VideoSlide({
     onStuckRef.current = onStuck;
   });
 
-  const directUrl = `/api/broadcast/stream/${itemId}`;
-  // Baixa o vídeo INTEIRO pra um Blob e toca a partir dele (createObjectURL), em vez de deixar o
-  // <video> puxar por Range request do servidor local durante a reprodução. Motivo: o arquivo
-  // grande/alto-bitrate travava — qualquer engasgo do processo Node (GC, query, flush de log) ou
-  // uma conexão Range derrubada e não re-pedida congelava o buffer, e bitrate alto é o primeiro a
-  // sentir. Baixado uma vez, a reprodução é 100% local, imune a isso. Fallback pro streaming
-  // direto se o fetch falhar. Custo: o arquivo inteiro na memória do renderer enquanto toca
-  // (revogado ao trocar de item). Pra item "media-asset" o fetch segue o 302 e baixa do Blob
-  // storage — mesmos bytes que o <video> puxaria, só materializados de uma vez.
-  // playUrl começa null e o componente REMONTA a cada troca de item (key={current.key} no
-  // chamador), então não precisa (nem pode — react-hooks/set-state-in-effect) zerar no corpo do
-  // efeito: cada slide de vídeo nasce com playUrl=null e baixa o seu.
-  const [playUrl, setPlayUrl] = useState<string | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    let objectUrl: string | null = null;
-    fetch(directUrl, { signal: controller.signal, cache: "no-store" })
-      .then((res) => {
-        if (!res.ok) throw new Error(`stream ${res.status}`);
-        return res.blob();
-      })
-      .then((blob) => {
-        objectUrl = URL.createObjectURL(blob);
-        setPlayUrl(objectUrl);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setPlayUrl(directUrl);
-      });
-    return () => {
-      controller.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [directUrl]);
+  // O <video> toca em STREAMING direto da rota do plugin (public/broadcast/videos servido com
+  // Range). Uma tentativa de baixar o arquivo inteiro pra um Blob antes de tocar foi descartada —
+  // resolvia parte do travamento mas trazia ~2s de espera + placeholder a cada vídeo. Se o
+  // travamento for engasgo do servidor ao servir o stream, a correção é do lado do servidor
+  // (instrumentar a rota, ver docs/broadcast-plano-correcoes.md Fase 13); se for o decoder da TV
+  // não segurar o bitrate, é re-encode do arquivo. O watchdog abaixo garante que, trave por qual
+  // motivo for, o canal não fica preso.
+  const streamUrl = `/api/broadcast/stream/${itemId}`;
 
   // Fundo borrado do letterbox: em vez de um 2º <video> tocando o MESMO arquivo (dois decodes de
   // hardware — numa TV com poucos decoders travava o vídeo da frente), amostra o frame ATUAL do
@@ -570,40 +543,29 @@ function VideoSlide({
           style={{ filter: "blur(24px) brightness(0.6)", animation: "broadcast-blur-drift 24s ease-in-out infinite alternate" }}
         />
       )}
-      {playUrl ? (
-        <video
-          ref={videoRef}
-          className={`relative h-full w-full ${objectFitClassName}`}
-          src={playUrl}
-          autoPlay
-          // Item marcado "Tocar áudio na TV" (with_audio) sai sem mute; senão, muted (exigência de
-          // autoplay do navegador). Se o navegador recusar o autoplay com som, volta pra reprodução
-          // muda — nunca deixa a playlist travada num vídeo que não começou.
-          muted={!withAudio}
-          playsInline
-          onLoadedData={(event) => {
-            drawBlurFrame();
-            if (withAudio) {
-              const el = event.currentTarget;
-              el.play().catch(() => {
-                el.muted = true;
-                void el.play();
-              });
-            }
-          }}
-          onError={() => onStuckRef.current()}
-          onEnded={onEnded}
-        />
-      ) : (
-        // Baixando o vídeo pro Blob (ver o useEffect acima) — normalmente <1-2s numa LAN. Discreto
-        // de propósito: um vídeo de sinalização começando 1-2s depois é muito melhor que congelar
-        // no meio. Fundo transparente -> aparece a cor de marca do VideoZoneLayer / o preto do canvas.
-        <div className="relative flex h-full w-full items-center justify-center">
-          <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
-            Carregando vídeo…
-          </span>
-        </div>
-      )}
+      <video
+        ref={videoRef}
+        className={`relative h-full w-full ${objectFitClassName}`}
+        src={streamUrl}
+        autoPlay
+        // Item marcado "Tocar áudio na TV" (with_audio) sai sem mute; senão, muted (exigência de
+        // autoplay do navegador). Se o navegador recusar o autoplay com som, volta pra reprodução
+        // muda — nunca deixa a playlist travada num vídeo que não começou.
+        muted={!withAudio}
+        playsInline
+        onLoadedData={(event) => {
+          drawBlurFrame();
+          if (withAudio) {
+            const el = event.currentTarget;
+            el.play().catch(() => {
+              el.muted = true;
+              void el.play();
+            });
+          }
+        }}
+        onError={() => onStuckRef.current()}
+        onEnded={onEnded}
+      />
     </>
   );
 }
