@@ -288,14 +288,16 @@ function VideoProgressFill({
 }) {
   const [percent, setPercent] = useState(0);
 
+  // Poll (não um listener de "timeupdate" preso ao elemento no mount) — o <video> agora só monta
+  // DEPOIS que o Blob termina de baixar (ver VideoSlide), então um listener registrado no mount
+  // pegava videoRef.current === null e nunca reassinava. O poll lê o ref fresco a cada tick, igual
+  // TimedProgressFill.
   useEffect(() => {
-    const element = videoRef.current;
-    if (!element) return;
-    const update = () => {
-      if (element.duration > 0) setPercent(Math.min(100, (element.currentTime / element.duration) * 100));
-    };
-    element.addEventListener("timeupdate", update);
-    return () => element.removeEventListener("timeupdate", update);
+    const interval = setInterval(() => {
+      const el = videoRef.current;
+      if (el && el.duration > 0) setPercent(Math.min(100, (el.currentTime / el.duration) * 100));
+    }, 250);
+    return () => clearInterval(interval);
   }, [videoRef]);
 
   return <ProgressOverlay percent={percent} bottomOffsetPx={bottomOffsetPx} />;
@@ -375,14 +377,18 @@ function WebpageSlide({ url, withAudio, onFailure }: { url: string; withAudio: b
   );
 }
 
-// Intervalo do watchdog de travamento do <video> da playlist. Um <video> pode congelar sem nunca
-// disparar onEnded (contenção de decoder de hardware na TV — o canal roda DOIS decodes do mesmo
-// arquivo quando a coluna de agenda está aberta, ver blurredFill; blip na rede do stream Range;
-// erro de GPU). Quando isso acontecia, a playlist ficava presa pra sempre — só voltava alternando
-// a saída offline/online (achado real relatado numa TV). O watchdog abaixo mede se o currentTime
-// avança; parado por ~1 tick tenta play(), por ~2 tenta load()+play(), por ~3 (12s sem nenhum
-// progresso = vídeo morto) pula pro próximo item pra o canal nunca ficar congelado.
-const VIDEO_STALL_CHECK_MS = 4000;
+// Watchdog de travamento do <video> da playlist. Um <video> congela sem nunca disparar onEnded —
+// buffer preso (engasgo do servidor local, conexão Range derrubada) OU imagem congelada com o
+// relógio ainda andando (decoder da iGPU não sustenta o bitrate e dropa frames em massa). Quando
+// isso acontecia a playlist ficava presa pra sempre — só voltava alternando offline/online
+// (achado real numa TV, pior no arquivo maior/alto-bitrate). O watchdog checa a cada tick: relógio
+// andou E não está dropando frame em massa E tem frame utilizável. Não -> tenta play(); de novo ->
+// nudge de seek; 3ª vez (9s) -> pula pro próximo item.
+const VIDEO_STALL_CHECK_MS = 3000;
+// Frames dropados NUMA janela de tick (~3s a 24fps ≈ 72 frames) que já conta como "imagem
+// travando", e a razão acumulada dropados/total que conta como "vídeo sofrendo o tempo todo".
+const VIDEO_DROPPED_PER_TICK_LIMIT = 20;
+const VIDEO_DROPPED_RATIO_LIMIT = 0.4;
 
 // Fundo borrado do letterbox (drawer aberto): amostra o frame atual do <video> da frente num
 // <canvas> pequeno a cada BLUR_SAMPLE_MS (~10fps, movimento real, um decoder só). Alvo estreito
@@ -417,6 +423,40 @@ function VideoSlide({
   useEffect(() => {
     onStuckRef.current = onStuck;
   });
+
+  const directUrl = `/api/broadcast/stream/${itemId}`;
+  // Baixa o vídeo INTEIRO pra um Blob e toca a partir dele (createObjectURL), em vez de deixar o
+  // <video> puxar por Range request do servidor local durante a reprodução. Motivo: o arquivo
+  // grande/alto-bitrate travava — qualquer engasgo do processo Node (GC, query, flush de log) ou
+  // uma conexão Range derrubada e não re-pedida congelava o buffer, e bitrate alto é o primeiro a
+  // sentir. Baixado uma vez, a reprodução é 100% local, imune a isso. Fallback pro streaming
+  // direto se o fetch falhar. Custo: o arquivo inteiro na memória do renderer enquanto toca
+  // (revogado ao trocar de item). Pra item "media-asset" o fetch segue o 302 e baixa do Blob
+  // storage — mesmos bytes que o <video> puxaria, só materializados de uma vez.
+  // playUrl começa null e o componente REMONTA a cada troca de item (key={current.key} no
+  // chamador), então não precisa (nem pode — react-hooks/set-state-in-effect) zerar no corpo do
+  // efeito: cada slide de vídeo nasce com playUrl=null e baixa o seu.
+  const [playUrl, setPlayUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+    fetch(directUrl, { signal: controller.signal, cache: "no-store" })
+      .then((res) => {
+        if (!res.ok) throw new Error(`stream ${res.status}`);
+        return res.blob();
+      })
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        setPlayUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setPlayUrl(directUrl);
+      });
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [directUrl]);
 
   // Fundo borrado do letterbox: em vez de um 2º <video> tocando o MESMO arquivo (dois decodes de
   // hardware — numa TV com poucos decoders travava o vídeo da frente), amostra o frame ATUAL do
@@ -464,6 +504,7 @@ function VideoSlide({
 
   useEffect(() => {
     let lastTime = -1;
+    let lastDropped = 0;
     let strikes = 0;
     const id = setInterval(() => {
       const v = videoRef.current;
@@ -472,18 +513,37 @@ function VideoSlide({
         lastTime = v?.currentTime ?? -1;
         return;
       }
-      const progressed = v.currentTime > lastTime + 0.05;
+
+      const clockMoved = v.currentTime > lastTime + 0.05;
       lastTime = v.currentTime;
-      if (progressed) {
+
+      // Imagem congelada com o relógio andando: getVideoPlaybackQuality (nem toda engine tem)
+      // mostra os frames dropados. Muitos numa janela de tick, ou razão acumulada alta = decoder
+      // não dá conta do bitrate.
+      let framesDying = false;
+      const quality = typeof v.getVideoPlaybackQuality === "function" ? v.getVideoPlaybackQuality() : null;
+      if (quality) {
+        const droppedThisTick = quality.droppedVideoFrames - lastDropped;
+        lastDropped = quality.droppedVideoFrames;
+        const droppedRatio = quality.totalVideoFrames > 0 ? quality.droppedVideoFrames / quality.totalVideoFrames : 0;
+        framesDying = droppedThisTick > VIDEO_DROPPED_PER_TICK_LIMIT || droppedRatio > VIDEO_DROPPED_RATIO_LIMIT;
+      }
+
+      const healthy = clockMoved && !framesDying && v.readyState >= 2;
+      if (healthy) {
         strikes = 0;
         return;
       }
+
       strikes += 1;
       if (strikes === 1) {
         void v.play().catch(() => {});
       } else if (strikes === 2) {
+        // Nudge de seek — destrava um pipeline preso sem reiniciar o vídeo do zero (o load() de
+        // antes recomeçava um vídeo de 2min lá do começo). Não ajuda o caso "decoder não sustenta
+        // o bitrate", mas nesse caso o 3º strike já pula.
         try {
-          v.load();
+          v.currentTime = v.currentTime + 0.1;
           void v.play().catch(() => {});
         } catch {
           // ignora — o próximo strike pula o item
@@ -510,29 +570,40 @@ function VideoSlide({
           style={{ filter: "blur(24px) brightness(0.6)", animation: "broadcast-blur-drift 24s ease-in-out infinite alternate" }}
         />
       )}
-      <video
-        ref={videoRef}
-        className={`relative h-full w-full ${objectFitClassName}`}
-        src={`/api/broadcast/stream/${itemId}`}
-        autoPlay
-        // Item marcado "Tocar áudio na TV" (with_audio) sai sem mute; senão, muted (exigência de
-        // autoplay do navegador). Se o navegador recusar o autoplay com som, volta pra reprodução
-        // muda — nunca deixa a playlist travada num vídeo que não começou.
-        muted={!withAudio}
-        playsInline
-        onLoadedData={(event) => {
-          drawBlurFrame();
-          if (withAudio) {
-            const el = event.currentTarget;
-            el.play().catch(() => {
-              el.muted = true;
-              void el.play();
-            });
-          }
-        }}
-        onError={() => onStuckRef.current()}
-        onEnded={onEnded}
-      />
+      {playUrl ? (
+        <video
+          ref={videoRef}
+          className={`relative h-full w-full ${objectFitClassName}`}
+          src={playUrl}
+          autoPlay
+          // Item marcado "Tocar áudio na TV" (with_audio) sai sem mute; senão, muted (exigência de
+          // autoplay do navegador). Se o navegador recusar o autoplay com som, volta pra reprodução
+          // muda — nunca deixa a playlist travada num vídeo que não começou.
+          muted={!withAudio}
+          playsInline
+          onLoadedData={(event) => {
+            drawBlurFrame();
+            if (withAudio) {
+              const el = event.currentTarget;
+              el.play().catch(() => {
+                el.muted = true;
+                void el.play();
+              });
+            }
+          }}
+          onError={() => onStuckRef.current()}
+          onEnded={onEnded}
+        />
+      ) : (
+        // Baixando o vídeo pro Blob (ver o useEffect acima) — normalmente <1-2s numa LAN. Discreto
+        // de propósito: um vídeo de sinalização começando 1-2s depois é muito melhor que congelar
+        // no meio. Fundo transparente -> aparece a cor de marca do VideoZoneLayer / o preto do canvas.
+        <div className="relative flex h-full w-full items-center justify-center">
+          <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
+            Carregando vídeo…
+          </span>
+        </div>
+      )}
     </>
   );
 }
