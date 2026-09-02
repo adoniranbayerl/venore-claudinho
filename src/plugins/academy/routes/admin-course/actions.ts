@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { findUserByEmail } from "@/contexts/auth";
 import {
   createLesson,
+  deleteCourse,
   enrollStudent,
   listActivitySubmissionMediaForCourse,
   publishCourse,
@@ -74,6 +75,24 @@ export async function setCourseStatusAction(_prevState: CourseActionState, formD
   revalidatePath(`/admin/academy/courses/${id}`);
   revalidatePath("/academy");
   revalidatePath(`/academy/${result.data.slug}`);
+  return { error: null };
+}
+
+// Remove o curso inteiro (aulas, matrículas, progresso, entries de texto). Destrutivo — a UI passa
+// por um AlertDialog de confirmação (DeleteCourseButton). Sem revalidatePath da própria página do
+// curso: ela deixa de existir, o cliente redireciona pra /admin/academy.
+export async function deleteCourseAction(_prevState: CourseActionState, formData: FormData): Promise<CourseActionState> {
+  if (!(await isPluginActive("academy"))) {
+    return { error: PLUGIN_DISABLED_ERROR };
+  }
+
+  const result = await deleteCourse({ id: String(formData.get("courseId") ?? "") });
+  if (!result.success) {
+    return { error: result.error.message };
+  }
+
+  revalidatePath("/admin/academy");
+  revalidatePath("/academy");
   return { error: null };
 }
 

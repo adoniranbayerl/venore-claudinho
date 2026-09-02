@@ -3,6 +3,7 @@ export { listCoursesHandler as listCourses } from "./features/courses/list-cours
 export { getCourseHandler as getCourse } from "./features/courses/get-course/handler";
 export { publishCourseHandler as publishCourse } from "./features/courses/publish-course/handler";
 export { unpublishCourseHandler as unpublishCourse } from "./features/courses/unpublish-course/handler";
+export { deleteCourseHandler as deleteCourse } from "./features/courses/delete-course/handler";
 export {
   updateCourseSettingsHandler as updateCourseSettings,
 } from "./features/courses/update-course-settings/handler";
@@ -251,6 +252,7 @@ export type {
   PublishCourseTargetStatus,
 } from "./features/courses/publish-course/types";
 export type { UnpublishCourseInput, UnpublishCourseResult } from "./features/courses/unpublish-course/types";
+export type { DeleteCourseInput, DeleteCourseResult } from "./features/courses/delete-course/types";
 export type {
   UpdateCourseSettingsInput,
   UpdateCourseSettingsResult,

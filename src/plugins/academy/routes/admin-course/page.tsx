@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { ClearActivityMediaButton } from "./_components/clear-activity-media-button";
 import { CourseSettingsForm } from "./_components/course-settings-form";
+import { DeleteCourseButton } from "./_components/delete-course-button";
 import { CourseStatusForm } from "./_components/course-status-form";
 import { CreateLessonDialog } from "./_components/create-lesson-dialog";
 import { EnrollStudentForm } from "./_components/enroll-student-form";
@@ -207,6 +208,24 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
               : `${activityMediaCount} arquivo(s) enviados pelos alunos nas atividades práticas desta disciplina. Ao encerrar a turma, use o botão abaixo para liberar espaço — a nota e o feedback de cada entrega continuam preservados.`}
           </p>
           <ClearActivityMediaButton courseId={course.id} mediaCount={activityMediaCount} />
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-sm text-destructive">Zona de perigo</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Remover o curso apaga todas as aulas, matrículas e o progresso dos alunos. Use para recomeçar do zero —
+            por exemplo, reimportar um pacote corrigido.
+          </p>
+          <DeleteCourseButton
+            courseId={course.id}
+            courseTitle={course.title}
+            lessonCount={lessons.length}
+            enrollmentCount={enrollments.length}
+          />
         </CardContent>
       </Card>
     </div>
