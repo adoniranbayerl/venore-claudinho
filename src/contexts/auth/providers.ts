@@ -38,6 +38,15 @@ function isDevelopmentCredentialsEnabled(): boolean {
   return process.env.NODE_ENV !== "production" && readEnvValue("AUTH_ENABLE_DEV_CREDENTIALS") === "true";
 }
 
+function isCredentialsDisabled(): boolean {
+  // Opt-out: o login por senha/usuário (provider Credentials) fica LIGADO por padrão — é o
+  // comportamento de sempre, e setOwnPassword/adminSetUserPassword dependem dele. Com
+  // AUTH_DISABLE_CREDENTIALS="true" (exato, mesmo critério do flag de dev) o provider não é
+  // registrado e o formulário de senha some da página de login. Só desative quando houver OAuth
+  // configurado — senão ninguém consegue entrar.
+  return readEnvValue("AUTH_DISABLE_CREDENTIALS") === "true";
+}
+
 function readGithubCredentials(): { clientId: string; clientSecret: string } | null {
   if (!hasRequiredProviderEnvAliases([["GITHUB_ID", "AUTH_GITHUB_ID"], ["GITHUB_SECRET", "AUTH_GITHUB_SECRET"]])) {
     return null;
@@ -93,6 +102,10 @@ export function buildAuthProviders() {
     );
   }
 
+  if (isCredentialsDisabled()) {
+    return providers;
+  }
+
   providers.push(
     Credentials({
       name: "Senha",
@@ -145,13 +158,14 @@ export function listAvailableAuthProviders(): AuthProviderDescriptor[] {
       enabled: readMicrosoftCredentials() !== null,
       iconUrl: "/providers/microsoft.svg",
     },
-    { key: "credentials", label: "Senha", kind: "password", enabled: true },
+    { key: "credentials", label: "Senha", kind: "password", enabled: !isCredentialsDisabled() },
   ];
 }
 
 export {
   hasRequiredProviderEnv,
   hasRequiredProviderEnvAliases,
+  isCredentialsDisabled,
   isDevelopmentCredentialsEnabled,
   readEnvValue,
   readFirstEnvValue,

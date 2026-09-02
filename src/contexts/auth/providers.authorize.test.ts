@@ -38,6 +38,7 @@ describe("credentials provider authorize", () => {
     findUserByEmailHandler.mockReset();
     verifyPasswordHash.mockReset();
     delete process.env.AUTH_ENABLE_DEV_CREDENTIALS;
+    delete process.env.AUTH_DISABLE_CREDENTIALS;
   });
 
   it("returns null when username or password is missing", async () => {

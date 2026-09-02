@@ -17,6 +17,7 @@ const ENV_KEYS = [
   "AUTH_LOGIN_USERNAME",
   "AUTH_LOGIN_PASSWORD",
   "AUTH_ENABLE_DEV_CREDENTIALS",
+  "AUTH_DISABLE_CREDENTIALS",
 ];
 
 function clearAuthEnv() {
@@ -104,6 +105,21 @@ describe("providers env helpers", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it("isCredentialsDisabled requires the exact flag value \"true\"", async () => {
+    const { isCredentialsDisabled } = await import("./providers");
+
+    expect(isCredentialsDisabled()).toBe(false);
+
+    process.env.AUTH_DISABLE_CREDENTIALS = "1";
+    expect(isCredentialsDisabled()).toBe(false);
+
+    process.env.AUTH_DISABLE_CREDENTIALS = "yes";
+    expect(isCredentialsDisabled()).toBe(false);
+
+    process.env.AUTH_DISABLE_CREDENTIALS = '"true"';
+    expect(isCredentialsDisabled()).toBe(true);
+  });
 });
 
 describe("buildAuthProviders", () => {
@@ -181,6 +197,29 @@ describe("buildAuthProviders", () => {
     const { buildAuthProviders } = await import("./providers");
     expect(buildAuthProviders().map((provider) => provider.id)).toEqual(["credentials"]);
   });
+
+  it("omits the credentials provider when AUTH_DISABLE_CREDENTIALS is \"true\"", async () => {
+    process.env.AUTH_DISABLE_CREDENTIALS = "true";
+
+    const { buildAuthProviders } = await import("./providers");
+    expect(buildAuthProviders()).toEqual([]);
+  });
+
+  it("keeps OAuth providers but drops credentials when disabled", async () => {
+    process.env.GOOGLE_ID = "id";
+    process.env.GOOGLE_SECRET = "secret";
+    process.env.AUTH_DISABLE_CREDENTIALS = "true";
+
+    const { buildAuthProviders } = await import("./providers");
+    expect(buildAuthProviders().map((provider) => provider.id)).toEqual(["google"]);
+  });
+
+  it("still includes credentials when AUTH_DISABLE_CREDENTIALS is not exactly \"true\"", async () => {
+    process.env.AUTH_DISABLE_CREDENTIALS = "1";
+
+    const { buildAuthProviders } = await import("./providers");
+    expect(buildAuthProviders().map((provider) => provider.id)).toEqual(["credentials"]);
+  });
 });
 
 describe("listAvailableAuthProviders", () => {
@@ -223,5 +262,12 @@ describe("listAvailableAuthProviders", () => {
     expect(descriptors.find((d) => d.key === "google")?.enabled).toBe(false);
     expect(descriptors.find((d) => d.key === "microsoft-entra-id")?.enabled).toBe(false);
     expect(descriptors.find((d) => d.key === "credentials")?.enabled).toBe(true);
+  });
+
+  it("marks credentials as disabled when AUTH_DISABLE_CREDENTIALS is \"true\"", async () => {
+    process.env.AUTH_DISABLE_CREDENTIALS = "true";
+
+    const { listAvailableAuthProviders } = await import("./providers");
+    expect(listAvailableAuthProviders().find((d) => d.key === "credentials")?.enabled).toBe(false);
   });
 });
