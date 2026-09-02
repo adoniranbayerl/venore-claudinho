@@ -16,6 +16,7 @@ import { getAcademyStudentPageData } from "@/platform/academy-student/get-academ
 import { DonationTeaser, getDonationSettings } from "@/plugins/donations";
 import { isPluginActive } from "@/platform/plugin-engine/is-plugin-active";
 import { EmptyState } from "@/components/empty-state";
+import { PushToggle } from "@/components/pwa/push-toggle";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -88,6 +89,10 @@ async function Dashboard({ courses }: { courses: CourseForStudentView[] }) {
           <ArrowRight className="ml-auto size-4 shrink-0" aria-hidden="true" />
         </Link>
       )}
+
+      {/* Opt-in de notificações push (PWA) — só renderiza algo em navegador com suporte e some se
+          o usuário já ativou ou o navegador não suporta. */}
+      <PushToggle />
 
       {/* Ofensiva de prática (pedido desta sessão: "gamificação cria engajamento, ofensiva/streak
           também"). Só aparece com sequência viva (>= 1 dia) — nada de nagar aluno novo. Regra

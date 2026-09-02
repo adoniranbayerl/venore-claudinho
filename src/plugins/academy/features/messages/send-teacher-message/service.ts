@@ -1,4 +1,5 @@
 import { beginOperation, endOperation } from "@/observability";
+import { sendPushToActor } from "@/contexts/web-push";
 import { isEnrolled } from "../../../shared/enrollment";
 import { findLessonById, findOrCreateThread, insertMessage, isValidStepKey } from "./store";
 import type { SendTeacherMessageCommand, SendTeacherMessageResult } from "./types";
@@ -42,6 +43,15 @@ export async function sendTeacherMessage(command: SendTeacherMessageCommand): Pr
     type: command.type ?? "correction",
   });
   const message = await insertMessage({ threadId: thread.id, senderRole: "teacher", senderActorId: command.actorId, body: command.body });
+
+  // Aviso push pro aluno (contexts/web-push). Fire-and-forget — nunca falha o envio da mensagem
+  // nem espera pelo resultado. Sem chaves VAPID no ambiente, é no-op.
+  void sendPushToActor(command.studentActorId, {
+    title: "Nova mensagem do professor",
+    body: command.body.length > 120 ? `${command.body.slice(0, 117)}…` : command.body,
+    url: "/academy/messages",
+    tag: `academy-thread-${thread.id}`,
+  }).catch(() => undefined);
 
   endOperation(handle, { success: true });
   return { success: true, data: { threadId: thread.id, message } };
